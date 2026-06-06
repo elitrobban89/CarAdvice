@@ -1,0 +1,118 @@
+<style>
+#proj-section {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #fdf0ed;
+  border-radius: 24px;
+  padding: 56px 40px;
+  margin: 48px 0;
+}
+
+#proj-section h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0b0620;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+#proj-section p.proj-sub {
+  text-align: center;
+  color: #555;
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+}
+
+.proj-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+@media (max-width: 580px) {
+  .proj-grid { grid-template-columns: 1fr; }
+  #proj-section { padding: 36px 20px; }
+}
+
+.proj-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 36px 32px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  color: inherit;
+}
+
+.proj-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.11);
+  text-decoration: none;
+}
+
+.proj-icon {
+  font-size: 2.2rem;
+  margin-bottom: 18px;
+}
+
+.proj-card h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0b0620;
+  margin-bottom: 10px;
+  line-height: 1.3;
+}
+
+.proj-card p {
+  font-size: 0.88rem;
+  color: #666;
+  line-height: 1.65;
+  flex: 1;
+  margin-bottom: 24px;
+}
+
+.proj-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0b5e4a;
+  text-decoration: none;
+}
+
+.proj-link::after {
+  content: '→';
+  transition: transform 0.2s;
+}
+
+.proj-card:hover .proj-link::after {
+  transform: translateX(4px);
+}
+</style>
+
+<div id="proj-section">
+  <h2>Fler verktyg för dig</h2>
+  <p class="proj-sub">Utforska fler smarta verktyg för din bilresa</p>
+
+  <div class="proj-grid">
+
+    <a class="proj-card" href="https://elitrobban.se/branslekostnad-berakning/">
+      <div class="proj-icon">⛽</div>
+      <h3>Bränslekostnad Beräkning</h3>
+      <p>Beräkna exakt vad din bilresa kostar i bränsle. Ange avstånd, förbrukning och bränslepris – få svaret direkt med stöd för bensin, diesel och el.</p>
+      <span class="proj-link">Beräkna nu</span>
+    </a>
+
+    <a class="proj-card" href="https://elitrobban.se/bilradgivning/">
+      <div class="proj-icon">🚗</div>
+      <h3>AI Bilrådgivning</h3>
+      <p>Osäker på vilken bil som passar dig? Vår AI analyserar din budget, körstil och behov – och ger dig tre skräddarsydda bilrekommendationer på sekunder.</p>
+      <span class="proj-link">Hitta din bil</span>
+    </a>
+
+  </div>
+</div>
