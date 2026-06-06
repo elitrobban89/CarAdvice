@@ -38,4 +38,24 @@ public class CarController {
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of("status", "OK"));
     }
+
+    @GetMapping("/recommend/test")
+    public ResponseEntity<?> recommendTest() {
+        try {
+            CarPreferences testPrefs = new CarPreferences(300000, "familjebil", true, 15000, "familj", 4, false);
+            String recommendation = groqService.getRecommendation(testPrefs);
+            boolean groqOk = recommendation != null && recommendation.toLowerCase().contains("rekommendation");
+            return ResponseEntity.ok(Map.of(
+                    "status", "OK",
+                    "groq", groqOk ? "OK" : "WARN",
+                    "rekommendation", groqOk
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "status", "ERROR",
+                    "groq", "FAIL",
+                    "error", e.getMessage()
+            ));
+        }
+    }
 }
