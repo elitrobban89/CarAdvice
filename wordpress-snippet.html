@@ -23,7 +23,7 @@
   margin-bottom: 6px;
 }
 
-#ca-hero p {
+#ca-hero p.ca-sub {
   font-size: 1rem;
   color: rgba(255,255,255,0.6);
   margin-bottom: 36px;
@@ -50,6 +50,7 @@
   text-transform: uppercase;
   color: rgba(255,255,255,0.5);
   margin-bottom: 8px;
+  transition: color 0.2s;
 }
 
 .ca-field select,
@@ -62,26 +63,51 @@
   font-size: 0.95rem;
   padding: 13px 16px;
   outline: none;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
   appearance: none;
   -webkit-appearance: none;
 }
 
-.ca-field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.ca-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
 
 .ca-field select option { background: #302b63; color: #fff; }
 
 .ca-field select:focus,
 .ca-field input:focus {
-  border-color: rgba(139,92,246,0.8);
-  background: rgba(255,255,255,0.11);
+  border-color: rgba(139,92,246,0.9);
+  background: rgba(255,255,255,0.13);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 20px rgba(139,92,246,0.15);
 }
+
+.ca-field:focus-within label {
+  color: rgba(167,139,250,0.95);
+}
+
+/* Changed field highlight */
+.ca-field.changed select,
+.ca-field.changed input {
+  border-color: rgba(251,191,36,0.7);
+  box-shadow: 0 0 0 3px rgba(251,191,36,0.12);
+}
+.ca-field.changed label { color: rgba(251,191,36,0.9); }
 
 #ca-budget-row { display: none; }
 
-#ca-btn {
-  width: 100%;
+/* Button area */
+#ca-btn-area {
   margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+#ca-btn {
+  flex: 1;
   padding: 16px;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
   border: none;
@@ -89,126 +115,123 @@
   color: #fff;
   font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: 0.3px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   box-shadow: 0 6px 24px rgba(99,102,241,0.45);
 }
-
 #ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.55); }
 #ca-btn:active { transform: translateY(0); }
 #ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Update badge on button */
+#ca-btn.has-changes {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 6px 24px rgba(245,158,11,0.45);
+  animation: ca-pulse 1.5s ease-in-out infinite;
+}
+@keyframes ca-pulse {
+  0%, 100% { box-shadow: 0 6px 24px rgba(245,158,11,0.45); }
+  50% { box-shadow: 0 6px 32px rgba(245,158,11,0.7); }
+}
 
 /* Loading */
 #ca-loader {
   display: none;
   text-align: center;
-  padding: 48px 0;
+  padding: 40px 0 20px;
 }
-
 .ca-spinner {
-  width: 48px; height: 48px;
+  width: 44px; height: 44px;
   border: 3px solid rgba(139,92,246,0.2);
   border-top-color: #8b5cf6;
   border-radius: 50%;
   animation: ca-spin 0.8s linear infinite;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
 }
-
 @keyframes ca-spin { to { transform: rotate(360deg); } }
+#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.88rem; }
 
-#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+/* Divider */
+#ca-divider {
+  display: none;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 32px 0;
+}
 
 /* Results */
-#ca-results {
-  display: none;
-  margin-top: 32px;
-}
+#ca-results { display: none; }
 
-.ca-result-header {
-  font-size: 0.8rem;
+.ca-result-label {
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 20px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 18px;
 }
 
 .ca-card {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 18px;
-  padding: 28px;
-  margin-bottom: 16px;
-  animation: ca-fadein 0.4s ease both;
-  transition: background 0.2s;
+  padding: 26px;
+  margin-bottom: 14px;
+  transition: background 0.2s, opacity 0.3s, transform 0.3s;
 }
-
 .ca-card:hover { background: rgba(255,255,255,0.08); }
+
+/* Fade out old results before replacing */
+#ca-cards.fading .ca-card {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 
 @keyframes ca-fadein {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-.ca-card:nth-child(2) { animation-delay: 0.1s; }
-.ca-card:nth-child(3) { animation-delay: 0.2s; }
+.ca-card { animation: ca-fadein 0.4s ease both; }
+.ca-card:nth-child(2) { animation-delay: 0.08s; }
+.ca-card:nth-child(3) { animation-delay: 0.16s; }
 
 .ca-card-num {
   display: inline-block;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 20px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
-
 .ca-card h3 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   line-height: 1.3;
 }
-
 .ca-card-body {
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.72);
-  line-height: 1.7;
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.75;
   white-space: pre-wrap;
 }
-
-.ca-card-body strong { color: #fff; font-weight: 600; }
-
 .ca-raw {
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.72);
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.7);
   line-height: 1.8;
   white-space: pre-wrap;
 }
-
-#ca-reset {
-  margin-top: 20px;
-  background: none;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 10px;
-  color: rgba(255,255,255,0.5);
-  padding: 10px 20px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-#ca-reset:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
 </style>
 
 <div id="ca-wrap">
   <div id="ca-hero">
     <h2>🚗 Hitta din drömbil</h2>
-    <p>Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
+    <p class="ca-sub">Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
 
     <div class="ca-grid">
       <div class="ca-field">
@@ -282,41 +305,80 @@
       <div></div>
     </div>
 
-    <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+    <div id="ca-btn-area">
+      <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+    </div>
 
     <div id="ca-loader">
       <div class="ca-spinner"></div>
       <p>AI:n analyserar dina behov…</p>
     </div>
 
+    <div id="ca-divider"></div>
+
     <div id="ca-results">
-      <p class="ca-result-header">Dina rekommendationer</p>
+      <p class="ca-result-label">Dina rekommendationer</p>
       <div id="ca-cards"></div>
-      <button id="ca-reset" onclick="caReset()">← Sök igen</button>
     </div>
   </div>
 </div>
 
 <script>
+var caHasSearched = false;
+var caInitialValues = {};
+
+function caSnapshotValues() {
+  caInitialValues = {
+    category:   document.getElementById('ca-category').value,
+    pricerange: document.getElementById('ca-pricerange').value,
+    budget:     document.getElementById('ca-budget').value,
+    charger:    document.getElementById('ca-charger').value,
+    km:         document.getElementById('ca-km').value,
+    usage:      document.getElementById('ca-usage').value,
+    passengers: document.getElementById('ca-passengers').value,
+    newcar:     document.getElementById('ca-newcar').value
+  };
+}
+
+function caCheckChanges() {
+  if (!caHasSearched) return;
+  var ids = ['ca-category','ca-pricerange','ca-budget','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  var keys = ['category','pricerange','budget','charger','km','usage','passengers','newcar'];
+  var anyChanged = false;
+  ids.forEach(function(id, i) {
+    var el = document.getElementById(id);
+    var field = el.closest('.ca-field');
+    if (!field) return;
+    var changed = el.value !== caInitialValues[keys[i]];
+    field.classList.toggle('changed', changed);
+    if (changed) anyChanged = true;
+  });
+  var btn = document.getElementById('ca-btn');
+  btn.classList.toggle('has-changes', anyChanged);
+  btn.textContent = anyChanged ? 'Uppdatera resultat →' : 'Sök igen →';
+}
+
+function caBindChangeListeners() {
+  var ids = ['ca-category','ca-pricerange','ca-budget','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  ids.forEach(function(id) {
+    document.getElementById(id).addEventListener('change', caCheckChanges);
+    document.getElementById(id).addEventListener('input', caCheckChanges);
+  });
+}
+
 function caUpdateBudget(v) {
   var row = document.getElementById('ca-budget-row');
   var inp = document.getElementById('ca-budget');
   if (v === 'custom') { row.style.display = 'grid'; }
   else if (v !== '') { row.style.display = 'none'; inp.value = v; }
-}
-
-function caReset() {
-  document.getElementById('ca-results').style.display = 'none';
-  document.getElementById('ca-btn').style.display = 'block';
-  document.getElementById('ca-btn').disabled = false;
-  document.getElementById('ca-cards').innerHTML = '';
+  caCheckChanges();
 }
 
 function caParseCards(text) {
-  var cards = [];
   var chunks = text.split(/\*\*Rekommendation\s*\d+[:\.\s]/i);
   if (chunks.length < 2) chunks = text.split(/(?=\*\*\d+\.)/);
-  if (chunks.length < 2) { return null; }
+  if (chunks.length < 2) return null;
+  var cards = [];
   for (var i = 1; i < chunks.length; i++) {
     var chunk = chunks[i].trim();
     var titleMatch = chunk.match(/^\*\*(.*?)\*\*/);
@@ -329,6 +391,26 @@ function caParseCards(text) {
   return cards.length ? cards : null;
 }
 
+function caRenderCards(recommendation) {
+  var container = document.getElementById('ca-cards');
+  container.classList.add('fading');
+  setTimeout(function() {
+    container.classList.remove('fading');
+    var cards = caParseCards(recommendation);
+    if (cards) {
+      container.innerHTML = cards.map(function(c) {
+        return '<div class="ca-card">' +
+          '<span class="ca-card-num">Bil ' + c.num + '</span>' +
+          '<h3>' + c.title + '</h3>' +
+          '<div class="ca-card-body">' + c.body + '</div>' +
+          '</div>';
+      }).join('');
+    } else {
+      container.innerHTML = '<div class="ca-card"><div class="ca-raw">' + recommendation + '</div></div>';
+    }
+  }, 250);
+}
+
 async function caGetRecommendation() {
   var pr = document.getElementById('ca-pricerange').value;
   if (!pr) { alert('Välj en prisklass.'); return; }
@@ -336,11 +418,11 @@ async function caGetRecommendation() {
   var btn = document.getElementById('ca-btn');
   var loader = document.getElementById('ca-loader');
   var results = document.getElementById('ca-results');
+  var divider = document.getElementById('ca-divider');
 
   btn.disabled = true;
-  btn.style.display = 'none';
+  btn.textContent = 'Hämtar…';
   loader.style.display = 'block';
-  results.style.display = 'none';
 
   var payload = {
     budget:      parseInt(document.getElementById('ca-budget').value),
@@ -359,32 +441,32 @@ async function caGetRecommendation() {
       body: JSON.stringify(payload)
     });
     var d = await r.json();
+
     loader.style.display = 'none';
+    divider.style.display = 'block';
     results.style.display = 'block';
 
-    if (d.success) {
-      var cards = caParseCards(d.recommendation);
-      var container = document.getElementById('ca-cards');
-      if (cards) {
-        container.innerHTML = cards.map(function(c) {
-          return '<div class="ca-card">' +
-            '<span class="ca-card-num">Bil ' + c.num + '</span>' +
-            '<h3>' + c.title + '</h3>' +
-            '<div class="ca-card-body">' + c.body + '</div>' +
-            '</div>';
-        }).join('');
-      } else {
-        container.innerHTML = '<div class="ca-card"><div class="ca-raw">' + d.recommendation + '</div></div>';
-      }
-    } else {
-      document.getElementById('ca-cards').innerHTML =
-        '<div class="ca-card"><div class="ca-raw">Fel: ' + d.error + '</div></div>';
-    }
+    caRenderCards(d.success ? d.recommendation : 'Fel: ' + d.error);
+
+    caHasSearched = true;
+    caSnapshotValues();
+
+    // Clear changed highlights
+    document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
+    btn.classList.remove('has-changes');
+    btn.disabled = false;
+    btn.textContent = 'Sök igen →';
+
   } catch (e) {
     loader.style.display = 'none';
+    divider.style.display = 'block';
     results.style.display = 'block';
     document.getElementById('ca-cards').innerHTML =
       '<div class="ca-card"><div class="ca-raw">Kunde inte nå servern: ' + e.message + '</div></div>';
+    btn.disabled = false;
+    btn.textContent = 'Försök igen →';
   }
 }
+
+caBindChangeListeners();
 </script>
