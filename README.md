@@ -120,6 +120,14 @@ curl -X POST http://localhost:8080/api/recommend \
 { "status": "OK" }
 ```
 
+### `GET /api/recommend/test`
+
+Kör ett fast testanrop mot Groq AI (familjebil, 300 000 kr). Används av UptimeRobot för att verifiera att hela kedjan fungerar.
+
+```json
+{ "status": "OK", "groq": "OK", "rekommendation": true }
+```
+
 ---
 
 ## Deploya på Render.com
@@ -129,6 +137,21 @@ curl -X POST http://localhost:8080/api/recommend \
 3. Välj **Docker** som runtime, branch `master`
 4. Lägg till miljövariabel: `GROQ_API_KEY`
 5. Deploy — tjänsten startar automatiskt
+
+**OBS:** Render free tier spinner ned tjänsten efter 15 min inaktivitet (cold start ~30–60 sek). Löses med UptimeRobot-monitor på 5 min intervall (se nedan).
+
+---
+
+## Monitorering
+
+Tjänsten övervakas med [UptimeRobot](https://uptimerobot.com) via två monitorer:
+
+| Monitor | URL | Typ |
+|---|---|---|
+| WordPress-sida | `https://elitrobban.se/bilradgivning/` | HTTP(s) |
+| Backend + Groq AI | `https://caradvice.onrender.com/api/recommend/test` | HTTP(s) – Keyword: `rekommendation` |
+
+Backend-monitorn körs var 5:e minut vilket även håller Render-instansen varm och eliminerar cold starts för användarna.
 
 ---
 
