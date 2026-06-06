@@ -1,0 +1,120 @@
+<!--
+  Lägg detta i en WordPress-sida (HTML-block eller custom template).
+  Byt ut DIN_RENDER_URL mot din faktiska Render.com-URL.
+-->
+
+<div id="car-adviser">
+  <h2>Hitta din drömbil</h2>
+
+  <label>Bilkategori:
+    <select id="carCategory">
+      <option value="ekonomibil">Ekonomibil</option>
+      <option value="familjebil">Familjebil</option>
+      <option value="elbil">Elektrisk bil</option>
+      <option value="småbil">Småbil</option>
+    </select>
+  </label>
+
+  <label>Prisklass:
+    <select id="priceRange" onchange="updateBudget(this.value)">
+      <option value="">-- Välj prisklass --</option>
+      <option value="100000">Budget (upp till 100 000 kr)</option>
+      <option value="200000">Mellanklass (upp till 200 000 kr)</option>
+      <option value="350000">Premium (upp till 350 000 kr)</option>
+      <option value="600000">Lyx (upp till 600 000 kr)</option>
+      <option value="custom">Ange eget belopp</option>
+    </select>
+  </label>
+
+  <label id="budgetLabel" style="display:none">Egen budget (kr):
+    <input type="number" id="budget" value="300000" min="50000" step="10000">
+  </label>
+
+  <label>Laddare hemma?
+    <select id="hasCharger">
+      <option value="true">Ja</option>
+      <option value="false">Nej</option>
+    </select>
+  </label>
+
+  <label>Km per år:
+    <input type="number" id="kmPerYear" value="15000" min="1000" step="1000">
+  </label>
+
+  <label>Användning:
+    <select id="usage">
+      <option value="pendling">Daglig pendling</option>
+      <option value="familj">Familjebil</option>
+      <option value="landsväg">Mycket landsväg</option>
+      <option value="stad">Mest i stan</option>
+    </select>
+  </label>
+
+  <label>Antal passagerare:
+    <input type="number" id="passengers" value="2" min="1" max="9">
+  </label>
+
+  <label>Nytt eller begagnat?
+    <select id="newCar">
+      <option value="false">Begagnat</option>
+      <option value="true">Nytt</option>
+    </select>
+  </label>
+
+  <button onclick="getRecommendation()">Hitta bil</button>
+
+  <div id="result" style="margin-top: 20px; white-space: pre-wrap;"></div>
+</div>
+
+<script>
+function updateBudget(value) {
+  const budgetLabel = document.getElementById('budgetLabel');
+  const budgetInput = document.getElementById('budget');
+
+  if (value === 'custom') {
+    budgetLabel.style.display = '';
+  } else if (value !== '') {
+    budgetLabel.style.display = 'none';
+    budgetInput.value = value;
+  }
+}
+
+async function getRecommendation() {
+  const priceRange = document.getElementById('priceRange').value;
+  if (!priceRange) {
+    alert('Välj en prisklass eller ange eget belopp.');
+    return;
+  }
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.textContent = 'Söker bästa bilen för dig...';
+
+  const payload = {
+    budget:      parseInt(document.getElementById('budget').value),
+    carCategory: document.getElementById('carCategory').value,
+    hasCharger:  document.getElementById('hasCharger').value === 'true',
+    kmPerYear:   parseInt(document.getElementById('kmPerYear').value),
+    usage:       document.getElementById('usage').value,
+    passengers:  parseInt(document.getElementById('passengers').value),
+    newCar:      document.getElementById('newCar').value === 'true'
+  };
+
+  try {
+    const response = await fetch('https://DIN_RENDER_URL/api/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      resultDiv.textContent = data.recommendation;
+    } else {
+      resultDiv.textContent = 'Fel: ' + data.error;
+    }
+  } catch (err) {
+    resultDiv.textContent = 'Kunde inte nå servern: ' + err.message;
+  }
+}
+</script>
