@@ -1,120 +1,390 @@
-<!--
-  Lägg detta i en WordPress-sida (HTML-block eller custom template).
-  Byt ut DIN_RENDER_URL mot din faktiska Render.com-URL.
--->
+<style>
+#ca-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
 
-<div id="car-adviser">
-  <h2>Hitta din drömbil</h2>
+#ca-wrap {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
 
-  <label>Bilkategori:
-    <select id="carCategory">
-      <option value="ekonomibil">Ekonomibil</option>
-      <option value="familjebil">Familjebil</option>
-      <option value="elbil">Elektrisk bil</option>
-      <option value="småbil">Småbil</option>
-    </select>
-  </label>
+#ca-hero {
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  border-radius: 24px;
+  padding: 48px 40px 40px;
+  color: #fff;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
 
-  <label>Prisklass:
-    <select id="priceRange" onchange="updateBudget(this.value)">
-      <option value="">-- Välj prisklass --</option>
-      <option value="100000">Budget (upp till 100 000 kr)</option>
-      <option value="200000">Mellanklass (upp till 200 000 kr)</option>
-      <option value="350000">Premium (upp till 350 000 kr)</option>
-      <option value="600000">Lyx (upp till 600 000 kr)</option>
-      <option value="custom">Ange eget belopp</option>
-    </select>
-  </label>
+#ca-hero h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
 
-  <label id="budgetLabel" style="display:none">Egen budget (kr):
-    <input type="number" id="budget" value="300000" min="50000" step="10000">
-  </label>
+#ca-hero p {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 36px;
+}
 
-  <label>Laddare hemma?
-    <select id="hasCharger">
-      <option value="true">Ja</option>
-      <option value="false">Nej</option>
-    </select>
-  </label>
+.ca-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
 
-  <label>Km per år:
-    <input type="number" id="kmPerYear" value="15000" min="1000" step="1000">
-  </label>
+@media (max-width: 520px) {
+  .ca-grid { grid-template-columns: 1fr; }
+  #ca-hero { padding: 32px 20px; }
+  #ca-hero h2 { font-size: 1.5rem; }
+}
 
-  <label>Användning:
-    <select id="usage">
-      <option value="pendling">Daglig pendling</option>
-      <option value="familj">Familjebil</option>
-      <option value="landsväg">Mycket landsväg</option>
-      <option value="stad">Mest i stan</option>
-    </select>
-  </label>
+.ca-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 8px;
+}
 
-  <label>Antal passagerare:
-    <input type="number" id="passengers" value="2" min="1" max="9">
-  </label>
+.ca-field select,
+.ca-field input {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 0.95rem;
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
 
-  <label>Nytt eller begagnat?
-    <select id="newCar">
-      <option value="false">Begagnat</option>
-      <option value="true">Nytt</option>
-    </select>
-  </label>
+.ca-field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 
-  <button onclick="getRecommendation()">Hitta bil</button>
+.ca-field select option { background: #302b63; color: #fff; }
 
-  <div id="result" style="margin-top: 20px; white-space: pre-wrap;"></div>
+.ca-field select:focus,
+.ca-field input:focus {
+  border-color: rgba(139,92,246,0.8);
+  background: rgba(255,255,255,0.11);
+}
+
+#ca-budget-row { display: none; }
+
+#ca-btn {
+  width: 100%;
+  margin-top: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border: none;
+  border-radius: 14px;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  box-shadow: 0 6px 24px rgba(99,102,241,0.45);
+}
+
+#ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.55); }
+#ca-btn:active { transform: translateY(0); }
+#ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Loading */
+#ca-loader {
+  display: none;
+  text-align: center;
+  padding: 48px 0;
+}
+
+.ca-spinner {
+  width: 48px; height: 48px;
+  border: 3px solid rgba(139,92,246,0.2);
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: ca-spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes ca-spin { to { transform: rotate(360deg); } }
+
+#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+
+/* Results */
+#ca-results {
+  display: none;
+  margin-top: 32px;
+}
+
+.ca-result-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 20px;
+}
+
+.ca-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  padding: 28px;
+  margin-bottom: 16px;
+  animation: ca-fadein 0.4s ease both;
+  transition: background 0.2s;
+}
+
+.ca-card:hover { background: rgba(255,255,255,0.08); }
+
+@keyframes ca-fadein {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ca-card:nth-child(2) { animation-delay: 0.1s; }
+.ca-card:nth-child(3) { animation-delay: 0.2s; }
+
+.ca-card-num {
+  display: inline-block;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.ca-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 14px;
+  line-height: 1.3;
+}
+
+.ca-card-body {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.ca-card-body strong { color: #fff; font-weight: 600; }
+
+.ca-raw {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+#ca-reset {
+  margin-top: 20px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.5);
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#ca-reset:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+</style>
+
+<div id="ca-wrap">
+  <div id="ca-hero">
+    <h2>🚗 Hitta din drömbi</h2>
+    <p>Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
+
+    <div class="ca-grid">
+      <div class="ca-field">
+        <label>Bilkategori</label>
+        <select id="ca-category">
+          <option value="ekonomibil">Ekonomibil</option>
+          <option value="familjebil">Familjebil</option>
+          <option value="elbil">Elektrisk bil</option>
+          <option value="smaabil">Småbil</option>
+        </select>
+      </div>
+      <div class="ca-field">
+        <label>Prisklass</label>
+        <select id="ca-pricerange" onchange="caUpdateBudget(this.value)">
+          <option value="">-- Välj prisklass --</option>
+          <option value="100000">Budget · upp till 100 000 kr</option>
+          <option value="200000">Mellanklass · upp till 200 000 kr</option>
+          <option value="350000">Premium · upp till 350 000 kr</option>
+          <option value="600000">Lyx · upp till 600 000 kr</option>
+          <option value="custom">Ange eget belopp</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ca-grid" id="ca-budget-row">
+      <div class="ca-field">
+        <label>Egen budget (kr)</label>
+        <input type="number" id="ca-budget" value="300000" min="50000" step="10000">
+      </div>
+      <div></div>
+    </div>
+
+    <div class="ca-grid">
+      <div class="ca-field">
+        <label>Laddare hemma?</label>
+        <select id="ca-charger">
+          <option value="false">Nej</option>
+          <option value="true">Ja</option>
+        </select>
+      </div>
+      <div class="ca-field">
+        <label>Km per år</label>
+        <input type="number" id="ca-km" value="15000" min="1000" step="1000">
+      </div>
+    </div>
+
+    <div class="ca-grid">
+      <div class="ca-field">
+        <label>Användning</label>
+        <select id="ca-usage">
+          <option value="pendling">Daglig pendling</option>
+          <option value="familj">Familjekörning</option>
+          <option value="landsväg">Mycket landsväg</option>
+          <option value="stad">Mest i stan</option>
+        </select>
+      </div>
+      <div class="ca-field">
+        <label>Passagerare</label>
+        <input type="number" id="ca-passengers" value="2" min="1" max="9">
+      </div>
+    </div>
+
+    <div class="ca-grid">
+      <div class="ca-field">
+        <label>Ny eller begagnad?</label>
+        <select id="ca-newcar">
+          <option value="false">Begagnad</option>
+          <option value="true">Ny</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+
+    <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+
+    <div id="ca-loader">
+      <div class="ca-spinner"></div>
+      <p>AI:n analyserar dina behov…</p>
+    </div>
+
+    <div id="ca-results">
+      <p class="ca-result-header">Dina rekommendationer</p>
+      <div id="ca-cards"></div>
+      <button id="ca-reset" onclick="caReset()">← Sök igen</button>
+    </div>
+  </div>
 </div>
 
 <script>
-function updateBudget(value) {
-  const budgetLabel = document.getElementById('budgetLabel');
-  const budgetInput = document.getElementById('budget');
-
-  if (value === 'custom') {
-    budgetLabel.style.display = '';
-  } else if (value !== '') {
-    budgetLabel.style.display = 'none';
-    budgetInput.value = value;
-  }
+function caUpdateBudget(v) {
+  var row = document.getElementById('ca-budget-row');
+  var inp = document.getElementById('ca-budget');
+  if (v === 'custom') { row.style.display = 'grid'; }
+  else if (v !== '') { row.style.display = 'none'; inp.value = v; }
 }
 
-async function getRecommendation() {
-  const priceRange = document.getElementById('priceRange').value;
-  if (!priceRange) {
-    alert('Välj en prisklass eller ange eget belopp.');
-    return;
+function caReset() {
+  document.getElementById('ca-results').style.display = 'none';
+  document.getElementById('ca-btn').style.display = 'block';
+  document.getElementById('ca-btn').disabled = false;
+  document.getElementById('ca-cards').innerHTML = '';
+}
+
+function caParseCards(text) {
+  var cards = [];
+  var chunks = text.split(/\*\*Rekommendation\s*\d+[:\.\s]/i);
+  if (chunks.length < 2) chunks = text.split(/(?=\*\*\d+\.)/);
+  if (chunks.length < 2) { return null; }
+  for (var i = 1; i < chunks.length; i++) {
+    var chunk = chunks[i].trim();
+    var titleMatch = chunk.match(/^\*\*(.*?)\*\*/);
+    var title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'Rekommendation ' + i;
+    var body = chunk.replace(/^\*\*(.*?)\*\*/, '').trim();
+    body = body.replace(/\*\*(.*?)\*\*/g, '$1');
+    body = body.replace(/^\*\s/gm, '• ');
+    cards.push({ num: i, title: title, body: body });
   }
+  return cards.length ? cards : null;
+}
 
-  const resultDiv = document.getElementById('result');
-  resultDiv.textContent = 'Söker bästa bilen för dig...';
+async function caGetRecommendation() {
+  var pr = document.getElementById('ca-pricerange').value;
+  if (!pr) { alert('Välj en prisklass.'); return; }
 
-  const payload = {
-    budget:      parseInt(document.getElementById('budget').value),
-    carCategory: document.getElementById('carCategory').value,
-    hasCharger:  document.getElementById('hasCharger').value === 'true',
-    kmPerYear:   parseInt(document.getElementById('kmPerYear').value),
-    usage:       document.getElementById('usage').value,
-    passengers:  parseInt(document.getElementById('passengers').value),
-    newCar:      document.getElementById('newCar').value === 'true'
+  var btn = document.getElementById('ca-btn');
+  var loader = document.getElementById('ca-loader');
+  var results = document.getElementById('ca-results');
+
+  btn.disabled = true;
+  btn.style.display = 'none';
+  loader.style.display = 'block';
+  results.style.display = 'none';
+
+  var payload = {
+    budget:      parseInt(document.getElementById('ca-budget').value),
+    carCategory: document.getElementById('ca-category').value,
+    hasCharger:  document.getElementById('ca-charger').value === 'true',
+    kmPerYear:   parseInt(document.getElementById('ca-km').value),
+    usage:       document.getElementById('ca-usage').value,
+    passengers:  parseInt(document.getElementById('ca-passengers').value),
+    newCar:      document.getElementById('ca-newcar').value === 'true'
   };
 
   try {
-    const response = await fetch('https://caradvice.onrender.com/api/recommend', {
+    var r = await fetch('https://caradvice.onrender.com/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    var d = await r.json();
+    loader.style.display = 'none';
+    results.style.display = 'block';
 
-    const data = await response.json();
-
-    if (data.success) {
-      resultDiv.textContent = data.recommendation;
+    if (d.success) {
+      var cards = caParseCards(d.recommendation);
+      var container = document.getElementById('ca-cards');
+      if (cards) {
+        container.innerHTML = cards.map(function(c) {
+          return '<div class="ca-card">' +
+            '<span class="ca-card-num">Bil ' + c.num + '</span>' +
+            '<h3>' + c.title + '</h3>' +
+            '<div class="ca-card-body">' + c.body + '</div>' +
+            '</div>';
+        }).join('');
+      } else {
+        container.innerHTML = '<div class="ca-card"><div class="ca-raw">' + d.recommendation + '</div></div>';
+      }
     } else {
-      resultDiv.textContent = 'Fel: ' + data.error;
+      document.getElementById('ca-cards').innerHTML =
+        '<div class="ca-card"><div class="ca-raw">Fel: ' + d.error + '</div></div>';
     }
-  } catch (err) {
-    resultDiv.textContent = 'Kunde inte nå servern: ' + err.message;
+  } catch (e) {
+    loader.style.display = 'none';
+    results.style.display = 'block';
+    document.getElementById('ca-cards').innerHTML =
+      '<div class="ca-card"><div class="ca-raw">Kunde inte nå servern: ' + e.message + '</div></div>';
   }
 }
 </script>
