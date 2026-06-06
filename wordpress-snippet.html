@@ -411,18 +411,37 @@ function caUpdateBudget(v) {
 }
 
 function caParseCards(text) {
-  var chunks = text.split(/\*\*Rekommendation\s*\d+[:\.\s]/i);
-  if (chunks.length < 2) chunks = text.split(/(?=\*\*\d+\.)/);
+  var ds = '**';
+  // Split on **Rekommendation N or plain numbered pattern
+  var chunks = text.split(ds + 'Rekommendation');
+  if (chunks.length < 2) chunks = text.split('Rekommendation');
   if (chunks.length < 2) return null;
   var cards = [];
   for (var i = 1; i < chunks.length; i++) {
     var chunk = chunks[i].trim();
-    var titleMatch = chunk.match(/^\*\*(.*?)\*\*/);
-    var title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'Rekommendation ' + i;
-    var body = chunk.replace(/^\*\*(.*?)\*\*/, '').trim();
-    body = body.replace(/\*\*(.*?)\*\*/g, '$1');
-    body = body.replace(/^\*\s/gm, '• ');
-    cards.push({ num: i, title: title, body: body });
+    // Remove leading number/colon
+    chunk = chunk.replace(/^\s*\d*\s*[:\.\s]*/, '').trim();
+    // Extract title from **title** or first line
+    var title = 'Rekommendation ' + i;
+    if (chunk.indexOf(ds) === 0) {
+      var end = chunk.indexOf(ds, 2);
+      if (end > 0) {
+        title = chunk.substring(2, end).trim();
+        chunk = chunk.substring(end + 2).trim();
+      }
+    } else {
+      var firstLine = chunk.split('\n')[0].trim();
+      if (firstLine.length < 80) { title = firstLine; chunk = chunk.substring(firstLine.length).trim(); }
+    }
+    // Strip remaining ** markers by splitting on them
+    var parts = chunk.split(ds);
+    var body = parts.join('');
+    // Replace bullet asterisks at line start
+    var lines = body.split('\n');
+    body = lines.map(function(l) {
+      return l.replace(/^[\s]*[*+]\s/, '• ');
+    }).join('\n');
+    cards.push({ num: i, title: title, body: body.trim() });
   }
   return cards.length ? cards : null;
 }
