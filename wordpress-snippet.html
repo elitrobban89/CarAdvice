@@ -789,9 +789,9 @@ async function caGetRecommendation() {
   }
 }
 
-// Init
+// Init — localStorage first, URL params override
 caUpdateSliderFill();
-caReadUrlParams();
 caLoadPrefs();
+caReadUrlParams();
 caBindChangeListeners();
 </script>
