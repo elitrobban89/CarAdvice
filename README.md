@@ -16,12 +16,15 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - Roterande laddmeddelanden med tips under AI-anropet
 - Sökhistorik: senaste 5 sökningar visas som klickbara chips — ett klick återställer formuläret och söker direkt
+- "Hitta på Blocket →"-länk på varje bilkort — öppnar en färdig sökning på märke och modell
+- Nollställ-knapp som återställer formuläret till standardvärden
 - Kopiera-knapp som kopierar alla rekommendationer till clipboard
 - Dela-knapp som genererar en delbar länk med alla sökinställningar som URL-parametrar
 - Formuläret sparas automatiskt i localStorage och återställs vid nästa besök
 - URL-parametrar har alltid högre prioritet än localStorage (delad länk visas alltid korrekt)
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
 - Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
+- Cache-eviction: max 200 poster, äldsta halvan rensas vid överskridande
 - IP-baserad rate limiting: max 10 förfrågningar per IP och timme
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
