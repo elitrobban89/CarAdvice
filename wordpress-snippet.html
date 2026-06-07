@@ -409,9 +409,9 @@
 }
 .ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
 .ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
-.ca-blocket-btn {
+.ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.ca-blocket-btn, .ca-bytbil-btn {
   display: inline-block;
-  margin-top: 4px;
   padding: 7px 16px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.14);
@@ -422,6 +422,7 @@
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
+.ca-bytbil-btn:hover { background: rgba(99,211,120,0.1); border-color: rgba(99,211,120,0.35); color: rgba(140,230,160,0.95); }
 
 /* Groq badge */
 .ca-groq-badge {
@@ -817,6 +818,11 @@ function caBlocketUrl(title) {
   return 'https://www.blocket.se/annonser/hela_sverige/fordon/bilar?q=' + encodeURIComponent(q);
 }
 
+function caBytbilUrl(title) {
+  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  return 'https://www.bytbil.com/bil?query=' + encodeURIComponent(q);
+}
+
 function caResetForm() {
   document.getElementById('ca-category').value   = 'ekonomibil';
   document.getElementById('ca-budget-slider').value = 200000;
@@ -848,7 +854,10 @@ function caRenderCards(recommendations) {
         '<ul class="ca-pros">' + prosHtml + '</ul>' +
         '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
         '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
-        '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Hitta på Blocket →</a>' +
+        '<div class="ca-market-links">' +
+        '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket →</a>' +
+        '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil →</a>' +
+        '</div>' +
         '</div>';
     }).join('');
   }, 250);
@@ -906,8 +915,13 @@ function caShareSearch() {
     setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
   }
   var clicked = event && event.target ? event.target : btns[0];
-  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function() { confirmBtn(clicked); }).catch(function() { caFallbackCopy(url); confirmBtn(clicked); }); }
-  else { caFallbackCopy(url); confirmBtn(clicked); }
+  if (navigator.share) {
+    navigator.share({ title: 'AI Bilrådgivning', url: url }).catch(function() {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function() { confirmBtn(clicked); }).catch(function() { caFallbackCopy(url); confirmBtn(clicked); });
+  } else {
+    caFallbackCopy(url); confirmBtn(clicked);
+  }
 }
 
 async function caGetRecommendation() {
