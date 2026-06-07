@@ -31,7 +31,7 @@ public class CarController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
                     "success", false,
-                    "error", "Kunde inte hämta rekommendation: " + e.getMessage()
+                    "error", e.getMessage()
             ));
         }
     }
