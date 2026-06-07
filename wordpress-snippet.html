@@ -274,24 +274,24 @@
 .ca-pros {
   list-style: none;
   margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .ca-pros li {
   font-size: 0.88rem;
   color: rgba(255,255,255,0.8);
   line-height: 1.5;
-  padding: 7px 0 7px 26px;
-  position: relative;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.ca-pros li:last-child {
-  border-bottom: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 .ca-pros li::before {
   content: '✓';
-  position: absolute;
-  left: 0;
   color: #34d399;
   font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 .ca-con {
   font-size: 0.85rem;
