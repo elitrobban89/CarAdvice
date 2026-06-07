@@ -14,7 +14,9 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Budget-slider (50 000–1 000 000 kr) med tickmärken (50k · 200k · 400k · 700k · 1M) och live-uppdaterat värde
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
-- Roterande laddmeddelanden med tips under AI-anropet
+- Skeleton-loading: tre kortskelelett med shimmer-animation visas direkt när sökningen startar
+- Roterande laddmeddelanden med tips under skeleton-laddningen
+- Delade länkar auto-söker direkt när sidan öppnas (URL-parametrar triggar sökning automatiskt)
 - Sökhistorik: senaste 5 sökningar sparas med resultat — ett klick visar sparade rekommendationer direkt utan API-anrop
 - Historik-badge "📋 Sparad sökning (X min sedan)" visas när resultat kommer från historik
 - "Sök igen →"-knapp tillgänglig för att hämta färska resultat efter historik-visning
