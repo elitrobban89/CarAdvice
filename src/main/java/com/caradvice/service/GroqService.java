@@ -20,7 +20,7 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:llama-3.1-8b-instant}")
+    @Value("${groq.model:llama-3.3-70b-versatile}")
     private String model;
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -70,64 +70,23 @@ public class GroqService {
 
     private String buildSystemPrompt() {
         return """
-                Du är en kunnig och opartisk svensk bilrådgivare med djup kunskap om den svenska marknaden 2024–2026.
-
-                Returnera ALLTID ett JSON-objekt med exakt denna struktur – ingen text utanför JSON:
-                {
-                  "recommendations": [
-                    {
-                      "title": "Märke Modell Variant (årsmodell)",
-                      "price": "XXX 000 – YYY 000 kr",
-                      "whyRecommended": "Varför denna bil är välrecenserad baserat på t.ex. Teknikens Värld, Auto Motor & Sport, Bilprovningens statistik eller ägarrecensioner",
-                      "pros": ["Specifik fördel 1 kopplad till just denna persons körsträcka och användning", "Specifik fördel 2", "Specifik fördel 3"],
-                      "con": "En konkret nackdel att vara medveten om",
-                      "fitSummary": "En kort mening om varför detta val passar just dessa specifika behov"
-                    }
-                  ]
-                }
-
-                Regler:
-                - Rekommendera ALLTID exakt 3 konkreta bilar
-                - Anpassa prisintervall till om bilen är ny eller begagnad
-                - Fördelar ska vara specifika för personens situation – inte generiska påståenden
-                - Nämn uppskattad driftkostnad (bränsle/el per år) i pros om det är relevant för körsträckan
-                - Svara på svenska
+                Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa+motivering","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"passning"}]}
+                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka.
                 """;
     }
 
     private String buildPrompt(CarPreferences prefs) {
-        String laddningInfo = prefs.hasCharger()
-                ? "Ja, har laddbox hemma – elbil eller laddhybrid är aktuellt."
-                : "Nej, ingen laddmöjlighet hemma – undvik renodlade elbilar.";
-
+        String laddning = prefs.hasCharger() ? "ja" : "nej – undvik renodlad elbil";
         String bilTyp = prefs.newCar() ? "ny" : "begagnad";
         int km = prefs.kmPerYear();
-        String milprofil = km < 10000
-                ? "lågmilare – driftkostnad spelar mindre roll, prioritera pris och tillförlitlighet"
-                : km < 20000
-                ? "normalmilare – balansera inköpspris mot driftkostnad"
-                : "högmilare – prioritera låg driftkostnad och hög driftsäkerhet";
+        String milprofil = km < 10000 ? "lågmilare" : km < 20000 ? "normalmilare" : "högmilare";
 
         return """
-                Ge 3 bilrekommendationer baserat på följande profil:
-
-                - Budget: %,d kr (%s bil)
-                - Bilkategori: %s
-                - Laddmöjlighet hemma: %s
-                - Körsträcka per år: %,d km (%s)
-                - Användning: %s
-                - Antal passagerare (inkl. förare): %d
-
-                Anpassa varje rekommendation specifikt till denna persons profil.
+                Budget: %,d kr (%s). Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.
                 """.formatted(
-                prefs.budget(),
-                bilTyp,
-                prefs.carCategory(),
-                laddningInfo,
-                km,
-                milprofil,
-                prefs.usage(),
-                prefs.passengers()
+                prefs.budget(), bilTyp, prefs.carCategory(), laddning,
+                km, milprofil, prefs.usage(), prefs.passengers()
         );
     }
 }
