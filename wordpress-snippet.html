@@ -58,6 +58,7 @@
   .ca-grid { grid-template-columns: 1fr; }
   #ca-hero { padding: 32px 20px; }
   #ca-hero h2 { font-size: 1.5rem; }
+  .ca-card { padding: 24px 20px; }
 }
 
 .ca-field label {
@@ -72,7 +73,7 @@
 }
 
 .ca-field select,
-.ca-field input {
+.ca-field input[type="number"] {
   width: 100%;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.12);
@@ -96,7 +97,7 @@
 .ca-field select option { background: #302b63; color: #fff; }
 
 .ca-field select:focus,
-.ca-field input:focus {
+.ca-field input[type="number"]:focus {
   border-color: rgba(139,92,246,0.9);
   background: rgba(255,255,255,0.13);
   box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 28px rgba(139,92,246,0.2);
@@ -114,7 +115,78 @@
 }
 .ca-field.changed label { color: rgba(251,191,36,0.9); }
 
-#ca-budget-row { display: none; }
+/* Budget slider */
+.ca-budget-val {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(167,139,250,0.95);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 8px;
+}
+#ca-budget-slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  padding: 10px 0;
+  border: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.ca-slider-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.12);
+  margin-top: 12px;
+}
+#ca-slider-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #6366f1);
+  pointer-events: none;
+  width: 15%;
+  transition: width 0.05s;
+}
+#ca-budget-slider {
+  position: absolute;
+  top: -10px; left: 0; right: 0;
+  width: 100%;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  height: 24px;
+}
+#ca-budget-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+  transition: box-shadow 0.2s, transform 0.15s;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+#ca-budget-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 2px 16px rgba(99,102,241,0.8);
+  transform: scale(1.1);
+}
+#ca-budget-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.2);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+}
+#ca-budget-slider::-moz-range-track { background: transparent; }
 
 /* Button area */
 #ca-btn-area {
@@ -153,7 +225,6 @@
 #ca-btn:active { transform: translateY(0); }
 #ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-/* Update badge on button */
 #ca-btn.has-changes {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   box-shadow: 0 6px 24px rgba(245,158,11,0.45);
@@ -179,7 +250,11 @@
   margin: 0 auto 14px;
 }
 @keyframes ca-spin { to { transform: rotate(360deg); } }
-#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.88rem; }
+#ca-loader p {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.88rem;
+  transition: opacity 0.3s;
+}
 
 /* Divider */
 #ca-divider {
@@ -223,7 +298,6 @@
 }
 .ca-card:hover { background: rgba(255,255,255,0.08); }
 
-/* Fade out old results before replacing */
 #ca-cards.fading .ca-card {
   opacity: 0;
   transform: translateY(-8px);
@@ -314,6 +388,28 @@
   white-space: pre-wrap;
 }
 
+/* Copy button */
+#ca-copy-btn {
+  display: none;
+  margin-bottom: 28px;
+  padding: 9px 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+#ca-copy-btn:hover {
+  background: rgba(255,255,255,0.11);
+  color: rgba(255,255,255,0.9);
+}
+#ca-copy-btn.copied {
+  color: #34d399;
+  border-color: rgba(52,211,153,0.35);
+}
+
 /* Groq badge */
 .ca-groq-badge {
   display: inline-flex;
@@ -353,29 +449,19 @@
         <select id="ca-category">
           <option value="ekonomibil">Ekonomibil</option>
           <option value="familjebil">Familjebil</option>
+          <option value="suv">SUV</option>
           <option value="elbil">Elektrisk bil</option>
+          <option value="laddhybrid">Laddhybrid</option>
           <option value="smaabil">Småbil</option>
         </select>
       </div>
       <div class="ca-field">
-        <label>Prisklass</label>
-        <select id="ca-pricerange" onchange="caUpdateBudget(this.value)">
-          <option value="">-- Välj prisklass --</option>
-          <option value="100000">Budget · upp till 100 000 kr</option>
-          <option value="200000">Mellanklass · upp till 200 000 kr</option>
-          <option value="350000">Premium · upp till 350 000 kr</option>
-          <option value="600000">Lyx · upp till 600 000 kr</option>
-          <option value="custom">Ange eget belopp</option>
-        </select>
+        <label>Budget <span class="ca-budget-val" id="ca-budget-display">200 000 kr</span></label>
+        <div class="ca-slider-track">
+          <div id="ca-slider-fill"></div>
+          <input type="range" id="ca-budget-slider" min="50000" max="1000000" step="25000" value="200000">
+        </div>
       </div>
-    </div>
-
-    <div class="ca-grid" id="ca-budget-row">
-      <div class="ca-field">
-        <label>Egen budget (kr)</label>
-        <input type="number" id="ca-budget" value="300000" min="50000" step="10000">
-      </div>
-      <div></div>
     </div>
 
     <div class="ca-grid">
@@ -434,13 +520,14 @@
 
     <div id="ca-loader">
       <div class="ca-spinner"></div>
-      <p>AI:n analyserar dina behov…</p>
+      <p id="ca-loader-text">AI:n analyserar dina behov…</p>
     </div>
 
     <div id="ca-divider"></div>
 
     <div id="ca-results">
       <p class="ca-result-label">Dina rekommendationer</p>
+      <button id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
       <div id="ca-cards"></div>
     </div>
   </div>
@@ -449,12 +536,43 @@
 <script>
 var caHasSearched = false;
 var caInitialValues = {};
+var caLoadingMessages = [
+  'AI:n analyserar dina behov…',
+  'Kollar Bilprovningens statistik…',
+  'Jämför driftkostnader…',
+  'Söker på svenska marknaden…',
+  'Väger pris mot tillförlitlighet…',
+  'Hämtar välrecenserade alternativ…'
+];
+var caLoadingInterval = null;
+
+function caStartLoadingText() {
+  var i = 0;
+  var p = document.getElementById('ca-loader-text');
+  p.textContent = caLoadingMessages[0];
+  caLoadingInterval = setInterval(function() {
+    i = (i + 1) % caLoadingMessages.length;
+    p.textContent = caLoadingMessages[i];
+  }, 2200);
+}
+
+function caStopLoadingText() {
+  clearInterval(caLoadingInterval);
+  caLoadingInterval = null;
+  document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
+}
+
+function caUpdateSliderFill() {
+  var slider = document.getElementById('ca-budget-slider');
+  var pct = (parseInt(slider.value) - 50000) / (1000000 - 50000) * 100;
+  document.getElementById('ca-slider-fill').style.width = pct + '%';
+  document.getElementById('ca-budget-display').textContent = parseInt(slider.value).toLocaleString('sv-SE') + ' kr';
+}
 
 function caSnapshotValues() {
   caInitialValues = {
     category:   document.getElementById('ca-category').value,
-    pricerange: document.getElementById('ca-pricerange').value,
-    budget:     document.getElementById('ca-budget').value,
+    budget:     document.getElementById('ca-budget-slider').value,
     charger:    document.getElementById('ca-charger').value,
     km:         document.getElementById('ca-km').value,
     usage:      document.getElementById('ca-usage').value,
@@ -465,8 +583,8 @@ function caSnapshotValues() {
 
 function caCheckChanges() {
   if (!caHasSearched) return;
-  var ids = ['ca-category','ca-pricerange','ca-budget','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
-  var keys = ['category','pricerange','budget','charger','km','usage','passengers','newcar'];
+  var ids   = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  var keys  = ['category','budget','charger','km','usage','passengers','newcar'];
   var anyChanged = false;
   ids.forEach(function(id, i) {
     var el = document.getElementById(id);
@@ -482,41 +600,35 @@ function caCheckChanges() {
 }
 
 function caBindChangeListeners() {
-  var ids = ['ca-category','ca-pricerange','ca-budget','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
   ids.forEach(function(id) {
-    document.getElementById(id).addEventListener('change', caCheckChanges);
-    document.getElementById(id).addEventListener('input', caCheckChanges);
+    var el = document.getElementById(id);
+    el.addEventListener('change', caCheckChanges);
+    el.addEventListener('input', caCheckChanges);
   });
-  ['ca-category','ca-pricerange','ca-budget'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', caCheckMismatch);
-    document.getElementById(id).addEventListener('input', caCheckMismatch);
+  ['ca-category','ca-budget-slider'].forEach(function(id) {
+    var el = document.getElementById(id);
+    el.addEventListener('change', caCheckMismatch);
+    el.addEventListener('input', caCheckMismatch);
   });
+  document.getElementById('ca-budget-slider').addEventListener('input', caUpdateSliderFill);
 }
 
-var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999 };
-var CA_CATEGORY_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elektrisk bil' };
+var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
+var CA_CATEGORY_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elektrisk bil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
 
 function caCheckMismatch() {
   var cat = document.getElementById('ca-category').value;
-  var budget = parseInt(document.getElementById('ca-budget').value) || 0;
+  var budget = parseInt(document.getElementById('ca-budget-slider').value) || 0;
   var max = CA_MAX_BUDGET[cat] || 999999;
   var warn = document.getElementById('ca-warning');
   if (budget > max) {
     warn.style.display = 'block';
     warn.textContent = '⚠️ ' + CA_CATEGORY_NAMES[cat] + ' brukar kosta max ' +
-      max.toLocaleString('sv-SE') + ' kr. Överväg att välja Familjebil eller Elbil för denna budget.';
+      max.toLocaleString('sv-SE') + ' kr. Överväg att välja Familjebil, SUV eller Laddhybrid för denna budget.';
   } else {
     warn.style.display = 'none';
   }
-}
-
-function caUpdateBudget(v) {
-  var row = document.getElementById('ca-budget-row');
-  var inp = document.getElementById('ca-budget');
-  if (v === 'custom') { row.style.display = 'grid'; }
-  else if (v !== '') { row.style.display = 'none'; inp.value = v; }
-  caCheckMismatch();
-  caCheckChanges();
 }
 
 function caEsc(s) {
@@ -549,21 +661,64 @@ function caRenderCards(recommendations) {
   }, 250);
 }
 
-async function caGetRecommendation() {
-  var pr = document.getElementById('ca-pricerange').value;
-  if (!pr) { alert('Välj en prisklass.'); return; }
+function caCopyResult() {
+  var cards = document.querySelectorAll('.ca-card');
+  var lines = ['Mina bilrekommendationer – elitrobban.se/bilradgivning\n'];
+  cards.forEach(function(card, i) {
+    var title = card.querySelector('h3') ? card.querySelector('h3').textContent : '';
+    var price = card.querySelector('.ca-price') ? card.querySelector('.ca-price').textContent : '';
+    var pros = Array.from(card.querySelectorAll('.ca-pros li')).map(function(li) {
+      return '  ✓ ' + li.textContent.trim();
+    }).join('\n');
+    var con = card.querySelector('.ca-con') ? card.querySelector('.ca-con').textContent.trim() : '';
+    lines.push((i + 1) + '. ' + title + '\n' + price + '\n' + pros + '\n' + con);
+  });
+  var text = lines.join('\n\n');
+  var btn = document.getElementById('ca-copy-btn');
 
+  function showConfirm() {
+    btn.textContent = '✓ Kopierat!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Kopiera lista';
+      btn.classList.remove('copied');
+    }, 2500);
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(showConfirm).catch(function() {
+      caFallbackCopy(text); showConfirm();
+    });
+  } else {
+    caFallbackCopy(text); showConfirm();
+  }
+}
+
+function caFallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+async function caGetRecommendation() {
   var btn = document.getElementById('ca-btn');
   var loader = document.getElementById('ca-loader');
   var results = document.getElementById('ca-results');
   var divider = document.getElementById('ca-divider');
+  var copyBtn = document.getElementById('ca-copy-btn');
 
   btn.disabled = true;
   btn.textContent = 'Hämtar…';
   loader.style.display = 'block';
+  copyBtn.style.display = 'none';
+  caStartLoadingText();
 
   var payload = {
-    budget:      parseInt(document.getElementById('ca-budget').value),
+    budget:      parseInt(document.getElementById('ca-budget-slider').value),
     carCategory: document.getElementById('ca-category').value,
     hasCharger:  document.getElementById('ca-charger').value === 'true',
     kmPerYear:   parseInt(document.getElementById('ca-km').value) * 10,
@@ -583,6 +738,7 @@ async function caGetRecommendation() {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
+    caStopLoadingText();
     var d = await r.json();
 
     loader.style.display = 'none';
@@ -591,6 +747,7 @@ async function caGetRecommendation() {
 
     if (d.success && d.recommendations) {
       caRenderCards(d.recommendations);
+      copyBtn.style.display = 'inline-block';
     } else {
       document.getElementById('ca-cards').innerHTML =
         '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
@@ -606,6 +763,7 @@ async function caGetRecommendation() {
 
   } catch (e) {
     clearTimeout(timeoutId);
+    caStopLoadingText();
     loader.style.display = 'none';
     divider.style.display = 'block';
     results.style.display = 'block';
@@ -619,5 +777,6 @@ async function caGetRecommendation() {
   }
 }
 
+caUpdateSliderFill();
 caBindChangeListeners();
 </script>

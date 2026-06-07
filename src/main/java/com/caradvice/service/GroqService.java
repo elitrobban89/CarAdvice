@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,15 +27,25 @@ public class GroqService {
     private String model;
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+    private static final long CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+
+    private record CacheEntry(List<CarRecommendation> result, long timestamp) {}
 
     public boolean isConfigured() {
         return apiKey != null && !apiKey.isBlank();
     }
 
     public List<CarRecommendation> getRecommendation(CarPreferences prefs) throws Exception {
+        String key = buildCacheKey(prefs);
+        CacheEntry cached = cache.get(key);
+        if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS) {
+            return cached.result();
+        }
+
         String prompt = buildPrompt(prefs);
 
         Map<String, Object> requestBody = Map.of(
@@ -67,10 +78,18 @@ public class GroqService {
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
         JsonNode recsNode = mapper.readTree(content).at("/recommendations");
-        return mapper.convertValue(
+        List<CarRecommendation> result = mapper.convertValue(
                 recsNode,
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
         );
+
+        cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
+        return result;
+    }
+
+    private String buildCacheKey(CarPreferences prefs) {
+        return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
+               prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar();
     }
 
     private String parseRetryTime(String body) {
