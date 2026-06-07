@@ -749,7 +749,7 @@ function caRenderHistory() {
   var chips = history.map(function(entry, i) {
     return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
       '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
-      '<span class="ca-history-chip-time">' + caTimeAgo(entry.timestamp) + '</span>' +
+      '<span class="ca-history-chip-time">· ' + caTimeAgo(entry.timestamp) + '</span>' +
       '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</span>' +
       '</button>';
   }).join('');
