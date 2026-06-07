@@ -230,6 +230,18 @@
 }
 #ca-share-search-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
 #ca-share-search-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
+#ca-reset-btn {
+  padding: 16px 16px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+#ca-reset-btn:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.2); }
 
 /* History */
 #ca-history-area { margin-top: 20px; }
@@ -395,8 +407,21 @@
   padding: 8px 12px;
   margin-bottom: 14px;
 }
-.ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; }
+.ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
 .ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
+.ca-blocket-btn {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 7px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
 
 /* Groq badge */
 .ca-groq-badge {
@@ -500,6 +525,7 @@
     <div id="ca-btn-area">
       <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
       <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
+      <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
     </div>
 
     <div id="ca-history-area"></div>
@@ -786,6 +812,27 @@ function caEsc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function caBlocketUrl(title) {
+  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  return 'https://www.blocket.se/annonser/hela_sverige/fordon/bilar?q=' + encodeURIComponent(q);
+}
+
+function caResetForm() {
+  document.getElementById('ca-category').value   = 'ekonomibil';
+  document.getElementById('ca-budget-slider').value = 200000;
+  document.getElementById('ca-charger').value    = 'false';
+  document.getElementById('ca-km').value         = 1500;
+  document.getElementById('ca-usage').value      = 'pendling';
+  document.getElementById('ca-passengers').value = 4;
+  document.getElementById('ca-newcar').value     = 'false';
+  document.getElementById('ca-fuel').value       = 'spelar ingen roll';
+  caUpdateSliderFill();
+  caUpdateFuelVisibility();
+  caCheckMismatch();
+  if (caHasSearched) caCheckChanges();
+  try { localStorage.removeItem('ca-prefs'); } catch(e) {}
+}
+
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
@@ -801,6 +848,7 @@ function caRenderCards(recommendations) {
         '<ul class="ca-pros">' + prosHtml + '</ul>' +
         '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
         '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
+        '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Hitta på Blocket →</a>' +
         '</div>';
     }).join('');
   }, 250);

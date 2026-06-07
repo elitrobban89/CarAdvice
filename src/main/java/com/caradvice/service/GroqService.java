@@ -30,6 +30,7 @@ public class GroqService {
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final long CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+    private static final int MAX_CACHE_SIZE = 200;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -86,8 +87,20 @@ public class GroqService {
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
         );
 
+        evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
         return new Result(result, false, 0);
+    }
+
+    private void evictIfNeeded() {
+        if (cache.size() < MAX_CACHE_SIZE) return;
+        long cutoff = cache.values().stream()
+                .mapToLong(CacheEntry::timestamp)
+                .sorted()
+                .skip(cache.size() / 2)
+                .findFirst()
+                .orElse(0L);
+        cache.values().removeIf(e -> e.timestamp() < cutoff);
     }
 
     private String buildCacheKey(CarPreferences prefs) {
