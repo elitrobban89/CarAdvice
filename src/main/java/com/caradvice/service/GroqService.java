@@ -28,6 +28,10 @@ public class GroqService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
+    public boolean isConfigured() {
+        return apiKey != null && !apiKey.isBlank();
+    }
+
     public List<CarRecommendation> getRecommendation(CarPreferences prefs) throws Exception {
         String prompt = buildPrompt(prefs);
 
