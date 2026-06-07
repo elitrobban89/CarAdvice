@@ -231,6 +231,44 @@
 #ca-share-search-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
 #ca-share-search-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
 
+/* History */
+#ca-history-area { margin-top: 20px; }
+.ca-history-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.28);
+  margin-bottom: 10px;
+}
+.ca-history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ca-history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.ca-history-chip:hover { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: rgba(255,255,255,0.88); }
+.ca-history-chip-time { font-size: 0.68rem; color: rgba(255,255,255,0.22); }
+.ca-history-chip-del {
+  background: none;
+  border: none;
+  padding: 0;
+  color: rgba(255,255,255,0.2);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.ca-history-chip:hover .ca-history-chip-del { color: rgba(255,100,100,0.55); }
+
 /* Loading */
 #ca-loader { display: none; text-align: center; padding: 40px 0 20px; }
 .ca-spinner {
@@ -449,7 +487,15 @@
           <option value="true">Ny</option>
         </select>
       </div>
-      <div></div>
+      <div class="ca-field" id="ca-fuel-field">
+        <label>Drivmedel</label>
+        <select id="ca-fuel">
+          <option value="spelar ingen roll">Spelar ingen roll</option>
+          <option value="bensin">Bensin</option>
+          <option value="diesel">Diesel</option>
+          <option value="hybrid">Hybrid (ej laddhybrid)</option>
+        </select>
+      </div>
     </div>
 
     <div id="ca-warning"></div>
@@ -458,6 +504,8 @@
       <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
       <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
     </div>
+
+    <div id="ca-history-area"></div>
 
     <div>
       <span class="ca-groq-badge">
@@ -500,6 +548,11 @@ var caLoadingMessages = [
 ];
 var caLoadingInterval = null;
 
+var CA_HISTORY_KEY = 'ca-history';
+var CA_HISTORY_MAX = 5;
+var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
+var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
+
 function caStartLoadingText() {
   var i = 0;
   document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
@@ -521,6 +574,14 @@ function caUpdateSliderFill() {
   document.getElementById('ca-budget-display').textContent = parseInt(slider.value).toLocaleString('sv-SE') + ' kr';
 }
 
+function caUpdateFuelVisibility() {
+  var cat = document.getElementById('ca-category').value;
+  var fuelField = document.getElementById('ca-fuel-field');
+  var hide = (cat === 'elbil' || cat === 'laddhybrid');
+  fuelField.style.display = hide ? 'none' : '';
+  if (hide) document.getElementById('ca-fuel').value = 'spelar ingen roll';
+}
+
 /* localStorage */
 function caSavePrefs() {
   try {
@@ -531,7 +592,8 @@ function caSavePrefs() {
       km:         document.getElementById('ca-km').value,
       usage:      document.getElementById('ca-usage').value,
       passengers: document.getElementById('ca-passengers').value,
-      newcar:     document.getElementById('ca-newcar').value
+      newcar:     document.getElementById('ca-newcar').value,
+      fuelType:   document.getElementById('ca-fuel').value
     }));
   } catch(e) {}
 }
@@ -547,6 +609,8 @@ function caLoadPrefs() {
     if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
     if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
     if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
+    if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
+    caUpdateFuelVisibility();
     caCheckMismatch();
   } catch(e) {}
 }
@@ -562,7 +626,8 @@ function caReadUrlParams() {
     if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
     if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
     if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
-    if (p.get('budget'))     caCheckMismatch();
+    if (p.get('fuelType'))   document.getElementById('ca-fuel').value        = p.get('fuelType');
+    if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
   } catch(e) {}
 }
 
@@ -574,14 +639,15 @@ function caSnapshotValues() {
     km:         document.getElementById('ca-km').value,
     usage:      document.getElementById('ca-usage').value,
     passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value
+    newcar:     document.getElementById('ca-newcar').value,
+    fuelType:   document.getElementById('ca-fuel').value
   };
 }
 
 function caCheckChanges() {
   if (!caHasSearched) return;
-  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
-  var keys = ['category','budget','charger','km','usage','passengers','newcar'];
+  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
+  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType'];
   var anyChanged = false;
   ids.forEach(function(id, i) {
     var el = document.getElementById(id);
@@ -597,7 +663,7 @@ function caCheckChanges() {
 }
 
 function caBindChangeListeners() {
-  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     el.addEventListener('change', caCheckChanges);
@@ -608,11 +674,11 @@ function caBindChangeListeners() {
     el.addEventListener('change', caCheckMismatch);
     el.addEventListener('input', caCheckMismatch);
   });
+  document.getElementById('ca-category').addEventListener('change', caUpdateFuelVisibility);
   document.getElementById('ca-budget-slider').addEventListener('input', caUpdateSliderFill);
 }
 
 var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
-var CA_CATEGORY_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elektrisk bil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
 
 function caCheckMismatch() {
   var cat = document.getElementById('ca-category').value;
@@ -621,11 +687,102 @@ function caCheckMismatch() {
   var warn = document.getElementById('ca-warning');
   if (budget > max) {
     warn.style.display = 'block';
-    warn.textContent = '⚠️ ' + CA_CATEGORY_NAMES[cat] + ' brukar kosta max ' +
+    warn.textContent = '⚠️ ' + (CA_CAT_NAMES[cat] || cat) + ' brukar kosta max ' +
       max.toLocaleString('sv-SE') + ' kr. Överväg att välja Familjebil, SUV eller Laddhybrid för denna budget.';
   } else {
     warn.style.display = 'none';
   }
+}
+
+/* Search history */
+function caSaveHistory() {
+  try {
+    var entry = {
+      category:   document.getElementById('ca-category').value,
+      budget:     document.getElementById('ca-budget-slider').value,
+      charger:    document.getElementById('ca-charger').value,
+      km:         document.getElementById('ca-km').value,
+      usage:      document.getElementById('ca-usage').value,
+      passengers: document.getElementById('ca-passengers').value,
+      newcar:     document.getElementById('ca-newcar').value,
+      fuelType:   document.getElementById('ca-fuel').value,
+      timestamp:  Date.now()
+    };
+    var history = caGetHistory();
+    var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
+    history = history.filter(function(h) {
+      return (h.category + '|' + h.budget + '|' + h.fuelType + '|' + h.km + '|' + h.usage + '|' + h.newcar) !== key;
+    });
+    history.unshift(entry);
+    history = history.slice(0, CA_HISTORY_MAX);
+    localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
+    caRenderHistory();
+  } catch(e) {}
+}
+
+function caGetHistory() {
+  try {
+    var raw = localStorage.getItem(CA_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function caHistoryLabel(entry) {
+  var cat = CA_CAT_NAMES[entry.category] || entry.category;
+  var budget = parseInt(entry.budget).toLocaleString('sv-SE') + ' kr';
+  var fuel = (entry.fuelType && entry.fuelType !== 'spelar ingen roll') ? ' · ' + (CA_FUEL_NAMES[entry.fuelType] || entry.fuelType) : '';
+  return cat + ' · ' + budget + fuel;
+}
+
+function caTimeAgo(ts) {
+  var diff = Date.now() - ts;
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'nyss';
+  if (mins < 60) return mins + ' min sedan';
+  var hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + ' tim sedan';
+  var days = Math.floor(hours / 24);
+  return days === 1 ? 'igår' : days + ' dagar sedan';
+}
+
+function caRenderHistory() {
+  var area = document.getElementById('ca-history-area');
+  var history = caGetHistory();
+  if (history.length === 0) { area.innerHTML = ''; return; }
+  var chips = history.map(function(entry, i) {
+    return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
+      '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
+      '<span class="ca-history-chip-time">' + caTimeAgo(entry.timestamp) + '</span>' +
+      '<button class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</button>' +
+      '</button>';
+  }).join('');
+  area.innerHTML = '<div class="ca-history-label">Tidigare sökningar</div><div class="ca-history-chips">' + chips + '</div>';
+}
+
+function caDeleteHistory(index) {
+  try {
+    var history = caGetHistory();
+    history.splice(index, 1);
+    localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
+    caRenderHistory();
+  } catch(e) {}
+}
+
+function caLoadFromHistory(index) {
+  var history = caGetHistory();
+  var entry = history[index];
+  if (!entry) return;
+  if (entry.category)   document.getElementById('ca-category').value   = entry.category;
+  if (entry.budget)   { document.getElementById('ca-budget-slider').value = entry.budget; caUpdateSliderFill(); }
+  if (entry.charger)    document.getElementById('ca-charger').value     = entry.charger;
+  if (entry.km)         document.getElementById('ca-km').value          = entry.km;
+  if (entry.usage)      document.getElementById('ca-usage').value       = entry.usage;
+  if (entry.passengers) document.getElementById('ca-passengers').value  = entry.passengers;
+  if (entry.newcar)     document.getElementById('ca-newcar').value      = entry.newcar;
+  if (entry.fuelType)   document.getElementById('ca-fuel').value        = entry.fuelType;
+  caUpdateFuelVisibility();
+  caCheckMismatch();
+  caGetRecommendation();
 }
 
 function caEsc(s) {
@@ -692,19 +849,20 @@ function caShareSearch() {
     km:         document.getElementById('ca-km').value,
     usage:      document.getElementById('ca-usage').value,
     passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value
+    newcar:     document.getElementById('ca-newcar').value,
+    fuelType:   document.getElementById('ca-fuel').value
   });
   var url = window.location.origin + window.location.pathname + '?' + params.toString();
   var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
-  function confirm(btn) {
+  function confirmBtn(btn) {
     if (!btn) return;
     var orig = btn.textContent;
     btn.textContent = '✓ Länk kopierad!'; btn.classList.add('copied');
     setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
   }
   var clicked = event && event.target ? event.target : btns[0];
-  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function() { confirm(clicked); }).catch(function() { caFallbackCopy(url); confirm(clicked); }); }
-  else { caFallbackCopy(url); confirm(clicked); }
+  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function() { confirmBtn(clicked); }).catch(function() { caFallbackCopy(url); confirmBtn(clicked); }); }
+  else { caFallbackCopy(url); confirmBtn(clicked); }
 }
 
 async function caGetRecommendation() {
@@ -721,6 +879,7 @@ async function caGetRecommendation() {
   document.getElementById('ca-cache-badge').style.display = 'none';
   caStartLoadingText();
 
+  var fuelVal = document.getElementById('ca-fuel').value;
   var payload = {
     budget:      parseInt(document.getElementById('ca-budget-slider').value),
     carCategory: document.getElementById('ca-category').value,
@@ -728,7 +887,8 @@ async function caGetRecommendation() {
     kmPerYear:   parseInt(document.getElementById('ca-km').value) * 10,
     usage:       document.getElementById('ca-usage').value,
     passengers:  parseInt(document.getElementById('ca-passengers').value),
-    newCar:      document.getElementById('ca-newcar').value === 'true'
+    newCar:      document.getElementById('ca-newcar').value === 'true',
+    fuelType:    fuelVal
   };
 
   var controller = new AbortController();
@@ -761,6 +921,7 @@ async function caGetRecommendation() {
         badge.style.display = 'inline-block';
       }
       caSavePrefs();
+      caSaveHistory();
     } else {
       document.getElementById('ca-cards').innerHTML =
         '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
@@ -794,4 +955,5 @@ caUpdateSliderFill();
 caLoadPrefs();
 caReadUrlParams();
 caBindChangeListeners();
+caRenderHistory();
 </script>

@@ -7,5 +7,6 @@ public record CarPreferences(
         int kmPerYear,
         String usage,
         int passengers,
-        boolean newCar
+        boolean newCar,
+        String fuelType
 ) {}
