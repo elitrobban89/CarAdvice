@@ -320,6 +320,15 @@
   padding: 3px 10px;
   display: none;
 }
+.ca-history-badge {
+  font-size: 0.7rem;
+  color: rgba(167,139,250,0.75);
+  background: rgba(139,92,246,0.07);
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  display: none;
+}
 
 /* Result action buttons */
 .ca-result-actions {
@@ -549,6 +558,7 @@
       <div class="ca-result-header">
         <span class="ca-result-label" id="ca-result-label">Dina rekommendationer</span>
         <span class="ca-cache-badge" id="ca-cache-badge"></span>
+        <span class="ca-history-badge" id="ca-history-badge"></span>
       </div>
       <div class="ca-result-actions">
         <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
@@ -719,18 +729,19 @@ function caCheckMismatch() {
 }
 
 /* Search history */
-function caSaveHistory() {
+function caSaveHistory(recommendations) {
   try {
     var entry = {
-      category:   document.getElementById('ca-category').value,
-      budget:     document.getElementById('ca-budget-slider').value,
-      charger:    document.getElementById('ca-charger').value,
-      km:         document.getElementById('ca-km').value,
-      usage:      document.getElementById('ca-usage').value,
-      passengers: document.getElementById('ca-passengers').value,
-      newcar:     document.getElementById('ca-newcar').value,
-      fuelType:   document.getElementById('ca-fuel').value,
-      timestamp:  Date.now()
+      category:        document.getElementById('ca-category').value,
+      budget:          document.getElementById('ca-budget-slider').value,
+      charger:         document.getElementById('ca-charger').value,
+      km:              document.getElementById('ca-km').value,
+      usage:           document.getElementById('ca-usage').value,
+      passengers:      document.getElementById('ca-passengers').value,
+      newcar:          document.getElementById('ca-newcar').value,
+      fuelType:        document.getElementById('ca-fuel').value,
+      timestamp:       Date.now(),
+      recommendations: recommendations || []
     };
     var history = caGetHistory();
     var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
@@ -806,7 +817,25 @@ function caLoadFromHistory(index) {
   if (entry.fuelType)   document.getElementById('ca-fuel').value        = entry.fuelType;
   caUpdateFuelVisibility();
   caCheckMismatch();
-  caGetRecommendation();
+
+  if (entry.recommendations && entry.recommendations.length > 0) {
+    document.getElementById('ca-divider').style.display = 'block';
+    document.getElementById('ca-results').style.display = 'block';
+    document.getElementById('ca-cache-badge').style.display = 'none';
+    caRenderCards(entry.recommendations);
+    document.getElementById('ca-copy-btn').style.display = 'inline-block';
+    document.getElementById('ca-share-result-btn').style.display = 'inline-block';
+    var age = Math.round((Date.now() - entry.timestamp) / 60000);
+    var ageText = age < 1 ? 'nyss' : age < 60 ? age + ' min sedan' : Math.floor(age / 60) + ' tim sedan';
+    var hbadge = document.getElementById('ca-history-badge');
+    hbadge.textContent = '📋 Sparad sökning (' + ageText + ')';
+    hbadge.style.display = 'inline-block';
+    caHasSearched = true;
+    caSnapshotValues();
+    document.getElementById('ca-btn').textContent = 'Sök igen →';
+  } else {
+    caGetRecommendation();
+  }
 }
 
 function caEsc(s) {
@@ -936,6 +965,7 @@ async function caGetRecommendation() {
   document.getElementById('ca-copy-btn').style.display = 'none';
   document.getElementById('ca-share-result-btn').style.display = 'none';
   document.getElementById('ca-cache-badge').style.display = 'none';
+  document.getElementById('ca-history-badge').style.display = 'none';
   caStartLoadingText();
 
   var fuelVal = document.getElementById('ca-fuel').value;
@@ -980,7 +1010,7 @@ async function caGetRecommendation() {
         badge.style.display = 'inline-block';
       }
       caSavePrefs();
-      caSaveHistory();
+      caSaveHistory(d.recommendations);
     } else {
       document.getElementById('ca-cards').innerHTML =
         '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
