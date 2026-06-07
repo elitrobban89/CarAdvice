@@ -10,12 +10,17 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
-- Budget-slider (50 000–1 000 000 kr) med live-uppdaterat värde
+- Budget-slider (50 000–1 000 000 kr) med tickmärken (50k · 200k · 400k · 700k · 1M) och live-uppdaterat värde
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
-- Roterande laddmeddelanden under AI-anropet
+- Roterande laddmeddelanden med tips under AI-anropet
 - Kopiera-knapp som kopierar alla rekommendationer till clipboard
+- Dela-knapp som genererar en delbar länk med alla sökinställningar som URL-parametrar
+- Formuläret sparas automatiskt i localStorage och återställs vid nästa besök
+- URL-parametrar har alltid högre prioritet än localStorage (delad länk visas alltid korrekt)
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
+- Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
+- IP-baserad rate limiting: max 10 förfrågningar per IP och timme
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 
@@ -114,7 +119,7 @@ curl -X POST http://localhost:8080/api/recommend \
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
 
-**Response (lyckat):**
+**Response (lyckat, färskt svar):**
 ```json
 {
   "success": true,
@@ -131,6 +136,8 @@ curl -X POST http://localhost:8080/api/recommend \
 }
 ```
 
+**Response (cache-träff):** Samma struktur plus `"cached": true, "cachedAgeMinutes": 14`.
+
 **Response (fel):**
 ```json
 {
@@ -138,6 +145,8 @@ curl -X POST http://localhost:8080/api/recommend \
   "error": "Dagsgränsen för AI-anrop är nådd. Försök igen om 8 minuter."
 }
 ```
+
+**Rate limiting:** Max 10 anrop per IP och timme. Vid överskridande: HTTP 429 med `"error": "För många förfrågningar från din IP. Försök igen om en stund."`
 
 ### `GET /api/health`
 ```json
