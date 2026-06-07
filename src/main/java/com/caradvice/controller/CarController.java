@@ -1,10 +1,12 @@
 package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
+import com.caradvice.model.CarRecommendation;
 import com.caradvice.service.GroqService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -21,10 +23,10 @@ public class CarController {
     @PostMapping("/recommend")
     public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs) {
         try {
-            String recommendation = groqService.getRecommendation(prefs);
+            List<CarRecommendation> recommendations = groqService.getRecommendation(prefs);
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "recommendation", recommendation
+                    "recommendations", recommendations
             ));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
@@ -43,8 +45,8 @@ public class CarController {
     public ResponseEntity<?> recommendTest() {
         try {
             CarPreferences testPrefs = new CarPreferences(300000, "familjebil", true, 15000, "familj", 4, false);
-            String recommendation = groqService.getRecommendation(testPrefs);
-            boolean groqOk = recommendation != null && recommendation.toLowerCase().contains("rekommendation");
+            List<CarRecommendation> recs = groqService.getRecommendation(testPrefs);
+            boolean groqOk = recs != null && recs.size() == 3;
             return ResponseEntity.ok(Map.of(
                     "status", "OK",
                     "groq", groqOk ? "OK" : "WARN",

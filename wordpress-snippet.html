@@ -223,14 +223,55 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   line-height: 1.3;
 }
-.ca-card-body {
+.ca-price {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(167,139,250,0.95);
+  margin-bottom: 14px;
+}
+.ca-why {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+  font-style: italic;
+  margin-bottom: 16px;
+  line-height: 1.6;
+  border-left: 2px solid rgba(139,92,246,0.4);
+  padding-left: 12px;
+}
+.ca-pros {
+  list-style: none;
+  margin-bottom: 14px;
+}
+.ca-pros li {
   font-size: 0.88rem;
-  color: rgba(255,255,255,0.7);
-  line-height: 1.75;
-  white-space: pre-wrap;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.6;
+  padding: 3px 0 3px 22px;
+  position: relative;
+}
+.ca-pros li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #34d399;
+  font-weight: 700;
+}
+.ca-con {
+  font-size: 0.85rem;
+  color: rgba(251,191,36,0.85);
+  background: rgba(251,191,36,0.06);
+  border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.ca-fit {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.55;
 }
 .ca-raw {
   font-size: 0.88rem;
@@ -410,59 +451,33 @@ function caUpdateBudget(v) {
   caCheckChanges();
 }
 
-function caParseCards(text) {
-  var ds = '**';
-  // Split on **Rekommendation N or plain numbered pattern
-  var chunks = text.split(ds + 'Rekommendation');
-  if (chunks.length < 2) chunks = text.split('Rekommendation');
-  if (chunks.length < 2) return null;
-  var cards = [];
-  for (var i = 1; i < chunks.length; i++) {
-    var chunk = chunks[i].trim();
-    // Remove leading number/colon
-    chunk = chunk.replace(/^\s*\d*\s*[:\.\s]*/, '').trim();
-    // Extract title from **title** or first line
-    var title = 'Rekommendation ' + i;
-    if (chunk.indexOf(ds) === 0) {
-      var end = chunk.indexOf(ds, 2);
-      if (end > 0) {
-        title = chunk.substring(2, end).trim();
-        chunk = chunk.substring(end + 2).trim();
-      }
-    } else {
-      var firstLine = chunk.split('\n')[0].trim();
-      if (firstLine.length < 80) { title = firstLine; chunk = chunk.substring(firstLine.length).trim(); }
-    }
-    // Strip remaining ** markers by splitting on them
-    var parts = chunk.split(ds);
-    var body = parts.join('');
-    // Replace bullet asterisks at line start
-    var lines = body.split('\n');
-    body = lines.map(function(l) {
-      return l.replace(/^[\s]*[*+]\s/, '• ');
-    }).join('\n');
-    cards.push({ num: i, title: title, body: body.trim() });
-  }
-  return cards.length ? cards : null;
+function caEsc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-function caRenderCards(recommendation) {
+function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
   setTimeout(function() {
     container.classList.remove('fading');
-    var cards = caParseCards(recommendation);
-    if (cards) {
-      container.innerHTML = cards.map(function(c) {
-        return '<div class="ca-card">' +
-          '<span class="ca-card-num">Bil ' + c.num + '</span>' +
-          '<h3>' + c.title + '</h3>' +
-          '<div class="ca-card-body">' + c.body + '</div>' +
-          '</div>';
+    container.innerHTML = recommendations.map(function(r, i) {
+      var prosHtml = (r.pros || []).map(function(p) {
+        return '<li>' + caEsc(p) + '</li>';
       }).join('');
-    } else {
-      container.innerHTML = '<div class="ca-card"><div class="ca-raw">' + recommendation + '</div></div>';
-    }
+      return '<div class="ca-card">' +
+        '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
+        '<h3>' + caEsc(r.title) + '</h3>' +
+        '<div class="ca-price">' + caEsc(r.price) + '</div>' +
+        '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
+        '<ul class="ca-pros">' + prosHtml + '</ul>' +
+        '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
+        '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
+        '</div>';
+    }).join('');
   }, 250);
 }
 
@@ -501,7 +516,12 @@ async function caGetRecommendation() {
     divider.style.display = 'block';
     results.style.display = 'block';
 
-    caRenderCards(d.success ? d.recommendation : 'Fel: ' + d.error);
+    if (d.success && d.recommendations) {
+      caRenderCards(d.recommendations);
+    } else {
+      document.getElementById('ca-cards').innerHTML =
+        '<div class="ca-card"><div class="ca-raw">Fel: ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
+    }
 
     caHasSearched = true;
     caSnapshotValues();
