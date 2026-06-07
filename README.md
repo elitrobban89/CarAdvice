@@ -10,10 +10,12 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
+- Drivmedelsfilter: bensin, diesel, hybrid — döljs automatiskt för elbil/laddhybrid
 - Budget-slider (50 000–1 000 000 kr) med tickmärken (50k · 200k · 400k · 700k · 1M) och live-uppdaterat värde
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - Roterande laddmeddelanden med tips under AI-anropet
+- Sökhistorik: senaste 5 sökningar visas som klickbara chips — ett klick återställer formuläret och söker direkt
 - Kopiera-knapp som kopierar alla rekommendationer till clipboard
 - Dela-knapp som genererar en delbar länk med alla sökinställningar som URL-parametrar
 - Formuläret sparas automatiskt i localStorage och återställs vid nästa besök
@@ -86,7 +88,8 @@ curl -X POST http://localhost:8080/api/recommend \
     "kmPerYear": 15000,
     "usage": "pendling",
     "passengers": 2,
-    "newCar": false
+    "newCar": false,
+    "fuelType": "bensin"
   }'
 ```
 
@@ -118,6 +121,7 @@ curl -X POST http://localhost:8080/api/recommend \
 | `usage` | string | `pendling`, `familj`, `landsväg`, `stad` |
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
+| `fuelType` | string | `bensin`, `diesel`, `hybrid`, `spelar ingen roll` (default) |
 
 **Response (lyckat, färskt svar):**
 ```json
