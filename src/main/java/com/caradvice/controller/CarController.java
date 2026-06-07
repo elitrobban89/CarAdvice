@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "https://elitrobban.se")
+@CrossOrigin(origins = {"https://elitrobban.se", "http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080"})
 public class CarController {
 
     private final GroqService groqService;

@@ -13,6 +13,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class GroqService {
@@ -55,8 +57,11 @@ public class GroqService {
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+        if (response.statusCode() == 429) {
+            throw new RuntimeException("Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(response.body()) + ".");
+        }
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Groq API fel: " + response.statusCode() + " - " + response.body());
+            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
         }
 
         JsonNode json = mapper.readTree(response.body());
@@ -68,11 +73,27 @@ public class GroqService {
         );
     }
 
+    private String parseRetryTime(String body) {
+        try {
+            Matcher m = Pattern.compile("try again in (\\d+m[\\d.]+s|[\\d.]+s)").matcher(body);
+            if (!m.find()) return "en stund";
+            String t = m.group(1);
+            Matcher minMatcher = Pattern.compile("(\\d+)m").matcher(t);
+            Matcher secMatcher = Pattern.compile("([\\d.]+)s").matcher(t);
+            int minutes = minMatcher.find() ? Integer.parseInt(minMatcher.group(1)) : 0;
+            double seconds = secMatcher.find() ? Double.parseDouble(secMatcher.group(1)) : 0;
+            int total = (int) Math.ceil(minutes + seconds / 60.0);
+            return total <= 1 ? "1 minut" : total + " minuter";
+        } catch (Exception e) {
+            return "en stund";
+        }
+    }
+
     private String buildSystemPrompt() {
         return """
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa+motivering","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"passning"}]}
-                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka.
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa+motivering","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil"}]}
+                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary ska vara konkret och personlig.
                 """;
     }
 

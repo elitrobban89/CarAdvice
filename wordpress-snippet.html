@@ -572,12 +572,17 @@ async function caGetRecommendation() {
     newCar:      document.getElementById('ca-newcar').value === 'true'
   };
 
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
+
   try {
     var r = await fetch('https://caradvice.onrender.com/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     var d = await r.json();
 
     loader.style.display = 'none';
@@ -588,24 +593,27 @@ async function caGetRecommendation() {
       caRenderCards(d.recommendations);
     } else {
       document.getElementById('ca-cards').innerHTML =
-        '<div class="ca-card"><div class="ca-raw">Fel: ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
+        '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
     }
 
     caHasSearched = true;
     caSnapshotValues();
 
-    // Clear changed highlights
     document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
     btn.classList.remove('has-changes');
     btn.disabled = false;
     btn.textContent = 'Sök igen →';
 
   } catch (e) {
+    clearTimeout(timeoutId);
     loader.style.display = 'none';
     divider.style.display = 'block';
     results.style.display = 'block';
+    var msg = e.name === 'AbortError'
+      ? '⏱ Servern svarade inte inom 35 sekunder. Render kan ha haft en cold start – försök igen om en stund.'
+      : '🔌 Kunde inte nå servern: ' + e.message;
     document.getElementById('ca-cards').innerHTML =
-      '<div class="ca-card"><div class="ca-raw">Kunde inte nå servern: ' + e.message + '</div></div>';
+      '<div class="ca-card"><div class="ca-raw">' + msg + '</div></div>';
     btn.disabled = false;
     btn.textContent = 'Försök igen →';
   }
