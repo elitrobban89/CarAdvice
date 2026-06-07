@@ -193,10 +193,34 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens, vilket ger ungefär **130–150 unika sökningar per dag**.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`.
 
-- Identiska sökningar serveras från 2-timmars cache utan att använda tokens
-- Promptarna är medvetet korta — ändra dem inte utan att räkna tokens
-- `/api/recommend/test` gör **inga** Groq-anrop
-- Vid 429 visas: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
-- Kvoten återställs dagligen (~midnatt UTC)
+### Förbrukning per anrop
+
+| Del | Tokens |
+|-----|--------|
+| System-prompt (input) | ~60 |
+| User-prompt (input) | ~30 |
+| Svar från AI (output, max) | 1 024 |
+| **Totalt per unikt anrop** | **~1 100–1 150** |
+
+Det ger ungefär **85–90 unika sökningar per dag** innan kvoten nås.
+
+### Cache (2 timmar)
+
+Identiska sökprofiler (samma budget, kategori, körsträcka etc.) returneras direkt från minnet utan att använda tokens. En populär kombination som söks 10 gånger under två timmar kostar alltså bara ~1 150 tokens istället för ~11 500.
+
+Cache nollställs vid Render-omstart (deploy eller nedstängning).
+
+### Hur kvoten förlängs
+
+| Åtgärd | Effekt |
+|--------|--------|
+| Cache-träff | 0 tokens (100% besparing) |
+| `/api/recommend/test` (UptimeRobot) | 0 tokens |
+| Promptarna är avsiktligt korta | Ändra inte utan att räkna tokens |
+
+### Vid 429-fel
+
+Användaren ser: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
+Kvoten återställs dagligen (~midnatt UTC). Uppgradering till Groq Dev Tier ger 500 000 tokens/dag.
