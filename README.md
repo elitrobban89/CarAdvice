@@ -15,8 +15,10 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - Roterande laddmeddelanden med tips under AI-anropet
-- Sökhistorik: senaste 5 sökningar visas som klickbara chips — ett klick återställer formuläret och söker direkt
-- "Hitta på Blocket →"-länk på varje bilkort — öppnar en färdig sökning på märke och modell
+- Sökhistorik: senaste 5 sökningar sparas med resultat — ett klick visar sparade rekommendationer direkt utan API-anrop
+- Historik-badge "📋 Sparad sökning (X min sedan)" visas när resultat kommer från historik
+- "Sök igen →"-knapp tillgänglig för att hämta färska resultat efter historik-visning
+- Blocket- och Bytbil-länk på varje bilkort — öppnar färdig sökning på märke och modell
 - Nollställ-knapp som återställer formuläret till standardvärden
 - Kopiera-knapp som kopierar alla rekommendationer till clipboard
 - Dela-knapp som genererar en delbar länk med alla sökinställningar som URL-parametrar
