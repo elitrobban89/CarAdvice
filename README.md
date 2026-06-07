@@ -9,13 +9,15 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ## Funktioner
 
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
-- Stöd för ekonomibil, familjebil, elbil och småbil
+- Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
+- Budget-slider (50 000–1 000 000 kr) med live-uppdaterat värde
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
-- Modernt mörkt formulär med live-ändringsindikation och animerade resultat
-- Strukturerade bilkort med pris, källhänvisning, fördelar, nackdel och personlig sammanfattning
-- Vänliga svenska felmeddelanden — inkl. exakt återstartstid vid kvotgräns
-- 35-sekunders timeout med cold start-hint vid Render-uppvakningsläge
+- Roterande laddmeddelanden under AI-anropet
+- Kopiera-knapp som kopierar alla rekommendationer till clipboard
+- 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
+- Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
+- 35-sekunders timeout med cold start-hint
 
 ---
 
@@ -49,7 +51,7 @@ CarAdvice/
     │   │   ├── CarPreferences.java     ← Input-record
     │   │   └── CarRecommendation.java  ← Output-record
     │   └── service/
-    │       └── GroqService.java        ← Groq AI-integration + felhantering
+    │       └── GroqService.java        ← Groq AI-integration, cache, felhantering
     └── resources/
         └── application.properties
 ```
@@ -105,7 +107,7 @@ curl -X POST http://localhost:8080/api/recommend \
 | Fält | Typ | Värden |
 |------|-----|--------|
 | `budget` | int | Kronor |
-| `carCategory` | string | `ekonomibil`, `familjebil`, `elbil`, `smaabil` |
+| `carCategory` | string | `ekonomibil`, `familjebil`, `suv`, `elbil`, `laddhybrid`, `smaabil` |
 | `hasCharger` | boolean | Laddbox hemma |
 | `kmPerYear` | int | Kilometer per år |
 | `usage` | string | `pendling`, `familj`, `landsväg`, `stad` |
@@ -121,7 +123,7 @@ curl -X POST http://localhost:8080/api/recommend \
       "title": "Volkswagen Golf 1.0 TSI (2019)",
       "price": "130 000 – 160 000 kr",
       "whyRecommended": "Toppbetyg i Teknikens Värld för komfort och bränsleekonomi",
-      "pros": ["5,5 l/100 km ger ~8 250 kr/år i bränslekostnad", "Låga underhållskostnader", "Stort servicenät i Sverige"],
+      "pros": ["5,5 l/100 km ger ~8 250 kr/år", "Låga underhållskostnader", "Brett servicenät"],
       "con": "Mindre kraftfull motor kan kännas trög i kuperad terräng",
       "fitSummary": "Passar en lågmilare som pendlar i stad med begränsad budget."
     }
@@ -144,7 +146,7 @@ curl -X POST http://localhost:8080/api/recommend \
 
 ### `GET /api/recommend/test`
 
-Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för att hålla Render-instansen varm — gör **inga** Groq-anrop.
+Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot — gör **inga** Groq-anrop.
 
 ```json
 { "status": "OK", "groq": "OK", "rekommendation": true }
@@ -191,8 +193,9 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens, vilket ger ungefär **130–150 anrop per dag**.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens, vilket ger ungefär **130–150 unika sökningar per dag**.
 
+- Identiska sökningar serveras från 2-timmars cache utan att använda tokens
 - Promptarna är medvetet korta — ändra dem inte utan att räkna tokens
 - `/api/recommend/test` gör **inga** Groq-anrop
 - Vid 429 visas: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
