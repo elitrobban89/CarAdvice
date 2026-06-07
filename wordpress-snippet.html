@@ -3,7 +3,7 @@
 
 #ca-wrap {
   font-family: 'Segoe UI', system-ui, sans-serif;
-  max-width: 720px;
+  max-width: 900px;
   margin: 40px auto;
   padding: 0 16px;
 }
@@ -14,19 +14,37 @@
   padding: 48px 40px 40px;
   color: #fff;
   box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+#ca-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 70% 20%, rgba(139,92,246,0.12) 0%, transparent 55%),
+              radial-gradient(ellipse at 15% 85%, rgba(99,102,241,0.09) 0%, transparent 45%);
+  pointer-events: none;
 }
 
 #ca-hero h2 {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.1rem;
+  font-weight: 800;
   letter-spacing: -0.5px;
   margin-bottom: 6px;
+}
+#ca-hero h2 .ca-title-grad {
+  background: linear-gradient(120deg, #fff 40%, rgba(167,139,250,0.85) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 #ca-hero p.ca-sub {
   font-size: 1rem;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.55);
   margin-bottom: 36px;
+  letter-spacing: 0.1px;
 }
 
 .ca-grid {
@@ -44,11 +62,11 @@
 
 .ca-field label {
   display: block;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 1px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.65);
   margin-bottom: 8px;
   transition: color 0.2s;
 }
@@ -81,7 +99,7 @@
 .ca-field input:focus {
   border-color: rgba(139,92,246,0.9);
   background: rgba(255,255,255,0.13);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 20px rgba(139,92,246,0.15);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 28px rgba(139,92,246,0.2);
 }
 
 .ca-field:focus-within label {
@@ -118,8 +136,20 @@
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   box-shadow: 0 6px 24px rgba(99,102,241,0.45);
+  position: relative;
+  overflow: hidden;
 }
-#ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.55); }
+#ca-btn::after {
+  content: '';
+  position: absolute;
+  top: -50%; left: -70%;
+  width: 45%; height: 200%;
+  background: rgba(255,255,255,0.18);
+  transform: skewX(-18deg);
+  transition: left 0.55s ease;
+}
+#ca-btn:hover::after { left: 130%; }
+#ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.6); }
 #ca-btn:active { transform: translateY(0); }
 #ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
@@ -187,8 +217,8 @@
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 18px;
-  padding: 30px;
-  margin-bottom: 24px;
+  padding: 36px;
+  margin-bottom: 40px;
   transition: background 0.2s, opacity 0.3s, transform 0.3s;
 }
 .ca-card:hover { background: rgba(255,255,255,0.08); }
@@ -248,9 +278,13 @@
 .ca-pros li {
   font-size: 0.88rem;
   color: rgba(255,255,255,0.8);
-  line-height: 1.6;
-  padding: 3px 0 3px 22px;
+  line-height: 1.5;
+  padding: 7px 0 7px 26px;
   position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ca-pros li:last-child {
+  border-bottom: none;
 }
 .ca-pros li::before {
   content: '✓';
@@ -279,11 +313,38 @@
   line-height: 1.8;
   white-space: pre-wrap;
 }
+
+/* Groq badge */
+.ca-groq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding: 6px 13px 6px 9px;
+  background: rgba(245,80,54,0.07);
+  border: 1px solid rgba(245,80,54,0.22);
+  border-radius: 20px;
+  font-size: 0.73rem;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.2px;
+  text-decoration: none;
+}
+.ca-groq-name {
+  color: #f87060;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: -0.2px;
+}
+.ca-groq-icon {
+  width: 14px; height: 14px;
+  fill: #f87060;
+  flex-shrink: 0;
+}
 </style>
 
 <div id="ca-wrap">
   <div id="ca-hero">
-    <h2>🚗 Hitta din drömbil</h2>
+    <h2>🚗 <span class="ca-title-grad">Hitta din drömbil</span></h2>
     <p class="ca-sub">Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
 
     <div class="ca-grid">
@@ -362,6 +423,13 @@
 
     <div id="ca-btn-area">
       <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+    </div>
+
+    <div>
+      <span class="ca-groq-badge">
+        <svg class="ca-groq-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>
+        Drivs av <span class="ca-groq-name">Groq AI</span>
+      </span>
     </div>
 
     <div id="ca-loader">
