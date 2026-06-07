@@ -279,17 +279,28 @@
 .ca-history-chip:hover .ca-history-chip-del { color: rgba(255,100,100,0.55); }
 
 /* Loading */
-#ca-loader { display: none; text-align: center; padding: 40px 0 20px; }
-.ca-spinner {
-  width: 44px; height: 44px;
-  border: 3px solid rgba(139,92,246,0.2);
-  border-top-color: #8b5cf6;
-  border-radius: 50%;
-  animation: ca-spin 0.8s linear infinite;
-  margin: 0 auto 14px;
+#ca-loader { display: none; text-align: center; padding: 16px 0 4px; }
+#ca-loader p { color: rgba(255,255,255,0.4); font-size: 0.82rem; }
+
+/* Skeleton cards */
+.ca-skeleton {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 36px;
+  margin-bottom: 40px;
 }
-@keyframes ca-spin { to { transform: rotate(360deg); } }
-#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.88rem; }
+.ca-skeleton-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: ca-shimmer 1.6s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+@keyframes ca-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* Divider */
 #ca-divider { display: none; height: 1px; background: rgba(255,255,255,0.1); margin: 32px 0; }
@@ -548,7 +559,6 @@
     </div>
 
     <div id="ca-loader">
-      <div class="ca-spinner"></div>
       <p id="ca-loader-text">AI:n analyserar dina behov…</p>
     </div>
 
@@ -868,6 +878,21 @@ function caResetForm() {
   try { localStorage.removeItem('ca-prefs'); } catch(e) {}
 }
 
+function caSkeletonHTML() {
+  var card = '<div class="ca-skeleton">' +
+    '<div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div>' +
+    '<div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div>' +
+    '<div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div>' +
+    '<div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div>' +
+    '<div class="ca-skeleton-line" style="width:88%"></div>' +
+    '<div class="ca-skeleton-line" style="width:72%"></div>' +
+    '<div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div>' +
+    '<div class="ca-skeleton-line" style="width:100%;height:36px;border-radius:8px;margin-bottom:14px"></div>' +
+    '<div class="ca-skeleton-line" style="width:60%"></div>' +
+    '</div>';
+  return card + card + card;
+}
+
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
@@ -961,11 +986,14 @@ async function caGetRecommendation() {
 
   btn.disabled = true;
   btn.textContent = 'Hämtar…';
-  loader.style.display = 'block';
   document.getElementById('ca-copy-btn').style.display = 'none';
   document.getElementById('ca-share-result-btn').style.display = 'none';
   document.getElementById('ca-cache-badge').style.display = 'none';
   document.getElementById('ca-history-badge').style.display = 'none';
+  divider.style.display = 'block';
+  results.style.display = 'block';
+  document.getElementById('ca-cards').innerHTML = caSkeletonHTML();
+  loader.style.display = 'block';
   caStartLoadingText();
 
   var fuelVal = document.getElementById('ca-fuel').value;
@@ -995,8 +1023,6 @@ async function caGetRecommendation() {
     var d = await r.json();
 
     loader.style.display = 'none';
-    divider.style.display = 'block';
-    results.style.display = 'block';
 
     if (d.success && d.recommendations) {
       caRenderCards(d.recommendations);
@@ -1027,8 +1053,6 @@ async function caGetRecommendation() {
     clearTimeout(timeoutId);
     caStopLoadingText();
     loader.style.display = 'none';
-    divider.style.display = 'block';
-    results.style.display = 'block';
     var msg = e.name === 'AbortError'
       ? '⏱ Servern svarade inte inom 35 sekunder. Render kan ha haft en cold start – försök igen om en stund.'
       : '🔌 Kunde inte nå servern: ' + e.message;
@@ -1045,4 +1069,12 @@ caLoadPrefs();
 caReadUrlParams();
 caBindChangeListeners();
 caRenderHistory();
+
+// Auto-search if page was opened via a shared link
+(function() {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    if (p.has('category') || p.has('budget')) caGetRecommendation();
+  } catch(e) {}
+})();
 </script>
