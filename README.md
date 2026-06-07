@@ -13,6 +13,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter mil per år, laddmöjlighet och ny/begagnad
 - Modernt mörkt formulär med live-ändringsindikation och animerade resultat
+- Strukturerade bilkort med pris, källhänvisning, fördelar, nackdel och personlig sammanfattning
 
 ---
 
@@ -42,7 +43,8 @@ CarAdvice/
     │   ├── controller/
     │   │   └── CarController.java      ← REST: POST /api/recommend, GET /api/health
     │   ├── model/
-    │   │   └── CarPreferences.java     ← Input-record
+    │   │   ├── CarPreferences.java     ← Input-record
+│   │   └── CarRecommendation.java  ← Output-record (title, price, pros, con, fitSummary)
     │   └── service/
     │       └── GroqService.java        ← Groq AI-integration
     └── resources/
@@ -111,7 +113,16 @@ curl -X POST http://localhost:8080/api/recommend \
 ```json
 {
   "success": true,
-  "recommendation": "**Rekommendation 1: Volvo XC60**..."
+  "recommendations": [
+    {
+      "title": "Volvo V60 T6 Recharge (2021)",
+      "price": "280 000 – 340 000 kr",
+      "whyRecommended": "Toppbetyg av Teknikens Värld för komfort och säkerhet...",
+      "pros": ["Låg driftkostnad som laddhybrid", "Stort bagageutrymme", "Räcker för daglig pendling på el"],
+      "con": "Begränsat begagnat utbud i denna årsmodell",
+      "fitSummary": "Passar perfekt för familjekörning med laddbox hemma."
+    }
+  ]
 }
 ```
 
@@ -122,7 +133,7 @@ curl -X POST http://localhost:8080/api/recommend \
 
 ### `GET /api/recommend/test`
 
-Kör ett fast testanrop mot Groq AI (familjebil, 300 000 kr). Används av UptimeRobot för att verifiera att hela kedjan fungerar.
+Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för att hålla Render-instansen varm — gör **inga** Groq-anrop för att spara token-budget.
 
 ```json
 { "status": "OK", "groq": "OK", "rekommendation": true }
