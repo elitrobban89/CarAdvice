@@ -258,9 +258,6 @@
 .ca-history-chip:hover { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: rgba(255,255,255,0.88); }
 .ca-history-chip-time { font-size: 0.68rem; color: rgba(255,255,255,0.22); }
 .ca-history-chip-del {
-  background: none;
-  border: none;
-  padding: 0;
   color: rgba(255,255,255,0.2);
   font-size: 0.85rem;
   line-height: 1;
@@ -753,7 +750,7 @@ function caRenderHistory() {
     return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
       '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
       '<span class="ca-history-chip-time">' + caTimeAgo(entry.timestamp) + '</span>' +
-      '<button class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</button>' +
+      '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</span>' +
       '</button>';
   }).join('');
   area.innerHTML = '<div class="ca-history-label">Tidigare sökningar</div><div class="ca-history-chips">' + chips + '</div>';
