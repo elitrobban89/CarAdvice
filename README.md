@@ -14,6 +14,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Anpassar råd efter mil per år, laddmöjlighet och ny/begagnad
 - Modernt mörkt formulär med live-ändringsindikation och animerade resultat
 - Strukturerade bilkort med pris, källhänvisning, fördelar, nackdel och personlig sammanfattning
+- Optimerade promptar (~50% färre input-tokens) för att maximera daglig kapacitet på Groq gratisplan
 
 ---
 
@@ -170,6 +171,19 @@ Backend-monitorn körs var 5:e minut vilket även håller Render-instansen varm 
 
 Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri WordPress-sida. Formuläret anropar Render-URL:en direkt från webbläsaren.
 
+> **OBS:** WordPress synkas inte automatiskt från GitHub. Vid uppdatering av `wordpress-snippet.html` måste koden klistras in manuellt i WordPress-blocket.
+
 **Relaterade snippets:**
 - `footer-projects-snippet.html` — tre projektkort till footern (Bränslekostnadsberäkning, AI Bilrådgivning, Väder&Kläder)
 - `project-links-snippet.html` — två projektkort för bränslekostnadsidan
+
+---
+
+## Token-budget (Groq gratisplan)
+
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens (input + 1024 output), vilket ger ungefär **130–150 anrop per dag**.
+
+För att hålla sig inom gränsen:
+- Promptarna är medvetet korta — ändra inte utan att räkna tokens
+- `/api/recommend/test` (UptimeRobot) gör **inga** Groq-anrop
+- Vid 429-fel: vänta tills kvoten återställs (~midnatt UTC)
