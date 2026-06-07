@@ -39,7 +39,6 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-
 #ca-hero p.ca-sub {
   font-size: 1rem;
   color: rgba(255,255,255,0.55);
@@ -71,7 +70,6 @@
   margin-bottom: 8px;
   transition: color 0.2s;
 }
-
 .ca-field select,
 .ca-field input[type="number"] {
   width: 100%;
@@ -86,38 +84,26 @@
   appearance: none;
   -webkit-appearance: none;
 }
-
 .ca-field select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
   padding-right: 36px;
 }
-
 .ca-field select option { background: #302b63; color: #fff; }
-
 .ca-field select:focus,
 .ca-field input[type="number"]:focus {
   border-color: rgba(139,92,246,0.9);
   background: rgba(255,255,255,0.13);
   box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 28px rgba(139,92,246,0.2);
 }
-
-.ca-field:focus-within label {
-  color: rgba(167,139,250,0.95);
-}
-
-/* Changed field highlight */
+.ca-field:focus-within label { color: rgba(167,139,250,0.95); }
 .ca-field.changed select,
-.ca-field.changed input {
-  border-color: rgba(251,191,36,0.7);
-  box-shadow: 0 0 0 3px rgba(251,191,36,0.12);
-}
+.ca-field.changed input { border-color: rgba(251,191,36,0.7); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); }
 .ca-field.changed label { color: rgba(251,191,36,0.9); }
 
 /* Budget slider */
 .ca-budget-val {
-  display: inline-block;
   font-size: 1rem;
   font-weight: 700;
   color: rgba(167,139,250,0.95);
@@ -125,24 +111,13 @@
   letter-spacing: 0;
   margin-left: 8px;
 }
-#ca-budget-slider {
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  outline: none;
-  padding: 10px 0;
-  border: none;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-}
 .ca-slider-track {
   position: relative;
   height: 4px;
   border-radius: 2px;
   background: rgba(255,255,255,0.12);
   margin-top: 12px;
+  margin-bottom: 4px;
 }
 #ca-slider-fill {
   position: absolute;
@@ -150,7 +125,6 @@
   border-radius: 2px;
   background: linear-gradient(90deg, #8b5cf6, #6366f1);
   pointer-events: none;
-  width: 15%;
   transition: width 0.05s;
 }
 #ca-budget-slider {
@@ -158,46 +132,56 @@
   top: -10px; left: 0; right: 0;
   width: 100%;
   background: transparent;
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   height: 24px;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 #ca-budget-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+  border: 2px solid rgba(255,255,255,0.2);
   transition: box-shadow 0.2s, transform 0.15s;
-  border: 2px solid rgba(255,255,255,0.2);
 }
-#ca-budget-slider::-webkit-slider-thumb:hover {
-  box-shadow: 0 2px 16px rgba(99,102,241,0.8);
-  transform: scale(1.1);
-}
+#ca-budget-slider::-webkit-slider-thumb:hover { box-shadow: 0 2px 16px rgba(99,102,241,0.8); transform: scale(1.1); }
 #ca-budget-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  cursor: pointer;
   border: 2px solid rgba(255,255,255,0.2);
-  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+  cursor: pointer;
 }
 #ca-budget-slider::-moz-range-track { background: transparent; }
+.ca-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+.ca-slider-ticks span {
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.2px;
+}
 
-/* Button area */
+/* Buttons */
 #ca-btn-area {
   margin-top: 24px;
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
-
 #ca-btn {
   flex: 1;
+  min-width: 180px;
   padding: 16px;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
   border: none;
@@ -224,7 +208,6 @@
 #ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.6); }
 #ca-btn:active { transform: translateY(0); }
 #ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
 #ca-btn.has-changes {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   box-shadow: 0 6px 24px rgba(245,158,11,0.45);
@@ -234,13 +217,22 @@
   0%, 100% { box-shadow: 0 6px 24px rgba(245,158,11,0.45); }
   50% { box-shadow: 0 6px 32px rgba(245,158,11,0.7); }
 }
+#ca-share-search-btn {
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+#ca-share-search-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
+#ca-share-search-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
 
 /* Loading */
-#ca-loader {
-  display: none;
-  text-align: center;
-  padding: 40px 0 20px;
-}
+#ca-loader { display: none; text-align: center; padding: 40px 0 20px; }
 .ca-spinner {
   width: 44px; height: 44px;
   border: 3px solid rgba(139,92,246,0.2);
@@ -250,33 +242,60 @@
   margin: 0 auto 14px;
 }
 @keyframes ca-spin { to { transform: rotate(360deg); } }
-#ca-loader p {
-  color: rgba(255,255,255,0.5);
-  font-size: 0.88rem;
-  transition: opacity 0.3s;
-}
+#ca-loader p { color: rgba(255,255,255,0.5); font-size: 0.88rem; }
 
 /* Divider */
-#ca-divider {
-  display: none;
-  height: 1px;
-  background: rgba(255,255,255,0.1);
-  margin: 32px 0;
-}
+#ca-divider { display: none; height: 1px; background: rgba(255,255,255,0.1); margin: 32px 0; }
 
 /* Results */
 #ca-results { display: none; }
-
+.ca-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
 .ca-result-label {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: rgba(255,255,255,0.35);
-  margin-bottom: 18px;
+}
+.ca-cache-badge {
+  font-size: 0.7rem;
+  color: rgba(52,211,153,0.7);
+  background: rgba(52,211,153,0.07);
+  border: 1px solid rgba(52,211,153,0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  display: none;
 }
 
-/* Mismatch warning */
+/* Result action buttons */
+.ca-result-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.ca-action-btn {
+  padding: 8px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  display: none;
+}
+.ca-action-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
+.ca-action-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
+
+/* Warning */
 #ca-warning {
   display: none;
   margin-top: 14px;
@@ -288,6 +307,7 @@
   color: rgba(251,191,36,0.95);
 }
 
+/* Cards */
 .ca-card {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
@@ -297,12 +317,7 @@
   transition: background 0.2s, opacity 0.3s, transform 0.3s;
 }
 .ca-card:hover { background: rgba(255,255,255,0.08); }
-
-#ca-cards.fading .ca-card {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
+#ca-cards.fading .ca-card { opacity: 0; transform: translateY(-8px); }
 @keyframes ca-fadein {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -310,7 +325,6 @@
 .ca-card { animation: ca-fadein 0.4s ease both; }
 .ca-card:nth-child(2) { animation-delay: 0.08s; }
 .ca-card:nth-child(3) { animation-delay: 0.16s; }
-
 .ca-card-num {
   display: inline-block;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
@@ -323,19 +337,8 @@
   text-transform: uppercase;
   margin-bottom: 10px;
 }
-.ca-card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 4px;
-  line-height: 1.3;
-}
-.ca-price {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: rgba(167,139,250,0.95);
-  margin-bottom: 14px;
-}
+.ca-card h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 4px; line-height: 1.3; }
+.ca-price { font-size: 0.92rem; font-weight: 600; color: rgba(167,139,250,0.95); margin-bottom: 14px; }
 .ca-why {
   font-size: 0.85rem;
   color: rgba(255,255,255,0.6);
@@ -345,28 +348,9 @@
   border-left: 2px solid rgba(139,92,246,0.4);
   padding-left: 12px;
 }
-.ca-pros {
-  list-style: none;
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ca-pros li {
-  font-size: 0.88rem;
-  color: rgba(255,255,255,0.8);
-  line-height: 1.5;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.ca-pros li::before {
-  content: '✓';
-  color: #34d399;
-  font-weight: 700;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
+.ca-pros { list-style: none; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ca-pros li { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
+.ca-pros li::before { content: '✓'; color: #34d399; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
 .ca-con {
   font-size: 0.85rem;
   color: rgba(251,191,36,0.85);
@@ -376,39 +360,8 @@
   padding: 8px 12px;
   margin-bottom: 14px;
 }
-.ca-fit {
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.5);
-  line-height: 1.55;
-}
-.ca-raw {
-  font-size: 0.88rem;
-  color: rgba(255,255,255,0.7);
-  line-height: 1.8;
-  white-space: pre-wrap;
-}
-
-/* Copy button */
-#ca-copy-btn {
-  display: none;
-  margin-bottom: 28px;
-  padding: 9px 20px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 10px;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-#ca-copy-btn:hover {
-  background: rgba(255,255,255,0.11);
-  color: rgba(255,255,255,0.9);
-}
-#ca-copy-btn.copied {
-  color: #34d399;
-  border-color: rgba(52,211,153,0.35);
-}
+.ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; }
+.ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
 
 /* Groq badge */
 .ca-groq-badge {
@@ -425,17 +378,8 @@
   letter-spacing: 0.2px;
   text-decoration: none;
 }
-.ca-groq-name {
-  color: #f87060;
-  font-weight: 800;
-  font-size: 0.8rem;
-  letter-spacing: -0.2px;
-}
-.ca-groq-icon {
-  width: 14px; height: 14px;
-  fill: #f87060;
-  flex-shrink: 0;
-}
+.ca-groq-name { color: #f87060; font-weight: 800; font-size: 0.8rem; letter-spacing: -0.2px; }
+.ca-groq-icon { width: 14px; height: 14px; fill: #f87060; flex-shrink: 0; }
 </style>
 
 <div id="ca-wrap">
@@ -460,6 +404,9 @@
         <div class="ca-slider-track">
           <div id="ca-slider-fill"></div>
           <input type="range" id="ca-budget-slider" min="50000" max="1000000" step="25000" value="200000">
+        </div>
+        <div class="ca-slider-ticks">
+          <span>50k</span><span>200k</span><span>400k</span><span>700k</span><span>1M</span>
         </div>
       </div>
     </div>
@@ -509,6 +456,7 @@
 
     <div id="ca-btn-area">
       <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+      <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
     </div>
 
     <div>
@@ -526,8 +474,14 @@
     <div id="ca-divider"></div>
 
     <div id="ca-results">
-      <p class="ca-result-label">Dina rekommendationer</p>
-      <button id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
+      <div class="ca-result-header">
+        <span class="ca-result-label" id="ca-result-label">Dina rekommendationer</span>
+        <span class="ca-cache-badge" id="ca-cache-badge"></span>
+      </div>
+      <div class="ca-result-actions">
+        <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
+        <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
+      </div>
       <div id="ca-cards"></div>
     </div>
   </div>
@@ -548,14 +502,12 @@ var caLoadingInterval = null;
 
 function caStartLoadingText() {
   var i = 0;
-  var p = document.getElementById('ca-loader-text');
-  p.textContent = caLoadingMessages[0];
+  document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
   caLoadingInterval = setInterval(function() {
     i = (i + 1) % caLoadingMessages.length;
-    p.textContent = caLoadingMessages[i];
+    document.getElementById('ca-loader-text').textContent = caLoadingMessages[i];
   }, 2200);
 }
-
 function caStopLoadingText() {
   clearInterval(caLoadingInterval);
   caLoadingInterval = null;
@@ -567,6 +519,51 @@ function caUpdateSliderFill() {
   var pct = (parseInt(slider.value) - 50000) / (1000000 - 50000) * 100;
   document.getElementById('ca-slider-fill').style.width = pct + '%';
   document.getElementById('ca-budget-display').textContent = parseInt(slider.value).toLocaleString('sv-SE') + ' kr';
+}
+
+/* localStorage */
+function caSavePrefs() {
+  try {
+    localStorage.setItem('ca-prefs', JSON.stringify({
+      category:   document.getElementById('ca-category').value,
+      budget:     document.getElementById('ca-budget-slider').value,
+      charger:    document.getElementById('ca-charger').value,
+      km:         document.getElementById('ca-km').value,
+      usage:      document.getElementById('ca-usage').value,
+      passengers: document.getElementById('ca-passengers').value,
+      newcar:     document.getElementById('ca-newcar').value
+    }));
+  } catch(e) {}
+}
+function caLoadPrefs() {
+  try {
+    var raw = localStorage.getItem('ca-prefs');
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    if (d.category)   document.getElementById('ca-category').value   = d.category;
+    if (d.budget)   { document.getElementById('ca-budget-slider').value = d.budget; caUpdateSliderFill(); }
+    if (d.charger)    document.getElementById('ca-charger').value     = d.charger;
+    if (d.km)         document.getElementById('ca-km').value          = d.km;
+    if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
+    if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
+    if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
+    caCheckMismatch();
+  } catch(e) {}
+}
+
+/* URL params */
+function caReadUrlParams() {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('category'))   document.getElementById('ca-category').value   = p.get('category');
+    if (p.get('budget'))   { document.getElementById('ca-budget-slider').value = p.get('budget'); caUpdateSliderFill(); }
+    if (p.get('charger'))    document.getElementById('ca-charger').value     = p.get('charger');
+    if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
+    if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
+    if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
+    if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
+    if (p.get('budget'))     caCheckMismatch();
+  } catch(e) {}
 }
 
 function caSnapshotValues() {
@@ -583,8 +580,8 @@ function caSnapshotValues() {
 
 function caCheckChanges() {
   if (!caHasSearched) return;
-  var ids   = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
-  var keys  = ['category','budget','charger','km','usage','passengers','newcar'];
+  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar'];
+  var keys = ['category','budget','charger','km','usage','passengers','newcar'];
   var anyChanged = false;
   ids.forEach(function(id, i) {
     var el = document.getElementById(id);
@@ -632,11 +629,7 @@ function caCheckMismatch() {
 }
 
 function caEsc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function caRenderCards(recommendations) {
@@ -645,9 +638,7 @@ function caRenderCards(recommendations) {
   setTimeout(function() {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
-      var prosHtml = (r.pros || []).map(function(p) {
-        return '<li>' + caEsc(p) + '</li>';
-      }).join('');
+      var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
       return '<div class="ca-card">' +
         '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
         '<h3>' + caEsc(r.title) + '</h3>' +
@@ -659,6 +650,16 @@ function caRenderCards(recommendations) {
         '</div>';
     }).join('');
   }, 250);
+}
+
+function caFallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
 }
 
 function caCopyResult() {
@@ -675,33 +676,35 @@ function caCopyResult() {
   });
   var text = lines.join('\n\n');
   var btn = document.getElementById('ca-copy-btn');
-
-  function showConfirm() {
-    btn.textContent = '✓ Kopierat!';
-    btn.classList.add('copied');
-    setTimeout(function() {
-      btn.textContent = 'Kopiera lista';
-      btn.classList.remove('copied');
-    }, 2500);
+  function confirm() {
+    btn.textContent = '✓ Kopierat!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Kopiera lista'; btn.classList.remove('copied'); }, 2500);
   }
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(showConfirm).catch(function() {
-      caFallbackCopy(text); showConfirm();
-    });
-  } else {
-    caFallbackCopy(text); showConfirm();
-  }
+  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(confirm).catch(function() { caFallbackCopy(text); confirm(); }); }
+  else { caFallbackCopy(text); confirm(); }
 }
 
-function caFallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-  document.body.appendChild(ta);
-  ta.focus(); ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
+function caShareSearch() {
+  var params = new URLSearchParams({
+    budget:     document.getElementById('ca-budget-slider').value,
+    category:   document.getElementById('ca-category').value,
+    charger:    document.getElementById('ca-charger').value,
+    km:         document.getElementById('ca-km').value,
+    usage:      document.getElementById('ca-usage').value,
+    passengers: document.getElementById('ca-passengers').value,
+    newcar:     document.getElementById('ca-newcar').value
+  });
+  var url = window.location.origin + window.location.pathname + '?' + params.toString();
+  var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
+  function confirm(btn) {
+    if (!btn) return;
+    var orig = btn.textContent;
+    btn.textContent = '✓ Länk kopierad!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
+  }
+  var clicked = event && event.target ? event.target : btns[0];
+  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function() { confirm(clicked); }).catch(function() { caFallbackCopy(url); confirm(clicked); }); }
+  else { caFallbackCopy(url); confirm(clicked); }
 }
 
 async function caGetRecommendation() {
@@ -709,12 +712,13 @@ async function caGetRecommendation() {
   var loader = document.getElementById('ca-loader');
   var results = document.getElementById('ca-results');
   var divider = document.getElementById('ca-divider');
-  var copyBtn = document.getElementById('ca-copy-btn');
 
   btn.disabled = true;
   btn.textContent = 'Hämtar…';
   loader.style.display = 'block';
-  copyBtn.style.display = 'none';
+  document.getElementById('ca-copy-btn').style.display = 'none';
+  document.getElementById('ca-share-result-btn').style.display = 'none';
+  document.getElementById('ca-cache-badge').style.display = 'none';
   caStartLoadingText();
 
   var payload = {
@@ -747,7 +751,16 @@ async function caGetRecommendation() {
 
     if (d.success && d.recommendations) {
       caRenderCards(d.recommendations);
-      copyBtn.style.display = 'inline-block';
+      document.getElementById('ca-copy-btn').style.display = 'inline-block';
+      document.getElementById('ca-share-result-btn').style.display = 'inline-block';
+      if (d.cached) {
+        var age = d.cachedAgeMinutes;
+        var ageText = age < 1 ? 'precis' : age + ' min sedan';
+        var badge = document.getElementById('ca-cache-badge');
+        badge.textContent = '⚡ Cachat svar (' + ageText + ')';
+        badge.style.display = 'inline-block';
+      }
+      caSavePrefs();
     } else {
       document.getElementById('ca-cards').innerHTML =
         '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
@@ -755,7 +768,6 @@ async function caGetRecommendation() {
 
     caHasSearched = true;
     caSnapshotValues();
-
     document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
     btn.classList.remove('has-changes');
     btn.disabled = false;
@@ -777,6 +789,9 @@ async function caGetRecommendation() {
   }
 }
 
+// Init
 caUpdateSliderFill();
+caReadUrlParams();
+caLoadPrefs();
 caBindChangeListeners();
 </script>

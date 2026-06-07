@@ -20,6 +20,8 @@ import java.util.regex.Pattern;
 @Service
 public class GroqService {
 
+    public record Result(List<CarRecommendation> recommendations, boolean fromCache, long cacheAgeSeconds) {}
+
     @Value("${groq.api.key}")
     private String apiKey;
 
@@ -39,11 +41,12 @@ public class GroqService {
         return apiKey != null && !apiKey.isBlank();
     }
 
-    public List<CarRecommendation> getRecommendation(CarPreferences prefs) throws Exception {
+    public Result getRecommendation(CarPreferences prefs) throws Exception {
         String key = buildCacheKey(prefs);
         CacheEntry cached = cache.get(key);
         if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS) {
-            return cached.result();
+            long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
+            return new Result(cached.result(), true, ageSeconds);
         }
 
         String prompt = buildPrompt(prefs);
@@ -84,7 +87,7 @@ public class GroqService {
         );
 
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
-        return result;
+        return new Result(result, false, 0);
     }
 
     private String buildCacheKey(CarPreferences prefs) {
