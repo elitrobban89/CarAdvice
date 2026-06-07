@@ -1,4 +1,4 @@
-# 🚗 CarAdvice – AI Bilrådgivning
+# CarAdvice – AI Bilrådgivning
 
 En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren fyller i sina preferenser i ett WordPress-formulär och får tre skräddarsydda bilrekommendationer på sekunder.
 
@@ -11,10 +11,11 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, elbil och småbil
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
-- Anpassar råd efter mil per år, laddmöjlighet och ny/begagnad
+- Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - Modernt mörkt formulär med live-ändringsindikation och animerade resultat
 - Strukturerade bilkort med pris, källhänvisning, fördelar, nackdel och personlig sammanfattning
-- Optimerade promptar (~50% färre input-tokens) för att maximera daglig kapacitet på Groq gratisplan
+- Vänliga svenska felmeddelanden — inkl. exakt återstartstid vid kvotgräns
+- 35-sekunders timeout med cold start-hint vid Render-uppvakningsläge
 
 ---
 
@@ -26,6 +27,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 | AI | Groq API (`llama-3.3-70b-versatile`) |
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
 | Deploy | Render.com (Docker) |
+| Monitorering | UptimeRobot |
 
 ---
 
@@ -42,12 +44,12 @@ CarAdvice/
     ├── java/com/caradvice/
     │   ├── CarAdviceApplication.java   ← Spring Boot startpunkt
     │   ├── controller/
-    │   │   └── CarController.java      ← REST: POST /api/recommend, GET /api/health
+    │   │   └── CarController.java      ← REST-endpoints + CORS
     │   ├── model/
     │   │   ├── CarPreferences.java     ← Input-record
-│   │   └── CarRecommendation.java  ← Output-record (title, price, pros, con, fitSummary)
+    │   │   └── CarRecommendation.java  ← Output-record
     │   └── service/
-    │       └── GroqService.java        ← Groq AI-integration
+    │       └── GroqService.java        ← Groq AI-integration + felhantering
     └── resources/
         └── application.properties
 ```
@@ -71,12 +73,12 @@ mvn spring-boot:run
 curl -X POST http://localhost:8080/api/recommend \
   -H "Content-Type: application/json" \
   -d '{
-    "budget": 300000,
-    "carCategory": "familjebil",
-    "hasCharger": true,
+    "budget": 150000,
+    "carCategory": "ekonomibil",
+    "hasCharger": false,
     "kmPerYear": 15000,
-    "usage": "familj",
-    "passengers": 4,
+    "usage": "pendling",
+    "passengers": 2,
     "newCar": false
   }'
 ```
@@ -90,12 +92,12 @@ curl -X POST http://localhost:8080/api/recommend \
 **Request:**
 ```json
 {
-  "budget": 300000,
-  "carCategory": "familjebil",
-  "hasCharger": true,
+  "budget": 150000,
+  "carCategory": "ekonomibil",
+  "hasCharger": false,
   "kmPerYear": 15000,
-  "usage": "familj",
-  "passengers": 4,
+  "usage": "pendling",
+  "passengers": 2,
   "newCar": false
 }
 ```
@@ -104,26 +106,34 @@ curl -X POST http://localhost:8080/api/recommend \
 |------|-----|--------|
 | `budget` | int | Kronor |
 | `carCategory` | string | `ekonomibil`, `familjebil`, `elbil`, `smaabil` |
-| `hasCharger` | boolean | Laddare hemma |
+| `hasCharger` | boolean | Laddbox hemma |
 | `kmPerYear` | int | Kilometer per år |
 | `usage` | string | `pendling`, `familj`, `landsväg`, `stad` |
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
 
-**Response:**
+**Response (lyckat):**
 ```json
 {
   "success": true,
   "recommendations": [
     {
-      "title": "Volvo V60 T6 Recharge (2021)",
-      "price": "280 000 – 340 000 kr",
-      "whyRecommended": "Toppbetyg av Teknikens Värld för komfort och säkerhet...",
-      "pros": ["Låg driftkostnad som laddhybrid", "Stort bagageutrymme", "Räcker för daglig pendling på el"],
-      "con": "Begränsat begagnat utbud i denna årsmodell",
-      "fitSummary": "Passar perfekt för familjekörning med laddbox hemma."
+      "title": "Volkswagen Golf 1.0 TSI (2019)",
+      "price": "130 000 – 160 000 kr",
+      "whyRecommended": "Toppbetyg i Teknikens Värld för komfort och bränsleekonomi",
+      "pros": ["5,5 l/100 km ger ~8 250 kr/år i bränslekostnad", "Låga underhållskostnader", "Stort servicenät i Sverige"],
+      "con": "Mindre kraftfull motor kan kännas trög i kuperad terräng",
+      "fitSummary": "Passar en lågmilare som pendlar i stad med begränsad budget."
     }
   ]
+}
+```
+
+**Response (fel):**
+```json
+{
+  "success": false,
+  "error": "Dagsgränsen för AI-anrop är nådd. Försök igen om 8 minuter."
 }
 ```
 
@@ -134,7 +144,7 @@ curl -X POST http://localhost:8080/api/recommend \
 
 ### `GET /api/recommend/test`
 
-Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för att hålla Render-instansen varm — gör **inga** Groq-anrop för att spara token-budget.
+Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för att hålla Render-instansen varm — gör **inga** Groq-anrop.
 
 ```json
 { "status": "OK", "groq": "OK", "rekommendation": true }
@@ -148,9 +158,9 @@ Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för
 2. Skapa **Web Service** på [render.com](https://render.com) → koppla repot
 3. Välj **Docker** som runtime, branch `master`
 4. Lägg till miljövariabel: `GROQ_API_KEY`
-5. Deploy — tjänsten startar automatiskt
+5. Deploy startar automatiskt vid varje push
 
-**OBS:** Render free tier spinner ned tjänsten efter 15 min inaktivitet (cold start ~30–60 sek). Löses med UptimeRobot-monitor på 5 min intervall (se nedan).
+**OBS:** Render free tier spinnar ned tjänsten efter 15 min inaktivitet (cold start ~30–60 sek). Löses med UptimeRobot-monitor på 5 min intervall.
 
 ---
 
@@ -158,32 +168,32 @@ Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot för
 
 Tjänsten övervakas med [UptimeRobot](https://uptimerobot.com) via två monitorer:
 
-| Monitor | URL | Typ |
+| Monitor | URL | Intervall |
 |---|---|---|
-| WordPress-sida | `https://elitrobban.se/bilradgivning/` | HTTP(s) |
-| Backend + Groq AI | `https://caradvice.onrender.com/api/recommend/test` | HTTP(s) – Keyword: `rekommendation` |
+| WordPress-sida | `https://elitrobban.se/bilradgivning/` | 5 min |
+| Backend | `https://caradvice.onrender.com/api/recommend/test` | 5 min |
 
-Backend-monitorn körs var 5:e minut vilket även håller Render-instansen varm och eliminerar cold starts för användarna.
+Backend-monitorn håller även Render-instansen varm och eliminerar cold starts.
 
 ---
 
 ## WordPress-integration
 
-Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri WordPress-sida. Formuläret anropar Render-URL:en direkt från webbläsaren.
+Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri WordPress-sida. Formuläret anropar Render-URL:en direkt från webbläsaren — ingen server-side WordPress-kod krävs.
 
 > **OBS:** WordPress synkas inte automatiskt från GitHub. Vid uppdatering av `wordpress-snippet.html` måste koden klistras in manuellt i WordPress-blocket.
 
 **Relaterade snippets:**
-- `footer-projects-snippet.html` — tre projektkort till footern (Bränslekostnadsberäkning, AI Bilrådgivning, Väder&Kläder)
-- `project-links-snippet.html` — två projektkort för bränslekostnadsidan
+- `footer-projects-snippet.html` — projektkort till footern
+- `project-links-snippet.html` — projektkort till bränslekostnadsidan
 
 ---
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens (input + 1024 output), vilket ger ungefär **130–150 anrop per dag**.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje anrop kostar ~600–700 tokens, vilket ger ungefär **130–150 anrop per dag**.
 
-För att hålla sig inom gränsen:
-- Promptarna är medvetet korta — ändra inte utan att räkna tokens
-- `/api/recommend/test` (UptimeRobot) gör **inga** Groq-anrop
-- Vid 429-fel: vänta tills kvoten återställs (~midnatt UTC)
+- Promptarna är medvetet korta — ändra dem inte utan att räkna tokens
+- `/api/recommend/test` gör **inga** Groq-anrop
+- Vid 429 visas: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
+- Kvoten återställs dagligen (~midnatt UTC)
