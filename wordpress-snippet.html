@@ -859,7 +859,12 @@ function caBlocketUrl(title) {
 
 function caBytbilUrl(title) {
   var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
-  return 'https://www.bytbil.com/bil?query=' + encodeURIComponent(q);
+  var parts = q.split(' ');
+  var make = parts[0].toLowerCase();
+  var model = parts[1] ? parts[1].toLowerCase() : '';
+  return model
+    ? 'https://www.bytbil.com/bil/' + make + '/' + model
+    : 'https://www.bytbil.com/bil/' + make;
 }
 
 function caResetForm() {
