@@ -169,7 +169,7 @@ curl -X POST http://localhost:8080/api/recommend \
 
 ### `POST /api/chat`
 
-Chattbot för köpråd. Accepterar konversationshistorik och returnerar AI-svar.
+Chattbot för köpråd. Accepterar konversationshistorik och returnerar AI-svar (JSON).
 
 **Request:**
 ```json
@@ -182,6 +182,21 @@ Chattbot för köpråd. Accepterar konversationshistorik och returnerar AI-svar.
 ```
 
 **Rate limiting:** Max 10 anrop per IP och minut. Vid överskridande: HTTP 429.
+
+### `POST /api/chat/stream`
+
+Samma som `/api/chat` men returnerar svaret som SSE (Server-Sent Events) — token för token utan att vänta på hela svaret.
+
+**Response:** `Content-Type: text/event-stream`
+```
+data: "Det"
+data: " beror"
+data: " på"
+...
+data: [DONE]
+```
+
+Fel skickas som `data: "[ERR]felmeddelande"` följt av `data: [DONE]`. Klienten faller automatiskt tillbaka till `/api/chat` om webbläsaren saknar ReadableStream-stöd.
 
 ### `GET /api/health`
 ```json
