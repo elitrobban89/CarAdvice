@@ -1,6 +1,36 @@
 (function () {
   var CA_CHAT_API = window.CA_API_URL || "https://caradvice.onrender.com";
-  var caChatHistory = [];
+  var caChatHistory = (function(){ try{ return JSON.parse(localStorage.getItem('ca-chat')||'[]'); }catch(e){ return []; } })();
+
+  // Intercept caRenderCards to capture current recommendations as context
+  (function() {
+    var _orig = null;
+    function hook() {
+      if (typeof window.caRenderCards === 'function' && window.caRenderCards !== _orig) {
+        _orig = window.caRenderCards;
+        window.caRenderCards = function(recs) {
+          window._caRecommendations = recs;
+          return _orig.call(this, recs);
+        };
+      }
+    }
+    document.addEventListener('DOMContentLoaded', hook);
+    setTimeout(hook, 500);
+  })();
+
+  function buildCarContext() {
+    var recs = window._caRecommendations;
+    if (!recs || recs.length === 0) return null;
+    var lines = ["Aktuella bilrekommendationer:"];
+    recs.forEach(function(r, i) {
+      lines.push((i+1) + ". " + r.title + " — " + r.price + " — " + r.whyRecommended);
+    });
+    return lines.join("\n");
+  }
+
+  function caSaveChatHistory() {
+    try { localStorage.setItem('ca-chat', JSON.stringify(caChatHistory.slice(-20))); } catch(e) {}
+  }
 
   function initCaChat() {
     var style = document.createElement("style");
@@ -141,6 +171,14 @@
       .ca-chat-typing span:nth-child(2) { animation-delay:.15s; }
       .ca-chat-typing span:nth-child(3) { animation-delay:.3s; }
       @keyframes ca-bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+      .ca-chat-cursor{display:inline-block;width:2px;height:13px;background:#c4b5fd;margin-left:2px;border-radius:1px;animation:ca-cursor-blink .55s steps(1) infinite;vertical-align:middle;}
+      @keyframes ca-cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+      .ca-chat-feedback{display:flex;gap:6px;margin-top:6px;padding-left:2px;align-items:center;}
+      .ca-chat-thumb{background:none;border:1px solid rgba(139,92,246,0.2);color:rgba(196,181,253,0.38);font-size:12px;padding:2px 8px;border-radius:10px;cursor:pointer;transition:all .15s;line-height:1.5;}
+      .ca-chat-thumb:hover{border-color:rgba(139,92,246,0.55);color:#c4b5fd;}
+      .ca-chat-thumb.voted{border-color:rgba(139,92,246,0.7);color:#c4b5fd;background:rgba(139,92,246,0.1);}
+      .ca-chat-retry{background:none;border:1px solid rgba(239,68,68,0.3);color:rgba(239,68,68,0.65);font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;cursor:pointer;margin-top:7px;display:inline-block;transition:all .15s;}
+      .ca-chat-retry:hover{border-color:rgba(239,68,68,0.6);color:#ef4444;}
       @media(max-width:400px){
         .ca-chat-panel{width:calc(100vw - 16px);right:8px;bottom:92px;}
         .ca-chat-fab-wrap{right:12px;bottom:12px;}
@@ -204,7 +242,15 @@
     `;
     document.body.appendChild(root);
 
-    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!");
+    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!", false);
+
+    if (caChatHistory.length > 0) {
+      document.getElementById("ca-chat-quick").style.display = "none";
+      caChatHistory.forEach(function(m) {
+        if (m.role === "user") caChatAppendUser(m.content);
+        else if (m.role === "assistant") caChatAppendBot(m.content, false);
+      });
+    }
 
     document.getElementById("ca-chat-fab").addEventListener("click", caChatToggle);
     document.getElementById("ca-chat-close").addEventListener("click", caChatToggle);
@@ -233,13 +279,49 @@
       .replace(/\n/g, "<br>");
   }
 
-  function caChatAppendBot(text) {
+  function caChatAppendBot(text, animate) {
     var msgs = document.getElementById("ca-chat-messages");
-    var div = document.createElement("div");
-    div.innerHTML = '<div class="ca-chat-bubble bot">' + caChatMarkdown(text) + '</div>';
-    msgs.appendChild(div);
+    var outer = document.createElement("div");
+    var bubble = document.createElement("div");
+    bubble.className = "ca-chat-bubble bot";
+    outer.appendChild(bubble);
+    msgs.appendChild(outer);
     msgs.scrollTop = msgs.scrollHeight;
-    return div;
+    if (animate !== false && text.length > 0) {
+      var i = 0;
+      var speed = Math.max(6, Math.min(20, 2600 / text.length));
+      (function tick() {
+        i += 3;
+        if (i >= text.length) {
+          bubble.innerHTML = caChatMarkdown(text);
+          caAddFeedback(outer);
+          msgs.scrollTop = msgs.scrollHeight;
+        } else {
+          bubble.textContent = text.slice(0, i);
+          var cur = document.createElement("span"); cur.className = "ca-chat-cursor";
+          bubble.appendChild(cur);
+          msgs.scrollTop = msgs.scrollHeight;
+          setTimeout(tick, speed);
+        }
+      })();
+    } else {
+      bubble.innerHTML = caChatMarkdown(text);
+      if (animate !== false) caAddFeedback(outer);
+    }
+    return outer;
+  }
+
+  function caAddFeedback(outer) {
+    var fb = document.createElement("div"); fb.className = "ca-chat-feedback";
+    fb.innerHTML = '<button class="ca-chat-thumb">👍</button><button class="ca-chat-thumb">👎</button>';
+    fb.querySelectorAll(".ca-chat-thumb").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        fb.querySelectorAll(".ca-chat-thumb").forEach(function(b) { b.classList.remove("voted"); });
+        btn.classList.add("voted");
+        setTimeout(function() { fb.innerHTML = '<span style="font-size:11px;color:rgba(196,181,253,0.45)">Tack!</span>'; }, 350);
+      });
+    });
+    outer.appendChild(fb);
   }
 
   function caChatAppendUser(text) {
@@ -252,10 +334,11 @@
 
   function caChatClear() {
     caChatHistory = [];
+    try { localStorage.removeItem("ca-chat"); } catch(e) {}
     var msgs = document.getElementById("ca-chat-messages");
     msgs.innerHTML = "";
     document.getElementById("ca-chat-quick").style.display = "flex";
-    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!");
+    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!", false);
   }
 
   function caChatSend() {
@@ -270,6 +353,7 @@
     document.getElementById("ca-chat-quick").style.display = "none";
     caChatAppendUser(message);
     caChatHistory.push({ role: "user", content: message });
+    caSaveChatHistory();
 
     var msgs = document.getElementById("ca-chat-messages");
     var typingDiv = document.createElement("div");
@@ -277,24 +361,39 @@
     msgs.appendChild(typingDiv);
     msgs.scrollTop = msgs.scrollHeight;
 
+    var context = buildCarContext();
+    var limited = caChatHistory.slice(-10);
+
     fetch(CA_CHAT_API + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: caChatHistory })
+      body: JSON.stringify({ messages: limited, context: context })
     }).then(function(resp) {
       typingDiv.remove();
       if (resp.status === 429) {
-        caChatAppendBot("Du har ställt för många frågor på kort tid — vänta en minut och försök igen.");
-        return;
+        caChatAppendBot("Du har ställt för många frågor — vänta en minut och försök igen.", false);
+        return null;
       }
-      resp.json().then(function(data) {
-        var reply = data.reply || data.error || "Inget svar.";
-        caChatHistory.push({ role: "assistant", content: reply });
-        caChatAppendBot(reply);
-      });
+      if (!resp.ok) {
+        var errDiv = caChatAppendBot("Något gick fel (fel " + resp.status + ").", false);
+        var btn = document.createElement("button"); btn.className = "ca-chat-retry"; btn.textContent = "↺ Försök igen";
+        btn.onclick = function() { errDiv.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
+        errDiv.appendChild(btn);
+        return null;
+      }
+      return resp.json();
+    }).then(function(data) {
+      if (!data) return;
+      var reply = data.reply || data.error || "Inget svar.";
+      caChatHistory.push({ role: "assistant", content: reply });
+      caSaveChatHistory();
+      caChatAppendBot(reply, true);
     }).catch(function() {
       typingDiv.remove();
-      caChatAppendBot("Kunde inte nå bilrådgivaren just nu — försök igen om en stund.");
+      var errDiv = caChatAppendBot("Kunde inte nå bilrådgivaren — kontrollera anslutningen.", false);
+      var btn = document.createElement("button"); btn.className = "ca-chat-retry"; btn.textContent = "↺ Försök igen";
+      btn.onclick = function() { errDiv.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
+      errDiv.appendChild(btn);
     });
   }
 

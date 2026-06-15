@@ -126,7 +126,7 @@ public class GroqService {
         }
     }
 
-    public String chat(List<Map<String, String>> messages) throws Exception {
+    public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
         String systemPrompt = """
                 Du är en svensk bilrådgivare för både bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
 
@@ -147,6 +147,9 @@ public class GroqService {
 
                 Svara alltid på svenska. Var konkret, kortfattad och hjälpsam. Du får använda **fetstil** och listor med - för att strukturera svaret.
                 """;
+
+        if (carContext != null && !carContext.isBlank())
+            systemPrompt += "\n\nAktuella bilrekommendationer:\n" + carContext;
 
         List<Map<String, String>> msgs = new ArrayList<>();
         msgs.add(Map.of("role", "system", "content", systemPrompt));

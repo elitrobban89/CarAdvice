@@ -74,7 +74,8 @@ public class CarController {
             List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
             if (messages == null || messages.isEmpty())
                 return ResponseEntity.ok(Map.of("reply", "Inga meddelanden."));
-            return ResponseEntity.ok(Map.of("reply", groqService.chat(messages)));
+            String context = (String) req.get("context");
+            return ResponseEntity.ok(Map.of("reply", groqService.chat(messages, context)));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
