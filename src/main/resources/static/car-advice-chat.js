@@ -1,0 +1,302 @@
+(function () {
+  var CA_CHAT_API = window.CA_API_URL || "https://caradvice.onrender.com";
+  var caChatHistory = [];
+
+  function initCaChat() {
+    var style = document.createElement("style");
+    style.textContent = `
+      .ca-chat-fab-wrap {
+        position:fixed;bottom:24px;right:24px;z-index:9999;
+        display:flex;flex-direction:column;align-items:center;gap:6px;
+      }
+      .ca-chat-fab-label {
+        background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);
+        color:#c4b5fd;font-size:11px;font-weight:700;padding:3px 10px;
+        border-radius:20px;white-space:nowrap;letter-spacing:0.04em;
+        animation:ca-label-pulse 3s ease-in-out infinite;
+      }
+      @keyframes ca-label-pulse {
+        0%,100%{opacity:.7;transform:translateY(0)}
+        50%{opacity:1;transform:translateY(-2px)}
+      }
+      .ca-chat-fab-ring {
+        position:relative;display:flex;align-items:center;justify-content:center;
+      }
+      .ca-chat-spark {
+        position:absolute;font-size:13px;line-height:1;pointer-events:none;
+        animation:ca-spark 2.4s ease-in-out infinite;
+      }
+      .ca-chat-spark:nth-child(1){top:-16px;left:50%;transform:translateX(-50%);animation-delay:0s;}
+      .ca-chat-spark:nth-child(2){top:16px;left:-18px;animation-delay:.9s;}
+      .ca-chat-spark:nth-child(3){top:16px;right:-18px;animation-delay:1.8s;}
+      @keyframes ca-spark {
+        0%,100%{opacity:.3;transform:scale(.8) translateY(0);}
+        50%{opacity:1;transform:scale(1.2) translateY(-4px);}
+      }
+      .ca-chat-fab {
+        width:58px;height:58px;border-radius:18px;
+        background:linear-gradient(145deg,#4c1d95,#6d28d9,#7c3aed);
+        border:none;cursor:pointer;
+        box-shadow:0 4px 20px rgba(109,40,217,.6);
+        display:flex;align-items:center;justify-content:center;
+        transition:transform .15s,box-shadow .15s;
+      }
+      .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
+      .ca-chat-panel {
+        position:fixed;bottom:96px;right:24px;z-index:9998;
+        width:380px;max-height:540px;
+        background:rgba(15,12,41,0.78);
+        backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+        border:1px solid rgba(139,92,246,0.25);border-radius:20px;
+        box-shadow:0 8px 48px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,0.04) inset;
+        display:flex;flex-direction:column;overflow:hidden;
+        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      }
+      .ca-chat-header {
+        background:linear-gradient(135deg,rgba(76,29,149,0.9),rgba(109,40,217,0.8));
+        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        border-bottom:1px solid rgba(139,92,246,0.2);
+        color:#fff;padding:13px 16px;
+        display:flex;align-items:center;justify-content:space-between;
+        font-weight:700;font-size:14px;flex-shrink:0;gap:8px;
+      }
+      .ca-chat-header-title { display:flex;align-items:center;gap:8px; }
+      .ca-chat-header-actions { display:flex;align-items:center;gap:6px; }
+      .ca-chat-header-clear {
+        background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);
+        color:rgba(255,255,255,0.75);font-size:11px;font-weight:600;padding:3px 9px;
+        border-radius:20px;cursor:pointer;transition:all .15s;white-space:nowrap;
+      }
+      .ca-chat-header-clear:hover { background:rgba(255,255,255,0.16);color:#fff; }
+      .ca-chat-header-close {
+        background:none;border:none;color:rgba(255,255,255,0.7);font-size:20px;
+        cursor:pointer;padding:0 2px;line-height:1;transition:color .12s;
+      }
+      .ca-chat-header-close:hover { color:#fff; }
+      .ca-chat-messages {
+        flex:1;overflow-y:auto;padding:14px 12px;
+        display:flex;flex-direction:column;gap:10px;
+        background:transparent;min-height:0;
+      }
+      .ca-chat-messages::-webkit-scrollbar { width:4px; }
+      .ca-chat-messages::-webkit-scrollbar-track { background:transparent; }
+      .ca-chat-messages::-webkit-scrollbar-thumb { background:rgba(139,92,246,0.3);border-radius:4px; }
+      .ca-chat-bubble {
+        max-width:85%;padding:10px 13px;border-radius:14px;
+        font-size:13px;line-height:1.6;word-break:break-word;
+      }
+      .ca-chat-bubble.bot {
+        background:rgba(30,24,60,0.7);
+        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        border:1px solid rgba(139,92,246,0.18);
+        border-radius:4px 14px 14px 14px;align-self:flex-start;color:#e9d5ff;
+      }
+      .ca-chat-bubble.bot strong { color:#c4b5fd; }
+      .ca-chat-bubble.bot ul { margin:6px 0 2px 16px;padding:0;display:flex;flex-direction:column;gap:3px; }
+      .ca-chat-bubble.bot li { list-style:disc; }
+      .ca-chat-bubble.user {
+        background:linear-gradient(135deg,rgba(109,40,217,0.85),rgba(139,92,246,0.8));
+        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        border:1px solid rgba(167,139,250,0.2);
+        color:#fff;border-radius:14px 14px 4px 14px;align-self:flex-end;
+      }
+      .ca-chat-quick {
+        padding:10px 12px 4px;display:flex;flex-wrap:wrap;gap:7px;flex-shrink:0;
+        background:rgba(15,12,41,0.5);border-top:1px solid rgba(139,92,246,0.12);
+      }
+      .ca-chat-quick-btn {
+        background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.28);color:#c4b5fd;
+        border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;
+        cursor:pointer;transition:all .15s;white-space:nowrap;
+        backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+      }
+      .ca-chat-quick-btn:hover { background:rgba(139,92,246,0.35);color:#fff;border-color:rgba(167,139,250,0.55); }
+      .ca-chat-input-row {
+        display:flex;gap:8px;padding:10px 12px;
+        border-top:1px solid rgba(139,92,246,0.12);
+        background:rgba(15,12,41,0.5);flex-shrink:0;
+      }
+      .ca-chat-input {
+        flex:1;border:1px solid rgba(139,92,246,0.22);border-radius:22px;
+        padding:8px 14px;font-size:13px;outline:none;
+        background:rgba(30,24,60,0.6);color:#f3e8ff;transition:border-color .15s,box-shadow .15s;
+        backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+      }
+      .ca-chat-input::placeholder { color:rgba(196,181,253,0.35); }
+      .ca-chat-input:focus { border-color:rgba(167,139,250,0.55);box-shadow:0 0 0 3px rgba(139,92,246,0.12); }
+      .ca-chat-send {
+        width:38px;height:38px;border-radius:50%;
+        background:linear-gradient(135deg,#6d28d9,#8b5cf6);
+        color:#fff;border:none;cursor:pointer;
+        font-size:16px;display:flex;align-items:center;justify-content:center;
+        flex-shrink:0;transition:all .15s;
+        box-shadow:0 2px 10px rgba(109,40,217,0.4);
+      }
+      .ca-chat-send:hover { background:linear-gradient(135deg,#7c3aed,#a78bfa);box-shadow:0 4px 14px rgba(109,40,217,0.6); }
+      .ca-chat-typing { display:flex;gap:4px;align-items:center;padding:4px 0; }
+      .ca-chat-typing span {
+        width:7px;height:7px;border-radius:50%;background:rgba(167,139,250,0.5);
+        animation:ca-bounce .9s infinite;display:inline-block;
+      }
+      .ca-chat-typing span:nth-child(2) { animation-delay:.15s; }
+      .ca-chat-typing span:nth-child(3) { animation-delay:.3s; }
+      @keyframes ca-bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+      @media(max-width:400px){
+        .ca-chat-panel{width:calc(100vw - 16px);right:8px;bottom:92px;}
+        .ca-chat-fab-wrap{right:12px;bottom:12px;}
+      }
+    `;
+    document.head.appendChild(style);
+
+    var root = document.createElement("div");
+    root.innerHTML = `
+      <div class="ca-chat-fab-wrap">
+        <span class="ca-chat-fab-label">🚗 Fråga AI</span>
+        <div class="ca-chat-fab-ring">
+          <span class="ca-chat-spark">⚡</span>
+          <span class="ca-chat-spark">⛽</span>
+          <span class="ca-chat-spark">⚡</span>
+          <button class="ca-chat-fab" id="ca-chat-fab" title="Fråga bilrådgivaren">
+            <svg viewBox="0 0 52 40" width="38" height="30" xmlns="http://www.w3.org/2000/svg">
+              <!-- car body -->
+              <rect x="4" y="18" width="44" height="14" rx="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
+              <!-- roof -->
+              <path d="M14 18 Q18 8 22 7 L30 7 Q34 8 38 18Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
+              <!-- windows -->
+              <path d="M16 18 Q19 10 22 9 L29 9 Q32 10 35 18Z" fill="rgba(196,181,253,0.25)"/>
+              <!-- wheels -->
+              <circle cx="14" cy="33" r="5.5" fill="#1e1b4b" stroke="rgba(167,139,250,0.6)" stroke-width="1.5"/>
+              <circle cx="14" cy="33" r="2.5" fill="rgba(167,139,250,0.5)"/>
+              <circle cx="38" cy="33" r="5.5" fill="#1e1b4b" stroke="rgba(167,139,250,0.6)" stroke-width="1.5"/>
+              <circle cx="38" cy="33" r="2.5" fill="rgba(167,139,250,0.5)"/>
+              <!-- headlight -->
+              <rect x="44" y="21" width="4" height="3" rx="1.5" fill="#fef08a"/>
+              <!-- lightning bolt (EV) -->
+              <path d="M24 12 L21 19 L25 17 L23 24" fill="#fef08a" stroke="#fef08a" stroke-width="0.4" stroke-linejoin="round"/>
+              <!-- fuel drop (petrol) -->
+              <path d="M31 11 Q33 8 33 12 Q33 15 31 15 Q29 15 29 12 Q29 8 31 11Z" fill="rgba(251,191,36,0.8)"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="ca-chat-panel" id="ca-chat-panel" style="display:none;">
+        <div class="ca-chat-header">
+          <div class="ca-chat-header-title">
+            <span>🚗 Bilrådgivaren</span>
+          </div>
+          <div class="ca-chat-header-actions">
+            <button class="ca-chat-header-clear" id="ca-chat-clear">Rensa</button>
+            <button class="ca-chat-header-close" id="ca-chat-close">✕</button>
+          </div>
+        </div>
+        <div class="ca-chat-messages" id="ca-chat-messages"></div>
+        <div class="ca-chat-quick" id="ca-chat-quick">
+          <button class="ca-chat-quick-btn" data-q="Elbil eller laddhybrid — vad passar mig?">⚡ Elbil vs hybrid</button>
+          <button class="ca-chat-quick-btn" data-q="Vilken bil ger bäst värde för pengarna?">💰 Bäst värde</button>
+          <button class="ca-chat-quick-btn" data-q="Vilken begagnad bil är mest pålitlig?">🔧 Pålitlighet</button>
+          <button class="ca-chat-quick-btn" data-q="Vad ska jag tänka på när jag köper begagnad bil?">📋 Köpguide</button>
+        </div>
+        <div class="ca-chat-input-row">
+          <input class="ca-chat-input" id="ca-chat-input" type="text" placeholder="Ställ en fråga om bilar…" autocomplete="off"/>
+          <button class="ca-chat-send" id="ca-chat-send">➤</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(root);
+
+    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!");
+
+    document.getElementById("ca-chat-fab").addEventListener("click", caChatToggle);
+    document.getElementById("ca-chat-close").addEventListener("click", caChatToggle);
+    document.getElementById("ca-chat-send").addEventListener("click", caChatSend);
+    document.getElementById("ca-chat-clear").addEventListener("click", caChatClear);
+    document.getElementById("ca-chat-input").addEventListener("keydown", function(e) { if (e.key === "Enter") caChatSend(); });
+    document.querySelectorAll(".ca-chat-quick-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() { caChatSendMessage(btn.dataset.q); });
+    });
+  }
+
+  function caChatToggle() {
+    var panel = document.getElementById("ca-chat-panel");
+    var open = panel.style.display === "none";
+    panel.style.display = open ? "flex" : "none";
+    if (open) document.getElementById("ca-chat-input").focus();
+  }
+
+  function caChatMarkdown(text) {
+    return text
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/^[-•]\s+(.+)$/gm, "<li>$1</li>")
+      .replace(/(<li>[\s\S]*<\/li>)/, "<ul>$1</ul>")
+      .replace(/\n/g, "<br>");
+  }
+
+  function caChatAppendBot(text) {
+    var msgs = document.getElementById("ca-chat-messages");
+    var div = document.createElement("div");
+    div.innerHTML = '<div class="ca-chat-bubble bot">' + caChatMarkdown(text) + '</div>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function caChatAppendUser(text) {
+    var msgs = document.getElementById("ca-chat-messages");
+    var div = document.createElement("div");
+    div.innerHTML = '<div class="ca-chat-bubble user">' + text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") + '</div>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function caChatClear() {
+    caChatHistory = [];
+    var msgs = document.getElementById("ca-chat-messages");
+    msgs.innerHTML = "";
+    document.getElementById("ca-chat-quick").style.display = "flex";
+    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!");
+  }
+
+  function caChatSend() {
+    var input = document.getElementById("ca-chat-input");
+    var msg = input.value.trim();
+    if (!msg) return;
+    input.value = "";
+    caChatSendMessage(msg);
+  }
+
+  function caChatSendMessage(message) {
+    document.getElementById("ca-chat-quick").style.display = "none";
+    caChatAppendUser(message);
+    caChatHistory.push({ role: "user", content: message });
+
+    var msgs = document.getElementById("ca-chat-messages");
+    var typingDiv = document.createElement("div");
+    typingDiv.innerHTML = '<div class="ca-chat-bubble bot"><div class="ca-chat-typing"><span></span><span></span><span></span></div></div>';
+    msgs.appendChild(typingDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    fetch(CA_CHAT_API + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: caChatHistory })
+    }).then(function(resp) {
+      typingDiv.remove();
+      if (resp.status === 429) {
+        caChatAppendBot("Du har ställt för många frågor på kort tid — vänta en minut och försök igen.");
+        return;
+      }
+      resp.json().then(function(data) {
+        var reply = data.reply || data.error || "Inget svar.";
+        caChatHistory.push({ role: "assistant", content: reply });
+        caChatAppendBot(reply);
+      });
+    }).catch(function() {
+      typingDiv.remove();
+      caChatAppendBot("Kunde inte nå bilrådgivaren just nu — försök igen om en stund.");
+    });
+  }
+
+  initCaChat();
+})();
