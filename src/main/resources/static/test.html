@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
   <title>CarAdvice – Lokal test</title>
   <style>
     body { background: #0f0c29; min-height: 100vh; margin: 0; }
@@ -273,6 +274,7 @@
         <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
       </div>
       <div id="ca-cards"></div>
+      <div id="ca-compare"></div>
     </div>
   </div>
 </div>
@@ -311,7 +313,57 @@ function caBlocketUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim()
 function caBytbilUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim();var parts=q.split(' ');var make=parts[0].toLowerCase();var model=parts[1]?parts[1].toLowerCase():'';return model?'https://www.bytbil.com/bil/'+make+'/'+model:'https://www.bytbil.com/bil/'+make; }
 function caResetForm() { document.getElementById('ca-category').value='ekonomibil';document.getElementById('ca-budget-slider').value=200000;document.getElementById('ca-charger').value='false';document.getElementById('ca-km').value=1500;document.getElementById('ca-usage').value='pendling';document.getElementById('ca-passengers').value=4;document.getElementById('ca-newcar').value='false';document.getElementById('ca-fuel').value='spelar ingen roll';caUpdateSliderFill();caUpdateFuelVisibility();caCheckMismatch();if(caHasSearched)caCheckChanges();try{localStorage.removeItem('ca-prefs');}catch(e){} }
 function caSkeletonHTML() { var card='<div class="ca-skeleton"><div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div><div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div><div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:88%"></div><div class="ca-skeleton-line" style="width:72%"></div><div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:60%"></div></div>';return card+card+card; }
-function caRenderCards(recommendations) { var container=document.getElementById('ca-cards');container.innerHTML=recommendations.map(function(r,i){var prosHtml=(r.pros||[]).map(function(p){return'<li>'+caEsc(p)+'</li>';}).join('');return'<div class="ca-card">'+'<span class="ca-card-num">Bil '+(i+1)+'</span>'+'<h3>'+caEsc(r.title)+'</h3>'+'<div class="ca-price">'+caEsc(r.price)+'</div>'+'<div class="ca-why">'+caEsc(r.whyRecommended)+'</div>'+'<ul class="ca-pros">'+prosHtml+'</ul>'+'<div class="ca-con">⚠ '+caEsc(r.con)+'</div>'+'<div class="ca-fit">'+caEsc(r.fitSummary)+'</div>'+'<div class="ca-market-links"><a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket →</a><a class="ca-bytbil-btn" href="'+caBytbilUrl(r.title)+'" target="_blank" rel="noopener">Bytbil →</a></div>'+'</div>';}).join(''); }
+function caRenderCards(recommendations) {
+  var container = document.getElementById('ca-cards');
+  container.innerHTML = recommendations.map(function(r, i) {
+    var prosHtml = (r.pros||[]).map(function(p){ return '<li>'+caEsc(p)+'</li>'; }).join('');
+    return '<div class="ca-card">'+
+      '<span class="ca-card-num">Bil '+(i+1)+'</span>'+
+      '<h3>'+caEsc(r.title)+'</h3>'+
+      '<div class="ca-price">'+caEsc(r.price)+'</div>'+
+      '<div class="ca-why">'+caEsc(r.whyRecommended)+'</div>'+
+      '<ul class="ca-pros">'+prosHtml+'</ul>'+
+      '<div class="ca-con">⚠ '+caEsc(r.con)+'</div>'+
+      '<div class="ca-fit">'+caEsc(r.fitSummary)+'</div>'+
+      '<div class="ca-market-links">'+
+        '<a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket →</a>'+
+        '<a class="ca-bytbil-btn" href="'+caBytbilUrl(r.title)+'" target="_blank" rel="noopener">Bytbil →</a>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  caRenderCompare(recommendations);
+}
+
+function caRenderCompare(recs) {
+  var cmp = document.getElementById('ca-compare');
+  if (!cmp || !recs || recs.length < 2) return;
+  var headerCells = recs.map(function(r, i) {
+    var short = r.title.split(' ').slice(0, 3).join(' ');
+    return '<th style="padding:10px 12px;text-align:left;font-weight:700;color:#c4b5fd;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.08)">Bil '+(i+1)+'<br><span style="font-weight:500;color:#e2e8f0;font-size:.78rem">'+caEsc(short)+'</span></th>';
+  }).join('');
+  var rowDefs = [
+    { label: 'Pris',      fn: function(r){ return '<span style="color:#a5f3fc;font-weight:600">'+caEsc(r.price)+'</span>'; } },
+    { label: 'Fördelar',  fn: function(r){ return '<ul style="margin:0;padding-left:14px">'+(r.pros||[]).map(function(p){return'<li style="font-size:.76rem;color:rgba(255,255,255,.7);margin-bottom:2px">'+caEsc(p)+'</li>';}).join('')+'</ul>'; } },
+    { label: 'Nackdel',   fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } },
+    { label: 'Passar för',fn: function(r){ return '<span style="color:rgba(255,255,255,.65);font-size:.8rem">'+caEsc(r.fitSummary)+'</span>'; } }
+  ];
+  var rowsHtml = rowDefs.map(function(row) {
+    return '<tr style="border-bottom:1px solid rgba(255,255,255,.05)">'+
+      '<td style="padding:10px 12px;font-size:.74rem;color:rgba(255,255,255,.38);white-space:nowrap;vertical-align:top">'+row.label+'</td>'+
+      recs.map(function(r){ return '<td style="padding:10px 12px;vertical-align:top">'+row.fn(r)+'</td>'; }).join('')+
+    '</tr>';
+  }).join('');
+  cmp.innerHTML =
+    '<div style="background:rgba(255,255,255,.025);border:1px solid rgba(139,92,246,.2);border-radius:16px;overflow:hidden;margin-top:28px">'+
+      '<div style="padding:14px 16px 0;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.65)">Jämförelsevy</div>'+
+      '<div style="overflow-x:auto">'+
+        '<table style="width:100%;border-collapse:collapse;font-size:.84rem">'+
+          '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.08)"><th style="padding:10px 12px"></th>'+headerCells+'</tr></thead>'+
+          '<tbody>'+rowsHtml+'</tbody>'+
+        '</table>'+
+      '</div>'+
+    '</div>';
+}
 function caFallbackCopy(text) { var ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta); }
 function caCopyResult() { var cards=document.querySelectorAll('.ca-card');var lines=['Mina bilrekommendationer\n'];cards.forEach(function(card,i){var title=card.querySelector('h3')?card.querySelector('h3').textContent:'';var price=card.querySelector('.ca-price')?card.querySelector('.ca-price').textContent:'';var pros=Array.from(card.querySelectorAll('.ca-pros li')).map(function(li){return'  ✓ '+li.textContent.trim();}).join('\n');var con=card.querySelector('.ca-con')?card.querySelector('.ca-con').textContent.trim():'';lines.push((i+1)+'. '+title+'\n'+price+'\n'+pros+'\n'+con);});var text=lines.join('\n\n');var btn=document.getElementById('ca-copy-btn');function confirm(){btn.textContent='✓ Kopierat!';setTimeout(function(){btn.textContent='Kopiera lista';},2500);}if(navigator.clipboard){navigator.clipboard.writeText(text).then(confirm).catch(function(){caFallbackCopy(text);confirm();});}else{caFallbackCopy(text);confirm();} }
 function caShareSearch() { var params=new URLSearchParams({budget:document.getElementById('ca-budget-slider').value,category:document.getElementById('ca-category').value,charger:document.getElementById('ca-charger').value,km:document.getElementById('ca-km').value,usage:document.getElementById('ca-usage').value,passengers:document.getElementById('ca-passengers').value,newcar:document.getElementById('ca-newcar').value,fuelType:document.getElementById('ca-fuel').value});var url=window.location.origin+window.location.pathname+'?'+params.toString();if(navigator.clipboard){navigator.clipboard.writeText(url).catch(function(){caFallbackCopy(url);});}else{caFallbackCopy(url);} }

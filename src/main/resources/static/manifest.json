@@ -1,0 +1,11 @@
+{
+  "name": "CarAdvice – AI Bilrådgivning",
+  "short_name": "CarAdvice",
+  "description": "AI-driven bilrådgivare som rekommenderar rätt bil baserat på dina behov",
+  "start_url": "/test.html",
+  "display": "standalone",
+  "background_color": "#0f0c29",
+  "theme_color": "#8b5cf6",
+  "lang": "sv",
+  "icons": []
+}
