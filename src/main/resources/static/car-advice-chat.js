@@ -349,52 +349,146 @@
     caChatSendMessage(msg);
   }
 
-  function caChatSendMessage(message) {
+  function caAddFollowupChips(text, outer) {
+    var lower = text.toLowerCase();
+    var chips = [];
+    if (/elbil|ev|electric/.test(lower))                 chips.push("Elbil eller laddhybrid?", "Räcker räckvidden?");
+    else if (/begagnad|used/.test(lower))                chips.push("Vad ska jag kolla vid köp?", "Vilken år är bäst?");
+    else if (/hybrid|phev/.test(lower))                  chips.push("Laddhybrid vs elhybrid?", "Hur mycket laddar jag?");
+    else if (/bensin|diesel/.test(lower))                chips.push("Diesel eller bensin för pendling?", "Vad kostar det per mil?");
+    if (/driftkostnad|försäkring|skatt/.test(lower) && chips.length < 2) chips.push("Vilken har lägst driftkostnad?");
+    if (/pris|budget|kr/.test(lower) && chips.length < 2)               chips.push("Vad ger bäst värde för pengarna?");
+    if (/suv|familj|barn/.test(lower) && chips.length < 2)              chips.push("Vilken SUV passar en familj?");
+    if (chips.length === 0) chips = ["Elbil eller bensin — vad passar mig?", "Vilken bil är billigast att äga?"];
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;";
+    chips.slice(0, 3).forEach(function(chip) {
+      var btn = document.createElement("button");
+      btn.textContent = chip;
+      btn.style.cssText = "padding:5px 11px;font-size:.72rem;background:rgba(139,92,246,.12);border:1px solid rgba(167,139,250,.25);border-radius:16px;color:#c4b5fd;cursor:pointer;transition:background .15s;font-family:inherit;";
+      btn.onmouseenter = function() { btn.style.background = "rgba(139,92,246,.22)"; };
+      btn.onmouseleave = function() { btn.style.background = "rgba(139,92,246,.12)"; };
+      btn.onclick = function() { wrap.remove(); document.getElementById("ca-chat-input").value = chip; caChatSend(); };
+      wrap.appendChild(btn);
+    });
+    outer.appendChild(wrap);
+  }
+
+  async function caChatSendMessage(message) {
     document.getElementById("ca-chat-quick").style.display = "none";
     caChatAppendUser(message);
     caChatHistory.push({ role: "user", content: message });
     caSaveChatHistory();
 
-    var msgs = document.getElementById("ca-chat-messages");
+    var msgsEl = document.getElementById("ca-chat-messages");
     var typingDiv = document.createElement("div");
     typingDiv.innerHTML = '<div class="ca-chat-bubble bot"><div class="ca-chat-typing"><span></span><span></span><span></span></div></div>';
-    msgs.appendChild(typingDiv);
-    msgs.scrollTop = msgs.scrollHeight;
+    msgsEl.appendChild(typingDiv);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
 
     var context = buildCarContext();
     var limited = caChatHistory.slice(-10);
 
-    fetch(CA_CHAT_API + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: limited, context: context })
-    }).then(function(resp) {
-      typingDiv.remove();
-      if (resp.status === 429) {
-        caChatAppendBot("Du har ställt för många frågor — vänta en minut och försök igen.", false);
-        return null;
-      }
-      if (!resp.ok) {
-        var errDiv = caChatAppendBot("Något gick fel (fel " + resp.status + ").", false);
-        var btn = document.createElement("button"); btn.className = "ca-chat-retry"; btn.textContent = "↺ Försök igen";
-        btn.onclick = function() { errDiv.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
-        errDiv.appendChild(btn);
-        return null;
-      }
-      return resp.json();
-    }).then(function(data) {
-      if (!data) return;
-      var reply = data.reply || data.error || "Inget svar.";
-      caChatHistory.push({ role: "assistant", content: reply });
-      caSaveChatHistory();
-      caChatAppendBot(reply, true);
-    }).catch(function() {
+    var resp;
+    try {
+      resp = await fetch(CA_CHAT_API + "/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: limited, context: context })
+      });
+    } catch (_) {
       typingDiv.remove();
       var errDiv = caChatAppendBot("Kunde inte nå bilrådgivaren — kontrollera anslutningen.", false);
       var btn = document.createElement("button"); btn.className = "ca-chat-retry"; btn.textContent = "↺ Försök igen";
       btn.onclick = function() { errDiv.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
       errDiv.appendChild(btn);
-    });
+      return;
+    }
+
+    typingDiv.remove();
+
+    if (resp.status === 429) {
+      caChatAppendBot("Du har ställt för många frågor — vänta en minut och försök igen.", false);
+      return;
+    }
+    if (!resp.ok) {
+      var errDiv2 = caChatAppendBot("Något gick fel (fel " + resp.status + ").", false);
+      var btn2 = document.createElement("button"); btn2.className = "ca-chat-retry"; btn2.textContent = "↺ Försök igen";
+      btn2.onclick = function() { errDiv2.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
+      errDiv2.appendChild(btn2);
+      return;
+    }
+
+    // Fallback for browsers without streaming support
+    if (!resp.body || typeof resp.body.getReader !== "function") {
+      try {
+        var fb = await fetch(CA_CHAT_API + "/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: limited, context: context })
+        });
+        var fbData = await fb.json();
+        var fbReply = fbData.reply || fbData.error || "Inget svar.";
+        caChatHistory.push({ role: "assistant", content: fbReply });
+        caSaveChatHistory();
+        var fbOuter = caChatAppendBot(fbReply, true);
+        caAddFollowupChips(fbReply, fbOuter);
+      } catch (_) { caChatAppendBot("Kunde inte nå bilrådgivaren.", false); }
+      return;
+    }
+
+    // Streaming bubble
+    var outer = document.createElement("div");
+    var bubble = document.createElement("div");
+    bubble.className = "ca-chat-bubble bot";
+    outer.appendChild(bubble);
+    msgsEl.appendChild(outer);
+
+    var fullText = "";
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buf = "";
+
+    try {
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += decoder.decode(chunk.value, { stream: true });
+        var lines = buf.split("\n");
+        buf = lines.pop();
+        for (var i = 0; i < lines.length; i++) {
+          var trimmed = lines[i].trim();
+          if (!trimmed.startsWith("data:")) continue;
+          var data = trimmed.slice(5).trim();
+          if (data === "[DONE]") break;
+          try {
+            var token = JSON.parse(data);
+            if (token.startsWith("[ERR]")) throw new Error(token.slice(5));
+            fullText += token;
+            bubble.textContent = fullText;
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+          } catch (parseErr) {
+            if (parseErr.message && !parseErr.message.startsWith("JSON")) throw parseErr;
+          }
+        }
+      }
+    } catch (streamErr) {
+      if (!fullText) {
+        outer.remove();
+        var errDiv3 = caChatAppendBot(streamErr.message || "Kunde inte nå bilrådgivaren.", false);
+        var btn3 = document.createElement("button"); btn3.className = "ca-chat-retry"; btn3.textContent = "↺ Försök igen";
+        btn3.onclick = function() { errDiv3.remove(); caChatHistory.pop(); caSaveChatHistory(); caChatSendMessage(message); };
+        errDiv3.appendChild(btn3);
+        return;
+      }
+    }
+
+    bubble.innerHTML = caChatMarkdown(fullText);
+    caAddFeedback(outer);
+    caAddFollowupChips(fullText, outer);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+
+    caChatHistory.push({ role: "assistant", content: fullText });
+    caSaveChatHistory();
   }
 
   initCaChat();

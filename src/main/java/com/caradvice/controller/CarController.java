@@ -2,9 +2,17 @@ package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
 import com.caradvice.service.GroqService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -21,6 +29,7 @@ public class CarController {
 
     private final GroqService groqService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
+    private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
 
     private static final int CHAT_RATE_LIMIT = 10;
@@ -79,6 +88,55 @@ public class CarController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @PostMapping(value = "/chat/stream", produces = "text/event-stream")
+    public ResponseEntity<StreamingResponseBody> chatStream(@RequestBody Map<String, Object> req, HttpServletRequest httpReq) {
+        String ip = getClientIp(httpReq);
+        long now = System.currentTimeMillis();
+        Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
+        synchronized (times) {
+            while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
+            if (times.size() >= CHAT_RATE_LIMIT)
+                return ResponseEntity.status(429).build();
+            times.addLast(now);
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
+        if (messages == null || messages.isEmpty())
+            return ResponseEntity.badRequest().build();
+        String context = (String) req.get("context");
+
+        StreamingResponseBody body = outputStream -> {
+            try (InputStream is = groqService.chatStream(messages, context);
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("data: ")) continue;
+                    String data = line.substring(6).trim();
+                    if ("[DONE]".equals(data)) break;
+                    try {
+                        JsonNode node = mapper.readTree(data);
+                        String token = node.at("/choices/0/delta/content").asText("");
+                        if (!token.isEmpty()) {
+                            outputStream.write(("data: " + mapper.writeValueAsString(token) + "\n\n").getBytes(StandardCharsets.UTF_8));
+                            outputStream.flush();
+                        }
+                    } catch (Exception ignored) {}
+                }
+            } catch (Exception e) {
+                outputStream.write(("data: " + mapper.writeValueAsString("[ERR]" + e.getMessage()) + "\n\n").getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
+            }
+            outputStream.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
+        };
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/event-stream; charset=UTF-8")
+                .header("Cache-Control", "no-cache")
+                .header("X-Accel-Buffering", "no")
+                .body(body);
     }
 
     @GetMapping("/health")

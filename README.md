@@ -33,6 +33,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **AI-chattbot** — flytande knapp nere till höger med bil-ikon (⚡+⛽) i glassmorphism-design; lila/indigo-tema; svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil); har EV-kunskap om räckvidd och laddning som köpfaktor men hänvisar vidare för att hitta laddstationer; markdown-rendering i svar; rensa-knapp; max 10 frågor/minut per IP
+- **Streaming-svar** — chattbotens svar strömmar direkt token för token via `/api/chat/stream` (SSE) utan att vänta på hela svaret; automatisk fallback till vanlig JSON-endpoint om webbläsaren saknar ReadableStream-stöd
+- **Dynamiska follow-up chips** — efter varje svar visas 2–3 kontextuella snabbknappar baserade på svarsinnehållet (drivmedel, budget, biltyp, tillförlitlighet)
 
 ---
 

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -176,6 +177,51 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         return json.at("/choices/0/message/content").asText("Inget svar.");
+    }
+
+    public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
+        String systemPrompt = """
+                Du är en svensk bilrådgivare för både bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
+
+                Du svarar på frågor om:
+                - Köp och försäljning av bilar (ny och begagnad)
+                - Jämförelser mellan bilmodeller, drivmedel och prisklasser
+                - Driftkostnader, försäkring, skatt och värdeminskning
+                - Räckvidd, laddinfrastruktur och laddtider som köpfaktorer för elbilar
+                - Fördelar och nackdelar med bensin vs diesel vs hybrid vs elbil
+                - Bilprovning, tillförlitlighet och ägarkostnader
+
+                Du hjälper INTE med att hitta närmaste laddstation, realtidsladdning eller navigering.
+                Om användaren frågar om sådant svarar du:
+                "Det kan jag inte hjälpa med här — för att hitta laddstationer rekommenderar jag elbilsladdning-appen."
+
+                Om frågan inte handlar om bilar alls svarar du:
+                "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
+
+                Svara alltid på svenska. Var konkret, kortfattad och hjälpsam. Du får använda **fetstil** och listor med - för att strukturera svaret.
+                """;
+        if (carContext != null && !carContext.isBlank())
+            systemPrompt += "\n\nAktuella bilrekommendationer:\n" + carContext;
+
+        List<Map<String, String>> msgs = new ArrayList<>();
+        msgs.add(Map.of("role", "system", "content", systemPrompt));
+        msgs.addAll(messages);
+
+        Map<String, Object> requestBody = Map.of(
+                "model", model, "max_tokens", 600, "temperature", 0.5, "stream", true, "messages", msgs);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(GROQ_URL))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
+                .build();
+
+        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() == 401) throw new RuntimeException("AI-tjänsten är inte korrekt konfigurerad.");
+        if (response.statusCode() == 429) throw new RuntimeException("För många frågor — vänta en minut och försök igen.");
+        if (response.statusCode() != 200) throw new RuntimeException("Groq svarade " + response.statusCode());
+        return response.body();
     }
 
     private String buildSystemPrompt() {
