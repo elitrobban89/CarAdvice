@@ -32,6 +32,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - IP-baserad rate limiting: max 10 förfrågningar per IP och timme
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
+- **AI-chattbot** — flytande knapp nere till höger med bil-ikon (⚡+⛽) i glassmorphism-design; lila/indigo-tema; svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil); har EV-kunskap om räckvidd och laddning som köpfaktor men hänvisar vidare för att hitta laddstationer; markdown-rendering i svar; rensa-knapp; max 10 frågor/minut per IP
 
 ---
 
@@ -67,7 +68,10 @@ CarAdvice/
     │   └── service/
     │       └── GroqService.java        ← Groq AI-integration, cache, felhantering
     └── resources/
-        └── application.properties
+        ├── application.properties
+        └── static/
+            ├── car-advice-chat.js      ← Chattbot-UI (serveras av Render, laddas av WordPress)
+            └── test.html               ← Lokal testmiljö — öppnas via http://localhost:8080/test.html
 ```
 
 ---
@@ -84,7 +88,9 @@ export GROQ_API_KEY=din_nyckel
 mvn spring-boot:run
 ```
 
-**3. Testa:**
+**3. Öppna:** `http://localhost:8080/test.html` i Chrome
+
+**4. Testa rekommendationer:**
 ```bash
 curl -X POST http://localhost:8080/api/recommend \
   -H "Content-Type: application/json" \
@@ -158,6 +164,22 @@ curl -X POST http://localhost:8080/api/recommend \
 ```
 
 **Rate limiting:** Max 10 anrop per IP och timme. Vid överskridande: HTTP 429 med `"error": "För många förfrågningar från din IP. Försök igen om en stund."`
+
+### `POST /api/chat`
+
+Chattbot för köpråd. Accepterar konversationshistorik och returnerar AI-svar.
+
+**Request:**
+```json
+{ "messages": [{ "role": "user", "content": "Elbil eller laddhybrid?" }] }
+```
+
+**Response:**
+```json
+{ "reply": "Det beror på din körsträcka och om du har laddbox hemma..." }
+```
+
+**Rate limiting:** Max 10 anrop per IP och minut. Vid överskridande: HTTP 429.
 
 ### `GET /api/health`
 ```json
