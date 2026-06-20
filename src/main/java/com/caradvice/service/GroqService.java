@@ -33,12 +33,14 @@ public class GroqService {
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
     private final EvSpecService evSpecService;
+    private final CargoSpecService cargoSpecService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
-                       EvSpecService evSpecService) {
+                       EvSpecService evSpecService, CargoSpecService cargoSpecService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
+        this.cargoSpecService = cargoSpecService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -106,7 +108,8 @@ public class GroqService {
                         r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
                         r.fitSummary(), r.expertOpinion(),
                         safetyRatingService.formatForTitle(r.title()),
-                        evSpecService.formatForTitle(r.title(), prefs.kmPerYear())
+                        evSpecService.formatForTitle(r.title(), prefs.kmPerYear()),
+                        cargoSpecService.formatForTitle(r.title())
                 ))
                 .toList();
 

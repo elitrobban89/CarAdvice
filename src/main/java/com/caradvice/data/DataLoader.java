@@ -1,8 +1,10 @@
 package com.caradvice.data;
 
+import com.caradvice.model.CargoSpec;
 import com.caradvice.model.EvSpec;
 import com.caradvice.model.ExpertInsight;
 import com.caradvice.model.SafetyRating;
+import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
@@ -17,11 +19,14 @@ public class DataLoader implements CommandLineRunner {
     private final ExpertInsightRepository expertRepo;
     private final SafetyRatingRepository safetyRepo;
     private final EvSpecRepository evSpecRepo;
+    private final CargoSpecRepository cargoRepo;
 
-    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo, EvSpecRepository evSpecRepo) {
+    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
+                      EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo) {
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
         this.evSpecRepo = evSpecRepo;
+        this.cargoRepo = cargoRepo;
     }
 
     @Override
@@ -30,6 +35,7 @@ public class DataLoader implements CommandLineRunner {
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();
         seedEvSpecExtras();
+        seedCargoSpecs();
     }
 
     private void seedInsights() {
@@ -259,5 +265,112 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Seat Leon PHEV",           3.6, 0.0, 13.0,  60, 350_000, "PHEV"));
 
         if (!extras.isEmpty()) evSpecRepo.saveAll(extras);
+    }
+
+    private void seedCargoSpecs() {
+        java.util.Set<String> existing = cargoRepo.findAll().stream()
+                .map(CargoSpec::getCarName).collect(java.util.stream.Collectors.toSet());
+
+        // name, standard liters, max liters (seats folded, 0 = unknown)
+        Object[][] data = {
+            // === Elbilar ===
+            { "Volvo EX30",              318,  904 },
+            { "Volvo EX40",              419,  1295 },
+            { "Volvo C40",               413,  1205 },
+            { "Volvo EX60",              450,  1300 },
+            { "Volvo EX90",              310,  1915 },
+            { "Kia EV3",                 460,  1300 },
+            { "Kia EV6",                 490,  1300 },
+            { "Kia EV9",                 333,  2318 },
+            { "Hyundai IONIQ 5",         527,  1587 },
+            { "Hyundai IONIQ 6",         401,  0    },
+            { "Tesla Model 3",           594,  0    },
+            { "Tesla Model Y",           854,  2158 },
+            { "Volkswagen ID.3",         385,  1267 },
+            { "Volkswagen ID.4",         543,  1575 },
+            { "Volkswagen ID.7",         532,  1586 },
+            { "Polestar 2",              405,  1095 },
+            { "Polestar 3",              484,  1411 },
+            { "BMW i4",                  470,  1290 },
+            { "BMW iX1",                 490,  1495 },
+            { "BMW iX3",                 510,  1560 },
+            { "BMW iX",                  500,  1750 },
+            { "Audi Q4 e-tron",          520,  1490 },
+            { "Mercedes EQA",            340,  1320 },
+            { "Mercedes EQB",            495,  1710 },
+            { "MG4",                     363,  1177 },
+            { "BYD Dolphin",             345,  1310 },
+            { "BYD Atto 3",              440,  1340 },
+            { "Dacia Spring",            308,  1004 },
+            // === Laddhybrider ===
+            { "Volvo XC60 Recharge",     477,  1432 },
+            { "Volvo XC90 Recharge",     249,  1856 },
+            { "Volvo V60 Recharge",      454,  1441 },
+            { "Toyota RAV4 PHEV",        520,  1604 },
+            { "Toyota Prius PHEV",       217,  0    },
+            { "Kia Niro PHEV",           349,  1342 },
+            { "Kia Sportage PHEV",       587,  1650 },
+            { "Hyundai Tucson PHEV",     558,  1795 },
+            { "Hyundai Kona PHEV",       374,  1296 },
+            { "BMW 330e",                375,  0    },
+            { "BMW 530e",                410,  0    },
+            { "BMW X5 45e",              650,  1870 },
+            { "Mitsubishi Outlander PHEV", 477, 1602 },
+            { "Mercedes GLC 300e",       620,  1640 },
+            { "Mercedes E 300e",         430,  0    },
+            { "Volkswagen Golf GTE",     272,  1270 },
+            { "Volkswagen Passat GTE",   586,  1769 },
+            { "Volkswagen Tiguan PHEV",  615,  1655 },
+            { "Audi Q5 PHEV",            520,  1520 },
+            { "Audi A3 PHEV",            325,  1145 },
+            { "Ford Kuga PHEV",          556,  1534 },
+            { "Ford Explorer PHEV",      800,  2274 },
+            { "Peugeot 308 PHEV",        412,  1271 },
+            { "Renault Captur PHEV",     379,  1275 },
+            { "Seat Leon PHEV",          380,  1301 },
+            { "Skoda Octavia iV",        600,  1700 },
+            { "Cupra Formentor e-Hybrid", 420, 1483 },
+            // === Bensin / Diesel / Mild-hybrid ===
+            { "Volvo XC60",              505,  1432 },
+            { "Volvo XC90",              316,  1856 },
+            { "Volvo V90",               560,  1526 },
+            { "Volvo V60",               529,  1441 },
+            { "Toyota RAV4",             580,  1604 },
+            { "Toyota Corolla",          361,  1354 },
+            { "Toyota Yaris",            286,  768  },
+            { "Toyota Camry",            493,  0    },
+            { "Volkswagen Golf",         381,  1270 },
+            { "Volkswagen Passat",       650,  1769 },
+            { "Volkswagen Tiguan",       615,  1655 },
+            { "Skoda Octavia",           600,  1700 },
+            { "Skoda Superb",            625,  1800 },
+            { "BMW 3-serien",            480,  1510 },
+            { "BMW 5-serien",            520,  1700 },
+            { "BMW X3",                  550,  1600 },
+            { "BMW X5",                  650,  1870 },
+            { "Mercedes C-klass",        455,  1510 },
+            { "Mercedes E-klass",        490,  1610 },
+            { "Mercedes GLC",            620,  1640 },
+            { "Audi A4",                 480,  1495 },
+            { "Audi A3",                 325,  1145 },
+            { "Audi Q5",                 520,  1520 },
+            { "Hyundai Tucson",          558,  1795 },
+            { "Hyundai Kona",            374,  1296 },
+            { "Kia Sportage",            587,  1650 },
+            { "Seat Leon",               380,  1301 },
+            { "Ford Kuga",               556,  1534 },
+            { "Ford Focus",              375,  1354 },
+            { "Mazda CX-5",              442,  1648 },
+            { "Renault Kadjar",          472,  1478 },
+        };
+
+        java.util.List<CargoSpec> toSave = new java.util.ArrayList<>();
+        for (Object[] row : data) {
+            String name = (String) row[0];
+            if (!existing.contains(name)) {
+                toSave.add(new CargoSpec(name, (Integer) row[1], (Integer) row[2]));
+            }
+        }
+        if (!toSave.isEmpty()) cargoRepo.saveAll(toSave);
     }
 }

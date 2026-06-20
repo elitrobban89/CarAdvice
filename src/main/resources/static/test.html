@@ -213,6 +213,7 @@
 .ca-blocket-btn, .ca-bytbil-btn { display: inline-block; padding: 7px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: rgba(255,255,255,0.55); font-size: 0.8rem; text-decoration: none; }
 .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
 .ca-bytbil-btn:hover { background: rgba(99,211,120,0.1); border-color: rgba(99,211,120,0.35); color: rgba(140,230,160,0.95); }
+.ca-cargo { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px !important; padding: 7px 13px; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); border-radius: 10px; font-size: .8rem; color: rgba(251,191,36,0.9); font-weight: 600; }
 .ca-ask-btn { display: block; width: 100%; margin-top: 18px !important; padding: 11px 16px; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.28); border-radius: 12px; color: #c4b5fd; font-size: .82rem; font-weight: 700; cursor: pointer; transition: all .2s; text-align: center; font-family: inherit; letter-spacing: .01em; }
 .ca-ask-btn:hover { background: rgba(139,92,246,0.22); border-color: rgba(139,92,246,0.6); color: #fff; transform: translateY(-1px); }
 .ca-ask-btn-active { background: rgba(139,92,246,0.28) !important; border-color: rgba(167,139,250,0.8) !important; color: #fff !important; box-shadow: 0 0 0 3px rgba(139,92,246,0.18); }
@@ -363,6 +364,12 @@ function caBlocketUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim()
 function caBytbilUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim();var parts=q.split(' ');var make=parts[0].toLowerCase();var model=parts[1]?parts[1].toLowerCase():'';return model?'https://www.bytbil.com/bil/'+make+'/'+model:'https://www.bytbil.com/bil/'+make; }
 function caResetForm() { document.getElementById('ca-category').value='ekonomibil';document.getElementById('ca-budget-slider').value=200000;document.getElementById('ca-charger').value='false';document.getElementById('ca-km').value=1500;document.getElementById('ca-usage').value='pendling';document.getElementById('ca-passengers').value=4;document.getElementById('ca-newcar').value='false';document.getElementById('ca-fuel').value='spelar ingen roll';caUpdateSliderFill();caUpdateFuelVisibility();caCheckMismatch();if(caHasSearched)caCheckChanges();try{localStorage.removeItem('ca-prefs');}catch(e){} }
 function caSkeletonHTML() { var card='<div class="ca-skeleton"><div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div><div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div><div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:88%"></div><div class="ca-skeleton-line" style="width:72%"></div><div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:60%"></div></div>';return card+card+card; }
+function caCargoChip(cargo) {
+  if (!cargo || cargo.cargoLiters <= 0) return '';
+  var txt = '&#x1F9F3; ' + cargo.cargoLiters + ' L bagageutrymme';
+  if (cargo.cargoMaxLiters > 0) txt += ' <span style="opacity:.6;font-size:.75em">(upp till ' + cargo.cargoMaxLiters + ' L)</span>';
+  return '<div class="ca-cargo">' + txt + '</div>';
+}
 function caEvChips(ev) {
   if (!ev) return '';
   var isPhev = ev.carType === 'PHEV';
@@ -402,6 +409,7 @@ function caRenderCards(recommendations) {
         (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Erik Naess&#xe9;n</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '')+
         (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '')+
         (r.evSpec ? caEvChips(r.evSpec) : '')+
+        (r.cargoSpec ? caCargoChip(r.cargoSpec) : '')+
         '<button class="ca-ask-btn" data-idx="'+i+'" data-title="'+caEsc(r.title)+'">&#x1F4AC; Fr&#xe5;ga om Bil '+(i+1)+' &mdash; '+caEsc(r.title.replace(/\s*\(\d{4}\)\s*$/,''))+'</button>'+
         '<div class="ca-market-links">'+
           '<a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket &#x2192;</a>'+
@@ -455,7 +463,13 @@ function caRenderCompare(recs) {
         return '<li style="font-size:.77rem;color:rgba(255,255,255,.7);margin-bottom:3px">'+caEsc(p)+'</li>';
       }).join('')+'</ul>';
     }},
-    { label: '&#x26A0; Nackdel', fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } }
+    { label: '&#x26A0; Nackdel', fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } },
+    { label: '&#x1F9F3; Bagageutrymme', fn: function(r){
+      if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      var txt = chip(r.cargoSpec.cargoLiters+' L', 'rgba(251,191,36,.12)');
+      if (r.cargoSpec.cargoMaxLiters > 0) txt += ' <span style="font-size:.72rem;color:rgba(255,255,255,.4)">/ '+r.cargoSpec.cargoMaxLiters+' L</span>';
+      return txt;
+    }}
   ];
   if (hasEv) {
     rows.push({ label: '&#x1F4CF; WLTP', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.wltpKm > 0 ? chip(ev.wltpKm+' km','rgba(56,189,248,.15)') : '&#x2013;'; }); } });
