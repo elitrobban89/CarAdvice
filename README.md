@@ -37,6 +37,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - **Dynamiska follow-up chips** — efter varje svar visas 2–3 kontextuella snabbknappar baserade på svarsinnehållet (drivmedel, budget, biltyp, tillförlitlighet)
 - **Jämförelsevy** — scrollbar tabell under de tre bilkorten visar pris, fördelar, nackdel och "passar för" sida vid sida för enkel jämförelse
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS via "Lägg till på startskärm"
+- **Expertdatabas (RAG)** — PostgreSQL-tabell `expert_insight` lagrar Erik Naesséns bilexpertis; relevanta insikter injiceras automatiskt i AI-prompten baserat på sökt kategori och drivmedel; chatboten matchar insikter mot bilmärken som nämns i konversationen och avslutar svaret med `**Erik Naessén:** …`
 
 ---
 
@@ -46,6 +47,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
 | AI | Groq API (`llama-3.3-70b-versatile`) |
+| Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
+| ORM | Spring Data JPA / Hibernate |
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
 | Deploy | Render.com (Docker) |
 | Monitorering | UptimeRobot |
@@ -56,26 +59,32 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ```
 CarAdvice/
-├── Dockerfile                          ← Multi-stage Docker-build
-├── pom.xml                             ← Maven-konfiguration
-├── wordpress-snippet.html              ← Klistra in på WordPress-sidan
-├── footer-projects-snippet.html        ← Projektkort till footern
-├── project-links-snippet.html          ← Projektkort till bränslekostnadsidan
+├── Dockerfile                              ← Multi-stage Docker-build
+├── pom.xml                                 ← Maven-konfiguration
+├── wordpress-snippet.html                  ← Klistra in på WordPress-sidan
+├── footer-projects-snippet.html            ← Projektkort till footern
+├── project-links-snippet.html              ← Projektkort till bränslekostnadsidan
 └── src/main/
     ├── java/com/caradvice/
-    │   ├── CarAdviceApplication.java   ← Spring Boot startpunkt
+    │   ├── CarAdviceApplication.java       ← Spring Boot startpunkt
     │   ├── controller/
-    │   │   └── CarController.java      ← REST-endpoints + CORS
+    │   │   └── CarController.java          ← REST-endpoints + CORS
+    │   ├── data/
+    │   │   └── DataLoader.java             ← Seeder: laddar expertinsikter vid tom DB
     │   ├── model/
-    │   │   ├── CarPreferences.java     ← Input-record
-    │   │   └── CarRecommendation.java  ← Output-record
+    │   │   ├── CarPreferences.java         ← Input-record
+    │   │   ├── CarRecommendation.java      ← Output-record
+    │   │   └── ExpertInsight.java          ← JPA-entity (tabell: expert_insight)
+    │   ├── repository/
+    │   │   └── ExpertInsightRepository.java← Spring Data repo, sökning på kategori/drivmedel
     │   └── service/
-    │       └── GroqService.java        ← Groq AI-integration, cache, felhantering
+    │       ├── ExpertInsightService.java   ← Hämtar & formaterar expertkontext för AI-prompt
+    │       └── GroqService.java            ← Groq AI-integration, cache, felhantering
     └── resources/
         ├── application.properties
         └── static/
-            ├── car-advice-chat.js      ← Chattbot-UI (serveras av Render, laddas av WordPress)
-            └── test.html               ← Lokal testmiljö — öppnas via http://localhost:8080/test.html
+            ├── car-advice-chat.js          ← Chattbot-UI (serveras av Render, laddas av WordPress)
+            └── test.html                   ← Lokal testmiljö — öppnas via http://localhost:8080/test.html
 ```
 
 ---
@@ -86,6 +95,8 @@ CarAdvice/
 ```bash
 export GROQ_API_KEY=din_nyckel
 ```
+
+Ingen databaskonfiguration krävs lokalt — H2 in-memory används automatiskt och expertinsikterna laddas in vid start.
 
 **2. Starta:**
 ```bash
@@ -220,7 +231,17 @@ Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot — 
 1. Pusha till GitHub
 2. Skapa **Web Service** på [render.com](https://render.com) → koppla repot
 3. Välj **Docker** som runtime, branch `master`
-4. Lägg till miljövariabel: `GROQ_API_KEY`
+4. Lägg till miljövariabler:
+
+| Variabel | Beskrivning |
+|---|---|
+| `GROQ_API_KEY` | API-nyckel från console.groq.com |
+| `DB_URL` | PostgreSQL JDBC-URL, t.ex. `jdbc:postgresql://host/db` |
+| `DB_USER` | Databasanvändarnamn |
+| `DB_PASS` | Databaslösenord |
+
+> `DB_URL`, `DB_USER`, `DB_PASS` pekar på **samma PostgreSQL-instans** som Elbilsladdning-projektet. CarAdvice skapar enbart tabellen `expert_insight` — inga konflikter med övriga tabeller.
+
 5. Deploy startar automatiskt vid varje push
 
 **OBS:** Render free tier spinnar ned tjänsten efter 15 min inaktivitet (cold start ~30–60 sek). Löses med UptimeRobot-monitor på 5 min intervall.
@@ -285,3 +306,26 @@ Cache nollställs vid Render-omstart (deploy eller nedstängning).
 
 Användaren ser: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
 Kvoten återställs dagligen (~midnatt UTC). Uppgradering till Groq Dev Tier ger 500 000 tokens/dag.
+
+---
+
+## Expertdatabas
+
+Tabellen `expert_insight` lagrar bilexpertens (Erik Naesséns) insikter och injiceras i AI-prompterna som RAG-kontext.
+
+| Kolumn | Typ | Beskrivning |
+|---|---|---|
+| `id` | BIGINT | Auto-genererat PK |
+| `expert_name` | VARCHAR | T.ex. "Erik Naessén" |
+| `car_make` | VARCHAR | T.ex. "Volvo" (null = generell insikt) |
+| `car_model` | VARCHAR | T.ex. "XC40 Recharge" |
+| `fuel_type` | VARCHAR | `elbil`, `bensin`, `diesel`, `hybrid`, `laddhybrid` |
+| `category` | VARCHAR | `suv`, `ekonomibil`, `familjebil`, `smaabil`, `laddhybrid` |
+| `insight` | TEXT | Expertens kommentar |
+| `rating` | INT | Betyg 1–10 (valfritt) |
+
+**Matchningslogik:**
+- `/api/recommend` — hämtar insikter där `category` eller `fuel_type` matchar sökt profil (max 5)
+- `/api/chat` och `/api/chat/stream` — matchar insikter mot bilmärken som nämns i chattmeddelandet; fyller upp med generella insikter till max 6 totalt
+
+**Startvärden:** `DataLoader` laddar 13 insikter automatiskt vid första start om tabellen är tom. Lägg till fler via psql eller ett admin-endpoint.

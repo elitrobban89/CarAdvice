@@ -4,14 +4,14 @@
 
   // Intercept caRenderCards to capture current recommendations as context
   (function() {
-    var _orig = null;
     function hook() {
-      if (typeof window.caRenderCards === 'function' && window.caRenderCards !== _orig) {
-        _orig = window.caRenderCards;
+      if (typeof window.caRenderCards === 'function' && !window.caRenderCards.__caHooked) {
+        var _orig = window.caRenderCards;
         window.caRenderCards = function(recs) {
           window._caRecommendations = recs;
           return _orig.call(this, recs);
         };
+        window.caRenderCards.__caHooked = true;
       }
     }
     document.addEventListener('DOMContentLoaded', hook);

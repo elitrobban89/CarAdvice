@@ -30,6 +30,12 @@ public class GroqService {
     @Value("${groq.model:llama-3.3-70b-versatile}")
     private String model;
 
+    private final ExpertInsightService expertInsightService;
+
+    public GroqService(ExpertInsightService expertInsightService) {
+        this.expertInsightService = expertInsightService;
+    }
+
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final long CACHE_TTL_MS = 2 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
@@ -53,6 +59,7 @@ public class GroqService {
         }
 
         String prompt = buildPrompt(prefs);
+        String expertContext = expertInsightService.buildExpertContext(prefs);
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -60,7 +67,7 @@ public class GroqService {
                 "temperature", 0.3,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
-                        Map.of("role", "system", "content", buildSystemPrompt()),
+                        Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
                         Map.of("role", "user", "content", prompt)
                 )
         );
@@ -128,29 +135,8 @@ public class GroqService {
     }
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
-        String systemPrompt = """
-                Du är en svensk bilrådgivare för både bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
-
-                Du svarar på frågor om:
-                - Köp och försäljning av bilar (ny och begagnad)
-                - Jämförelser mellan bilmodeller, drivmedel och prisklasser
-                - Driftkostnader, försäkring, skatt och värdeminskning
-                - Räckvidd, laddinfrastruktur och laddtider som köpfaktorer för elbilar
-                - Fördelar och nackdelar med bensin vs diesel vs hybrid vs elbil
-                - Bilprovning, tillförlitlighet och ägarkostnader
-
-                Du hjälper INTE med att hitta närmaste laddstation, realtidsladdning eller navigering.
-                Om användaren frågar om sådant svarar du:
-                "Det kan jag inte hjälpa med här — för att hitta laddstationer rekommenderar jag elbilsladdning-appen."
-
-                Om frågan inte handlar om bilar alls svarar du:
-                "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
-
-                Svara alltid på svenska. Var konkret, kortfattad och hjälpsam. Du får använda **fetstil** och listor med - för att strukturera svaret.
-                """;
-
-        if (carContext != null && !carContext.isBlank())
-            systemPrompt += "\n\nAktuella bilrekommendationer:\n" + carContext;
+        String expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages));
+        String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> msgs = new ArrayList<>();
         msgs.add(Map.of("role", "system", "content", systemPrompt));
@@ -180,28 +166,8 @@ public class GroqService {
     }
 
     public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
-        String systemPrompt = """
-                Du är en svensk bilrådgivare för både bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
-
-                Du svarar på frågor om:
-                - Köp och försäljning av bilar (ny och begagnad)
-                - Jämförelser mellan bilmodeller, drivmedel och prisklasser
-                - Driftkostnader, försäkring, skatt och värdeminskning
-                - Räckvidd, laddinfrastruktur och laddtider som köpfaktorer för elbilar
-                - Fördelar och nackdelar med bensin vs diesel vs hybrid vs elbil
-                - Bilprovning, tillförlitlighet och ägarkostnader
-
-                Du hjälper INTE med att hitta närmaste laddstation, realtidsladdning eller navigering.
-                Om användaren frågar om sådant svarar du:
-                "Det kan jag inte hjälpa med här — för att hitta laddstationer rekommenderar jag elbilsladdning-appen."
-
-                Om frågan inte handlar om bilar alls svarar du:
-                "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
-
-                Svara alltid på svenska. Var konkret, kortfattad och hjälpsam. Du får använda **fetstil** och listor med - för att strukturera svaret.
-                """;
-        if (carContext != null && !carContext.isBlank())
-            systemPrompt += "\n\nAktuella bilrekommendationer:\n" + carContext;
+        String expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages));
+        String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> msgs = new ArrayList<>();
         msgs.add(Map.of("role", "system", "content", systemPrompt));
@@ -224,12 +190,42 @@ public class GroqService {
         return response.body();
     }
 
-    private String buildSystemPrompt() {
-        return """
+    private String buildChatSystemPrompt(String carContext, String expertContext) {
+        String base = """
+                Du är en svensk bilrådgivare för bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
+
+                Du svarar på frågor om köp, jämförelser, driftkostnader, försäkring, skatt, värdeminskning, räckvidd och tillförlitlighet.
+
+                Du hjälper INTE med att hitta närmaste laddstation, realtidsladdning eller navigering.
+                Om användaren frågar om sådant svarar du: "Det kan jag inte hjälpa med här — för att hitta laddstationer rekommenderar jag elbilsladdning-appen."
+                Om frågan inte handlar om bilar alls svarar du: "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
+
+                Svara alltid på svenska. Var konkret och hjälpsam. Använd **fetstil** och listor med - för struktur.
+                När du har expertinsikter som är relevanta för frågan, inkludera dem tydligt med attributionen "**Erik Naessén:** [insikt]" i slutet av ditt svar.
+                """;
+        if (carContext != null && !carContext.isBlank())
+            base += "\n\nAktuella bilrekommendationer:\n" + carContext;
+        if (expertContext != null && !expertContext.isBlank())
+            base += "\n\n" + expertContext;
+        return base;
+    }
+
+    private List<String> extractUserTexts(List<Map<String, String>> messages) {
+        return messages.stream()
+                .filter(m -> "user".equals(m.get("role")))
+                .map(m -> m.getOrDefault("content", ""))
+                .toList();
+    }
+
+    private String buildSystemPrompt(String expertContext) {
+        String base = """
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa+motivering","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil"}]}
                 Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary ska vara konkret och personlig.
                 """;
+        if (expertContext != null && !expertContext.isBlank())
+            return base + "\n" + expertContext;
+        return base;
     }
 
     private String buildPrompt(CarPreferences prefs) {
