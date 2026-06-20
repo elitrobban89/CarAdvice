@@ -57,12 +57,11 @@ public class CarController {
     @PostMapping("/admin/sync-ev-specs")
     public ResponseEntity<?> syncEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (!adminKey.equals(key)) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-        try {
-            int updated = evScraper.syncFromEvDatabase();
-            return ResponseEntity.ok(Map.of("updated", updated, "status", "ok"));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
+        Thread.ofVirtual().start(() -> {
+            try { evScraper.syncFromEvDatabase(); }
+            catch (Exception e) { /* logged inside scraper */ }
+        });
+        return ResponseEntity.accepted().body(Map.of("status", "sync started — check server logs for result"));
     }
 
     @PostMapping("/recommend")
