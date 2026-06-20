@@ -8,6 +8,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ## Funktioner
 
+### Sök & rekommendationer
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
 - Drivmedelsfilter: bensin, diesel, hybrid — döljs automatiskt för elbil/laddhybrid
@@ -26,18 +27,66 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Dela-knapp som genererar en delbar länk med alla sökinställningar som URL-parametrar
 - Formuläret sparas automatiskt i localStorage och återställs vid nästa besök
 - URL-parametrar har alltid högre prioritet än localStorage (delad länk visas alltid korrekt)
+
+### Bilkortsdesign
+- Tre kort med **per-kort accentfärger**: Bil 1 lila, Bil 2 blå, Bil 3 grön
+- **Aurora-glödeffekt** — animerat radiellt gradient-orb bakom varje kort (CSS `@keyframes` med staggerade delays)
+- Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
+- **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
+
+### Elbils- och laddhybriddata (EV-chip)
+- **⚡ Elbil**-badge eller **🔌 Laddhybrid**-badge per bil
+- WLTP-räckvidd, uppskattad sommar- och vinterräckvidd
+- Laddfrekvens baserat på körsträcka ("ladda var 4:e dag")
+- Max DC-laddning (kW) och AC-laddning (kW)
+- Batteristorlek (kWh) och startpris
+- Prisvärdhetsbedömning (Utmärkt / Bra / Ok prisvärdhet)
+- Tvåstegs fuzzy-matchning: titel-ord mot DB-namn och DB-namn som exakta ord i titel (förhindrar att "Kia Niro PHEV" matchar "Kia Niro EV")
+
+### Bagageutrymme
+- **🧳 Bagageutrymme-chip** visas på alla bilkort — oavsett drivmedel
+- Visar standardvolym (L) och maxvolym med nedfällt baksäte
+- 75+ bilar seedade: elbilar, laddhybrider, bensin, diesel och mildhybrider
+- Syns även i jämförelsetabellen som egen rad
+
+### Jämförelsetabell
+- Scrollbar tabell under de tre bilkorten
+- Rader: Pris · Fördelar · Nackdel · 🧳 Bagageutrymme
+- Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri · Prisvärdhet
+- Färgkodade kolumnrubriker matchar kortens accentfärger
+
+### Chatbot
+- Flytande knapp nere till höger med bil-ikon i glassmorphism-design; lila/indigo-tema
+- Svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil)
+- Streaming-svar — token för token via SSE; automatisk fallback till JSON om ReadableStream saknas
+- **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna
+- **Per-bil-fokus** — klickar man "Fråga om denna bil" ändras chatboten till att fokusera på just den bilen med specifika chips: Berätta om, Driftkostnad & skatt, Tillförlitlighet & problem, Jämför med
+- Dynamiska follow-up chips baserade på svarsinnehållet
+- Rensa-knapp; max 10 frågor/minut per IP; sparar historik i localStorage
+
+### Bilexpert-samarbete (RAG)
+- PostgreSQL-tabell `expert_insight` lagrar **Erik Naesséns** bilexpertis
+- Relevanta insikter injiceras automatiskt i AI-prompten baserat på sökt kategori och drivmedel
+- Chatboten matchar insikter mot bilmärken som nämns i konversationen och avslutar svaret med `**Erik Naessén:** …`
+- 13 startinsikter laddas vid första start; fler kan läggas till via psql eller admin-endpoint
+
+### EV-spec-skrapare (ev-database.org)
+- Daglig schemalagd sync kl 03:00 UTC — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning per bil
+- Fuzzy-matchning mot befintliga DB-poster — uppdaterar bara kända bilar, skapar inga dubbletter
+- Manuell trigger via admin-endpoint:
+  ```bash
+  curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
+    -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+  ```
+- Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar
+
+### Övrigt
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
 - Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
-- Cache-eviction: max 200 poster, äldsta halvan rensas vid överskridande
 - IP-baserad rate limiting: max 10 förfrågningar per IP och timme
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
-- **AI-chattbot** — flytande knapp nere till höger med bil-ikon (⚡+⛽) i glassmorphism-design; lila/indigo-tema; svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil); har EV-kunskap om räckvidd och laddning som köpfaktor men hänvisar vidare för att hitta laddstationer; markdown-rendering i svar; rensa-knapp; max 10 frågor/minut per IP
-- **Streaming-svar** — chattbotens svar strömmar direkt token för token via `/api/chat/stream` (SSE) utan att vänta på hela svaret; automatisk fallback till vanlig JSON-endpoint om webbläsaren saknar ReadableStream-stöd
-- **Dynamiska follow-up chips** — efter varje svar visas 2–3 kontextuella snabbknappar baserade på svarsinnehållet (drivmedel, budget, biltyp, tillförlitlighet)
-- **Jämförelsevy** — scrollbar tabell under de tre bilkorten visar pris, fördelar, nackdel och "passar för" sida vid sida för enkel jämförelse
-- **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS via "Lägg till på startskärm"
-- **Expertdatabas (RAG)** — PostgreSQL-tabell `expert_insight` lagrar Erik Naesséns bilexpertis; relevanta insikter injiceras automatiskt i AI-prompten baserat på sökt kategori och drivmedel; chatboten matchar insikter mot bilmärken som nämns i konversationen och avslutar svaret med `**Erik Naessén:** …`
+- **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
 
 ---
 
@@ -47,6 +96,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
 | AI | Groq API (`llama-3.3-70b-versatile`) |
+| HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
@@ -59,67 +109,61 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ```
 CarAdvice/
-├── Dockerfile                              ← Multi-stage Docker-build
-├── pom.xml                                 ← Maven-konfiguration
-├── wordpress-snippet.html                  ← Klistra in på WordPress-sidan
-├── footer-projects-snippet.html            ← Projektkort till footern
-├── project-links-snippet.html              ← Projektkort till bränslekostnadsidan
+├── Dockerfile
+├── pom.xml
+├── wordpress-snippet.html          ← Klistra in på WordPress-sidan
 └── src/main/
     ├── java/com/caradvice/
-    │   ├── CarAdviceApplication.java       ← Spring Boot startpunkt
+    │   ├── CarAdviceApplication.java
     │   ├── controller/
-    │   │   └── CarController.java          ← REST-endpoints + CORS
+    │   │   └── CarController.java  ← REST-endpoints + admin sync-trigger
     │   ├── data/
-    │   │   └── DataLoader.java             ← Seeder: laddar expertinsikter vid tom DB
+    │   │   └── DataLoader.java     ← Seeder: expertinsikter, EV-specs, cargo-specs
     │   ├── model/
-    │   │   ├── CarPreferences.java         ← Input-record
-    │   │   ├── CarRecommendation.java      ← Output-record
-    │   │   └── ExpertInsight.java          ← JPA-entity (tabell: expert_insight)
+    │   │   ├── CarPreferences.java
+    │   │   ├── CarRecommendation.java  ← inkl. evSpec + cargoSpec
+    │   │   ├── CargoSpec.java          ← JPA-entity: bagageutrymme
+    │   │   ├── CargoSpecDto.java
+    │   │   ├── EvSpec.java             ← JPA-entity: elbilsdata
+    │   │   ├── EvSpecDto.java
+    │   │   └── ExpertInsight.java
     │   ├── repository/
-    │   │   └── ExpertInsightRepository.java← Spring Data repo, sökning på kategori/drivmedel
+    │   │   ├── CargoSpecRepository.java
+    │   │   ├── EvSpecRepository.java
+    │   │   ├── ExpertInsightRepository.java
+    │   │   └── SafetyRatingRepository.java
+    │   ├── scraper/
+    │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
+    │   │   └── EvSpecSyncScheduler.java       ← @Scheduled cron 03:00 UTC
     │   └── service/
-    │       ├── ExpertInsightService.java   ← Hämtar & formaterar expertkontext för AI-prompt
-    │       └── GroqService.java            ← Groq AI-integration, cache, felhantering
+    │       ├── CargoSpecService.java   ← Fuzzy-matchning på bilnamn → bagagevolym
+    │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
+    │       ├── ExpertInsightService.java
+    │       ├── GroqService.java        ← Groq AI, cache, felhantering
+    │       └── SafetyRatingService.java
     └── resources/
         ├── application.properties
         └── static/
-            ├── car-advice-chat.js          ← Chattbot-UI (serveras av Render, laddas av WordPress)
-            └── test.html                   ← Lokal testmiljö — öppnas via http://localhost:8080/test.html
+            ├── car-advice-chat.js  ← Chattbot-UI (serveras av Render, laddas av WordPress)
+            ├── manifest.json       ← PWA-manifest
+            └── test.html           ← Lokal testmiljö
 ```
 
 ---
 
 ## Köra lokalt
 
-**1. Sätt API-nyckel** (från [console.groq.com](https://console.groq.com)):
+**1. Sätt API-nyckel:**
 ```bash
 export GROQ_API_KEY=din_nyckel
 ```
-
-Ingen databaskonfiguration krävs lokalt — H2 in-memory används automatiskt och expertinsikterna laddas in vid start.
 
 **2. Starta:**
 ```bash
 mvn spring-boot:run
 ```
 
-**3. Öppna:** `http://localhost:8080/test.html` i Chrome
-
-**4. Testa rekommendationer:**
-```bash
-curl -X POST http://localhost:8080/api/recommend \
-  -H "Content-Type: application/json" \
-  -d '{
-    "budget": 150000,
-    "carCategory": "ekonomibil",
-    "hasCharger": false,
-    "kmPerYear": 15000,
-    "usage": "pendling",
-    "passengers": 2,
-    "newCar": false,
-    "fuelType": "bensin"
-  }'
-```
+**3. Öppna:** `http://localhost:8080/test.html`
 
 ---
 
@@ -130,13 +174,14 @@ curl -X POST http://localhost:8080/api/recommend \
 **Request:**
 ```json
 {
-  "budget": 150000,
-  "carCategory": "ekonomibil",
-  "hasCharger": false,
+  "budget": 400000,
+  "carCategory": "suv",
+  "hasCharger": true,
   "kmPerYear": 15000,
-  "usage": "pendling",
-  "passengers": 2,
-  "newCar": false
+  "usage": "familj",
+  "passengers": 4,
+  "newCar": true,
+  "fuelType": "elbil"
 }
 ```
 
@@ -149,183 +194,108 @@ curl -X POST http://localhost:8080/api/recommend \
 | `usage` | string | `pendling`, `familj`, `landsväg`, `stad` |
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
-| `fuelType` | string | `bensin`, `diesel`, `hybrid`, `spelar ingen roll` (default) |
+| `fuelType` | string | `bensin`, `diesel`, `hybrid`, `spelar ingen roll` |
 
-**Response (lyckat, färskt svar):**
+**Response:**
 ```json
 {
   "success": true,
   "recommendations": [
     {
-      "title": "Volkswagen Golf 1.0 TSI (2019)",
-      "price": "130 000 – 160 000 kr",
-      "whyRecommended": "Toppbetyg i Teknikens Värld för komfort och bränsleekonomi",
-      "pros": ["5,5 l/100 km ger ~8 250 kr/år", "Låga underhållskostnader", "Brett servicenät"],
-      "con": "Mindre kraftfull motor kan kännas trög i kuperad terräng",
-      "fitSummary": "Passar en lågmilare som pendlar i stad med begränsad budget."
+      "title": "Volvo EX30 (2024)",
+      "price": "350 000 – 400 000 kr",
+      "whyRecommended": "Teknikens Värld: bäst i test i klassen",
+      "pros": ["WLTP 480 km", "Låg driftkostnad", "5-stjärnigt Euro NCAP"],
+      "con": "Litet bagageutrymme",
+      "fitSummary": "Passar en familj som vill ha prisvärd elbil med laddbox hemma.",
+      "expertOpinion": "EX30 är det smartaste köpet under 400k just nu.",
+      "safetyRating": "Euro NCAP 2023: 5 stjärnor (97% vuxna)",
+      "evSpec": {
+        "wltpKm": 480, "summerKm": 408, "winterKm": 336,
+        "daysPerCharge": 5, "daysLabel": "ladda var 5:e dag",
+        "batteryKwh": 51.0, "maxDcKw": 153, "maxAcKw": 11,
+        "priceKr": 350000, "valueLabel": "Utmärkt prisvärdhet", "carType": "EV"
+      },
+      "cargoSpec": { "cargoLiters": 318, "cargoMaxLiters": 904 }
     }
   ]
 }
 ```
 
-**Response (cache-träff):** Samma struktur plus `"cached": true, "cachedAgeMinutes": 14`.
+### `POST /api/chat` / `POST /api/chat/stream`
 
-**Response (fel):**
+Chattbot för köpråd. Stream-varianten returnerar SSE token för token.
+
 ```json
-{
-  "success": false,
-  "error": "Dagsgränsen för AI-anrop är nådd. Försök igen om 8 minuter."
-}
+{ "messages": [{ "role": "user", "content": "Elbil eller laddhybrid?" }],
+  "context": "Aktuella rekommendationer: 1. Volvo EX30..." }
 ```
 
-**Rate limiting:** Max 10 anrop per IP och timme. Vid överskridande: HTTP 429 med `"error": "För många förfrågningar från din IP. Försök igen om en stund."`
+### `POST /api/admin/sync-ev-specs`
 
-### `POST /api/chat`
+Startar EV-spec-synken manuellt. Kräver `X-Admin-Key`-header.
 
-Chattbot för köpråd. Accepterar konversationshistorik och returnerar AI-svar (JSON).
-
-**Request:**
-```json
-{ "messages": [{ "role": "user", "content": "Elbil eller laddhybrid?" }] }
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
+  -H "X-Admin-Key: caradvice-admin-2024"
+# → {"status":"sync started — check server logs for result"}
 ```
-
-**Response:**
-```json
-{ "reply": "Det beror på din körsträcka och om du har laddbox hemma..." }
-```
-
-**Rate limiting:** Max 10 anrop per IP och minut. Vid överskridande: HTTP 429.
-
-### `POST /api/chat/stream`
-
-Samma som `/api/chat` men returnerar svaret som SSE (Server-Sent Events) — token för token utan att vänta på hela svaret.
-
-**Response:** `Content-Type: text/event-stream`
-```
-data: "Det"
-data: " beror"
-data: " på"
-...
-data: [DONE]
-```
-
-Fel skickas som `data: "[ERR]felmeddelande"` följt av `data: [DONE]`. Klienten faller automatiskt tillbaka till `/api/chat` om webbläsaren saknar ReadableStream-stöd.
 
 ### `GET /api/health`
 ```json
 { "status": "OK" }
 ```
 
-### `GET /api/recommend/test`
+---
 
-Kontrollerar att Groq API-nyckeln är konfigurerad. Används av UptimeRobot — gör **inga** Groq-anrop.
+## Databastabeller
 
-```json
-{ "status": "OK", "groq": "OK", "rekommendation": true }
-```
+| Tabell | Innehåll |
+|--------|----------|
+| `expert_insight` | Erik Naesséns bilexpertis (RAG-kontext) |
+| `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell |
+| `cargo_spec` | Bagageutrymme (standard + max L) för 75+ bilmodeller |
+| `safety_rating` | Euro NCAP-betyg per modell |
 
 ---
 
 ## Deploya på Render.com
 
 1. Pusha till GitHub
-2. Skapa **Web Service** på [render.com](https://render.com) → koppla repot
-3. Välj **Docker** som runtime, branch `master`
-4. Lägg till miljövariabler:
+2. Skapa **Web Service** → koppla repot → **Docker** runtime, branch `master`
+3. Miljövariabler:
 
 | Variabel | Beskrivning |
 |---|---|
 | `GROQ_API_KEY` | API-nyckel från console.groq.com |
-| `DB_URL` | PostgreSQL JDBC-URL, t.ex. `jdbc:postgresql://host/db` |
+| `DB_URL` | PostgreSQL JDBC-URL |
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
+| `ADMIN_KEY` | Nyckel för admin-endpoints (default: `caradvice-admin-2024`) |
 
-> `DB_URL`, `DB_USER`, `DB_PASS` pekar på **samma PostgreSQL-instans** som Elbilsladdning-projektet. CarAdvice skapar enbart tabellen `expert_insight` — inga konflikter med övriga tabeller.
-
-5. Deploy startar automatiskt vid varje push
-
-**OBS:** Render free tier spinnar ned tjänsten efter 15 min inaktivitet (cold start ~30–60 sek). Löses med UptimeRobot-monitor på 5 min intervall.
+EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — ingen lokal dator behövs.
 
 ---
 
 ## Monitorering
-
-Tjänsten övervakas med [UptimeRobot](https://uptimerobot.com) via två monitorer:
 
 | Monitor | URL | Intervall |
 |---|---|---|
 | WordPress-sida | `https://elitrobban.se/bilradgivning/` | 5 min |
 | Backend | `https://caradvice.onrender.com/api/recommend/test` | 5 min |
 
-Backend-monitorn håller även Render-instansen varm och eliminerar cold starts.
+Backend-monitorn håller Render-instansen varm och eliminerar cold starts.
 
 ---
 
 ## WordPress-integration
 
-Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri WordPress-sida. Formuläret anropar Render-URL:en direkt från webbläsaren — ingen server-side WordPress-kod krävs.
+Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri WordPress-sida.
 
 > **OBS:** WordPress synkas inte automatiskt från GitHub. Vid uppdatering av `wordpress-snippet.html` måste koden klistras in manuellt i WordPress-blocket.
-
-**Relaterade snippets:**
-- `footer-projects-snippet.html` — projektkort till footern
-- `project-links-snippet.html` — projektkort till bränslekostnadsidan
 
 ---
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`.
-
-### Förbrukning per anrop
-
-| Del | Tokens |
-|-----|--------|
-| System-prompt (input) | ~60 |
-| User-prompt (input) | ~30 |
-| Svar från AI (output, max) | 1 024 |
-| **Totalt per unikt anrop** | **~1 100–1 150** |
-
-Det ger ungefär **85–90 unika sökningar per dag** innan kvoten nås.
-
-### Cache (2 timmar)
-
-Identiska sökprofiler (samma budget, kategori, körsträcka etc.) returneras direkt från minnet utan att använda tokens. En populär kombination som söks 10 gånger under två timmar kostar alltså bara ~1 150 tokens istället för ~11 500.
-
-Cache nollställs vid Render-omstart (deploy eller nedstängning).
-
-### Hur kvoten förlängs
-
-| Åtgärd | Effekt |
-|--------|--------|
-| Cache-träff | 0 tokens (100% besparing) |
-| `/api/recommend/test` (UptimeRobot) | 0 tokens |
-| Promptarna är avsiktligt korta | Ändra inte utan att räkna tokens |
-
-### Vid 429-fel
-
-Användaren ser: *"Dagsgränsen för AI-anrop är nådd. Försök igen om X minuter."*
-Kvoten återställs dagligen (~midnatt UTC). Uppgradering till Groq Dev Tier ger 500 000 tokens/dag.
-
----
-
-## Expertdatabas
-
-Tabellen `expert_insight` lagrar bilexpertens (Erik Naesséns) insikter och injiceras i AI-prompterna som RAG-kontext.
-
-| Kolumn | Typ | Beskrivning |
-|---|---|---|
-| `id` | BIGINT | Auto-genererat PK |
-| `expert_name` | VARCHAR | T.ex. "Erik Naessén" |
-| `car_make` | VARCHAR | T.ex. "Volvo" (null = generell insikt) |
-| `car_model` | VARCHAR | T.ex. "XC40 Recharge" |
-| `fuel_type` | VARCHAR | `elbil`, `bensin`, `diesel`, `hybrid`, `laddhybrid` |
-| `category` | VARCHAR | `suv`, `ekonomibil`, `familjebil`, `smaabil`, `laddhybrid` |
-| `insight` | TEXT | Expertens kommentar |
-| `rating` | INT | Betyg 1–10 (valfritt) |
-
-**Matchningslogik:**
-- `/api/recommend` — hämtar insikter där `category` eller `fuel_type` matchar sökt profil (max 5)
-- `/api/chat` och `/api/chat/stream` — matchar insikter mot bilmärken som nämns i chattmeddelandet; fyller upp med generella insikter till max 6 totalt
-
-**Startvärden:** `DataLoader` laddar 13 insikter automatiskt vid första start om tabellen är tom. Lägg till fler via psql eller ett admin-endpoint.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile` — ca 85–90 unika sökningar/dag. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad.
