@@ -352,4 +352,15 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile` — ca 85–90 unika sökningar/dag. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje sökning använder upp till **1 500 output-tokens** (höjt från 1 024 för att ge marginal för fuelSpec + verbose AI-svar), plus ~600–800 input-tokens för system-prompt och användarprompt — totalt ~50–60 unika sökningar/dag utan cache. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad.
+
+---
+
+## Senaste bugfixar
+
+| Fix | Beskrivning |
+|-----|-------------|
+| Utloggning visade fel text | `caUpdateSubBar()` anropades med 2 args vid logout — `remaining` blev `undefined` och visade `"undefined av 10 sökningar"` |
+| Storage-event efter logout | `ca_status`-borttagning skickade `!isActive = true` som `isLoggedIn` → visade "Inloggad" efter utloggning; nu reset till gäst-vy |
+| `FuelSpecDto` null-säkerhet | Primitiva `double`/`int` → boxade `Double`/`Integer` så att `null`-fält från AI inte kraschar deserialisering |
+| `isRateLimited` map-lookup | `compute()` följt av extra `map.get()` — använder nu returvärdet från `compute()` direkt |
