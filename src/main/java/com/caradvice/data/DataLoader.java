@@ -240,6 +240,23 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volvo S60 PHEV",           3.7, 0.0, 11.6,  57, 530_000, "PHEV"));
         if (!existing.contains("Volvo S60 T8"))
             extras.add(new EvSpec("Volvo S60 T8",             3.7, 0.0, 11.6,  57, 530_000, "PHEV"));
+        // Alias: AI returns "PHEV" but we stored "Plug-in"
+        if (!existing.contains("Toyota RAV4 PHEV"))
+            extras.add(new EvSpec("Toyota RAV4 PHEV",         3.3, 0.0, 18.1,  75, 480_000, "PHEV"));
+        if (!existing.contains("Toyota Prius PHEV"))
+            extras.add(new EvSpec("Toyota Prius PHEV",        3.3, 0.0,  8.8,  69, 380_000, "PHEV"));
+        // Hyundai Kona (exists as EV and mild hybrid, AI sometimes calls it PHEV)
+        if (!existing.contains("Hyundai Kona PHEV"))
+            extras.add(new EvSpec("Hyundai Kona PHEV",        3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
+        if (!existing.contains("Hyundai Kona Electric"))
+            extras.add(new EvSpec("Hyundai Kona Electric",   11.0, 100.0, 64.8, 484, 400_000));
+        // Other common PHEVs
+        if (!existing.contains("Renault Captur PHEV"))
+            extras.add(new EvSpec("Renault Captur PHEV",      7.4, 0.0,  9.8,  50, 320_000, "PHEV"));
+        if (!existing.contains("Volkswagen Tiguan PHEV"))
+            extras.add(new EvSpec("Volkswagen Tiguan PHEV",   3.6, 0.0, 13.0,  63, 490_000, "PHEV"));
+        if (!existing.contains("Seat Leon PHEV"))
+            extras.add(new EvSpec("Seat Leon PHEV",           3.6, 0.0, 13.0,  60, 350_000, "PHEV"));
 
         if (!extras.isEmpty()) evSpecRepo.saveAll(extras);
     }
