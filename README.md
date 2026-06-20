@@ -34,6 +34,12 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
 
+### Bränslespecifikationer (bensin/diesel)
+- **⛽ Bensin/Diesel**-sektion per bilkort för fossildrivna bilar
+- Visar förbrukning (l/mil), växellåda (t.ex. Automat 7-växlad), hästkrafter och motorvolym
+- AI-genererade värden direkt i rekommendationen — `fuelSpec: null` för elbil/laddhybrid
+- Visas även som egna rader i jämförelsetabellen
+
 ### Elbils- och laddhybriddata (EV-chip)
 - **⚡ Elbil**-badge eller **🔌 Laddhybrid**-badge per bil
 - WLTP-räckvidd, uppskattad sommar- och vinterräckvidd
@@ -87,18 +93,21 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 > **Stripe körs för närvarande i testläge.** Inga riktiga betalningar genomförs. Testkort: `4242 4242 4242 4242`, valfritt datum och CVC.
 
-- Anonyma användare får **max 10 sökningar per timme** (IP-baserat)
-- Prenumeranter (99 kr/mån) får **obegränsade sökningar**
+- Ej inloggad: **max 10 sökningar/timme** och **10 chattmeddelanden/minut** (IP-baserat)
+- Inloggad (gratis konto): **30 sökningar/timme** och **30 chattmeddelanden/minut**
+- Aktiv prenumerant (99 kr/mån): **obegränsade sökningar och chatt**
 - Konto skapas på `/subscribe.html` — öppnas i nytt fönster
 - Betalning via Stripe Checkout (hosted betalningssida)
 - Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
-- Stripe webhook uppdaterar status automatiskt vid betalning, avslut och paus
+- Stripe webhook (raw JSON-parsning, versionsoberoende) uppdaterar status automatiskt vid betalning, förnyelse, avslut och paus
+- Slutdatum för prenumerationen hämtas från Stripes `current_period_end` och visas på kontosidan
+- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, slutdatum och "← Tillbaka till bilrådgivningen"-knapp
 - WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och **"Prenumerera – 99 kr/mån"**-knapp
 
 ### Övrigt
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
 - Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
-- IP-baserad rate limiting: max 10 förfrågningar per IP och timme (kringgås för prenumeranter)
+- IP-baserad rate limiting: 10/h (gäst) · 30/h (inloggad) · obegränsat (prenumerant)
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
@@ -142,13 +151,14 @@ CarAdvice/
     │   │   └── DataLoader.java     ← Seeder: expertinsikter, EV-specs, cargo-specs
     │   ├── model/
     │   │   ├── CarPreferences.java
-    │   │   ├── CarRecommendation.java  ← inkl. evSpec + cargoSpec
+    │   │   ├── CarRecommendation.java  ← inkl. evSpec + cargoSpec + fuelSpec
     │   │   ├── CargoSpec.java          ← JPA-entity: bagageutrymme
     │   │   ├── CargoSpecDto.java
     │   │   ├── EvSpec.java             ← JPA-entity: elbilsdata
     │   │   ├── EvSpecDto.java
     │   │   ├── ExpertInsight.java
-    │   │   └── User.java               ← JPA-entity: användarkonto + prenumerationsstatus
+    │   │   ├── FuelSpecDto.java        ← AI-genererad: förbrukning, växellåda, hk, motorvolym
+    │   │   └── User.java               ← JPA-entity: användarkonto + prenumerationsstatus + slutdatum
     │   ├── repository/
     │   │   ├── CargoSpecRepository.java
     │   │   ├── EvSpecRepository.java
@@ -295,7 +305,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
-| `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, sessionstoken |
+| `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, slutdatum, sessionstoken |
 
 ---
 
