@@ -4,6 +4,7 @@ import com.caradvice.model.User;
 import com.caradvice.repository.UserRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
+import com.stripe.model.Customer;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.Subscription;
@@ -115,7 +116,16 @@ public class StripeService {
                         deserializer.getObject().get() instanceof Subscription sub) {
                     String customerId = sub.getCustomer();
                     LocalDateTime endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
-                    userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
+                    Optional<User> userOpt = userRepo.findByStripeCustomerId(customerId);
+                    if (userOpt.isEmpty()) {
+                        try {
+                            Customer customer = Customer.retrieve(customerId);
+                            if (customer.getEmail() != null)
+                                userOpt = userRepo.findByEmail(customer.getEmail());
+                        } catch (Exception ignored) {}
+                    }
+                    userOpt.ifPresent(u -> {
+                        u.setStripeCustomerId(customerId);
                         u.setSubscriptionStatus("active");
                         if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
                         userRepo.save(u);
