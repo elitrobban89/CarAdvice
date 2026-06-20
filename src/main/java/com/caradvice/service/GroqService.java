@@ -71,7 +71,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 1024,
+                "max_tokens", 1500,
                 "temperature", 0.3,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(

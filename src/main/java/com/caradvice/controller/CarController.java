@@ -240,13 +240,13 @@ public class CarController {
     private boolean isRateLimited(String ip, int limit) {
         long now = System.currentTimeMillis();
         long windowStart = now - 3_600_000;
-        ipRequestLog.compute(ip, (k, times) -> {
-            List<Long> updated = (times == null) ? new ArrayList<>() : times;
-            updated.removeIf(t -> t < windowStart);
-            updated.add(now);
-            return updated;
+        List<Long> updated = ipRequestLog.compute(ip, (k, times) -> {
+            List<Long> list = (times == null) ? new ArrayList<>() : times;
+            list.removeIf(t -> t < windowStart);
+            list.add(now);
+            return list;
         });
-        return ipRequestLog.get(ip).size() > limit;
+        return updated.size() > limit;
     }
 
     private int remainingSearches(String ip, int limit) {

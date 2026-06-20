@@ -720,7 +720,7 @@ function caLogoutBar() {
   var token = localStorage.getItem('ca_token');
   fetch('https://caradvice.onrender.com/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (token || '') } });
   localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
-  caUpdateSubBar(false, null);
+  caUpdateSubBar(false, false, null);
 }
 
 window.addEventListener('focus', function() {
@@ -733,8 +733,12 @@ window.addEventListener('focus', function() {
 
 window.addEventListener('storage', function(ev) {
   if (ev.key === 'ca_status') {
-    var isActive = ev.newValue === 'active';
-    caUpdateSubBar(isActive, !isActive, null);
+    if (ev.newValue === null) {
+      caUpdateSubBar(false, false, null);
+    } else {
+      var isActive = ev.newValue === 'active';
+      caUpdateSubBar(isActive, !isActive, null);
+    }
   }
 });
 
@@ -755,7 +759,7 @@ window.addEventListener('message', function(ev) {
   }
   if (ev.data.type === 'CA_LOGOUT') {
     localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
-    caUpdateSubBar(false, null);
+    caUpdateSubBar(false, false, null);
   }
 });
 

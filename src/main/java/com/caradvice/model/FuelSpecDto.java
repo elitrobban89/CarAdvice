@@ -3,8 +3,8 @@ package com.caradvice.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record FuelSpecDto(
-        @JsonProperty("consumptionLiterPerMil") double consumptionLiterPerMil,
-        @JsonProperty("gearbox")                String gearbox,
-        @JsonProperty("horsepower")             int    horsepower,
-        @JsonProperty("engineVolumeLiters")     double engineVolumeLiters
+        @JsonProperty("consumptionLiterPerMil") Double  consumptionLiterPerMil,
+        @JsonProperty("gearbox")                String  gearbox,
+        @JsonProperty("horsepower")             Integer horsepower,
+        @JsonProperty("engineVolumeLiters")     Double  engineVolumeLiters
 ) {}
