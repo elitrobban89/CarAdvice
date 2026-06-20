@@ -42,6 +42,8 @@ public class StripeController {
             stripeService.handleWebhook(payload, sigHeader);
             return ResponseEntity.ok(Map.of("received", true));
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(StripeController.class)
+                .error("Webhook exception: {} — {}", e.getClass().getSimpleName(), e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
