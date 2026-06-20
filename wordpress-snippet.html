@@ -684,6 +684,7 @@
         </div>
       </div>
 
+      <div id="ca-js-error" style="display:none;background:#e74c3c;color:#fff;padding:10px 14px;border-radius:8px;font-size:0.8rem;margin-bottom:12px;"></div>
       <div id="ca-warning"></div>
 
       <div id="ca-btn-area">
@@ -724,6 +725,11 @@
   </div>
 
   <script>
+  // Catch any JS error and show it visibly on the page for debugging
+  window.onerror = function(msg, src, line) {
+    var d = document.getElementById('ca-js-error');
+    if (d) { d.textContent = 'JS-fel rad ' + line + ': ' + msg; d.style.display = 'block'; }
+  };
   var caHasSearched = false;
   var caInitialValues = {};
   var caLoadingMessages = [
