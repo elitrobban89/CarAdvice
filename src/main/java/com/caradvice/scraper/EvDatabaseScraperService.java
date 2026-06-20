@@ -49,6 +49,7 @@ public class EvDatabaseScraperService {
         log.info("Found {} cars on ev-database.org cheatsheet", carUrls.size());
 
         int updated = 0;
+        int created = 0;
         for (String path : carUrls) {
             try {
                 Thread.sleep(REQUEST_DELAY_MS);
@@ -57,7 +58,24 @@ public class EvDatabaseScraperService {
 
                 EvSpec match = findMatch(scraped.name(), nameMap);
                 if (match == null) {
-                    log.debug("No DB match for: {}", scraped.name());
+                    if (scraped.rangeKm() > 0 && scraped.batteryKwh() > 0) {
+                        EvSpec newSpec = new EvSpec(
+                                scraped.name(),
+                                scraped.acKw() > 0 ? (double) scraped.acKw() : 11.0,
+                                scraped.dcKw() > 0 ? (double) scraped.dcKw() : 0.0,
+                                scraped.batteryKwh(),
+                                scraped.rangeKm(),
+                                0
+                        );
+                        repo.save(newSpec);
+                        nameMap.put(normalize(scraped.name()), newSpec);
+                        created++;
+                        log.info("Created {}: range={}km bat={}kWh DC={}kW AC={}kW",
+                                scraped.name(), scraped.rangeKm(), scraped.batteryKwh(),
+                                scraped.dcKw(), scraped.acKw());
+                    } else {
+                        log.debug("No DB match and incomplete data for: {}", scraped.name());
+                    }
                     continue;
                 }
 
@@ -94,8 +112,8 @@ public class EvDatabaseScraperService {
             }
         }
 
-        log.info("Sync complete — updated {} records.", updated);
-        return updated;
+        log.info("Sync complete — updated {} records, created {} new records.", updated, created);
+        return updated + created;
     }
 
     private List<String> fetchCarUrls() {
