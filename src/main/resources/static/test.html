@@ -169,6 +169,9 @@
 .ca-safety { display: flex; align-items: center; gap: 10px; background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; flex-wrap: wrap; }
 .ca-safety-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(52,211,153,0.85); background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
 .ca-safety-text { font-size: 0.8rem; color: rgba(255,255,255,0.65); }
+.ca-ev { background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+.ca-ev-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(56,189,248,0.8); display: block; margin-bottom: 5px; }
+.ca-ev-text { font-size: 0.8rem; color: rgba(186,230,253,0.8); line-height: 1.6; }
 .ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .ca-blocket-btn, .ca-bytbil-btn { display: inline-block; padding: 7px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: rgba(255,255,255,0.55); font-size: 0.8rem; text-decoration: none; }
 .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
@@ -333,6 +336,7 @@ function caRenderCards(recommendations) {
       '<div class="ca-fit">'+caEsc(r.fitSummary)+'</div>'+
       (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '')+
       (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '')+
+      (r.evSpec ? '<div class="ca-ev"><span class="ca-ev-label">⚡ Elbilsdata</span><span class="ca-ev-text">'+caEsc(r.evSpec)+'</span></div>' : '')+
       '<div class="ca-market-links">'+
         '<a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket →</a>'+
         '<a class="ca-bytbil-btn" href="'+caBytbilUrl(r.title)+'" target="_blank" rel="noopener">Bytbil →</a>'+

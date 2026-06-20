@@ -1,7 +1,9 @@
 package com.caradvice.data;
 
+import com.caradvice.model.EvSpec;
 import com.caradvice.model.ExpertInsight;
 import com.caradvice.model.SafetyRating;
+import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -14,56 +16,47 @@ public class DataLoader implements CommandLineRunner {
 
     private final ExpertInsightRepository expertRepo;
     private final SafetyRatingRepository safetyRepo;
+    private final EvSpecRepository evSpecRepo;
 
-    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo) {
+    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo, EvSpecRepository evSpecRepo) {
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
+        this.evSpecRepo = evSpecRepo;
     }
 
     @Override
     public void run(String... args) {
-        if (expertRepo.count() == 0) seedInsights();
-        if (safetyRepo.count() == 0) seedSafetyRatings();
+        if (expertRepo.count() == 0)  seedInsights();
+        if (safetyRepo.count() == 0)  seedSafetyRatings();
+        if (evSpecRepo.count() == 0)  seedEvSpecs();
     }
 
     private void seedInsights() {
         expertRepo.saveAll(List.of(
             new ExpertInsight("Erik Naessén", null, null, "elbil", null,
                 "Räkna alltid med 20–25% sämre räckvidd vintertid. En elbil med 500 km WLTP-räckvidd ger realistiskt 370–400 km i kyla. Köper du elbil för pendling är detta sällan ett problem, men för längre resor krävs planering.", null),
-
             new ExpertInsight("Erik Naessén", null, null, "elbil", null,
                 "Vid begagnat elbilsköp: kontrollera alltid att batterikapaciteten är minst 80% kvar. Be säljaren om en hälsorapport eller kör bilen till en verkstad med OBD-diagnostik.", null),
-
             new ExpertInsight("Erik Naessén", "Tesla", "Model 3", "elbil", null,
                 "Model 3 Long Range är fortfarande räckviddsreferensen i mellanklassen. Superchargernätet är oslagbart i Sverige. Minus: polariserande minimalistisk inredning och hög efterfrågan håller begagnatpriserna uppe.", 9),
-
             new ExpertInsight("Erik Naessén", "Volvo", "XC40 Recharge", "elbil", "suv",
                 "XC40 Recharge kombinerar Volvos säkerhetsteknik med Google-baserat infotainment som faktiskt fungerar. Laddeffekt på 150 kW DC räcker. Begagnatpriserna har kommit ner till rimliga nivåer 2024–2025.", 8),
-
             new ExpertInsight("Erik Naessén", "Toyota", "RAV4 PHEV", "laddhybrid", "suv",
                 "RAV4 PHEV är det pragmatiska laddhybridvalet med 75 km elräckvidd och Toyotas bevisade hybridsystem. Kör du 80% av sträckan inom elräckvidden sparar du rejält – men ladda varje dag.", 9),
-
             new ExpertInsight("Erik Naessén", null, null, null, "suv",
                 "Många SUV-köpare väljer för stor bil. En kompakt SUV som XC40 eller Kia Sportage räcker utmärkt för de flesta barnfamiljer – lägre förbrukning, billigare parkering och enklare att manövrera i stan.", null),
-
             new ExpertInsight("Erik Naessén", null, null, "hybrid", null,
                 "Mildhybrid och fullhybrid sparar bränsle i stadstrafik men inte på motorväg. Välj hybriddrift om du kör varierat i stad och land – annars är en renodlad bensinbil ofta mer kostnadseffektiv.", null),
-
             new ExpertInsight("Erik Naessén", null, null, "diesel", null,
                 "Diesel lönar sig fortfarande vid körsträckor över 2 000 mil/år. Partikelfilter (DPF) behöver regenereringskörningar – undvik dieselbilar som körts uteslutande i stadstrafik.", null),
-
             new ExpertInsight("Erik Naessén", null, null, null, "ekonomibil",
                 "I ekonomibilsklassen är Dacia Sandero prishärskaren och Toyota Yaris tillförlitlighetsreferensen. Undvik begagnade bilar under 60 000 km utan dokumenterad servicehistorik – det är en varningssignal.", null),
-
             new ExpertInsight("Erik Naessén", null, null, null, "familjebil",
                 "Volvo V60 och V90 dominerar bland begagnade familjebilar i Sverige. Skoda Octavia Kombi ger mer lastutrymme per krona. Kontrollera alltid servostyrning, koppling och stötdämpare – gärna hos en oberoende verkstad.", null),
-
             new ExpertInsight("Erik Naessén", null, null, null, "laddhybrid",
                 "En laddhybrid är bara kostnadseffektiv om du faktiskt laddar den regelbundet. Utan laddning är den tyngre än en bensinbil och drar mer. Kräv alltid att se en laddhistorik vid begagnatköp.", null),
-
             new ExpertInsight("Erik Naessén", null, null, null, "smaabil",
                 "Toyota Aygo X och VW Polo sticker ut för tillförlitlighet i småbilsklassen. Undvik bensinsmåbilar med turbomotor under 100 000 kr begagnat – servicekostnaderna kan bli oproportionerligt höga.", null),
-
             new ExpertInsight("Erik Naessén", null, null, "bensin", null,
                 "En bensinbil i 100–200 hk-klassen är fortfarande det enklaste alternativet för låg körsträcka. Fokusera på servicehistorik och kambältsbyte – det är de vanligaste fallgroparna vid begagnatköp.", null)
         ));
@@ -72,26 +65,104 @@ public class DataLoader implements CommandLineRunner {
     // Data sourced from euroncap.com — verify exact figures at euroncap.com
     private void seedSafetyRatings() {
         safetyRepo.saveAll(List.of(
-            new SafetyRating("Tesla",      "Model 3",       2019, 5, 96, 86, 82, 98),
-            new SafetyRating("Tesla",      "Model Y",       2022, 5, 97, 87, 79, 98),
-            new SafetyRating("Volvo",      "XC40",          2018, 5, 97, 89, 76, 75),
-            new SafetyRating("Volvo",      "XC60",          2017, 5, 97, 87, 75, 73),
-            new SafetyRating("Volvo",      "V60",           2018, 5, 96, 82, 71, 80),
-            new SafetyRating("Toyota",     "RAV4",          2019, 5, 97, 86, 80, 74),
-            new SafetyRating("Toyota",     "Yaris",         2020, 5, 98, 87, 65, 90),
-            new SafetyRating("Toyota",     "Corolla",       2019, 5, 96, 91, 82, 75),
-            new SafetyRating("Volkswagen", "Golf",          2020, 5, 95, 89, 71, 87),
-            new SafetyRating("Volkswagen", "ID.4",          2021, 5, 91, 89, 76, 93),
-            new SafetyRating("Hyundai",    "Ioniq 5",       2021, 5, 97, 91, 80, 92),
-            new SafetyRating("Hyundai",    "Tucson",        2021, 5, 97, 91, 74, 79),
-            new SafetyRating("Kia",        "EV6",           2022, 5, 93, 91, 71, 90),
-            new SafetyRating("Kia",        "Sportage",      2022, 5, 94, 89, 71, 85),
-            new SafetyRating("Skoda",      "Octavia",       2021, 5, 98, 89, 74, 74),
-            new SafetyRating("Polestar",   "2",             2020, 5, 94, 90, 77, 98),
-            new SafetyRating("Nissan",     "Leaf",          2018, 5, 88, 89, 69, 60),
-            new SafetyRating("MG",         "ZS",            2022, 4, 79, 84, 74, 68),
-            new SafetyRating("Dacia",      "Sandero",       2021, 3, 61, 55, 61, 23),
-            new SafetyRating("Ford",       "Mustang Mach-E",2022, 5, 91, 89, 71, 91)
+            new SafetyRating("Tesla",      "Model 3",        2019, 5, 96, 86, 82, 98),
+            new SafetyRating("Tesla",      "Model Y",        2022, 5, 97, 87, 79, 98),
+            new SafetyRating("Volvo",      "XC40",           2018, 5, 97, 89, 76, 75),
+            new SafetyRating("Volvo",      "XC60",           2017, 5, 97, 87, 75, 73),
+            new SafetyRating("Volvo",      "V60",            2018, 5, 96, 82, 71, 80),
+            new SafetyRating("Toyota",     "RAV4",           2019, 5, 97, 86, 80, 74),
+            new SafetyRating("Toyota",     "Yaris",          2020, 5, 98, 87, 65, 90),
+            new SafetyRating("Toyota",     "Corolla",        2019, 5, 96, 91, 82, 75),
+            new SafetyRating("Volkswagen", "Golf",           2020, 5, 95, 89, 71, 87),
+            new SafetyRating("Volkswagen", "ID.4",           2021, 5, 91, 89, 76, 93),
+            new SafetyRating("Hyundai",    "Ioniq 5",        2021, 5, 97, 91, 80, 92),
+            new SafetyRating("Hyundai",    "Tucson",         2021, 5, 97, 91, 74, 79),
+            new SafetyRating("Kia",        "EV6",            2022, 5, 93, 91, 71, 90),
+            new SafetyRating("Kia",        "Sportage",       2022, 5, 94, 89, 71, 85),
+            new SafetyRating("Skoda",      "Octavia",        2021, 5, 98, 89, 74, 74),
+            new SafetyRating("Polestar",   "2",              2020, 5, 94, 90, 77, 98),
+            new SafetyRating("Nissan",     "Leaf",           2018, 5, 88, 89, 69, 60),
+            new SafetyRating("MG",         "ZS",             2022, 4, 79, 84, 74, 68),
+            new SafetyRating("Dacia",      "Sandero",        2021, 3, 61, 55, 61, 23),
+            new SafetyRating("Ford",       "Mustang Mach-E", 2022, 5, 91, 89, 71, 91)
+        ));
+    }
+
+    // Elbilsdata migrerad från Elbilsladdning-projektets CarDatabase
+    private void seedEvSpecs() {
+        evSpecRepo.saveAll(List.of(
+            // Škoda
+            new EvSpec("Škoda Elroq 85",                    11.0, 175.0,  82.0, 560, 500_000),
+            new EvSpec("Škoda Enyaq iV 85",                 11.0, 175.0,  82.0, 550, 490_000),
+            new EvSpec("Škoda Enyaq iV 60",                 11.0, 135.0,  58.0, 390, 420_000),
+            // Volvo
+            new EvSpec("Volvo EX30 Single Motor",           11.0, 153.0,  49.0, 344, 320_000),
+            new EvSpec("Volvo EX30 Extended Range",         11.0, 153.0,  62.0, 480, 350_000),
+            new EvSpec("Volvo EX30 Twin Motor",             11.0, 200.0,  62.0, 460, 385_000),
+            new EvSpec("Volvo EX30 Cross Country",          11.0, 153.0,  62.0, 455, 395_000),
+            new EvSpec("Volvo EX40 Single Motor",           11.0, 150.0,  75.0, 530, 465_000),
+            new EvSpec("Volvo EX40 Twin Motor",             11.0, 150.0,  75.0, 508, 500_000),
+            new EvSpec("Volvo C40 Single Motor",            11.0, 150.0,  75.0, 530, 475_000),
+            new EvSpec("Volvo C40 Twin Motor",              11.0, 150.0,  75.0, 502, 515_000),
+            new EvSpec("Volvo EX60",                        22.0, 250.0, 100.0, 600, 620_000),
+            new EvSpec("Volvo EX90 Twin Motor",             11.0, 250.0, 111.0, 580, 890_000),
+            // Tesla
+            new EvSpec("Tesla Model Y",                     11.0, 250.0,  75.0, 533, 499_000),
+            new EvSpec("Tesla Model 3",                     11.0, 250.0,  75.0, 566, 499_000),
+            new EvSpec("Tesla Model S",                     11.0, 250.0, 100.0, 634, 1_100_000),
+            // Volkswagen
+            new EvSpec("Volkswagen ID.3",                   11.0, 130.0,  77.0, 550, 390_000),
+            new EvSpec("Volkswagen ID.4",                   11.0, 135.0,  77.0, 527, 440_000),
+            new EvSpec("Volkswagen ID.5",                   11.0, 135.0,  77.0, 490, 465_000),
+            new EvSpec("Volkswagen ID.7",                   11.0, 200.0,  82.0, 640, 600_000),
+            new EvSpec("Volkswagen ID.Buzz",                11.0, 200.0,  82.0, 459, 570_000),
+            // BMW
+            new EvSpec("BMW i4 eDrive40",                   11.0, 210.0,  84.0, 590, 660_000),
+            new EvSpec("BMW i5 eDrive40",                   11.0, 205.0,  81.0, 582, 810_000),
+            new EvSpec("BMW iX xDrive50",                   11.0, 200.0, 105.0, 630, 920_000),
+            new EvSpec("BMW iX3",                           11.0, 150.0,  74.0, 460, 610_000),
+            new EvSpec("BMW iX1",                           11.0, 130.0,  64.7, 440, 530_000),
+            // Audi
+            new EvSpec("Audi Q4 e-tron",                    11.0, 135.0,  77.0, 527, 490_000),
+            new EvSpec("Audi Q6 e-tron",                    22.0, 270.0, 100.0, 636, 620_000),
+            new EvSpec("Audi Q8 e-tron",                    22.0, 170.0,  95.0, 582, 860_000),
+            // Hyundai / Kia
+            new EvSpec("Hyundai IONIQ 5",                   11.0, 220.0,  77.4, 507, 480_000),
+            new EvSpec("Hyundai IONIQ 6",                   11.0, 233.0,  77.4, 614, 480_000),
+            new EvSpec("Kia EV6",                           11.0, 233.0,  77.4, 528, 460_000),
+            new EvSpec("Kia EV9",                           11.0, 240.0,  99.8, 563, 760_000),
+            new EvSpec("Kia EV3 Long Range",                11.0, 101.0,  81.4, 605, 370_000),
+            new EvSpec("Kia Niro EV",                       11.0,  80.0,  64.8, 463, 390_000),
+            // Polestar
+            new EvSpec("Polestar 2",                        11.0, 205.0,  82.0, 560, 510_000),
+            new EvSpec("Polestar 3",                        11.0, 250.0, 111.0, 560, 760_000),
+            new EvSpec("Polestar 4",                        11.0, 200.0, 100.0, 620, 640_000),
+            // Mercedes
+            new EvSpec("Mercedes EQA 250",                  11.0, 100.0,  67.0, 428, 490_000),
+            new EvSpec("Mercedes EQB",                      11.0, 100.0,  66.5, 419, 520_000),
+            new EvSpec("Mercedes EQC",                      11.0, 110.0,  80.0, 415, 610_000),
+            new EvSpec("Mercedes EQE 350",                  11.0, 170.0,  91.0, 660, 760_000),
+            new EvSpec("Mercedes EQS 450",                  22.0, 200.0, 107.8, 784, 1_100_000),
+            // Ford / BYD / MG
+            new EvSpec("Ford Mustang Mach-E",               11.0, 150.0,  91.0, 540, 540_000),
+            new EvSpec("BYD Atto 3",                        11.0, 100.0,  60.5, 420, 310_000),
+            new EvSpec("BYD Seal",                          11.0, 150.0,  82.5, 570, 390_000),
+            new EvSpec("BYD Dolphin",                        7.0,  88.0,  44.9, 427, 280_000),
+            new EvSpec("MG ZS EV",                          11.0,  92.0,  72.6, 440, 300_000),
+            new EvSpec("MG4 Standard Range",                11.0, 117.0,  51.0, 350, 295_000),
+            new EvSpec("MG4 Long Range",                    11.0, 150.0,  64.0, 450, 335_000),
+            new EvSpec("MG4 Extended Range",                11.0, 150.0,  77.0, 520, 375_000),
+            new EvSpec("MG5 Long Range",                    11.0,  87.0,  61.1, 400, 355_000),
+            // Övrigt
+            new EvSpec("Toyota bZ4X",                       11.0, 150.0,  71.4, 452, 480_000),
+            new EvSpec("Cupra Born",                        11.0, 170.0,  77.0, 550, 380_000),
+            new EvSpec("Renault Megane E-Tech",             22.0, 130.0,  60.0, 450, 380_000),
+            new EvSpec("Renault Zoe",                       22.0,  50.0,  50.0, 395, 270_000),
+            new EvSpec("Nissan Ariya",                      22.0, 130.0,  87.0, 533, 490_000),
+            new EvSpec("Nissan Leaf",                        6.6,  50.0,  40.0, 270, 290_000),
+            new EvSpec("Fiat 500e",                         11.0,  85.0,  42.0, 320, 290_000),
+            new EvSpec("Genesis GV60",                      11.0, 233.0,  77.4, 517, 560_000),
+            new EvSpec("Xpeng G6",                          11.0, 250.0,  87.5, 570, 470_000)
         ));
     }
 }
