@@ -687,9 +687,9 @@
       <div id="ca-warning"></div>
 
       <div id="ca-btn-area">
-        <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
-        <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
-        <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
+        <button id="ca-btn">Hitta min bil →</button>
+        <button id="ca-share-search-btn">Dela sökning</button>
+        <button id="ca-reset-btn">Nollställ</button>
       </div>
 
       <div id="ca-history-area"></div>
@@ -714,8 +714,8 @@
           <span class="ca-history-badge" id="ca-history-badge"></span>
         </div>
         <div class="ca-result-actions">
-          <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
-          <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
+          <button class="ca-action-btn" id="ca-copy-btn">Kopiera lista</button>
+          <button class="ca-action-btn" id="ca-share-result-btn">Dela länk</button>
         </div>
         <div id="ca-cards"></div>
         <div id="ca-compare"></div>
@@ -1426,7 +1426,12 @@
     caUpdateSubBar(status === 'active', null);
   })();
 
-  // Wire up login/subscribe buttons via addEventListener (WordPress strips onclick attributes)
+  // Wire up all buttons via addEventListener (WordPress strips onclick attributes from HTML)
+  document.getElementById('ca-btn').addEventListener('click', caGetRecommendation);
+  document.getElementById('ca-share-search-btn').addEventListener('click', caShareSearch);
+  document.getElementById('ca-reset-btn').addEventListener('click', caResetForm);
+  document.getElementById('ca-copy-btn').addEventListener('click', caCopyResult);
+  document.getElementById('ca-share-result-btn').addEventListener('click', caShareSearch);
   document.getElementById('ca-login-link').addEventListener('click', function(e) {
     if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); }
   });
