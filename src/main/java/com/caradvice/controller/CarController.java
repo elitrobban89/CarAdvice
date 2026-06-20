@@ -40,7 +40,6 @@ public class CarController {
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
-    private static final int MAX_SUBSCRIBER_REQUESTS_PER_HOUR = 30;
 
     private static final int CHAT_RATE_LIMIT = 10;
     private static final long CHAT_WINDOW_MS = 60_000L;
@@ -73,15 +72,11 @@ public class CarController {
     public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request,
                                        @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(request);
-        boolean loggedIn = userService.isLoggedIn(auth);
-        int limit = loggedIn ? MAX_SUBSCRIBER_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (isRateLimited(ip, limit)) {
-            String msg = loggedIn
-                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
-                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!";
+        boolean subscriber = userService.isActiveSubscriber(auth);
+        if (!subscriber && isRateLimited(ip, MAX_REQUESTS_PER_HOUR)) {
             return ResponseEntity.status(429).body(Map.of(
                     "success", false,
-                    "error", msg,
+                    "error", "Du har använt dina 10 gratis sökningar denna timme. Prenumerera för obegränsade sökningar!",
                     "rateLimited", true
             ));
         }
@@ -90,8 +85,8 @@ public class CarController {
             Map<String, Object> body = new HashMap<>();
             body.put("success", true);
             body.put("recommendations", result.recommendations());
-            body.put("subscriber", loggedIn);
-            body.put("remainingSearches", remainingSearches(ip, limit));
+            body.put("subscriber", subscriber);
+            if (!subscriber) body.put("remainingSearches", remainingSearches(ip, MAX_REQUESTS_PER_HOUR));
             if (result.fromCache()) {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
