@@ -218,6 +218,28 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Skoda Octavia iV",         3.6, 0.0, 13.0,  67, 360_000, "PHEV"));
         if (!existing.contains("Cupra Formentor e-Hybrid"))
             extras.add(new EvSpec("Cupra Formentor e-Hybrid", 3.6, 0.0, 13.0,  63, 400_000, "PHEV"));
+        if (!existing.contains("Kia Niro PHEV"))
+            extras.add(new EvSpec("Kia Niro PHEV",            3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
+        if (!existing.contains("Hyundai Ioniq PHEV"))
+            extras.add(new EvSpec("Hyundai Ioniq PHEV",       3.3, 0.0,  8.9,  52, 280_000, "PHEV"));
+        if (!existing.contains("Ford Kuga PHEV"))
+            extras.add(new EvSpec("Ford Kuga PHEV",           3.7, 0.0, 14.4,  56, 380_000, "PHEV"));
+        if (!existing.contains("Ford Explorer PHEV"))
+            extras.add(new EvSpec("Ford Explorer PHEV",       3.7, 0.0, 13.6,  42, 580_000, "PHEV"));
+        if (!existing.contains("Audi Q5 PHEV"))
+            extras.add(new EvSpec("Audi Q5 PHEV",             7.4, 0.0, 14.4,  48, 650_000, "PHEV"));
+        if (!existing.contains("Audi A3 PHEV"))
+            extras.add(new EvSpec("Audi A3 PHEV",             3.7, 0.0, 13.0,  48, 420_000, "PHEV"));
+        if (!existing.contains("BMW 530e"))
+            extras.add(new EvSpec("BMW 530e",                 3.7, 0.0, 12.0,  53, 680_000, "PHEV"));
+        if (!existing.contains("Peugeot 308 PHEV"))
+            extras.add(new EvSpec("Peugeot 308 PHEV",        7.4, 0.0, 12.4,  58, 360_000, "PHEV"));
+        if (!existing.contains("Mercedes E 300e"))
+            extras.add(new EvSpec("Mercedes E 300e",          3.7, 0.0, 13.5,  50, 710_000, "PHEV"));
+        if (!existing.contains("Volvo S60 PHEV"))
+            extras.add(new EvSpec("Volvo S60 PHEV",           3.7, 0.0, 11.6,  57, 530_000, "PHEV"));
+        if (!existing.contains("Volvo S60 T8"))
+            extras.add(new EvSpec("Volvo S60 T8",             3.7, 0.0, 11.6,  57, 530_000, "PHEV"));
 
         if (!extras.isEmpty()) evSpecRepo.saveAll(extras);
     }

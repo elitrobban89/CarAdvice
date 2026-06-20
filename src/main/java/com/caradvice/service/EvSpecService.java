@@ -21,10 +21,11 @@ public class EvSpecService {
         if (title == null) return null;
         String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
         String[] titleWords = cleaned.split("\\s+");
+        java.util.Set<String> titleSet = new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
 
         List<EvSpec> all = repo.findAll();
 
-        // Pass 1: all title words appear in stored name (title is subset of stored name)
+        // Pass 1: all title words are contained in stored name as substrings
         EvSpec match = all.stream()
                 .filter(ev -> {
                     String name = normalize(ev.getCarName());
@@ -33,13 +34,14 @@ public class EvSpecService {
                 })
                 .findFirst().orElse(null);
 
-        // Pass 2: all stored-name words appear in title (stored name is subset of title)
+        // Pass 2: all stored-name words are exact words in the title
         // e.g. "Tesla Model 3" matches "Tesla Model 3 Long Range"
+        // Uses word-set so "ev" does NOT match "phev"
         if (match == null) {
             match = all.stream()
                     .filter(ev -> {
                         String[] nameWords = normalize(ev.getCarName()).split("\\s+");
-                        for (String w : nameWords) if (!cleaned.contains(w)) return false;
+                        for (String w : nameWords) if (!titleSet.contains(w)) return false;
                         return true;
                     })
                     .max(java.util.Comparator.comparingInt(ev ->
