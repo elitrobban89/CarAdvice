@@ -24,6 +24,52 @@
     return title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
   }
 
+  window.caChatFocusCar = function(idx, title) {
+    var name = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+    var recs = window._caRecommendations || [];
+
+    // Update FAB label
+    var labelEl = document.querySelector('.ca-chat-fab-label');
+    if (labelEl) labelEl.textContent = '💬 Fråga om ' + name;
+
+    // Update chips focused on this specific car
+    var quick = document.getElementById('ca-chat-quick');
+    if (quick) {
+      var otherNames = recs.filter(function(r, i) { return i !== idx; })
+                           .map(function(r) { return r.title.replace(/\s*\(\d{4}\)\s*$/, '').trim(); });
+      var chips = [
+        { label: '🔍 Berätta om ' + name, q: 'Berätta mer om ' + name + ' — vad är fördelarna och nackdelarna?' },
+        { label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + name + ' per månad? Räkna in skatt, försäkring och bränsle/el.' },
+        { label: '🔧 Tillförlitlighet & problem', q: 'Vilka vanliga problem eller fel brukar ' + name + ' ha?' },
+      ];
+      if (otherNames.length > 0) {
+        chips.push({ label: '⚖️ Jämför med ' + otherNames[0], q: 'Jämför ' + name + ' med ' + otherNames[0] + ' — vilken är bäst för mig?' });
+      }
+      quick.innerHTML = chips.map(function(c) {
+        return '<button class="ca-chat-quick-btn" data-q="' + c.q.replace(/"/g, '&quot;') + '">' + c.label + '</button>';
+      }).join('');
+      quick.querySelectorAll('.ca-chat-quick-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { caChatSendMessage(btn.dataset.q); });
+      });
+      quick.style.display = 'flex';
+    }
+
+    // Contextual message
+    var hasUserMsgs = caChatHistory.some(function(m) { return m.role === 'user'; });
+    if (!hasUserMsgs) {
+      var firstBot = document.querySelector('#ca-chat-messages .ca-chat-bubble.bot');
+      if (firstBot) {
+        firstBot.innerHTML = caChatMarkdown('Du har valt **' + name + '** — vad vill du veta? Jag kan svara på frågor om driftkostnad, tillförlitlighet, räckvidd och mer! 🚗');
+      }
+    } else {
+      caChatAppendBot('Fokuserar på **' + name + '**! Vad vill du veta om den?', true);
+    }
+
+    // Open chat panel
+    var panel = document.getElementById('ca-chat-panel');
+    if (panel && panel.style.display === 'none') caChatToggle();
+  };
+
   function caChatSetRecsContext(recs) {
     if (!recs || !recs.length) return;
     var names = recs.slice(0, 3).map(function(r) { return shortName(r.title); });
