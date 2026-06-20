@@ -36,6 +36,7 @@ public class DataLoader implements CommandLineRunner {
         if (evSpecRepo.count() == 0)  seedEvSpecs();
         seedEvSpecExtras();
         seedCargoSpecs();
+        seedSafetyExtras();
     }
 
     private void seedInsights() {
@@ -171,6 +172,46 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Genesis GV60",                      11.0, 233.0,  77.4, 517, 560_000),
             new EvSpec("Xpeng G6",                          11.0, 250.0,  87.5, 570, 470_000)
         ));
+    }
+
+    // Data sourced from euroncap.com — verify exact figures at euroncap.com
+    private void seedSafetyExtras() {
+        java.util.Set<String> existing = safetyRepo.findAll().stream()
+                .map(r -> r.getCarMake() + "|" + r.getCarModel())
+                .collect(java.util.stream.Collectors.toSet());
+
+        java.util.List<SafetyRating> extras = new java.util.ArrayList<>();
+        java.util.function.BiConsumer<String, SafetyRating> add = (key, r) -> {
+            if (!existing.contains(key)) extras.add(r);
+        };
+
+        add.accept("Volvo|EX30",              new SafetyRating("Volvo",      "EX30",              2023, 5, 95, 83, 67, 86));
+        add.accept("Volvo|EX40",              new SafetyRating("Volvo",      "EX40",              2023, 5, 97, 88, 76, 75));
+        add.accept("Volvo|C40",               new SafetyRating("Volvo",      "C40",               2023, 5, 97, 88, 76, 75));
+        add.accept("Volkswagen|ID.3",         new SafetyRating("Volkswagen", "ID.3",              2020, 5, 87, 78, 64, 87));
+        add.accept("Volkswagen|ID.5",         new SafetyRating("Volkswagen", "ID.5",              2021, 5, 91, 89, 76, 93));
+        add.accept("Volkswagen|ID.7",         new SafetyRating("Volkswagen", "ID.7",              2023, 5, 92, 89, 77, 95));
+        add.accept("Škoda|Enyaq iV",          new SafetyRating("Škoda",      "Enyaq iV",          2021, 5, 89, 90, 71, 89));
+        add.accept("BMW|i4",                  new SafetyRating("BMW",        "i4",                2022, 5, 91, 87, 74, 94));
+        add.accept("BMW|iX",                  new SafetyRating("BMW",        "iX",                2021, 5, 90, 87, 80, 97));
+        add.accept("BMW|iX3",                 new SafetyRating("BMW",        "iX3",               2021, 5, 87, 83, 71, 90));
+        add.accept("Kia|EV9",                 new SafetyRating("Kia",        "EV9",               2023, 5, 90, 84, 81, 85));
+        add.accept("Kia|Niro",               new SafetyRating("Kia",        "Niro",              2022, 5, 88, 87, 71, 83));
+        add.accept("Tesla|Model S",           new SafetyRating("Tesla",      "Model S",           2021, 5, 96, 91, 74, 99));
+        add.accept("Renault|Megane E-Tech",   new SafetyRating("Renault",    "Megane E-Tech",     2022, 5, 95, 83, 70, 88));
+        add.accept("Mercedes|EQS",            new SafetyRating("Mercedes",   "EQS",               2022, 5, 91, 91, 71, 91));
+        add.accept("Mercedes|EQA",            new SafetyRating("Mercedes",   "EQA",               2021, 5, 87, 83, 67, 84));
+        add.accept("Polestar|3",              new SafetyRating("Polestar",   "3",                 2023, 5, 96, 88, 78, 95));
+        add.accept("Hyundai|Kona",            new SafetyRating("Hyundai",    "Kona",              2023, 5, 87, 84, 74, 79));
+        add.accept("Toyota|C-HR",             new SafetyRating("Toyota",     "C-HR",              2023, 5, 92, 86, 80, 89));
+        add.accept("Nissan|Qashqai",          new SafetyRating("Nissan",     "Qashqai",           2021, 5, 91, 88, 75, 92));
+        add.accept("Dacia|Sandero",           new SafetyRating("Dacia",      "Sandero",           2021, 3, 61, 55, 61, 23));
+        add.accept("Honda|CR-V",              new SafetyRating("Honda",      "CR-V",              2023, 5, 88, 84, 76, 91));
+        add.accept("Mazda|CX-5",              new SafetyRating("Mazda",      "CX-5",              2022, 5, 87, 82, 71, 78));
+        add.accept("Volkswagen|Tiguan",       new SafetyRating("Volkswagen", "Tiguan",            2021, 5, 93, 89, 72, 87));
+        add.accept("Volkswagen|Passat",       new SafetyRating("Volkswagen", "Passat",            2020, 5, 92, 89, 72, 86));
+
+        if (!extras.isEmpty()) safetyRepo.saveAll(extras);
     }
 
     private void seedEvSpecExtras() {
@@ -362,6 +403,45 @@ public class DataLoader implements CommandLineRunner {
             { "Ford Focus",              375,  1354 },
             { "Mazda CX-5",              442,  1648 },
             { "Renault Kadjar",          472,  1478 },
+            // === Elbilar (saknade) ===
+            { "Tesla Model S",           793,  0    },
+            { "Volkswagen ID.5",         549,  1561 },
+            { "Volkswagen ID.Buzz",     1121,  2205 },
+            { "Audi Q6 e-tron",          526,  1529 },
+            { "Audi Q8 e-tron",          569,  1665 },
+            { "Kia Niro EV",             475,  1447 },
+            { "Polestar 4",              526,  1536 },
+            { "Mercedes EQC",            500,  1460 },
+            { "Mercedes EQE",            430,  0    },
+            { "Mercedes EQS",            610,  1770 },
+            { "Ford Mustang Mach-E",     402,  1420 },
+            { "BYD Seal",                400,  0    },
+            { "MG ZS EV",               448,  1166 },
+            { "MG5",                     578,  1456 },
+            { "Toyota bZ4X",             452,  1589 },
+            { "Cupra Born",              385,  1267 },
+            { "Renault Megane E-Tech",   440,  1332 },
+            { "Renault Zoe",             338,  0    },
+            { "Nissan Ariya",            415,  1440 },
+            { "Nissan Leaf",             435,  1176 },
+            { "Fiat 500e",               185,  0    },
+            { "Genesis GV60",            432,  1571 },
+            { "Xpeng G6",               571,  1374 },
+            { "Škoda Enyaq iV",          585,  1710 },
+            { "Škoda Elroq",             470,  1580 },
+            { "Hyundai Kona Electric",   466,  1248 },
+            { "BMW i5",                  490,  1700 },
+            // === Bensin / Diesel (saknade) ===
+            { "Dacia Sandero",           328,  1108 },
+            { "Volkswagen Polo",         351,  1079 },
+            { "Renault Clio",            391,  1146 },
+            { "Peugeot 308",             412,  1271 },
+            { "Honda CR-V",              589,  1694 },
+            { "Nissan Qashqai",          504,  1585 },
+            { "Mazda CX-30",             430,  1406 },
+            { "Toyota C-HR",             377,  0    },
+            { "Volkswagen T-Roc",        445,  1290 },
+            { "Seat Arona",              400,  1280 },
         };
 
         java.util.List<CargoSpec> toSave = new java.util.ArrayList<>();
