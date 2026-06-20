@@ -42,6 +42,8 @@
   .status-inactive { background: #f8d7da; color: #721c24; }
   .btn-logout { background: #f5f5f5; color: #666; border: 1px solid #ddd; margin-top: 12px; }
   .btn-logout:hover { background: #eee; }
+  .btn-back { background: #1a1a2e; color: #fff; margin-top: 12px; }
+  .btn-back:hover { background: #2d2d4e; }
   #loginForm, #registerForm { display: none; }
   #loginForm.active, #registerForm.active { display: block; }
 </style>
@@ -78,6 +80,7 @@
     <div id="activeSection" style="display:none;">
       <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">✓ Aktiv prenumeration</p>
       <p id="subEndsAt" style="color:#888;font-size:0.85rem;margin-top:6px;"></p>
+      <button class="btn btn-back" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
     </div>
     <button class="btn btn-logout" onclick="logout()">Logga ut</button>
   </div>
@@ -205,6 +208,14 @@ async function startCheckout() {
     if (data.url) window.location.href = data.url;
     else { btn.textContent = 'Betala med kort (Stripe)'; btn.disabled = false; alert('Fel: ' + data.error); }
   } catch(ex) { btn.textContent = 'Betala med kort (Stripe)'; btn.disabled = false; }
+}
+
+function goBack() {
+  if (window.opener && !window.opener.closed) {
+    window.close();
+  } else {
+    window.location.href = 'https://elitrobban.se/bilradgivning';
+  }
 }
 
 async function logout() {
