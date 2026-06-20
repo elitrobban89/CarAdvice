@@ -29,6 +29,7 @@ public class DataLoader implements CommandLineRunner {
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();
+        seedEvSpecExtras();
     }
 
     private void seedInsights() {
@@ -164,5 +165,60 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Genesis GV60",                      11.0, 233.0,  77.4, 517, 560_000),
             new EvSpec("Xpeng G6",                          11.0, 250.0,  87.5, 570, 470_000)
         ));
+    }
+
+    private void seedEvSpecExtras() {
+        java.util.List<String> existing = evSpecRepo.findAll().stream()
+                .map(com.caradvice.model.EvSpec::getCarName).toList();
+
+        java.util.List<EvSpec> extras = new java.util.ArrayList<>();
+
+        // XC40 Recharge (renamed to EX40 but AI still uses old name)
+        if (!existing.contains("Volvo XC40 Recharge"))
+            extras.add(new EvSpec("Volvo XC40 Recharge",    11.0, 150.0, 75.0, 530, 465_000));
+        if (!existing.contains("Volvo XC40 Recharge Twin"))
+            extras.add(new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 424, 510_000));
+
+        // PHEVs
+        if (!existing.contains("Volvo XC60 PHEV"))
+            extras.add(new EvSpec("Volvo XC60 PHEV",          7.4, 0.0, 18.8,  68, 670_000, "PHEV"));
+        if (!existing.contains("Volvo XC60 T8"))
+            extras.add(new EvSpec("Volvo XC60 T8",            7.4, 0.0, 18.8,  68, 670_000, "PHEV"));
+        if (!existing.contains("Volvo XC90 PHEV"))
+            extras.add(new EvSpec("Volvo XC90 PHEV",          7.4, 0.0, 18.8,  65, 790_000, "PHEV"));
+        if (!existing.contains("Volvo XC90 T8"))
+            extras.add(new EvSpec("Volvo XC90 T8",            7.4, 0.0, 18.8,  65, 790_000, "PHEV"));
+        if (!existing.contains("Volvo V60 PHEV"))
+            extras.add(new EvSpec("Volvo V60 PHEV",           3.7, 0.0, 11.6,  56, 510_000, "PHEV"));
+        if (!existing.contains("Volvo V60 T6"))
+            extras.add(new EvSpec("Volvo V60 T6",             3.7, 0.0, 11.6,  56, 510_000, "PHEV"));
+        if (!existing.contains("Volvo V90 PHEV"))
+            extras.add(new EvSpec("Volvo V90 PHEV",           7.4, 0.0, 18.8,  68, 690_000, "PHEV"));
+        if (!existing.contains("Toyota RAV4 Plug-in"))
+            extras.add(new EvSpec("Toyota RAV4 Plug-in",      3.3, 0.0, 18.1,  75, 480_000, "PHEV"));
+        if (!existing.contains("Toyota Prius Plug-in"))
+            extras.add(new EvSpec("Toyota Prius Plug-in",     3.3, 0.0,  8.8,  69, 380_000, "PHEV"));
+        if (!existing.contains("BMW 330e"))
+            extras.add(new EvSpec("BMW 330e",                 3.7, 0.0, 12.0,  60, 520_000, "PHEV"));
+        if (!existing.contains("BMW X5 45e"))
+            extras.add(new EvSpec("BMW X5 45e",               3.7, 0.0, 24.5,  82, 890_000, "PHEV"));
+        if (!existing.contains("Hyundai Tucson PHEV"))
+            extras.add(new EvSpec("Hyundai Tucson PHEV",      7.2, 0.0, 13.8,  62, 430_000, "PHEV"));
+        if (!existing.contains("Kia Sportage PHEV"))
+            extras.add(new EvSpec("Kia Sportage PHEV",        7.2, 0.0, 13.8,  70, 410_000, "PHEV"));
+        if (!existing.contains("Mitsubishi Outlander PHEV"))
+            extras.add(new EvSpec("Mitsubishi Outlander PHEV",6.1, 0.0, 20.0,  75, 430_000, "PHEV"));
+        if (!existing.contains("Mercedes GLC 300e"))
+            extras.add(new EvSpec("Mercedes GLC 300e",        3.7, 0.0, 31.2, 100, 680_000, "PHEV"));
+        if (!existing.contains("Volkswagen Golf GTE"))
+            extras.add(new EvSpec("Volkswagen Golf GTE",      3.6, 0.0, 13.0,  70, 390_000, "PHEV"));
+        if (!existing.contains("Volkswagen Passat GTE"))
+            extras.add(new EvSpec("Volkswagen Passat GTE",    3.6, 0.0, 13.0,  67, 440_000, "PHEV"));
+        if (!existing.contains("Skoda Octavia iV"))
+            extras.add(new EvSpec("Skoda Octavia iV",         3.6, 0.0, 13.0,  67, 360_000, "PHEV"));
+        if (!existing.contains("Cupra Formentor e-Hybrid"))
+            extras.add(new EvSpec("Cupra Formentor e-Hybrid", 3.6, 0.0, 13.0,  63, 400_000, "PHEV"));
+
+        if (!extras.isEmpty()) evSpecRepo.saveAll(extras);
     }
 }

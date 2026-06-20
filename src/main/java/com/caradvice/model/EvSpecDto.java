@@ -10,5 +10,6 @@ public record EvSpecDto(
         int maxDcKw,
         int maxAcKw,
         int priceKr,
-        String valueLabel
+        String valueLabel,
+        String carType
 ) {}

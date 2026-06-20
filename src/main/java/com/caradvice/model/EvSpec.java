@@ -28,15 +28,23 @@ public class EvSpec {
     @Column(name = "price_kr")
     private Integer priceKr;
 
+    @Column(name = "car_type")
+    private String carType;
+
     public EvSpec() {}
 
     public EvSpec(String carName, Double maxAcKw, Double maxDcKw, Double batteryKwh, Integer rangeKm, Integer priceKr) {
+        this(carName, maxAcKw, maxDcKw, batteryKwh, rangeKm, priceKr, "EV");
+    }
+
+    public EvSpec(String carName, Double maxAcKw, Double maxDcKw, Double batteryKwh, Integer rangeKm, Integer priceKr, String carType) {
         this.carName = carName;
         this.maxAcKw = maxAcKw;
         this.maxDcKw = maxDcKw;
         this.batteryKwh = batteryKwh;
         this.rangeKm = rangeKm;
         this.priceKr = priceKr;
+        this.carType = carType;
     }
 
     public Long getId() { return id; }
@@ -46,4 +54,5 @@ public class EvSpec {
     public Double getBatteryKwh() { return batteryKwh; }
     public Integer getRangeKm() { return rangeKm; }
     public Integer getPriceKr() { return priceKr; }
+    public String getCarType() { return carType; }
 }

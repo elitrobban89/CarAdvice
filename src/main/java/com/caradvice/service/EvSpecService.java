@@ -79,7 +79,8 @@ public class EvSpecService {
                        : "";
         }
 
-        return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel);
+        String carType = spec.getCarType() != null ? spec.getCarType() : "EV";
+        return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel, carType);
     }
 
     private static String normalize(String s) {

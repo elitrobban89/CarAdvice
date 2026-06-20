@@ -924,12 +924,14 @@
 
   function caEvChips(ev) {
     if (!ev) return '';
-    var wltpTxt = ev.wltpKm > 0 ? 'WLTP '+ev.wltpKm+' km' : '';
-    var head = '<div class="ca-ev-head"><span class="ca-ev-badge">&#x26A1; Elbilsdata</span>'+(wltpTxt?'<span class="ca-ev-wltp">'+wltpTxt+'</span>':'')+'</div>';
+    var isPhev = ev.carType === 'PHEV';
+    var badgeLabel = isPhev ? '&#x1F50C; Laddhybrid' : '&#x26A1; Elbil';
+    var wltpTxt = ev.wltpKm > 0 ? (isPhev ? 'Elr&#xe4;ckvidd '+ev.wltpKm+' km' : 'WLTP '+ev.wltpKm+' km') : '';
+    var head = '<div class="ca-ev-head"><span class="ca-ev-badge">'+badgeLabel+'</span>'+(wltpTxt?'<span class="ca-ev-wltp">'+wltpTxt+'</span>':'')+'</div>';
     var chips = '';
     if (ev.summerKm > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x2600;&#xFE0F; ~'+ev.summerKm+' km sommar</span>';
     if (ev.winterKm > 0) chips += '<span class="ca-ev-chip ca-ev-winter">&#x2744;&#xFE0F; ~'+ev.winterKm+' km vinter</span>';
-    if (ev.daysLabel) chips += '<span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
+    if (ev.daysLabel) chips += '<div style="width:100%;height:0;margin:0"></div><span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
     if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC '+ev.maxDcKw+' kW</span>';
     if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC '+ev.maxAcKw+' kW</span>';
     if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">'+ev.batteryKwh+' kWh</span>';
