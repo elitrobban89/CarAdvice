@@ -1,6 +1,7 @@
 package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
+import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.SafetyRatingService;
@@ -33,6 +34,7 @@ public class CarController {
     private final GroqService groqService;
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
+    private final EvDatabaseScraperService evScraper;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -45,10 +47,22 @@ public class CarController {
     private String adminKey;
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
-                         SafetyRatingService safetyRatingService) {
+                         SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
+        this.evScraper = evScraper;
+    }
+
+    @PostMapping("/admin/sync-ev-specs")
+    public ResponseEntity<?> syncEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        try {
+            int updated = evScraper.syncFromEvDatabase();
+            return ResponseEntity.ok(Map.of("updated", updated, "status", "ok"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/recommend")

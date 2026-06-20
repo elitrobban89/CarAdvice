@@ -55,4 +55,10 @@ public class EvSpec {
     public Integer getRangeKm() { return rangeKm; }
     public Integer getPriceKr() { return priceKr; }
     public String getCarType() { return carType; }
+
+    public void setMaxAcKw(Double maxAcKw) { this.maxAcKw = maxAcKw; }
+    public void setMaxDcKw(Double maxDcKw) { this.maxDcKw = maxDcKw; }
+    public void setBatteryKwh(Double batteryKwh) { this.batteryKwh = batteryKwh; }
+    public void setRangeKm(Integer rangeKm) { this.rangeKm = rangeKm; }
+    public void setPriceKr(Integer priceKr) { this.priceKr = priceKr; }
 }
