@@ -1,6 +1,7 @@
 package com.caradvice.service;
 
 import com.caradvice.model.EvSpec;
+import com.caradvice.model.EvSpecDto;
 import com.caradvice.repository.EvSpecRepository;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +17,7 @@ public class EvSpecService {
         this.repo = repo;
     }
 
-    public String formatForTitle(String title, int kmPerYear) {
+    public EvSpecDto formatForTitle(String title, int kmPerYear) {
         if (title == null) return null;
         String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
         String[] words = cleaned.split("\\s+");
@@ -31,48 +32,40 @@ public class EvSpecService {
                     return true;
                 })
                 .findFirst()
-                .map(ev -> format(ev, kmPerYear))
+                .map(ev -> toDto(ev, kmPerYear))
                 .orElse(null);
     }
 
-    private String format(EvSpec spec, int kmPerYear) {
-        int wltp        = spec.getRangeKm();
-        int summerRange = (int) (wltp * 0.85);
-        int winterRange = (int) (wltp * 0.70);
+    private EvSpecDto toDto(EvSpec spec, int kmPerYear) {
+        int wltp   = spec.getRangeKm() != null ? spec.getRangeKm() : 0;
+        int summer = (int) (wltp * 0.85);
+        int winter = (int) (wltp * 0.70);
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("WLTP ").append(wltp).append(" km");
-        sb.append(" · Sommar ~").append(summerRange).append(" km");
-        sb.append(" · Vinter ~").append(winterRange).append(" km");
-
-        if (kmPerYear > 0) {
-            double dailyKm = kmPerYear / 365.0;
-            int days = (int) Math.max(1, Math.round(summerRange / dailyKm));
-            String dayStr = days == 1 ? "dagligen"
-                          : days == 2 ? "varannan dag"
-                          : "var " + days + ":e dag";
-            sb.append(" · Laddas ").append(dayStr);
+        int days = 0;
+        String daysLabel = "";
+        if (kmPerYear > 0 && summer > 0) {
+            double daily = kmPerYear / 365.0;
+            days = (int) Math.max(1, Math.round(summer / daily));
+            daysLabel = days == 1 ? "ladda varje dag"
+                      : days == 2 ? "ladda varannan dag"
+                      : "ladda var " + days + ":e dag";
         }
 
-        if (spec.getBatteryKwh() != null) {
-            double kwh = spec.getBatteryKwh();
-            String kwhStr = kwh == (long) kwh ? String.valueOf((long) kwh) : String.valueOf(kwh);
-            sb.append(" · ").append(kwhStr).append(" kWh");
-        }
-        if (spec.getMaxDcKw() != null && spec.getMaxDcKw() > 0) {
-            sb.append(" · Max ").append((int) spec.getMaxDcKw().doubleValue()).append(" kW DC");
+        int maxDc  = spec.getMaxDcKw()    != null ? (int) spec.getMaxDcKw().doubleValue()    : 0;
+        int maxAc  = spec.getMaxAcKw()    != null ? (int) spec.getMaxAcKw().doubleValue()     : 0;
+        double bat = spec.getBatteryKwh() != null ? spec.getBatteryKwh()                      : 0.0;
+        int price  = spec.getPriceKr()    != null ? spec.getPriceKr()                         : 0;
+
+        String valueLabel = "";
+        if (price > 0 && wltp > 0) {
+            double score = (double) wltp / (price / 100_000.0);
+            valueLabel = score > 160 ? "Utmärkt prisvärdhet"
+                       : score > 130 ? "Bra prisvärdhet"
+                       : score > 100 ? "Ok prisvärdhet"
+                       : "";
         }
 
-        if (spec.getPriceKr() != null && spec.getPriceKr() > 0) {
-            double score = (double) wltp / (spec.getPriceKr() / 100_000.0);
-            String value = score > 160 ? "Utmärkt prisvärdhet"
-                         : score > 130 ? "Bra prisvärdhet"
-                         : score > 100 ? "Ok prisvärdhet"
-                         : null;
-            if (value != null) sb.append(" · ").append(value);
-        }
-
-        return sb.toString();
+        return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel);
     }
 
     private static String normalize(String s) {

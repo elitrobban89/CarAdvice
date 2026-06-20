@@ -6,7 +6,7 @@
     max-width: 900px;
     margin: 40px auto;
     padding: 0 16px;
-  }vi vi
+  }
 
   #ca-hero {
     background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
@@ -454,8 +454,17 @@
   .ca-safety-text { font-size: 0.8rem; color: rgba(255,255,255,0.65); }
   /* EV spec block */
   .ca-ev { background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
-  .ca-ev-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(56,189,248,0.8); display: block; margin-bottom: 5px; }
-  .ca-ev-text { font-size: 0.8rem; color: rgba(186,230,253,0.8); line-height: 1.6; }
+  .ca-ev-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(56,189,248,0.8); background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 4px; padding: 2px 7px; white-space: nowrap; display: inline-block; margin-bottom: 8px; }
+  .ca-ev-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .ca-ev-chip { font-size: 0.75rem; font-weight: 600; border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+  .ca-ev-range  { background: rgba(56,189,248,0.18); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); }
+  .ca-ev-winter { background: rgba(147,197,253,0.15); color: #bfdbfe; border: 1px solid rgba(147,197,253,0.25); }
+  .ca-ev-charge { background: rgba(250,204,21,0.15); color: #fde68a; border: 1px solid rgba(250,204,21,0.25); }
+  .ca-ev-dc     { background: rgba(52,211,153,0.15); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.25); }
+  .ca-ev-ac     { background: rgba(167,139,250,0.15); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.25); }
+  .ca-ev-bat    { background: rgba(14,165,233,0.15); color: #7dd3fc; border: 1px solid rgba(14,165,233,0.25); }
+  .ca-ev-price  { background: rgba(244,114,182,0.15); color: #f9a8d4; border: 1px solid rgba(244,114,182,0.25); }
+  .ca-ev-value  { background: rgba(74,222,128,0.15); color: #86efac; border: 1px solid rgba(74,222,128,0.25); }
 
   /* Groq badge */
   .ca-groq-badge {
@@ -911,6 +920,20 @@
     return card + card + card;
   }
 
+  function caEvChips(ev) {
+    if (!ev) return '';
+    var chips = '';
+    if (ev.summerKm > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x2600;&#xFE0F; ~'+ev.summerKm+' km sommar</span>';
+    if (ev.winterKm > 0) chips += '<span class="ca-ev-chip ca-ev-winter">&#x2744;&#xFE0F; ~'+ev.winterKm+' km vinter</span>';
+    if (ev.daysLabel) chips += '<span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
+    if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC max '+ev.maxDcKw+' kW</span>';
+    if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC max '+ev.maxAcKw+' kW</span>';
+    if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F50B; '+ev.batteryKwh+' kWh</span>';
+    if (ev.priceKr > 0) chips += '<span class="ca-ev-chip ca-ev-price">&#x1F4B0; fr&#xe5;n '+Math.round(ev.priceKr/1000)+' tkr</span>';
+    if (ev.valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">&#x1F4CA; '+caEsc(ev.valueLabel)+'</span>';
+    return '<div class="ca-ev"><span class="ca-ev-badge">&#x26A1; Elbilsdata</span><div class="ca-ev-chips">'+chips+'</div></div>';
+  }
+
   function caRenderCards(recommendations) {
     var container = document.getElementById('ca-cards');
     container.classList.add('fading');
@@ -928,7 +951,7 @@
           '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
           (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
-          (r.evSpec ? '<div class="ca-ev"><span class="ca-ev-label">⚡ Elbilsdata</span><span class="ca-ev-text">'+caEsc(r.evSpec)+'</span></div>' : '') +
+          (r.evSpec ? caEvChips(r.evSpec) : '') +
           '<div class="ca-market-links">' +
           '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket →</a>' +
           '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil →</a>' +

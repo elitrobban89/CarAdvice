@@ -169,9 +169,18 @@
 .ca-safety { display: flex; align-items: center; gap: 10px; background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; flex-wrap: wrap; }
 .ca-safety-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(52,211,153,0.85); background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
 .ca-safety-text { font-size: 0.8rem; color: rgba(255,255,255,0.65); }
-.ca-ev { background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
-.ca-ev-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(56,189,248,0.8); display: block; margin-bottom: 5px; }
-.ca-ev-text { font-size: 0.8rem; color: rgba(186,230,253,0.8); line-height: 1.6; }
+.ca-ev { display: flex; align-items: flex-start; gap: 10px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; flex-wrap: wrap; }
+.ca-ev-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(56,189,248,0.85); background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+.ca-ev-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.ca-ev-chip { font-size: 0.76rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+.ca-ev-range  { background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+.ca-ev-winter { background: rgba(148,163,184,0.1);  color: #cbd5e1;  border: 1px solid rgba(148,163,184,0.2); }
+.ca-ev-charge { background: rgba(251,191,36,0.1);   color: #fcd34d;  border: 1px solid rgba(251,191,36,0.25); }
+.ca-ev-dc     { background: rgba(34,197,94,0.11);   color: #86efac;  border: 1px solid rgba(34,197,94,0.25); }
+.ca-ev-ac     { background: rgba(139,92,246,0.11);  color: #c4b5fd;  border: 1px solid rgba(139,92,246,0.25); }
+.ca-ev-bat    { background: rgba(56,189,248,0.09);  color: #7dd3fc;  border: 1px solid rgba(56,189,248,0.2); }
+.ca-ev-price  { background: rgba(236,72,153,0.09);  color: #f9a8d4;  border: 1px solid rgba(236,72,153,0.2); }
+.ca-ev-value  { background: rgba(52,211,153,0.09);  color: #6ee7b7;  border: 1px solid rgba(52,211,153,0.2); }
 .ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .ca-blocket-btn, .ca-bytbil-btn { display: inline-block; padding: 7px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: rgba(255,255,255,0.55); font-size: 0.8rem; text-decoration: none; }
 .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
@@ -322,6 +331,19 @@ function caBlocketUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim()
 function caBytbilUrl(title) { var q=title.replace(/\s*\(\d{4}\)\s*$/,'').trim();var parts=q.split(' ');var make=parts[0].toLowerCase();var model=parts[1]?parts[1].toLowerCase():'';return model?'https://www.bytbil.com/bil/'+make+'/'+model:'https://www.bytbil.com/bil/'+make; }
 function caResetForm() { document.getElementById('ca-category').value='ekonomibil';document.getElementById('ca-budget-slider').value=200000;document.getElementById('ca-charger').value='false';document.getElementById('ca-km').value=1500;document.getElementById('ca-usage').value='pendling';document.getElementById('ca-passengers').value=4;document.getElementById('ca-newcar').value='false';document.getElementById('ca-fuel').value='spelar ingen roll';caUpdateSliderFill();caUpdateFuelVisibility();caCheckMismatch();if(caHasSearched)caCheckChanges();try{localStorage.removeItem('ca-prefs');}catch(e){} }
 function caSkeletonHTML() { var card='<div class="ca-skeleton"><div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div><div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div><div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:88%"></div><div class="ca-skeleton-line" style="width:72%"></div><div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div><div class="ca-skeleton-line" style="width:60%"></div></div>';return card+card+card; }
+function caEvChips(ev) {
+  if (!ev) return '';
+  var chips = '';
+  if (ev.summerKm > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x2600;&#xFE0F; ~'+ev.summerKm+' km sommar</span>';
+  if (ev.winterKm > 0) chips += '<span class="ca-ev-chip ca-ev-winter">&#x2744;&#xFE0F; ~'+ev.winterKm+' km vinter</span>';
+  if (ev.daysLabel) chips += '<span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
+  if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC max '+ev.maxDcKw+' kW</span>';
+  if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC max '+ev.maxAcKw+' kW</span>';
+  if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F50B; '+ev.batteryKwh+' kWh</span>';
+  if (ev.priceKr > 0) chips += '<span class="ca-ev-chip ca-ev-price">&#x1F4B0; fr&#xe5;n '+Math.round(ev.priceKr/1000)+' tkr</span>';
+  if (ev.valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">&#x1F4CA; '+caEsc(ev.valueLabel)+'</span>';
+  return '<div class="ca-ev"><span class="ca-ev-badge">&#x26A1; Elbilsdata</span><div class="ca-ev-chips">'+chips+'</div></div>';
+}
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.innerHTML = recommendations.map(function(r, i) {
@@ -336,7 +358,7 @@ function caRenderCards(recommendations) {
       '<div class="ca-fit">'+caEsc(r.fitSummary)+'</div>'+
       (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '')+
       (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '')+
-      (r.evSpec ? '<div class="ca-ev"><span class="ca-ev-label">⚡ Elbilsdata</span><span class="ca-ev-text">'+caEsc(r.evSpec)+'</span></div>' : '')+
+      (r.evSpec ? caEvChips(r.evSpec) : '')+
       '<div class="ca-market-links">'+
         '<a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket →</a>'+
         '<a class="ca-bytbil-btn" href="'+caBytbilUrl(r.title)+'" target="_blank" rel="noopener">Bytbil →</a>'+
