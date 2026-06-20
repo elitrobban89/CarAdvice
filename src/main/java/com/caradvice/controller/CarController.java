@@ -5,6 +5,7 @@ import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.SafetyRatingService;
+import com.caradvice.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,7 @@ public class CarController {
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
     private final EvDatabaseScraperService evScraper;
+    private final UserService userService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -47,11 +49,13 @@ public class CarController {
     private String adminKey;
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
-                         SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper) {
+                         SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
+                         UserService userService) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evScraper = evScraper;
+        this.userService = userService;
     }
 
     @PostMapping("/admin/sync-ev-specs")
@@ -65,12 +69,15 @@ public class CarController {
     }
 
     @PostMapping("/recommend")
-    public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request) {
+    public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request,
+                                       @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(request);
-        if (isRateLimited(ip)) {
+        boolean subscriber = userService.isActiveSubscriber(auth);
+        if (!subscriber && isRateLimited(ip)) {
             return ResponseEntity.status(429).body(Map.of(
                     "success", false,
-                    "error", "För många förfrågningar från din IP. Försök igen om en stund."
+                    "error", "Du har använt dina 10 gratis sökningar denna timme. Prenumerera för obegränsade sökningar!",
+                    "rateLimited", true
             ));
         }
         try {
@@ -78,6 +85,8 @@ public class CarController {
             Map<String, Object> body = new HashMap<>();
             body.put("success", true);
             body.put("recommendations", result.recommendations());
+            body.put("subscriber", subscriber);
+            if (!subscriber) body.put("remainingSearches", remainingSearches(ip));
             if (result.fromCache()) {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
@@ -92,14 +101,16 @@ public class CarController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<?> chat(@RequestBody Map<String, Object> req, HttpServletRequest httpReq) {
+    public ResponseEntity<?> chat(@RequestBody Map<String, Object> req, HttpServletRequest httpReq,
+                                  @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(httpReq);
+        boolean subscriber = userService.isActiveSubscriber(auth);
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
         synchronized (times) {
             while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
-            if (times.size() >= CHAT_RATE_LIMIT)
-                return ResponseEntity.status(429).body(Map.of("error", "För många frågor — vänta en minut och försök igen."));
+            if (!subscriber && times.size() >= CHAT_RATE_LIMIT)
+                return ResponseEntity.status(429).body(Map.of("error", "För många frågor — prenumerera för obegränsad åtkomst.", "rateLimited", true));
             times.addLast(now);
         }
         try {
@@ -115,13 +126,15 @@ public class CarController {
     }
 
     @PostMapping(value = "/chat/stream", produces = "text/event-stream")
-    public ResponseEntity<StreamingResponseBody> chatStream(@RequestBody Map<String, Object> req, HttpServletRequest httpReq) {
+    public ResponseEntity<StreamingResponseBody> chatStream(@RequestBody Map<String, Object> req, HttpServletRequest httpReq,
+                                                            @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(httpReq);
+        boolean subscriber = userService.isActiveSubscriber(auth);
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
         synchronized (times) {
             while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
-            if (times.size() >= CHAT_RATE_LIMIT)
+            if (!subscriber && times.size() >= CHAT_RATE_LIMIT)
                 return ResponseEntity.status(429).build();
             times.addLast(now);
         }
@@ -222,5 +235,10 @@ public class CarController {
             return updated;
         });
         return ipRequestLog.get(ip).size() > MAX_REQUESTS_PER_HOUR;
+    }
+
+    private int remainingSearches(String ip) {
+        List<Long> times = ipRequestLog.getOrDefault(ip, List.of());
+        return Math.max(0, MAX_REQUESTS_PER_HOUR - times.size());
     }
 }

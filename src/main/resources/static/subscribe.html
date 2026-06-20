@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logga in / Prenumerera – BilRådgivning</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); padding: 40px; width: 100%; max-width: 420px; }
+  .logo { text-align: center; margin-bottom: 28px; }
+  .logo h1 { font-size: 1.5rem; color: #1a1a2e; }
+  .logo p { color: #666; font-size: 0.9rem; margin-top: 4px; }
+  .tabs { display: flex; gap: 0; margin-bottom: 28px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; }
+  .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; background: #f5f5f5; color: #666; font-weight: 500; font-size: 0.95rem; border: none; transition: all 0.2s; }
+  .tab.active { background: #1a1a2e; color: #fff; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 6px; font-weight: 500; }
+  input { width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; transition: border-color 0.2s; outline: none; }
+  input:focus { border-color: #1a1a2e; }
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+  .btn-primary { background: #1a1a2e; color: #fff; }
+  .btn-primary:hover { background: #2d2d4e; }
+  .btn-stripe { background: #635bff; color: #fff; margin-top: 16px; }
+  .btn-stripe:hover { background: #4f46e5; }
+  .error { color: #e74c3c; font-size: 0.85rem; margin-top: 8px; display: none; }
+  .success { color: #27ae60; font-size: 0.85rem; margin-top: 8px; display: none; }
+  .divider { text-align: center; color: #aaa; font-size: 0.85rem; margin: 20px 0; }
+  .pricing { background: #f9f9ff; border: 1px solid #e0e0ff; border-radius: 10px; padding: 16px; margin-bottom: 20px; text-align: center; }
+  .pricing .price { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
+  .pricing .price span { font-size: 1rem; font-weight: 400; color: #666; }
+  .pricing ul { text-align: left; margin-top: 10px; list-style: none; }
+  .pricing ul li { padding: 4px 0; color: #444; font-size: 0.9rem; }
+  .pricing ul li::before { content: "✓ "; color: #27ae60; font-weight: 700; }
+  .logged-in-view { display: none; }
+  .user-email { font-weight: 600; color: #1a1a2e; }
+  .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 8px; }
+  .status-active { background: #d4edda; color: #155724; }
+  .status-inactive { background: #f8d7da; color: #721c24; }
+  .btn-logout { background: #f5f5f5; color: #666; border: 1px solid #ddd; margin-top: 12px; }
+  .btn-logout:hover { background: #eee; }
+  #loginForm, #registerForm { display: none; }
+  #loginForm.active, #registerForm.active { display: block; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>BilRådgivning</h1>
+    <p>Logga in eller skapa ett konto</p>
+  </div>
+
+  <!-- Logged-in view -->
+  <div class="logged-in-view" id="loggedInView">
+    <p>Inloggad som: <span class="user-email" id="userEmail"></span>
+      <span class="status-badge" id="statusBadge"></span>
+    </p>
+    <div id="subscribeSection" style="display:none;">
+      <div class="divider">— Prenumeration —</div>
+      <div class="pricing">
+        <div class="price">99 kr<span>/mån</span></div>
+        <ul>
+          <li>Obegränsade bilsökningar</li>
+          <li>Obegränsad AI-chatt</li>
+          <li>Avbryt när som helst</li>
+        </ul>
+      </div>
+      <button class="btn btn-stripe" id="stripeBtn" onclick="startCheckout()">Betala med kort (Stripe)</button>
+    </div>
+    <div id="activeSection" style="display:none;">
+      <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">Du har en aktiv prenumeration – tack!</p>
+    </div>
+    <button class="btn btn-logout" onclick="logout()">Logga ut</button>
+  </div>
+
+  <!-- Auth forms -->
+  <div id="authView">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Logga in</button>
+      <button class="tab" onclick="switchTab('register')">Skapa konto</button>
+    </div>
+
+    <form id="loginForm" class="active" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label>E-postadress</label>
+        <input type="email" id="loginEmail" required autocomplete="email" placeholder="din@email.se">
+      </div>
+      <div class="form-group">
+        <label>Lösenord</label>
+        <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <div class="error" id="loginError"></div>
+      <button type="submit" class="btn btn-primary">Logga in</button>
+    </form>
+
+    <form id="registerForm" onsubmit="doRegister(event)">
+      <div class="form-group">
+        <label>E-postadress</label>
+        <input type="email" id="regEmail" required autocomplete="email" placeholder="din@email.se">
+      </div>
+      <div class="form-group">
+        <label>Lösenord (minst 6 tecken)</label>
+        <input type="password" id="regPassword" required autocomplete="new-password" placeholder="••••••••">
+      </div>
+      <div class="error" id="registerError"></div>
+      <div class="success" id="registerSuccess"></div>
+      <button type="submit" class="btn btn-primary">Skapa konto</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+  document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+  document.getElementById('registerForm').classList.toggle('active', tab === 'register');
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const err = document.getElementById('loginError');
+  err.style.display = 'none';
+  try {
+    const r = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value })
+    });
+    const data = await r.json();
+    if (!r.ok) { err.textContent = data.error; err.style.display = 'block'; return; }
+    saveAndShow(data);
+  } catch(ex) { err.textContent = 'Något gick fel. Försök igen.'; err.style.display = 'block'; }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const err = document.getElementById('registerError');
+  const ok = document.getElementById('registerSuccess');
+  err.style.display = 'none'; ok.style.display = 'none';
+  try {
+    const r = await fetch(API + '/api/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value })
+    });
+    const data = await r.json();
+    if (!r.ok) { err.textContent = data.error; err.style.display = 'block'; return; }
+    ok.textContent = 'Konto skapat! Du är nu inloggad.'; ok.style.display = 'block';
+    saveAndShow(data);
+  } catch(ex) { err.textContent = 'Något gick fel. Försök igen.'; err.style.display = 'block'; }
+}
+
+function saveAndShow(data) {
+  localStorage.setItem('ca_token', data.token);
+  localStorage.setItem('ca_email', data.email);
+  localStorage.setItem('ca_status', data.subscriptionStatus);
+  // Notify opener window if any
+  if (window.opener) {
+    window.opener.postMessage({ type: 'CA_LOGIN', token: data.token, email: data.email, status: data.subscriptionStatus }, '*');
+  }
+  showLoggedIn(data.email, data.subscriptionStatus);
+}
+
+function showLoggedIn(email, status) {
+  document.getElementById('authView').style.display = 'none';
+  document.getElementById('loggedInView').style.display = 'block';
+  document.getElementById('userEmail').textContent = email;
+  const badge = document.getElementById('statusBadge');
+  if (status === 'active') {
+    badge.textContent = 'Prenumerant';
+    badge.className = 'status-badge status-active';
+    document.getElementById('subscribeSection').style.display = 'none';
+    document.getElementById('activeSection').style.display = 'block';
+  } else {
+    badge.textContent = 'Demo';
+    badge.className = 'status-badge status-inactive';
+    document.getElementById('subscribeSection').style.display = 'block';
+    document.getElementById('activeSection').style.display = 'none';
+  }
+}
+
+async function startCheckout() {
+  const btn = document.getElementById('stripeBtn');
+  btn.textContent = 'Laddar...'; btn.disabled = true;
+  const token = localStorage.getItem('ca_token');
+  try {
+    const r = await fetch(API + '/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await r.json();
+    if (data.url) window.location.href = data.url;
+    else { btn.textContent = 'Betala med kort (Stripe)'; btn.disabled = false; alert('Fel: ' + data.error); }
+  } catch(ex) { btn.textContent = 'Betala med kort (Stripe)'; btn.disabled = false; }
+}
+
+async function logout() {
+  const token = localStorage.getItem('ca_token');
+  await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+  localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
+  if (window.opener) window.opener.postMessage({ type: 'CA_LOGOUT' }, '*');
+  document.getElementById('loggedInView').style.display = 'none';
+  document.getElementById('authView').style.display = 'block';
+}
+
+// On load: check if already logged in
+(async function() {
+  const token = localStorage.getItem('ca_token');
+  if (!token) return;
+  try {
+    const r = await fetch(API + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.ok) {
+      const data = await r.json();
+      localStorage.setItem('ca_status', data.subscriptionStatus);
+      showLoggedIn(data.email, data.subscriptionStatus);
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

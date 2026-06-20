@@ -545,6 +545,35 @@
   .ca-ev-price  { background: rgba(236,72,153,0.09);  color: #f9a8d4; border: 1px solid rgba(236,72,153,0.2); }
   .ca-ev-value  { background: rgba(52,211,153,0.12);  color: #6ee7b7; border: 1px solid rgba(52,211,153,0.25); font-weight: 700; }
 
+  /* Subscription banner */
+  #ca-sub-bar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 14px;
+    padding: 11px 18px; margin-bottom: 24px;
+  }
+  #ca-sub-bar.ca-sub-bar-limited { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+  #ca-sub-left { font-size: 0.85rem; color: rgba(255,255,255,0.7); line-height: 1.4; }
+  #ca-sub-left strong { color: #fff; }
+  #ca-sub-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  #ca-prenumerera-btn {
+    padding: 8px 20px; background: linear-gradient(135deg, #635bff, #4f46e5);
+    border: none; border-radius: 10px; color: #fff; font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+    text-decoration: none; display: inline-block;
+  }
+  #ca-prenumerera-btn:hover { opacity: 0.88; }
+  #ca-login-link {
+    font-size: 0.78rem; color: rgba(167,139,250,0.85); cursor: pointer; white-space: nowrap;
+    background: none; border: none; text-decoration: underline; padding: 0;
+  }
+  #ca-sub-bar .ca-sub-user-email { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
+  .ca-rate-limit-box {
+    margin: 10px 0; padding: 14px 18px; background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.35); border-radius: 12px;
+    font-size: 0.88rem; color: rgba(255,255,255,0.85); line-height: 1.5; display: none;
+  }
+  .ca-rate-limit-box a { color: #fcd34d; font-weight: 700; text-decoration: none; }
+
   /* Groq badge */
   .ca-groq-badge {
     display: inline-flex;
@@ -568,6 +597,19 @@
     <div id="ca-hero">
       <h2>🚗 <span class="ca-title-grad">Hitta din drömbil</span></h2>
       <p class="ca-sub">Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
+
+      <div id="ca-sub-bar">
+        <div id="ca-sub-left"><strong id="ca-sub-title">Demo</strong> <span id="ca-sub-desc">– 10 gratis sökningar per timme</span></div>
+        <div id="ca-sub-right">
+          <span class="ca-sub-user-email" id="ca-sub-email" style="display:none"></span>
+          <button id="ca-login-link" onclick="caOpenSubscribe()">Logga in</button>
+          <a id="ca-prenumerera-btn" href="#" onclick="event.preventDefault();caOpenSubscribe()">Prenumerera – 99 kr/mån</a>
+        </div>
+      </div>
+      <div class="ca-rate-limit-box" id="ca-rate-limit-box">
+        ⏱ Du har använt alla 10 gratis sökningar den här timmen.
+        <a href="#" onclick="event.preventDefault();caOpenSubscribe()">Prenumerera för 99 kr/mån</a> och få obegränsade sökningar!
+      </div>
 
       <div class="ca-grid">
         <div class="ca-field">
@@ -1237,19 +1279,31 @@
 
     var controller = new AbortController();
     var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
+    var caToken = localStorage.getItem('ca_token') || '';
+    var headers = { 'Content-Type': 'application/json' };
+    if (caToken) headers['Authorization'] = 'Bearer ' + caToken;
 
     try {
       var r = await fetch('https://caradvice.onrender.com/api/recommend', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(payload),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
       caStopLoadingText();
-      var d = await r.json();
-
       loader.style.display = 'none';
+
+      if (r.status === 429) {
+        document.getElementById('ca-cards').innerHTML = '';
+        document.getElementById('ca-rate-limit-box').style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Prenumerera och sök →';
+        return;
+      }
+
+      document.getElementById('ca-rate-limit-box').style.display = 'none';
+      var d = await r.json();
 
       if (d.success && d.recommendations) {
         caRenderCards(d.recommendations);
@@ -1262,6 +1316,8 @@
           badge.textContent = '⚡ Cachat svar (' + ageText + ')';
           badge.style.display = 'inline-block';
         }
+        if (!d.subscriber && typeof d.remainingSearches === 'number') caUpdateSubBar(false, d.remainingSearches);
+        if (d.subscriber) caUpdateSubBar(true, null);
         caSavePrefs();
         caSaveHistory(d.recommendations);
       } else {
@@ -1290,12 +1346,82 @@
     }
   }
 
+  function caOpenSubscribe() {
+    window.open('https://caradvice.onrender.com/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
+  }
+
+  function caUpdateSubBar(isSubscriber, remaining) {
+    var bar = document.getElementById('ca-sub-bar');
+    var title = document.getElementById('ca-sub-title');
+    var desc = document.getElementById('ca-sub-desc');
+    var loginLink = document.getElementById('ca-login-link');
+    var prenBtn = document.getElementById('ca-prenumerera-btn');
+    var emailEl = document.getElementById('ca-sub-email');
+    var caEmail = localStorage.getItem('ca_email');
+
+    bar.classList.remove('ca-sub-bar-limited');
+    if (isSubscriber) {
+      title.textContent = '✓ Prenumerant';
+      desc.textContent = ' – obegränsade sökningar';
+      prenBtn.style.display = 'none';
+      loginLink.textContent = 'Konto';
+      loginLink.onclick = function() { caOpenSubscribe(); };
+      if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
+    } else if (caEmail) {
+      title.textContent = 'Inloggad';
+      desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 sökningar kvar denna timme' : ' – 10 sökningar per timme';
+      if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+      prenBtn.style.display = 'inline-block';
+      prenBtn.textContent = 'Prenumerera – 99 kr/mån';
+      loginLink.textContent = 'Logga ut';
+      loginLink.onclick = function() { caLogoutBar(); };
+      emailEl.textContent = caEmail; emailEl.style.display = 'inline';
+    } else {
+      title.textContent = 'Demo';
+      desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 sökningar kvar denna timme' : ' – 10 gratis sökningar per timme';
+      if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+      prenBtn.style.display = 'inline-block';
+      prenBtn.textContent = 'Prenumerera – 99 kr/mån';
+      loginLink.textContent = 'Logga in';
+      loginLink.onclick = function() { caOpenSubscribe(); };
+      emailEl.style.display = 'none';
+    }
+  }
+
+  function caLogoutBar() {
+    var token = localStorage.getItem('ca_token');
+    fetch('https://caradvice.onrender.com/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (token || '') } });
+    localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
+    caUpdateSubBar(false, null);
+  }
+
+  // Listen for login/subscribe messages from popup
+  window.addEventListener('message', function(ev) {
+    if (!ev.data || !ev.data.type) return;
+    if (ev.data.type === 'CA_LOGIN' || ev.data.type === 'CA_SUBSCRIBED') {
+      if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
+      if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
+      if (ev.data.status) localStorage.setItem('ca_status', ev.data.status);
+      caUpdateSubBar(ev.data.status === 'active', null);
+    }
+    if (ev.data.type === 'CA_LOGOUT') {
+      localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
+      caUpdateSubBar(false, null);
+    }
+  });
+
   // Init — localStorage first, URL params override
   caUpdateSliderFill();
   caLoadPrefs();
   caReadUrlParams();
   caBindChangeListeners();
   caRenderHistory();
+
+  // Init subscription bar
+  (function() {
+    var status = localStorage.getItem('ca_status');
+    caUpdateSubBar(status === 'active', null);
+  })();
 
   // Auto-search if page was opened via a shared link
   (function() {
