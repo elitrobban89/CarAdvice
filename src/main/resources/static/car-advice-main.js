@@ -722,6 +722,12 @@ function caLogoutBar() {
   caUpdateSubBar(false, null);
 }
 
+window.addEventListener('storage', function(ev) {
+  if (ev.key === 'ca_status') {
+    caUpdateSubBar(ev.newValue === 'active', null);
+  }
+});
+
 window.addEventListener('message', function(ev) {
   if (!ev.data || !ev.data.type) return;
   if (ev.data.type === 'CA_LOGIN' || ev.data.type === 'CA_SUBSCRIBED') {
