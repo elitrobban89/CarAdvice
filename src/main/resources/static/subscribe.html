@@ -211,12 +211,8 @@ async function startCheckout() {
 }
 
 function goBack() {
-  if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({ type: 'CA_SCROLL_TO_APP' }, '*');
-    setTimeout(function() { window.close(); }, 150);
-  } else {
-    window.location.href = 'https://elitrobban.se/bilradgivning#ca-wrap';
-  }
+  localStorage.setItem('ca_scroll_to_app', '1');
+  window.close();
 }
 
 async function logout() {

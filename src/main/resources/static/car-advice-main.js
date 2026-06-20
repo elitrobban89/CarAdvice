@@ -723,6 +723,14 @@ function caLogoutBar() {
   caUpdateSubBar(false, null);
 }
 
+window.addEventListener('focus', function() {
+  if (localStorage.getItem('ca_scroll_to_app')) {
+    localStorage.removeItem('ca_scroll_to_app');
+    var el = document.getElementById('ca-wrap');
+    if (el) setTimeout(function() { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+  }
+});
+
 window.addEventListener('storage', function(ev) {
   if (ev.key === 'ca_status') {
     var isActive = ev.newValue === 'active';
@@ -737,6 +745,7 @@ window.addEventListener('message', function(ev) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
+
   if (ev.data.type === 'CA_LOGIN' || ev.data.type === 'CA_SUBSCRIBED') {
     if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
     if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
