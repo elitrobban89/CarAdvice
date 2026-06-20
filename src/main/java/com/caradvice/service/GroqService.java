@@ -66,7 +66,8 @@ public class GroqService {
         }
 
         String prompt = buildPrompt(prefs);
-        String expertContext = expertInsightService.buildExpertContext(prefs);
+        String expertContext = "";
+        try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -104,13 +105,17 @@ public class GroqService {
         );
 
         List<CarRecommendation> result = parsed.stream()
-                .map(r -> new CarRecommendation(
-                        r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                        r.fitSummary(), r.expertOpinion(),
-                        safetyRatingService.formatForTitle(r.title()),
-                        evSpecService.formatForTitle(r.title(), prefs.kmPerYear()),
-                        cargoSpecService.formatForTitle(r.title())
-                ))
+                .map(r -> {
+                    String safety = null;
+                    com.caradvice.model.EvSpecDto evSpec = null;
+                    com.caradvice.model.CargoSpecDto cargo = null;
+                    try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
+                    try { evSpec = evSpecService.formatForTitle(r.title(), prefs.kmPerYear()); } catch (Exception ignored) {}
+                    try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
+                    return new CarRecommendation(
+                            r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                            r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo);
+                })
                 .toList();
 
         evictIfNeeded();
@@ -152,7 +157,8 @@ public class GroqService {
     }
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
-        String expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages));
+        String expertContext = "";
+        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> msgs = new ArrayList<>();
@@ -183,7 +189,8 @@ public class GroqService {
     }
 
     public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
-        String expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages));
+        String expertContext = "";
+        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> msgs = new ArrayList<>();
