@@ -564,7 +564,7 @@
   #ca-prenumerera-btn:hover { opacity: 0.88; }
   #ca-login-link {
     font-size: 0.78rem; color: rgba(167,139,250,0.85); cursor: pointer; white-space: nowrap;
-    background: none; border: none; text-decoration: underline; padding: 0;
+    background: none; border: none; text-decoration: underline; padding: 0; display: inline;
   }
   #ca-sub-bar .ca-sub-user-email { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
   .ca-rate-limit-box {
@@ -602,7 +602,7 @@
         <div id="ca-sub-left"><strong id="ca-sub-title">Demo</strong> <span id="ca-sub-desc">– 10 gratis sökningar per timme</span></div>
         <div id="ca-sub-right">
           <span class="ca-sub-user-email" id="ca-sub-email" style="display:none"></span>
-          <button id="ca-login-link">Logga in</button>
+          <a id="ca-login-link" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener" class="ca-login-link">Logga in</a>
           <a id="ca-prenumerera-btn" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera – 99 kr/mån</a>
         </div>
       </div>
@@ -1365,6 +1365,7 @@
       desc.textContent = ' – obegränsade sökningar';
       prenBtn.style.display = 'none';
       loginLink.textContent = 'Konto';
+      loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
       loginLink.dataset.action = 'subscribe';
       if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
     } else if (caEmail) {
@@ -1374,6 +1375,7 @@
       prenBtn.style.display = 'inline-block';
       prenBtn.textContent = 'Prenumerera – 99 kr/mån';
       loginLink.textContent = 'Logga ut';
+      loginLink.href = '#';
       loginLink.dataset.action = 'logout';
       emailEl.textContent = caEmail; emailEl.style.display = 'inline';
     } else {
@@ -1383,6 +1385,7 @@
       prenBtn.style.display = 'inline-block';
       prenBtn.textContent = 'Prenumerera – 99 kr/mån';
       loginLink.textContent = 'Logga in';
+      loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
       loginLink.dataset.action = 'subscribe';
       emailEl.style.display = 'none';
     }
@@ -1424,8 +1427,8 @@
   })();
 
   // Wire up login/subscribe buttons via addEventListener (WordPress strips onclick attributes)
-  document.getElementById('ca-login-link').addEventListener('click', function() {
-    if (this.dataset.action === 'logout') caLogoutBar(); else caOpenSubscribe();
+  document.getElementById('ca-login-link').addEventListener('click', function(e) {
+    if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); }
   });
   document.getElementById('ca-prenumerera-btn').addEventListener('click', function(e) { e.preventDefault(); caOpenSubscribe(); });
 
