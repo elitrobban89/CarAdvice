@@ -1,10 +1,13 @@
 package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
+import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
+import com.caradvice.service.SafetyRatingService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -28,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CarController {
 
     private final GroqService groqService;
+    private final ExpertInsightService expertInsightService;
+    private final SafetyRatingService safetyRatingService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -36,8 +41,14 @@ public class CarController {
     private static final long CHAT_WINDOW_MS = 60_000L;
     private final ConcurrentHashMap<String, Deque<Long>> chatTimestamps = new ConcurrentHashMap<>();
 
-    public CarController(GroqService groqService) {
+    @Value("${admin.key}")
+    private String adminKey;
+
+    public CarController(GroqService groqService, ExpertInsightService expertInsightService,
+                         SafetyRatingService safetyRatingService) {
         this.groqService = groqService;
+        this.expertInsightService = expertInsightService;
+        this.safetyRatingService = safetyRatingService;
     }
 
     @PostMapping("/recommend")
@@ -152,6 +163,32 @@ public class CarController {
                 "groq", configured ? "OK" : "WARN",
                 "rekommendation", configured
         ));
+    }
+
+    // Admin: import expert insights from CSV (car_make,car_model,fuel_type,category,insight,rating)
+    @PostMapping("/admin/import/insights")
+    public ResponseEntity<?> importInsights(@RequestHeader("X-Admin-Key") String key,
+                                            @RequestBody String csv) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        try {
+            int count = expertInsightService.importCsv(csv);
+            return ResponseEntity.ok(Map.of("imported", count, "table", "expert_insight"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // Admin: import Euro NCAP safety ratings from CSV (car_make,car_model,test_year,stars,adult_pct,child_pct,pedestrian_pct,safety_assist_pct)
+    @PostMapping("/admin/import/safety")
+    public ResponseEntity<?> importSafety(@RequestHeader("X-Admin-Key") String key,
+                                          @RequestBody String csv) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        try {
+            int count = safetyRatingService.importCsv(csv);
+            return ResponseEntity.ok(Map.of("imported", count, "table", "safety_rating"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {

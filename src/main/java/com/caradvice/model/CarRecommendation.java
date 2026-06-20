@@ -1,13 +1,15 @@
 package com.caradvice.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 public record CarRecommendation(
-        String title,
-        String price,
-        String whyRecommended,
-        List<String> pros,
-        String con,
-        String fitSummary,
-        String expertOpinion
+        @JsonProperty("title")           String title,
+        @JsonProperty("price")           String price,
+        @JsonProperty("whyRecommended")  String whyRecommended,
+        @JsonProperty("pros")            List<String> pros,
+        @JsonProperty("con")             String con,
+        @JsonProperty("fitSummary")      String fitSummary,
+        @JsonProperty("expertOpinion")   String expertOpinion,
+        @JsonProperty("safetyRating")    String safetyRating
 ) {}

@@ -58,6 +58,32 @@ public class ExpertInsightService {
         return formatInsights(selected, "Expertinsikter från Erik Naessén (referera till dessa när relevant, ange källan):\n");
     }
 
+    public ExpertInsight save(ExpertInsight insight) {
+        return repo.save(insight);
+    }
+
+    public int importCsv(String csv) {
+        int count = 0;
+        for (String line : csv.split("\\R")) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#") || line.startsWith("car_make")) continue;
+            String[] f = SafetyRatingService.parseCsvLine(line);
+            if (f.length < 5) continue;
+            String carMake   = f[0];
+            String carModel  = f[1];
+            String fuelType  = f[2];
+            String category  = f[3];
+            String insight   = f[4];
+            Integer rating   = null;
+            if (f.length > 5 && f[5] != null && !f[5].isBlank()) {
+                try { rating = Integer.parseInt(f[5].trim()); } catch (NumberFormatException ignored) {}
+            }
+            repo.save(new ExpertInsight("Erik Naessén", carMake, carModel, fuelType, category, insight, rating));
+            count++;
+        }
+        return count;
+    }
+
     private String formatInsights(List<ExpertInsight> insights, String header) {
         StringBuilder sb = new StringBuilder(header);
         for (ExpertInsight i : insights) {

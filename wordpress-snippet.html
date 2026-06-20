@@ -1,640 +1,691 @@
-<style>
-#ca-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
+  <style>
+  #ca-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
 
-#ca-wrap {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 0 16px;
-}
+  #ca-wrap {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 16px;
+  }vi vi
 
-#ca-hero {
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  border-radius: 24px;
-  padding: 48px 40px 40px;
-  color: #fff;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
-  position: relative;
-  overflow: hidden;
-}
+  #ca-hero {
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    border-radius: 24px;
+    padding: 48px 40px 40px;
+    color: #fff;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
 
-#ca-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 70% 20%, rgba(139,92,246,0.12) 0%, transparent 55%),
-              radial-gradient(ellipse at 15% 85%, rgba(99,102,241,0.09) 0%, transparent 45%);
-  pointer-events: none;
-}
+  #ca-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 20%, rgba(139,92,246,0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at 15% 85%, rgba(99,102,241,0.09) 0%, transparent 45%);
+    pointer-events: none;
+  }
 
-#ca-hero h2 {
-  font-size: 2.1rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin-bottom: 6px;
-}
-#ca-hero h2 .ca-title-grad {
-  background: linear-gradient(120deg, #fff 40%, rgba(167,139,250,0.85) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-#ca-hero p.ca-sub {
-  font-size: 1rem;
-  color: rgba(255,255,255,0.55);
-  margin-bottom: 36px;
-  letter-spacing: 0.1px;
-}
+  #ca-hero h2 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  #ca-hero h2 .ca-title-grad {
+    background: linear-gradient(120deg, #fff 40%, rgba(167,139,250,0.85) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #ca-hero p.ca-sub {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 36px;
+    letter-spacing: 0.1px;
+  }
 
-.ca-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
+  .ca-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
 
-@media (max-width: 520px) {
-  .ca-grid { grid-template-columns: 1fr; }
-  #ca-hero { padding: 32px 20px; }
-  #ca-hero h2 { font-size: 1.5rem; }
-  .ca-card { padding: 24px 20px; }
-}
+  @media (max-width: 520px) {
+    .ca-grid { grid-template-columns: 1fr; }
+    #ca-hero { padding: 32px 20px; }
+    #ca-hero h2 { font-size: 1.5rem; }
+    .ca-card { padding: 24px 20px; }
+  }
 
-.ca-field label {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.65);
-  margin-bottom: 8px;
-  transition: color 0.2s;
-}
-.ca-field select,
-.ca-field input[type="number"] {
-  width: 100%;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px;
-  color: #fff;
-  font-size: 1.05rem;
-  padding: 20px 20px;
-  outline: none;
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.ca-field select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 36px;
-}
-.ca-field select option { background: #302b63; color: #fff; }
-.ca-field select:focus,
-.ca-field input[type="number"]:focus {
-  border-color: rgba(139,92,246,0.9);
-  background: rgba(255,255,255,0.13);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 28px rgba(139,92,246,0.2);
-}
-.ca-field:focus-within label { color: rgba(167,139,250,0.95); }
-.ca-field.changed select,
-.ca-field.changed input { border-color: rgba(251,191,36,0.7); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); }
-.ca-field.changed label { color: rgba(251,191,36,0.9); }
+  .ca-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 8px;
+    transition: color 0.2s;
+  }
+  .ca-field select,
+  .ca-field input[type="number"] {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    color: #fff;
+    font-size: 1.05rem;
+    padding: 20px 20px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .ca-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .ca-field select option { background: #302b63; color: #fff; }
+  .ca-field select:focus,
+  .ca-field input[type="number"]:focus {
+    border-color: rgba(139,92,246,0.9);
+    background: rgba(255,255,255,0.13);
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 28px rgba(139,92,246,0.2);
+  }
+  .ca-field:focus-within label { color: rgba(167,139,250,0.95); }
+  .ca-field.changed select,
+  .ca-field.changed input { border-color: rgba(251,191,36,0.7); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); }
+  .ca-field.changed label { color: rgba(251,191,36,0.9); }
 
-/* Budget slider */
-.ca-budget-val {
-  font-size: 1rem;
-  font-weight: 700;
-  color: rgba(167,139,250,0.95);
-  text-transform: none;
-  letter-spacing: 0;
-  margin-left: 8px;
-}
-.ca-slider-track {
-  position: relative;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.12);
-  margin-top: 12px;
-  margin-bottom: 4px;
-}
-#ca-slider-fill {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #8b5cf6, #6366f1);
-  pointer-events: none;
-  transition: width 0.05s;
-}
-#ca-budget-slider {
-  position: absolute;
-  top: -10px; left: 0; right: 0;
-  width: 100%;
-  background: transparent;
-  margin: 0; padding: 0;
-  height: 24px;
-  outline: none;
-  border: none;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-}
-#ca-budget-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
-  border: 2px solid rgba(255,255,255,0.2);
-  transition: box-shadow 0.2s, transform 0.15s;
-}
-#ca-budget-slider::-webkit-slider-thumb:hover { box-shadow: 0 2px 16px rgba(99,102,241,0.8); transform: scale(1.1); }
-#ca-budget-slider::-moz-range-thumb {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  border: 2px solid rgba(255,255,255,0.2);
-  cursor: pointer;
-}
-#ca-budget-slider::-moz-range-track { background: transparent; }
-.ca-slider-ticks {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  padding: 0 2px;
-}
-.ca-slider-ticks span {
-  font-size: 0.67rem;
-  color: rgba(255,255,255,0.28);
-  letter-spacing: 0.2px;
-}
+  /* Budget slider */
+  .ca-budget-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgba(167,139,250,0.95);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 8px;
+  }
+  .ca-slider-track {
+    position: relative;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.12);
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+  #ca-slider-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #8b5cf6, #6366f1);
+    pointer-events: none;
+    transition: width 0.05s;
+  }
+  #ca-budget-slider {
+    position: absolute;
+    top: -10px; left: 0; right: 0;
+    width: 100%;
+    background: transparent;
+    margin: 0; padding: 0;
+    height: 24px;
+    outline: none;
+    border: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #ca-budget-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+    border: 2px solid rgba(255,255,255,0.2);
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  #ca-budget-slider::-webkit-slider-thumb:hover { box-shadow: 0 2px 16px rgba(99,102,241,0.8); transform: scale(1.1); }
+  #ca-budget-slider::-moz-range-thumb {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    border: 2px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+  }
+  #ca-budget-slider::-moz-range-track { background: transparent; }
+  .ca-slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 0 2px;
+  }
+  .ca-slider-ticks span {
+    font-size: 0.67rem;
+    color: rgba(255,255,255,0.28);
+    letter-spacing: 0.2px;
+  }
 
-/* Buttons */
-#ca-btn-area {
-  margin-top: 24px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-#ca-btn {
-  flex: 1;
-  min-width: 180px;
-  padding: 16px;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  border: none;
-  border-radius: 14px;
-  color: #fff;
-  font-size: 1.05rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-  box-shadow: 0 6px 24px rgba(99,102,241,0.45);
-  position: relative;
-  overflow: hidden;
-}
-#ca-btn::after {
-  content: '';
-  position: absolute;
-  top: -50%; left: -70%;
-  width: 45%; height: 200%;
-  background: rgba(255,255,255,0.18);
-  transform: skewX(-18deg);
-  transition: left 0.55s ease;
-}
-#ca-btn:hover::after { left: 130%; }
-#ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.6); }
-#ca-btn:active { transform: translateY(0); }
-#ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-#ca-btn.has-changes {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  box-shadow: 0 6px 24px rgba(245,158,11,0.45);
-  animation: ca-pulse 1.5s ease-in-out infinite;
-}
-@keyframes ca-pulse {
-  0%, 100% { box-shadow: 0 6px 24px rgba(245,158,11,0.45); }
-  50% { box-shadow: 0 6px 32px rgba(245,158,11,0.7); }
-}
-#ca-share-search-btn {
-  padding: 16px 20px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 14px;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.88rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  white-space: nowrap;
-}
-#ca-share-search-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
-#ca-share-search-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
-#ca-reset-btn {
-  padding: 16px 16px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  color: rgba(255,255,255,0.3);
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
-  white-space: nowrap;
-}
-#ca-reset-btn:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.2); }
+  /* Buttons */
+  #ca-btn-area {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #ca-btn {
+    flex: 1;
+    min-width: 180px;
+    padding: 16px;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 6px 24px rgba(99,102,241,0.45);
+    position: relative;
+    overflow: hidden;
+  }
+  #ca-btn::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -70%;
+    width: 45%; height: 200%;
+    background: rgba(255,255,255,0.18);
+    transform: skewX(-18deg);
+    transition: left 0.55s ease;
+  }
+  #ca-btn:hover::after { left: 130%; }
+  #ca-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(99,102,241,0.6); }
+  #ca-btn:active { transform: translateY(0); }
+  #ca-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  #ca-btn.has-changes {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 6px 24px rgba(245,158,11,0.45);
+    animation: ca-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes ca-pulse {
+    0%, 100% { box-shadow: 0 6px 24px rgba(245,158,11,0.45); }
+    50% { box-shadow: 0 6px 32px rgba(245,158,11,0.7); }
+  }
+  #ca-share-search-btn {
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  #ca-share-search-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
+  #ca-share-search-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
+  #ca-reset-btn {
+    padding: 16px 16px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+  }
+  #ca-reset-btn:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.2); }
 
-/* History */
-#ca-history-area { margin-top: 20px; }
-.ca-history-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.28);
-  margin-bottom: 10px;
-}
-.ca-history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.ca-history-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px;
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.5);
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-.ca-history-chip:hover { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: rgba(255,255,255,0.88); }
-.ca-history-chip-time { font-size: 0.68rem; color: rgba(255,255,255,0.22); }
-.ca-history-chip-del {
-  color: rgba(255,255,255,0.2);
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.ca-history-chip:hover .ca-history-chip-del { color: rgba(255,100,100,0.55); }
+  /* History */
+  #ca-history-area { margin-top: 20px; }
+  .ca-history-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+    margin-bottom: 10px;
+  }
+  .ca-history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ca-history-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .ca-history-chip:hover { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: rgba(255,255,255,0.88); }
+  .ca-history-chip-time { font-size: 0.68rem; color: rgba(255,255,255,0.22); }
+  .ca-history-chip-del {
+    color: rgba(255,255,255,0.2);
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .ca-history-chip:hover .ca-history-chip-del { color: rgba(255,100,100,0.55); }
 
-/* Loading */
-#ca-loader { display: none; text-align: center; padding: 16px 0 4px; }
-#ca-loader p { color: rgba(255,255,255,0.4); font-size: 0.82rem; }
+  /* Loading */
+  #ca-loader { display: none; text-align: center; padding: 16px 0 4px; }
+  #ca-loader p { color: rgba(255,255,255,0.4); font-size: 0.82rem; }
 
-/* Skeleton cards */
-.ca-skeleton {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 18px;
-  padding: 36px;
-  margin-bottom: 40px;
-}
-.ca-skeleton-line {
-  border-radius: 6px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%);
-  background-size: 200% 100%;
-  animation: ca-shimmer 1.6s ease-in-out infinite;
-  margin-bottom: 12px;
-}
-@keyframes ca-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+  /* Skeleton cards */
+  .ca-skeleton {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 36px;
+    margin-bottom: 40px;
+  }
+  .ca-skeleton-line {
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%);
+    background-size: 200% 100%;
+    animation: ca-shimmer 1.6s ease-in-out infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes ca-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 
-/* Divider */
-#ca-divider { display: none; height: 1px; background: rgba(255,255,255,0.1); margin: 32px 0; }
+  /* Divider */
+  #ca-divider { display: none; height: 1px; background: rgba(255,255,255,0.1); margin: 32px 0; }
 
-/* Results */
-#ca-results { display: none; }
-.ca-result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-.ca-result-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
-}
-.ca-cache-badge {
-  font-size: 0.7rem;
-  color: rgba(52,211,153,0.7);
-  background: rgba(52,211,153,0.07);
-  border: 1px solid rgba(52,211,153,0.2);
-  border-radius: 20px;
-  padding: 3px 10px;
-  display: none;
-}
-.ca-history-badge {
-  font-size: 0.7rem;
-  color: rgba(167,139,250,0.75);
-  background: rgba(139,92,246,0.07);
-  border: 1px solid rgba(139,92,246,0.2);
-  border-radius: 20px;
-  padding: 3px 10px;
-  display: none;
-}
+  /* Results */
+  #ca-results { display: none; }
+  .ca-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .ca-result-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+  }
+  .ca-cache-badge {
+    font-size: 0.7rem;
+    color: rgba(52,211,153,0.7);
+    background: rgba(52,211,153,0.07);
+    border: 1px solid rgba(52,211,153,0.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+    display: none;
+  }
+  .ca-history-badge {
+    font-size: 0.7rem;
+    color: rgba(167,139,250,0.75);
+    background: rgba(139,92,246,0.07);
+    border: 1px solid rgba(139,92,246,0.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+    display: none;
+  }
 
-/* Result action buttons */
-.ca-result-actions {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-.ca-action-btn {
-  padding: 8px 18px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 10px;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  display: none;
-}
-.ca-action-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
-.ca-action-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
+  /* Result action buttons */
+  .ca-result-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .ca-action-btn {
+    padding: 8px 18px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    display: none;
+  }
+  .ca-action-btn:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.9); }
+  .ca-action-btn.copied { color: #34d399; border-color: rgba(52,211,153,0.35); }
 
-/* Warning */
-#ca-warning {
-  display: none;
-  margin-top: 14px;
-  padding: 12px 16px;
-  background: rgba(251,191,36,0.1);
-  border: 1px solid rgba(251,191,36,0.35);
-  border-radius: 12px;
-  font-size: 0.85rem;
-  color: rgba(251,191,36,0.95);
-}
+  /* Warning */
+  #ca-warning {
+    display: none;
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.35);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: rgba(251,191,36,0.95);
+  }
 
-/* Cards */
-.ca-card {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 18px;
-  padding: 36px;
-  margin-bottom: 40px;
-  transition: background 0.2s, opacity 0.3s, transform 0.3s;
-}
-.ca-card:hover { background: rgba(255,255,255,0.08); }
-#ca-cards.fading .ca-card { opacity: 0; transform: translateY(-8px); }
-@keyframes ca-fadein {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.ca-card { animation: ca-fadein 0.4s ease both; }
-.ca-card:nth-child(2) { animation-delay: 0.08s; }
-.ca-card:nth-child(3) { animation-delay: 0.16s; }
-.ca-card-num {
-  display: inline-block;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-.ca-card h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 4px; line-height: 1.3; }
-.ca-price { font-size: 0.92rem; font-weight: 600; color: rgba(167,139,250,0.95); margin-bottom: 14px; }
-.ca-why {
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.6);
-  font-style: italic;
-  margin-bottom: 16px;
-  line-height: 1.6;
-  border-left: 2px solid rgba(139,92,246,0.4);
-  padding-left: 12px;
-}
-.ca-pros { list-style: none; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
-.ca-pros li { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
-.ca-pros li::before { content: '✓'; color: #34d399; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-.ca-con {
-  font-size: 0.85rem;
-  color: rgba(251,191,36,0.85);
-  background: rgba(251,191,36,0.06);
-  border: 1px solid rgba(251,191,36,0.2);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 14px;
-}
-.ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
-.ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
-.ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.ca-blocket-btn, .ca-bytbil-btn {
-  display: inline-block;
-  padding: 7px 16px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 10px;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.8rem;
-  text-decoration: none;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-.ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
-.ca-bytbil-btn:hover { background: rgba(99,211,120,0.1); border-color: rgba(99,211,120,0.35); color: rgba(140,230,160,0.95); }
+  /* Cards */
+  .ca-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 36px;
+    margin-bottom: 40px;
+    transition: background 0.2s, opacity 0.3s, transform 0.3s;
+  }
+  .ca-card:hover { background: rgba(255,255,255,0.08); }
+  #ca-cards.fading .ca-card { opacity: 0; transform: translateY(-8px); }
+  @keyframes ca-fadein {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ca-card { animation: ca-fadein 0.4s ease both; }
+  .ca-card:nth-child(2) { animation-delay: 0.08s; }
+  .ca-card:nth-child(3) { animation-delay: 0.16s; }
+  .ca-card-num {
+    display: inline-block;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .ca-card h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 4px; line-height: 1.3; }
+  .ca-price { font-size: 0.92rem; font-weight: 600; color: rgba(167,139,250,0.95); margin-bottom: 14px; }
+  .ca-why {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.6);
+    font-style: italic;
+    margin-bottom: 16px;
+    line-height: 1.6;
+    border-left: 2px solid rgba(139,92,246,0.4);
+    padding-left: 12px;
+  }
+  .ca-pros { list-style: none; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .ca-pros li { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
+  .ca-pros li::before { content: '✓'; color: #34d399; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .ca-con {
+    font-size: 0.85rem;
+    color: rgba(251,191,36,0.85);
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+  }
+  .ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
+  .ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
+  .ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .ca-blocket-btn, .ca-bytbil-btn {
+    display: inline-block;
+    padding: 7px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
+  .ca-bytbil-btn:hover { background: rgba(99,211,120,0.1); border-color: rgba(99,211,120,0.35); color: rgba(140,230,160,0.95); }
 
-/* Expert opinion block */
-.ca-expert { background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22); border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; }
-.ca-expert-name { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #c4b5fd; display: block; margin-bottom: 5px; }
-.ca-expert-text { font-size: 0.84rem; color: rgba(255,255,255,0.72); line-height: 1.6; font-style: italic; }
+  /* Expert opinion block */
+  .ca-expert { background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22); border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; }
+  .ca-expert-name { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #c4b5fd; display: block; margin-bottom: 5px; }
+  .ca-expert-text { font-size: 0.84rem; color: rgba(255,255,255,0.72); line-height: 1.6; font-style: italic; }
+  /* Euro NCAP safety block */
+  .ca-safety { display: flex; align-items: center; gap: 10px; background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; flex-wrap: wrap; }
+  .ca-safety-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(52,211,153,0.85); background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+  .ca-safety-text { font-size: 0.8rem; color: rgba(255,255,255,0.65); }
 
-/* Groq badge */
-.ca-groq-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 18px;
-  padding: 6px 13px 6px 9px;
-  background: rgba(245,80,54,0.07);
-  border: 1px solid rgba(245,80,54,0.22);
-  border-radius: 20px;
-  font-size: 0.73rem;
-  color: rgba(255,255,255,0.45);
-  letter-spacing: 0.2px;
-  text-decoration: none;
-}
-.ca-groq-name { color: #f87060; font-weight: 800; font-size: 0.8rem; letter-spacing: -0.2px; }
-.ca-groq-icon { width: 14px; height: 14px; fill: #f87060; flex-shrink: 0; }
-</style>
+  /* Groq badge */
+  .ca-groq-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 18px;
+    padding: 6px 13px 6px 9px;
+    background: rgba(245,80,54,0.07);
+    border: 1px solid rgba(245,80,54,0.22);
+    border-radius: 20px;
+    font-size: 0.73rem;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.2px;
+    text-decoration: none;
+  }
+  .ca-groq-name { color: #f87060; font-weight: 800; font-size: 0.8rem; letter-spacing: -0.2px; }
+  .ca-groq-icon { width: 14px; height: 14px; fill: #f87060; flex-shrink: 0; }
+  </style>
 
-<div id="ca-wrap">
-  <div id="ca-hero">
-    <h2>🚗 <span class="ca-title-grad">Hitta din drömbil</span></h2>
-    <p class="ca-sub">Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
+  <div id="ca-wrap">
+    <div id="ca-hero">
+      <h2>🚗 <span class="ca-title-grad">Hitta din drömbil</span></h2>
+      <p class="ca-sub">Berätta vad du behöver – AI:n hittar rätt bil åt dig</p>
 
-    <div class="ca-grid">
-      <div class="ca-field">
-        <label>Bilkategori</label>
-        <select id="ca-category">
-          <option value="ekonomibil">Ekonomibil</option>
-          <option value="familjebil">Familjebil</option>
-          <option value="suv">SUV</option>
-          <option value="elbil">Elektrisk bil</option>
-          <option value="laddhybrid">Laddhybrid</option>
-          <option value="smaabil">Småbil</option>
-        </select>
-      </div>
-      <div class="ca-field">
-        <label>Budget <span class="ca-budget-val" id="ca-budget-display">200 000 kr</span></label>
-        <div class="ca-slider-track">
-          <div id="ca-slider-fill"></div>
-          <input type="range" id="ca-budget-slider" min="50000" max="1000000" step="25000" value="200000">
+      <div class="ca-grid">
+        <div class="ca-field">
+          <label>Bilkategori</label>
+          <select id="ca-category">
+            <option value="ekonomibil">Ekonomibil</option>
+            <option value="familjebil">Familjebil</option>
+            <option value="suv">SUV</option>
+            <option value="elbil">Elektrisk bil</option>
+            <option value="laddhybrid">Laddhybrid</option>
+            <option value="smaabil">Småbil</option>
+          </select>
         </div>
-        <div class="ca-slider-ticks">
-          <span>50k</span><span>200k</span><span>400k</span><span>700k</span><span>1M</span>
+        <div class="ca-field">
+          <label>Budget <span class="ca-budget-val" id="ca-budget-display">200 000 kr</span></label>
+          <div class="ca-slider-track">
+            <div id="ca-slider-fill"></div>
+            <input type="range" id="ca-budget-slider" min="50000" max="1000000" step="25000" value="200000">
+          </div>
+          <div class="ca-slider-ticks">
+            <span>50k</span><span>200k</span><span>400k</span><span>700k</span><span>1M</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="ca-grid">
-      <div class="ca-field">
-        <label>Laddare hemma?</label>
-        <select id="ca-charger">
-          <option value="false">Nej</option>
-          <option value="true">Ja</option>
-        </select>
+      <div class="ca-grid">
+        <div class="ca-field">
+          <label>Laddare hemma?</label>
+          <select id="ca-charger">
+            <option value="false">Nej</option>
+            <option value="true">Ja</option>
+          </select>
+        </div>
+        <div class="ca-field">
+          <label>Mil per år</label>
+          <input type="number" id="ca-km" value="1500" min="100" step="100">
+        </div>
       </div>
-      <div class="ca-field">
-        <label>Mil per år</label>
-        <input type="number" id="ca-km" value="1500" min="100" step="100">
+
+      <div class="ca-grid">
+        <div class="ca-field">
+          <label>Användning</label>
+          <select id="ca-usage">
+            <option value="pendling">Daglig pendling</option>
+            <option value="familj">Familjekörning</option>
+            <option value="landsväg">Mycket landsväg</option>
+            <option value="stad">Mest i stan</option>
+          </select>
+        </div>
+        <div class="ca-field">
+          <label>Passagerare</label>
+          <input type="number" id="ca-passengers" value="4" min="1" max="9">
+        </div>
       </div>
-    </div>
 
-    <div class="ca-grid">
-      <div class="ca-field">
-        <label>Användning</label>
-        <select id="ca-usage">
-          <option value="pendling">Daglig pendling</option>
-          <option value="familj">Familjekörning</option>
-          <option value="landsväg">Mycket landsväg</option>
-          <option value="stad">Mest i stan</option>
-        </select>
+      <div class="ca-grid">
+        <div class="ca-field">
+          <label>Ny eller begagnad?</label>
+          <select id="ca-newcar">
+            <option value="false">Begagnad</option>
+            <option value="true">Ny</option>
+          </select>
+        </div>
+        <div class="ca-field" id="ca-fuel-field">
+          <label>Drivmedel</label>
+          <select id="ca-fuel">
+            <option value="spelar ingen roll">Spelar ingen roll</option>
+            <option value="bensin">Bensin</option>
+            <option value="diesel">Diesel</option>
+            <option value="hybrid">Hybrid (ej laddhybrid)</option>
+          </select>
+        </div>
       </div>
-      <div class="ca-field">
-        <label>Passagerare</label>
-        <input type="number" id="ca-passengers" value="4" min="1" max="9">
+
+      <div id="ca-warning"></div>
+
+      <div id="ca-btn-area">
+        <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+        <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
+        <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
       </div>
-    </div>
 
-    <div class="ca-grid">
-      <div class="ca-field">
-        <label>Ny eller begagnad?</label>
-        <select id="ca-newcar">
-          <option value="false">Begagnad</option>
-          <option value="true">Ny</option>
-        </select>
+      <div id="ca-history-area"></div>
+
+      <div>
+        <span class="ca-groq-badge">
+          <svg class="ca-groq-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>
+          Drivs av <span class="ca-groq-name">Groq AI</span>
+        </span>
       </div>
-      <div class="ca-field" id="ca-fuel-field">
-        <label>Drivmedel</label>
-        <select id="ca-fuel">
-          <option value="spelar ingen roll">Spelar ingen roll</option>
-          <option value="bensin">Bensin</option>
-          <option value="diesel">Diesel</option>
-          <option value="hybrid">Hybrid (ej laddhybrid)</option>
-        </select>
+
+      <div id="ca-loader">
+        <p id="ca-loader-text">AI:n analyserar dina behov…</p>
       </div>
-    </div>
 
-    <div id="ca-warning"></div>
+      <div id="ca-divider"></div>
 
-    <div id="ca-btn-area">
-      <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
-      <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
-      <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
-    </div>
-
-    <div id="ca-history-area"></div>
-
-    <div>
-      <span class="ca-groq-badge">
-        <svg class="ca-groq-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>
-        Drivs av <span class="ca-groq-name">Groq AI</span>
-      </span>
-    </div>
-
-    <div id="ca-loader">
-      <p id="ca-loader-text">AI:n analyserar dina behov…</p>
-    </div>
-
-    <div id="ca-divider"></div>
-
-    <div id="ca-results">
-      <div class="ca-result-header">
-        <span class="ca-result-label" id="ca-result-label">Dina rekommendationer</span>
-        <span class="ca-cache-badge" id="ca-cache-badge"></span>
-        <span class="ca-history-badge" id="ca-history-badge"></span>
+      <div id="ca-results">
+        <div class="ca-result-header">
+          <span class="ca-result-label" id="ca-result-label">Dina rekommendationer</span>
+          <span class="ca-cache-badge" id="ca-cache-badge"></span>
+          <span class="ca-history-badge" id="ca-history-badge"></span>
+        </div>
+        <div class="ca-result-actions">
+          <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
+          <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
+        </div>
+        <div id="ca-cards"></div>
       </div>
-      <div class="ca-result-actions">
-        <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
-        <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
-      </div>
-      <div id="ca-cards"></div>
     </div>
   </div>
-</div>
 
-<script>
-var caHasSearched = false;
-var caInitialValues = {};
-var caLoadingMessages = [
-  'AI:n analyserar dina behov…',
-  'Kollar Bilprovningens statistik…',
-  'Jämför driftkostnader…',
-  'Söker på svenska marknaden…',
-  'Väger pris mot tillförlitlighet…',
-  'Hämtar välrecenserade alternativ…'
-];
-var caLoadingInterval = null;
+  <script>
+  var caHasSearched = false;
+  var caInitialValues = {};
+  var caLoadingMessages = [
+    'AI:n analyserar dina behov…',
+    'Kollar Bilprovningens statistik…',
+    'Jämför driftkostnader…',
+    'Söker på svenska marknaden…',
+    'Väger pris mot tillförlitlighet…',
+    'Hämtar välrecenserade alternativ…'
+  ];
+  var caLoadingInterval = null;
 
-var CA_HISTORY_KEY = 'ca-history';
-var CA_HISTORY_MAX = 5;
-var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
-var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
+  var CA_HISTORY_KEY = 'ca-history';
+  var CA_HISTORY_MAX = 5;
+  var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Småbil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
+  var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
 
-function caStartLoadingText() {
-  var i = 0;
-  document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
-  caLoadingInterval = setInterval(function() {
-    i = (i + 1) % caLoadingMessages.length;
-    document.getElementById('ca-loader-text').textContent = caLoadingMessages[i];
-  }, 2200);
-}
-function caStopLoadingText() {
-  clearInterval(caLoadingInterval);
-  caLoadingInterval = null;
-  document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
-}
+  function caStartLoadingText() {
+    var i = 0;
+    document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
+    caLoadingInterval = setInterval(function() {
+      i = (i + 1) % caLoadingMessages.length;
+      document.getElementById('ca-loader-text').textContent = caLoadingMessages[i];
+    }, 2200);
+  }
+  function caStopLoadingText() {
+    clearInterval(caLoadingInterval);
+    caLoadingInterval = null;
+    document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
+  }
 
-function caUpdateSliderFill() {
-  var slider = document.getElementById('ca-budget-slider');
-  var pct = (parseInt(slider.value) - 50000) / (1000000 - 50000) * 100;
-  document.getElementById('ca-slider-fill').style.width = pct + '%';
-  document.getElementById('ca-budget-display').textContent = parseInt(slider.value).toLocaleString('sv-SE') + ' kr';
-}
+  function caUpdateSliderFill() {
+    var slider = document.getElementById('ca-budget-slider');
+    var pct = (parseInt(slider.value) - 50000) / (1000000 - 50000) * 100;
+    document.getElementById('ca-slider-fill').style.width = pct + '%';
+    document.getElementById('ca-budget-display').textContent = parseInt(slider.value).toLocaleString('sv-SE') + ' kr';
+  }
 
-function caUpdateFuelVisibility() {
-  var cat = document.getElementById('ca-category').value;
-  var fuelField = document.getElementById('ca-fuel-field');
-  var hide = (cat === 'elbil' || cat === 'laddhybrid');
-  fuelField.style.display = hide ? 'none' : '';
-  if (hide) document.getElementById('ca-fuel').value = 'spelar ingen roll';
-}
+  function caUpdateFuelVisibility() {
+    var cat = document.getElementById('ca-category').value;
+    var fuelField = document.getElementById('ca-fuel-field');
+    var hide = (cat === 'elbil' || cat === 'laddhybrid');
+    fuelField.style.display = hide ? 'none' : '';
+    if (hide) document.getElementById('ca-fuel').value = 'spelar ingen roll';
+  }
 
-/* localStorage */
-function caSavePrefs() {
-  try {
-    localStorage.setItem('ca-prefs', JSON.stringify({
+  /* localStorage */
+  function caSavePrefs() {
+    try {
+      localStorage.setItem('ca-prefs', JSON.stringify({
+        category:   document.getElementById('ca-category').value,
+        budget:     document.getElementById('ca-budget-slider').value,
+        charger:    document.getElementById('ca-charger').value,
+        km:         document.getElementById('ca-km').value,
+        usage:      document.getElementById('ca-usage').value,
+        passengers: document.getElementById('ca-passengers').value,
+        newcar:     document.getElementById('ca-newcar').value,
+        fuelType:   document.getElementById('ca-fuel').value
+      }));
+    } catch(e) {}
+  }
+  function caLoadPrefs() {
+    try {
+      var raw = localStorage.getItem('ca-prefs');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.category)   document.getElementById('ca-category').value   = d.category;
+      if (d.budget)   { document.getElementById('ca-budget-slider').value = d.budget; caUpdateSliderFill(); }
+      if (d.charger)    document.getElementById('ca-charger').value     = d.charger;
+      if (d.km)         document.getElementById('ca-km').value          = d.km;
+      if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
+      if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
+      if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
+      if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
+      caUpdateFuelVisibility();
+      caCheckMismatch();
+    } catch(e) {}
+  }
+
+  /* URL params */
+  function caReadUrlParams() {
+    try {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('category'))   document.getElementById('ca-category').value   = p.get('category');
+      if (p.get('budget'))   { document.getElementById('ca-budget-slider').value = p.get('budget'); caUpdateSliderFill(); }
+      if (p.get('charger'))    document.getElementById('ca-charger').value     = p.get('charger');
+      if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
+      if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
+      if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
+      if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
+      if (p.get('fuelType'))   document.getElementById('ca-fuel').value        = p.get('fuelType');
+      if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
+    } catch(e) {}
+  }
+
+  function caSnapshotValues() {
+    caInitialValues = {
       category:   document.getElementById('ca-category').value,
       budget:     document.getElementById('ca-budget-slider').value,
       charger:    document.getElementById('ca-charger').value,
@@ -643,451 +694,405 @@ function caSavePrefs() {
       passengers: document.getElementById('ca-passengers').value,
       newcar:     document.getElementById('ca-newcar').value,
       fuelType:   document.getElementById('ca-fuel').value
-    }));
-  } catch(e) {}
-}
-function caLoadPrefs() {
-  try {
-    var raw = localStorage.getItem('ca-prefs');
-    if (!raw) return;
-    var d = JSON.parse(raw);
-    if (d.category)   document.getElementById('ca-category').value   = d.category;
-    if (d.budget)   { document.getElementById('ca-budget-slider').value = d.budget; caUpdateSliderFill(); }
-    if (d.charger)    document.getElementById('ca-charger').value     = d.charger;
-    if (d.km)         document.getElementById('ca-km').value          = d.km;
-    if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
-    if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
-    if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
-    if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
+    };
+  }
+
+  function caCheckChanges() {
+    if (!caHasSearched) return;
+    var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
+    var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType'];
+    var anyChanged = false;
+    ids.forEach(function(id, i) {
+      var el = document.getElementById(id);
+      var field = el.closest('.ca-field');
+      if (!field) return;
+      var changed = el.value !== caInitialValues[keys[i]];
+      field.classList.toggle('changed', changed);
+      if (changed) anyChanged = true;
+    });
+    var btn = document.getElementById('ca-btn');
+    btn.classList.toggle('has-changes', anyChanged);
+    btn.textContent = anyChanged ? 'Uppdatera resultat →' : 'Sök igen →';
+  }
+
+  function caBindChangeListeners() {
+    var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
+    ids.forEach(function(id) {
+      var el = document.getElementById(id);
+      el.addEventListener('change', caCheckChanges);
+      el.addEventListener('input', caCheckChanges);
+    });
+    ['ca-category','ca-budget-slider'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el.addEventListener('change', caCheckMismatch);
+      el.addEventListener('input', caCheckMismatch);
+    });
+    document.getElementById('ca-category').addEventListener('change', caUpdateFuelVisibility);
+    document.getElementById('ca-budget-slider').addEventListener('input', caUpdateSliderFill);
+  }
+
+  var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
+
+  function caCheckMismatch() {
+    var cat = document.getElementById('ca-category').value;
+    var budget = parseInt(document.getElementById('ca-budget-slider').value) || 0;
+    var max = CA_MAX_BUDGET[cat] || 999999;
+    var warn = document.getElementById('ca-warning');
+    if (budget > max) {
+      warn.style.display = 'block';
+      warn.textContent = '⚠️ ' + (CA_CAT_NAMES[cat] || cat) + ' brukar kosta max ' +
+        max.toLocaleString('sv-SE') + ' kr. Överväg att välja Familjebil, SUV eller Laddhybrid för denna budget.';
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+
+  /* Search history */
+  function caSaveHistory(recommendations) {
+    try {
+      var entry = {
+        category:        document.getElementById('ca-category').value,
+        budget:          document.getElementById('ca-budget-slider').value,
+        charger:         document.getElementById('ca-charger').value,
+        km:              document.getElementById('ca-km').value,
+        usage:           document.getElementById('ca-usage').value,
+        passengers:      document.getElementById('ca-passengers').value,
+        newcar:          document.getElementById('ca-newcar').value,
+        fuelType:        document.getElementById('ca-fuel').value,
+        timestamp:       Date.now(),
+        recommendations: recommendations || []
+      };
+      var history = caGetHistory();
+      var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
+      history = history.filter(function(h) {
+        return (h.category + '|' + h.budget + '|' + h.fuelType + '|' + h.km + '|' + h.usage + '|' + h.newcar) !== key;
+      });
+      history.unshift(entry);
+      history = history.slice(0, CA_HISTORY_MAX);
+      localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
+      caRenderHistory();
+    } catch(e) {}
+  }
+
+  function caGetHistory() {
+    try {
+      var raw = localStorage.getItem(CA_HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function caHistoryLabel(entry) {
+    var cat = CA_CAT_NAMES[entry.category] || entry.category;
+    var budget = parseInt(entry.budget).toLocaleString('sv-SE') + ' kr';
+    var fuel = (entry.fuelType && entry.fuelType !== 'spelar ingen roll') ? ' · ' + (CA_FUEL_NAMES[entry.fuelType] || entry.fuelType) : '';
+    return cat + ' · ' + budget + fuel;
+  }
+
+  function caTimeAgo(ts) {
+    var diff = Date.now() - ts;
+    var mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'nyss';
+    if (mins < 60) return mins + ' min sedan';
+    var hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + ' tim sedan';
+    var days = Math.floor(hours / 24);
+    return days === 1 ? 'igår' : days + ' dagar sedan';
+  }
+
+  function caRenderHistory() {
+    var area = document.getElementById('ca-history-area');
+    var history = caGetHistory();
+    if (history.length === 0) { area.innerHTML = ''; return; }
+    var chips = history.map(function(entry, i) {
+      return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
+        '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
+        '<span class="ca-history-chip-time">· ' + caTimeAgo(entry.timestamp) + '</span>' +
+        '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</span>' +
+        '</button>';
+    }).join('');
+    area.innerHTML = '<div class="ca-history-label">Tidigare sökningar</div><div class="ca-history-chips">' + chips + '</div>';
+  }
+
+  function caDeleteHistory(index) {
+    try {
+      var history = caGetHistory();
+      history.splice(index, 1);
+      localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
+      caRenderHistory();
+    } catch(e) {}
+  }
+
+  function caLoadFromHistory(index) {
+    var history = caGetHistory();
+    var entry = history[index];
+    if (!entry) return;
+    if (entry.category)   document.getElementById('ca-category').value   = entry.category;
+    if (entry.budget)   { document.getElementById('ca-budget-slider').value = entry.budget; caUpdateSliderFill(); }
+    if (entry.charger)    document.getElementById('ca-charger').value     = entry.charger;
+    if (entry.km)         document.getElementById('ca-km').value          = entry.km;
+    if (entry.usage)      document.getElementById('ca-usage').value       = entry.usage;
+    if (entry.passengers) document.getElementById('ca-passengers').value  = entry.passengers;
+    if (entry.newcar)     document.getElementById('ca-newcar').value      = entry.newcar;
+    if (entry.fuelType)   document.getElementById('ca-fuel').value        = entry.fuelType;
     caUpdateFuelVisibility();
     caCheckMismatch();
-  } catch(e) {}
-}
 
-/* URL params */
-function caReadUrlParams() {
-  try {
-    var p = new URLSearchParams(window.location.search);
-    if (p.get('category'))   document.getElementById('ca-category').value   = p.get('category');
-    if (p.get('budget'))   { document.getElementById('ca-budget-slider').value = p.get('budget'); caUpdateSliderFill(); }
-    if (p.get('charger'))    document.getElementById('ca-charger').value     = p.get('charger');
-    if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
-    if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
-    if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
-    if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
-    if (p.get('fuelType'))   document.getElementById('ca-fuel').value        = p.get('fuelType');
-    if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
-  } catch(e) {}
-}
-
-function caSnapshotValues() {
-  caInitialValues = {
-    category:   document.getElementById('ca-category').value,
-    budget:     document.getElementById('ca-budget-slider').value,
-    charger:    document.getElementById('ca-charger').value,
-    km:         document.getElementById('ca-km').value,
-    usage:      document.getElementById('ca-usage').value,
-    passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value,
-    fuelType:   document.getElementById('ca-fuel').value
-  };
-}
-
-function caCheckChanges() {
-  if (!caHasSearched) return;
-  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
-  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType'];
-  var anyChanged = false;
-  ids.forEach(function(id, i) {
-    var el = document.getElementById(id);
-    var field = el.closest('.ca-field');
-    if (!field) return;
-    var changed = el.value !== caInitialValues[keys[i]];
-    field.classList.toggle('changed', changed);
-    if (changed) anyChanged = true;
-  });
-  var btn = document.getElementById('ca-btn');
-  btn.classList.toggle('has-changes', anyChanged);
-  btn.textContent = anyChanged ? 'Uppdatera resultat →' : 'Sök igen →';
-}
-
-function caBindChangeListeners() {
-  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
-  ids.forEach(function(id) {
-    var el = document.getElementById(id);
-    el.addEventListener('change', caCheckChanges);
-    el.addEventListener('input', caCheckChanges);
-  });
-  ['ca-category','ca-budget-slider'].forEach(function(id) {
-    var el = document.getElementById(id);
-    el.addEventListener('change', caCheckMismatch);
-    el.addEventListener('input', caCheckMismatch);
-  });
-  document.getElementById('ca-category').addEventListener('change', caUpdateFuelVisibility);
-  document.getElementById('ca-budget-slider').addEventListener('input', caUpdateSliderFill);
-}
-
-var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
-
-function caCheckMismatch() {
-  var cat = document.getElementById('ca-category').value;
-  var budget = parseInt(document.getElementById('ca-budget-slider').value) || 0;
-  var max = CA_MAX_BUDGET[cat] || 999999;
-  var warn = document.getElementById('ca-warning');
-  if (budget > max) {
-    warn.style.display = 'block';
-    warn.textContent = '⚠️ ' + (CA_CAT_NAMES[cat] || cat) + ' brukar kosta max ' +
-      max.toLocaleString('sv-SE') + ' kr. Överväg att välja Familjebil, SUV eller Laddhybrid för denna budget.';
-  } else {
-    warn.style.display = 'none';
-  }
-}
-
-/* Search history */
-function caSaveHistory(recommendations) {
-  try {
-    var entry = {
-      category:        document.getElementById('ca-category').value,
-      budget:          document.getElementById('ca-budget-slider').value,
-      charger:         document.getElementById('ca-charger').value,
-      km:              document.getElementById('ca-km').value,
-      usage:           document.getElementById('ca-usage').value,
-      passengers:      document.getElementById('ca-passengers').value,
-      newcar:          document.getElementById('ca-newcar').value,
-      fuelType:        document.getElementById('ca-fuel').value,
-      timestamp:       Date.now(),
-      recommendations: recommendations || []
-    };
-    var history = caGetHistory();
-    var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
-    history = history.filter(function(h) {
-      return (h.category + '|' + h.budget + '|' + h.fuelType + '|' + h.km + '|' + h.usage + '|' + h.newcar) !== key;
-    });
-    history.unshift(entry);
-    history = history.slice(0, CA_HISTORY_MAX);
-    localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
-    caRenderHistory();
-  } catch(e) {}
-}
-
-function caGetHistory() {
-  try {
-    var raw = localStorage.getItem(CA_HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch(e) { return []; }
-}
-
-function caHistoryLabel(entry) {
-  var cat = CA_CAT_NAMES[entry.category] || entry.category;
-  var budget = parseInt(entry.budget).toLocaleString('sv-SE') + ' kr';
-  var fuel = (entry.fuelType && entry.fuelType !== 'spelar ingen roll') ? ' · ' + (CA_FUEL_NAMES[entry.fuelType] || entry.fuelType) : '';
-  return cat + ' · ' + budget + fuel;
-}
-
-function caTimeAgo(ts) {
-  var diff = Date.now() - ts;
-  var mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'nyss';
-  if (mins < 60) return mins + ' min sedan';
-  var hours = Math.floor(mins / 60);
-  if (hours < 24) return hours + ' tim sedan';
-  var days = Math.floor(hours / 24);
-  return days === 1 ? 'igår' : days + ' dagar sedan';
-}
-
-function caRenderHistory() {
-  var area = document.getElementById('ca-history-area');
-  var history = caGetHistory();
-  if (history.length === 0) { area.innerHTML = ''; return; }
-  var chips = history.map(function(entry, i) {
-    return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
-      '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
-      '<span class="ca-history-chip-time">· ' + caTimeAgo(entry.timestamp) + '</span>' +
-      '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</span>' +
-      '</button>';
-  }).join('');
-  area.innerHTML = '<div class="ca-history-label">Tidigare sökningar</div><div class="ca-history-chips">' + chips + '</div>';
-}
-
-function caDeleteHistory(index) {
-  try {
-    var history = caGetHistory();
-    history.splice(index, 1);
-    localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
-    caRenderHistory();
-  } catch(e) {}
-}
-
-function caLoadFromHistory(index) {
-  var history = caGetHistory();
-  var entry = history[index];
-  if (!entry) return;
-  if (entry.category)   document.getElementById('ca-category').value   = entry.category;
-  if (entry.budget)   { document.getElementById('ca-budget-slider').value = entry.budget; caUpdateSliderFill(); }
-  if (entry.charger)    document.getElementById('ca-charger').value     = entry.charger;
-  if (entry.km)         document.getElementById('ca-km').value          = entry.km;
-  if (entry.usage)      document.getElementById('ca-usage').value       = entry.usage;
-  if (entry.passengers) document.getElementById('ca-passengers').value  = entry.passengers;
-  if (entry.newcar)     document.getElementById('ca-newcar').value      = entry.newcar;
-  if (entry.fuelType)   document.getElementById('ca-fuel').value        = entry.fuelType;
-  caUpdateFuelVisibility();
-  caCheckMismatch();
-
-  if (entry.recommendations && entry.recommendations.length > 0) {
-    document.getElementById('ca-divider').style.display = 'block';
-    document.getElementById('ca-results').style.display = 'block';
-    document.getElementById('ca-cache-badge').style.display = 'none';
-    caRenderCards(entry.recommendations);
-    document.getElementById('ca-copy-btn').style.display = 'inline-block';
-    document.getElementById('ca-share-result-btn').style.display = 'inline-block';
-    var age = Math.round((Date.now() - entry.timestamp) / 60000);
-    var ageText = age < 1 ? 'nyss' : age < 60 ? age + ' min sedan' : Math.floor(age / 60) + ' tim sedan';
-    var hbadge = document.getElementById('ca-history-badge');
-    hbadge.textContent = '📋 Sparad sökning (' + ageText + ')';
-    hbadge.style.display = 'inline-block';
-    caHasSearched = true;
-    caSnapshotValues();
-    document.getElementById('ca-btn').textContent = 'Sök igen →';
-  } else {
-    caGetRecommendation();
-  }
-}
-
-function caEsc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function caBlocketUrl(title) {
-  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
-  return 'https://www.blocket.se/annonser/hela_sverige/fordon/bilar?q=' + encodeURIComponent(q);
-}
-
-function caBytbilUrl(title) {
-  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
-  var parts = q.split(' ');
-  var make = parts[0].toLowerCase();
-  var model = parts[1] ? parts[1].toLowerCase() : '';
-  return model
-    ? 'https://www.bytbil.com/bil/' + make + '/' + model
-    : 'https://www.bytbil.com/bil/' + make;
-}
-
-function caResetForm() {
-  document.getElementById('ca-category').value   = 'ekonomibil';
-  document.getElementById('ca-budget-slider').value = 200000;
-  document.getElementById('ca-charger').value    = 'false';
-  document.getElementById('ca-km').value         = 1500;
-  document.getElementById('ca-usage').value      = 'pendling';
-  document.getElementById('ca-passengers').value = 4;
-  document.getElementById('ca-newcar').value     = 'false';
-  document.getElementById('ca-fuel').value       = 'spelar ingen roll';
-  caUpdateSliderFill();
-  caUpdateFuelVisibility();
-  caCheckMismatch();
-  if (caHasSearched) caCheckChanges();
-  try { localStorage.removeItem('ca-prefs'); } catch(e) {}
-}
-
-function caSkeletonHTML() {
-  var card = '<div class="ca-skeleton">' +
-    '<div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div>' +
-    '<div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div>' +
-    '<div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div>' +
-    '<div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div>' +
-    '<div class="ca-skeleton-line" style="width:88%"></div>' +
-    '<div class="ca-skeleton-line" style="width:72%"></div>' +
-    '<div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div>' +
-    '<div class="ca-skeleton-line" style="width:100%;height:36px;border-radius:8px;margin-bottom:14px"></div>' +
-    '<div class="ca-skeleton-line" style="width:60%"></div>' +
-    '</div>';
-  return card + card + card;
-}
-
-function caRenderCards(recommendations) {
-  var container = document.getElementById('ca-cards');
-  container.classList.add('fading');
-  setTimeout(function() {
-    container.classList.remove('fading');
-    container.innerHTML = recommendations.map(function(r, i) {
-      var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
-      return '<div class="ca-card">' +
-        '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
-        '<h3>' + caEsc(r.title) + '</h3>' +
-        '<div class="ca-price">' + caEsc(r.price) + '</div>' +
-        '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
-        '<ul class="ca-pros">' + prosHtml + '</ul>' +
-        '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
-        '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
-        (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
-        '<div class="ca-market-links">' +
-        '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket →</a>' +
-        '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil →</a>' +
-        '</div>' +
-        '</div>';
-    }).join('');
-  }, 250);
-}
-
-function caFallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-  document.body.appendChild(ta);
-  ta.focus(); ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-}
-
-function caCopyResult() {
-  var cards = document.querySelectorAll('.ca-card');
-  var lines = ['Mina bilrekommendationer – elitrobban.se/bilradgivning\n'];
-  cards.forEach(function(card, i) {
-    var title = card.querySelector('h3') ? card.querySelector('h3').textContent : '';
-    var price = card.querySelector('.ca-price') ? card.querySelector('.ca-price').textContent : '';
-    var pros = Array.from(card.querySelectorAll('.ca-pros li')).map(function(li) {
-      return '  ✓ ' + li.textContent.trim();
-    }).join('\n');
-    var con = card.querySelector('.ca-con') ? card.querySelector('.ca-con').textContent.trim() : '';
-    lines.push((i + 1) + '. ' + title + '\n' + price + '\n' + pros + '\n' + con);
-  });
-  var text = lines.join('\n\n');
-  var btn = document.getElementById('ca-copy-btn');
-  function confirm() {
-    btn.textContent = '✓ Kopierat!'; btn.classList.add('copied');
-    setTimeout(function() { btn.textContent = 'Kopiera lista'; btn.classList.remove('copied'); }, 2500);
-  }
-  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(confirm).catch(function() { caFallbackCopy(text); confirm(); }); }
-  else { caFallbackCopy(text); confirm(); }
-}
-
-function caShareSearch() {
-  var params = new URLSearchParams({
-    budget:     document.getElementById('ca-budget-slider').value,
-    category:   document.getElementById('ca-category').value,
-    charger:    document.getElementById('ca-charger').value,
-    km:         document.getElementById('ca-km').value,
-    usage:      document.getElementById('ca-usage').value,
-    passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value,
-    fuelType:   document.getElementById('ca-fuel').value
-  });
-  var url = window.location.origin + window.location.pathname + '?' + params.toString();
-  var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
-  function confirmBtn(btn) {
-    if (!btn) return;
-    var orig = btn.textContent;
-    btn.textContent = '✓ Länk kopierad!'; btn.classList.add('copied');
-    setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
-  }
-  var clicked = event && event.target ? event.target : btns[0];
-  if (navigator.share) {
-    navigator.share({ title: 'AI Bilrådgivning', url: url }).catch(function() {});
-  } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(function() { confirmBtn(clicked); }).catch(function() { caFallbackCopy(url); confirmBtn(clicked); });
-  } else {
-    caFallbackCopy(url); confirmBtn(clicked);
-  }
-}
-
-async function caGetRecommendation() {
-  var btn = document.getElementById('ca-btn');
-  var loader = document.getElementById('ca-loader');
-  var results = document.getElementById('ca-results');
-  var divider = document.getElementById('ca-divider');
-
-  btn.disabled = true;
-  btn.textContent = 'Hämtar…';
-  document.getElementById('ca-copy-btn').style.display = 'none';
-  document.getElementById('ca-share-result-btn').style.display = 'none';
-  document.getElementById('ca-cache-badge').style.display = 'none';
-  document.getElementById('ca-history-badge').style.display = 'none';
-  divider.style.display = 'block';
-  results.style.display = 'block';
-  document.getElementById('ca-cards').innerHTML = caSkeletonHTML();
-  loader.style.display = 'block';
-  caStartLoadingText();
-
-  var fuelVal = document.getElementById('ca-fuel').value;
-  var payload = {
-    budget:      parseInt(document.getElementById('ca-budget-slider').value),
-    carCategory: document.getElementById('ca-category').value,
-    hasCharger:  document.getElementById('ca-charger').value === 'true',
-    kmPerYear:   parseInt(document.getElementById('ca-km').value) * 10,
-    usage:       document.getElementById('ca-usage').value,
-    passengers:  parseInt(document.getElementById('ca-passengers').value),
-    newCar:      document.getElementById('ca-newcar').value === 'true',
-    fuelType:    fuelVal
-  };
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
-
-  try {
-    var r = await fetch('https://caradvice.onrender.com/api/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    caStopLoadingText();
-    var d = await r.json();
-
-    loader.style.display = 'none';
-
-    if (d.success && d.recommendations) {
-      caRenderCards(d.recommendations);
+    if (entry.recommendations && entry.recommendations.length > 0) {
+      document.getElementById('ca-divider').style.display = 'block';
+      document.getElementById('ca-results').style.display = 'block';
+      document.getElementById('ca-cache-badge').style.display = 'none';
+      caRenderCards(entry.recommendations);
       document.getElementById('ca-copy-btn').style.display = 'inline-block';
       document.getElementById('ca-share-result-btn').style.display = 'inline-block';
-      if (d.cached) {
-        var age = d.cachedAgeMinutes;
-        var ageText = age < 1 ? 'precis' : age + ' min sedan';
-        var badge = document.getElementById('ca-cache-badge');
-        badge.textContent = '⚡ Cachat svar (' + ageText + ')';
-        badge.style.display = 'inline-block';
-      }
-      caSavePrefs();
-      caSaveHistory(d.recommendations);
+      var age = Math.round((Date.now() - entry.timestamp) / 60000);
+      var ageText = age < 1 ? 'nyss' : age < 60 ? age + ' min sedan' : Math.floor(age / 60) + ' tim sedan';
+      var hbadge = document.getElementById('ca-history-badge');
+      hbadge.textContent = '📋 Sparad sökning (' + ageText + ')';
+      hbadge.style.display = 'inline-block';
+      caHasSearched = true;
+      caSnapshotValues();
+      document.getElementById('ca-btn').textContent = 'Sök igen →';
     } else {
-      document.getElementById('ca-cards').innerHTML =
-        '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
+      caGetRecommendation();
     }
-
-    caHasSearched = true;
-    caSnapshotValues();
-    document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
-    btn.classList.remove('has-changes');
-    btn.disabled = false;
-    btn.textContent = 'Sök igen →';
-
-  } catch (e) {
-    clearTimeout(timeoutId);
-    caStopLoadingText();
-    loader.style.display = 'none';
-    var msg = e.name === 'AbortError'
-      ? '⏱ Servern svarade inte inom 35 sekunder. Render kan ha haft en cold start – försök igen om en stund.'
-      : '🔌 Kunde inte nå servern: ' + e.message;
-    document.getElementById('ca-cards').innerHTML =
-      '<div class="ca-card"><div class="ca-raw">' + msg + '</div></div>';
-    btn.disabled = false;
-    btn.textContent = 'Försök igen →';
   }
-}
 
-// Init — localStorage first, URL params override
-caUpdateSliderFill();
-caLoadPrefs();
-caReadUrlParams();
-caBindChangeListeners();
-caRenderHistory();
+  function caEsc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
-// Auto-search if page was opened via a shared link
-(function() {
-  try {
-    var p = new URLSearchParams(window.location.search);
-    if (p.has('category') || p.has('budget')) caGetRecommendation();
-  } catch(e) {}
-})();
-</script>
+  function caBlocketUrl(title) {
+    var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+    return 'https://www.blocket.se/annonser/hela_sverige/fordon/bilar?q=' + encodeURIComponent(q);
+  }
 
-<script src="https://caradvice.onrender.com/car-advice-chat.js" defer></script>
+  function caBytbilUrl(title) {
+    var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+    var parts = q.split(' ');
+    var make = parts[0].toLowerCase();
+    var model = parts[1] ? parts[1].toLowerCase() : '';
+    return model
+      ? 'https://www.bytbil.com/bil/' + make + '/' + model
+      : 'https://www.bytbil.com/bil/' + make;
+  }
+
+  function caResetForm() {
+    document.getElementById('ca-category').value   = 'ekonomibil';
+    document.getElementById('ca-budget-slider').value = 200000;
+    document.getElementById('ca-charger').value    = 'false';
+    document.getElementById('ca-km').value         = 1500;
+    document.getElementById('ca-usage').value      = 'pendling';
+    document.getElementById('ca-passengers').value = 4;
+    document.getElementById('ca-newcar').value     = 'false';
+    document.getElementById('ca-fuel').value       = 'spelar ingen roll';
+    caUpdateSliderFill();
+    caUpdateFuelVisibility();
+    caCheckMismatch();
+    if (caHasSearched) caCheckChanges();
+    try { localStorage.removeItem('ca-prefs'); } catch(e) {}
+  }
+
+  function caSkeletonHTML() {
+    var card = '<div class="ca-skeleton">' +
+      '<div class="ca-skeleton-line" style="width:28%;height:10px;margin-bottom:18px"></div>' +
+      '<div class="ca-skeleton-line" style="width:68%;height:15px;margin-bottom:8px"></div>' +
+      '<div class="ca-skeleton-line" style="width:38%;height:11px;margin-bottom:20px"></div>' +
+      '<div class="ca-skeleton-line" style="width:100%;height:52px;border-radius:8px;margin-bottom:18px"></div>' +
+      '<div class="ca-skeleton-line" style="width:88%"></div>' +
+      '<div class="ca-skeleton-line" style="width:72%"></div>' +
+      '<div class="ca-skeleton-line" style="width:80%;margin-bottom:18px"></div>' +
+      '<div class="ca-skeleton-line" style="width:100%;height:36px;border-radius:8px;margin-bottom:14px"></div>' +
+      '<div class="ca-skeleton-line" style="width:60%"></div>' +
+      '</div>';
+    return card + card + card;
+  }
+
+  function caRenderCards(recommendations) {
+    var container = document.getElementById('ca-cards');
+    container.classList.add('fading');
+    setTimeout(function() {
+      container.classList.remove('fading');
+      container.innerHTML = recommendations.map(function(r, i) {
+        var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
+        return '<div class="ca-card">' +
+          '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
+          '<h3>' + caEsc(r.title) + '</h3>' +
+          '<div class="ca-price">' + caEsc(r.price) + '</div>' +
+          '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
+          '<ul class="ca-pros">' + prosHtml + '</ul>' +
+          '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
+          '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
+          (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
+          (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
+          '<div class="ca-market-links">' +
+          '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket →</a>' +
+          '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil →</a>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+    }, 250);
+  }
+
+  function caFallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  function caCopyResult() {
+    var cards = document.querySelectorAll('.ca-card');
+    var lines = ['Mina bilrekommendationer – elitrobban.se/bilradgivning\n'];
+    cards.forEach(function(card, i) {
+      var title = card.querySelector('h3') ? card.querySelector('h3').textContent : '';
+      var price = card.querySelector('.ca-price') ? card.querySelector('.ca-price').textContent : '';
+      var pros = Array.from(card.querySelectorAll('.ca-pros li')).map(function(li) {
+        return '  ✓ ' + li.textContent.trim();
+      }).join('\n');
+      var con = card.querySelector('.ca-con') ? card.querySelector('.ca-con').textContent.trim() : '';
+      lines.push((i + 1) + '. ' + title + '\n' + price + '\n' + pros + '\n' + con);
+    });
+    var text = lines.join('\n\n');
+    var btn = document.getElementById('ca-copy-btn');
+    function confirm() {
+      btn.textContent = '✓ Kopierat!'; btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'Kopiera lista'; btn.classList.remove('copied'); }, 2500);
+    }
+    if (navigator.clipboard) { navigator.clipboard.writeText(text).then(confirm).catch(function() { caFallbackCopy(text); confirm(); }); }
+    else { caFallbackCopy(text); confirm(); }
+  }
+
+  function caShareSearch() {
+    var params = new URLSearchParams({
+      budget:     document.getElementById('ca-budget-slider').value,
+      category:   document.getElementById('ca-category').value,
+      charger:    document.getElementById('ca-charger').value,
+      km:         document.getElementById('ca-km').value,
+      usage:      document.getElementById('ca-usage').value,
+      passengers: document.getElementById('ca-passengers').value,
+      newcar:     document.getElementById('ca-newcar').value,
+      fuelType:   document.getElementById('ca-fuel').value
+    });
+    var url = window.location.origin + window.location.pathname + '?' + params.toString();
+    var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
+    function confirmBtn(btn) {
+      if (!btn) return;
+      var orig = btn.textContent;
+      btn.textContent = '✓ Länk kopierad!'; btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
+    }
+    var clicked = event && event.target ? event.target : btns[0];
+    if (navigator.share) {
+      navigator.share({ title: 'AI Bilrådgivning', url: url }).catch(function() {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function() { confirmBtn(clicked); }).catch(function() { caFallbackCopy(url); confirmBtn(clicked); });
+    } else {
+      caFallbackCopy(url); confirmBtn(clicked);
+    }
+  }
+
+  async function caGetRecommendation() {
+    var btn = document.getElementById('ca-btn');
+    var loader = document.getElementById('ca-loader');
+    var results = document.getElementById('ca-results');
+    var divider = document.getElementById('ca-divider');
+
+    btn.disabled = true;
+    btn.textContent = 'Hämtar…';
+    document.getElementById('ca-copy-btn').style.display = 'none';
+    document.getElementById('ca-share-result-btn').style.display = 'none';
+    document.getElementById('ca-cache-badge').style.display = 'none';
+    document.getElementById('ca-history-badge').style.display = 'none';
+    divider.style.display = 'block';
+    results.style.display = 'block';
+    document.getElementById('ca-cards').innerHTML = caSkeletonHTML();
+    loader.style.display = 'block';
+    caStartLoadingText();
+
+    var fuelVal = document.getElementById('ca-fuel').value;
+    var payload = {
+      budget:      parseInt(document.getElementById('ca-budget-slider').value),
+      carCategory: document.getElementById('ca-category').value,
+      hasCharger:  document.getElementById('ca-charger').value === 'true',
+      kmPerYear:   parseInt(document.getElementById('ca-km').value) * 10,
+      usage:       document.getElementById('ca-usage').value,
+      passengers:  parseInt(document.getElementById('ca-passengers').value),
+      newCar:      document.getElementById('ca-newcar').value === 'true',
+      fuelType:    fuelVal
+    };
+
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
+
+    try {
+      var r = await fetch('https://caradvice.onrender.com/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      caStopLoadingText();
+      var d = await r.json();
+
+      loader.style.display = 'none';
+
+      if (d.success && d.recommendations) {
+        caRenderCards(d.recommendations);
+        document.getElementById('ca-copy-btn').style.display = 'inline-block';
+        document.getElementById('ca-share-result-btn').style.display = 'inline-block';
+        if (d.cached) {
+          var age = d.cachedAgeMinutes;
+          var ageText = age < 1 ? 'precis' : age + ' min sedan';
+          var badge = document.getElementById('ca-cache-badge');
+          badge.textContent = '⚡ Cachat svar (' + ageText + ')';
+          badge.style.display = 'inline-block';
+        }
+        caSavePrefs();
+        caSaveHistory(d.recommendations);
+      } else {
+        document.getElementById('ca-cards').innerHTML =
+          '<div class="ca-card"><div class="ca-raw">⚠️ ' + caEsc(d.error || 'Okänt fel') + '</div></div>';
+      }
+
+      caHasSearched = true;
+      caSnapshotValues();
+      document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
+      btn.classList.remove('has-changes');
+      btn.disabled = false;
+      btn.textContent = 'Sök igen →';
+
+    } catch (e) {
+      clearTimeout(timeoutId);
+      caStopLoadingText();
+      loader.style.display = 'none';
+      var msg = e.name === 'AbortError'
+        ? '⏱ Servern svarade inte inom 35 sekunder. Render kan ha haft en cold start – försök igen om en stund.'
+        : '🔌 Kunde inte nå servern: ' + e.message;
+      document.getElementById('ca-cards').innerHTML =
+        '<div class="ca-card"><div class="ca-raw">' + msg + '</div></div>';
+      btn.disabled = false;
+      btn.textContent = 'Försök igen →';
+    }
+  }
+
+  // Init — localStorage first, URL params override
+  caUpdateSliderFill();
+  caLoadPrefs();
+  caReadUrlParams();
+  caBindChangeListeners();
+  caRenderHistory();
+
+  // Auto-search if page was opened via a shared link
+  (function() {
+    try {
+      var p = new URLSearchParams(window.location.search);
+      if (p.has('category') || p.has('budget')) caGetRecommendation();
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="https://caradvice.onrender.com/car-advice-chat.js" defer></script>

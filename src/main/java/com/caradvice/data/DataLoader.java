@@ -1,24 +1,33 @@
 package com.caradvice.data;
 
 import com.caradvice.model.ExpertInsight;
+import com.caradvice.model.SafetyRating;
 import com.caradvice.repository.ExpertInsightRepository;
+import com.caradvice.repository.SafetyRatingRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class DataLoader implements CommandLineRunner {
 
-    private final ExpertInsightRepository repo;
+    private final ExpertInsightRepository expertRepo;
+    private final SafetyRatingRepository safetyRepo;
 
-    public DataLoader(ExpertInsightRepository repo) {
-        this.repo = repo;
+    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo) {
+        this.expertRepo = expertRepo;
+        this.safetyRepo = safetyRepo;
     }
 
     @Override
     public void run(String... args) {
-        if (repo.count() > 0) return;
+        if (expertRepo.count() == 0) seedInsights();
+        if (safetyRepo.count() == 0) seedSafetyRatings();
+    }
 
-        repo.saveAll(java.util.List.of(
+    private void seedInsights() {
+        expertRepo.saveAll(List.of(
             new ExpertInsight("Erik Naessén", null, null, "elbil", null,
                 "Räkna alltid med 20–25% sämre räckvidd vintertid. En elbil med 500 km WLTP-räckvidd ger realistiskt 370–400 km i kyla. Köper du elbil för pendling är detta sällan ett problem, men för längre resor krävs planering.", null),
 
@@ -57,6 +66,32 @@ public class DataLoader implements CommandLineRunner {
 
             new ExpertInsight("Erik Naessén", null, null, "bensin", null,
                 "En bensinbil i 100–200 hk-klassen är fortfarande det enklaste alternativet för låg körsträcka. Fokusera på servicehistorik och kambältsbyte – det är de vanligaste fallgroparna vid begagnatköp.", null)
+        ));
+    }
+
+    // Data sourced from euroncap.com — verify exact figures at euroncap.com
+    private void seedSafetyRatings() {
+        safetyRepo.saveAll(List.of(
+            new SafetyRating("Tesla",      "Model 3",       2019, 5, 96, 86, 82, 98),
+            new SafetyRating("Tesla",      "Model Y",       2022, 5, 97, 87, 79, 98),
+            new SafetyRating("Volvo",      "XC40",          2018, 5, 97, 89, 76, 75),
+            new SafetyRating("Volvo",      "XC60",          2017, 5, 97, 87, 75, 73),
+            new SafetyRating("Volvo",      "V60",           2018, 5, 96, 82, 71, 80),
+            new SafetyRating("Toyota",     "RAV4",          2019, 5, 97, 86, 80, 74),
+            new SafetyRating("Toyota",     "Yaris",         2020, 5, 98, 87, 65, 90),
+            new SafetyRating("Toyota",     "Corolla",       2019, 5, 96, 91, 82, 75),
+            new SafetyRating("Volkswagen", "Golf",          2020, 5, 95, 89, 71, 87),
+            new SafetyRating("Volkswagen", "ID.4",          2021, 5, 91, 89, 76, 93),
+            new SafetyRating("Hyundai",    "Ioniq 5",       2021, 5, 97, 91, 80, 92),
+            new SafetyRating("Hyundai",    "Tucson",        2021, 5, 97, 91, 74, 79),
+            new SafetyRating("Kia",        "EV6",           2022, 5, 93, 91, 71, 90),
+            new SafetyRating("Kia",        "Sportage",      2022, 5, 94, 89, 71, 85),
+            new SafetyRating("Skoda",      "Octavia",       2021, 5, 98, 89, 74, 74),
+            new SafetyRating("Polestar",   "2",             2020, 5, 94, 90, 77, 98),
+            new SafetyRating("Nissan",     "Leaf",          2018, 5, 88, 89, 69, 60),
+            new SafetyRating("MG",         "ZS",            2022, 4, 79, 84, 74, 68),
+            new SafetyRating("Dacia",      "Sandero",       2021, 3, 61, 55, 61, 23),
+            new SafetyRating("Ford",       "Mustang Mach-E",2022, 5, 91, 89, 71, 91)
         ));
     }
 }

@@ -31,9 +31,11 @@ public class GroqService {
     private String model;
 
     private final ExpertInsightService expertInsightService;
+    private final SafetyRatingService safetyRatingService;
 
-    public GroqService(ExpertInsightService expertInsightService) {
+    public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService) {
         this.expertInsightService = expertInsightService;
+        this.safetyRatingService = safetyRatingService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -91,10 +93,17 @@ public class GroqService {
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
         JsonNode recsNode = mapper.readTree(content).at("/recommendations");
-        List<CarRecommendation> result = mapper.convertValue(
+        List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
         );
+
+        List<CarRecommendation> result = parsed.stream()
+                .map(r -> new CarRecommendation(
+                        r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                        r.fitSummary(), r.expertOpinion(), safetyRatingService.formatForTitle(r.title())
+                ))
+                .toList();
 
         evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
