@@ -1427,6 +1427,14 @@
   caBindChangeListeners();
   caRenderHistory();
 
+  // Export functions to global scope (WordPress scopes scripts so onclick can't find them otherwise)
+  window.caGetRecommendation = caGetRecommendation;
+  window.caShareSearch = caShareSearch;
+  window.caResetForm = caResetForm;
+  window.caCopyResult = caCopyResult;
+  window.caLoadFromHistory = caLoadFromHistory;
+  window.caDeleteHistory = caDeleteHistory;
+
   // Bind all buttons via addEventListener (backup in case WordPress strips onclick)
   function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
   caBindEl('ca-btn', caGetRecommendation);
