@@ -639,8 +639,9 @@ async function caGetRecommendation() {
         badge.textContent = '⚡ Cachat svar (' + ageText + ')';
         badge.style.display = 'inline-block';
       }
-      if (!d.subscriber && typeof d.remainingSearches === 'number') caUpdateSubBar(false, d.remainingSearches);
-      if (d.subscriber) caUpdateSubBar(true, null);
+      if (d.subscriber) caUpdateSubBar(true, false, null);
+      else if (d.loggedIn) caUpdateSubBar(false, true, d.remainingSearches);
+      else caUpdateSubBar(false, false, d.remainingSearches);
       caSavePrefs();
       caSaveHistory(d.recommendations);
     } else {
@@ -673,7 +674,7 @@ function caOpenSubscribe() {
   window.open('https://caradvice.onrender.com/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
 }
 
-function caUpdateSubBar(isSubscriber, remaining) {
+function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
   var bar = document.getElementById('ca-sub-bar');
   var title = document.getElementById('ca-sub-title');
   var desc = document.getElementById('ca-sub-desc');
@@ -692,16 +693,16 @@ function caUpdateSubBar(isSubscriber, remaining) {
     loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
     loginLink.dataset.action = 'subscribe';
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
-  } else if (caEmail) {
+  } else if (isLoggedIn || caEmail) {
     title.textContent = 'Inloggad';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
     loginLink.textContent = 'Logga ut';
     loginLink.href = '#';
     loginLink.dataset.action = 'logout';
-    emailEl.textContent = caEmail; emailEl.style.display = 'inline';
+    if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else {
     title.textContent = 'Demo';
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 gratis s\xf6kningar per timme';
@@ -724,7 +725,8 @@ function caLogoutBar() {
 
 window.addEventListener('storage', function(ev) {
   if (ev.key === 'ca_status') {
-    caUpdateSubBar(ev.newValue === 'active', null);
+    var isActive = ev.newValue === 'active';
+    caUpdateSubBar(isActive, !isActive, null);
   }
 });
 
@@ -734,7 +736,8 @@ window.addEventListener('message', function(ev) {
     if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
     if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
     if (ev.data.status) localStorage.setItem('ca_status', ev.data.status);
-    caUpdateSubBar(ev.data.status === 'active', null);
+    var isActive = ev.data.status === 'active';
+    caUpdateSubBar(isActive, !isActive, null);
   }
   if (ev.data.type === 'CA_LOGOUT') {
     localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
@@ -769,7 +772,9 @@ function caInit() {
 
   try {
     var status = localStorage.getItem('ca_status');
-    caUpdateSubBar(status === 'active', null);
+    var isActive = status === 'active';
+    var hasToken = !!localStorage.getItem('ca_token');
+    caUpdateSubBar(isActive, hasToken && !isActive, null);
   } catch(e) {}
 
   try {

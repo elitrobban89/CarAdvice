@@ -40,8 +40,10 @@ public class CarController {
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
+    private static final int MAX_LOGGED_IN_REQUESTS_PER_HOUR = 30;
 
     private static final int CHAT_RATE_LIMIT = 10;
+    private static final int CHAT_LOGGED_IN_RATE_LIMIT = 30;
     private static final long CHAT_WINDOW_MS = 60_000L;
     private final ConcurrentHashMap<String, Deque<Long>> chatTimestamps = new ConcurrentHashMap<>();
 
@@ -73,10 +75,15 @@ public class CarController {
                                        @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(request);
         boolean subscriber = userService.isActiveSubscriber(auth);
-        if (!subscriber && isRateLimited(ip, MAX_REQUESTS_PER_HOUR)) {
+        boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (!subscriber && isRateLimited(ip, limit)) {
+            String msg = loggedIn
+                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
+                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!";
             return ResponseEntity.status(429).body(Map.of(
                     "success", false,
-                    "error", "Du har använt dina 10 gratis sökningar denna timme. Prenumerera för obegränsade sökningar!",
+                    "error", msg,
                     "rateLimited", true
             ));
         }
@@ -86,7 +93,8 @@ public class CarController {
             body.put("success", true);
             body.put("recommendations", result.recommendations());
             body.put("subscriber", subscriber);
-            if (!subscriber) body.put("remainingSearches", remainingSearches(ip, MAX_REQUESTS_PER_HOUR));
+            body.put("loggedIn", loggedIn);
+            if (!subscriber) body.put("remainingSearches", remainingSearches(ip, limit));
             if (result.fromCache()) {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
@@ -105,12 +113,14 @@ public class CarController {
                                   @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
+        boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        int chatLimit = loggedIn ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
         synchronized (times) {
             while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
-            if (!subscriber && times.size() >= CHAT_RATE_LIMIT)
-                return ResponseEntity.status(429).body(Map.of("error", "För många frågor — prenumerera för obegränsad åtkomst.", "rateLimited", true));
+            if (!subscriber && times.size() >= chatLimit)
+                return ResponseEntity.status(429).body(Map.of("error", "För många frågor — vänta en minut och försök igen.", "rateLimited", true));
             times.addLast(now);
         }
         try {
@@ -130,11 +140,13 @@ public class CarController {
                                                             @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
+        boolean loggedInStream = subscriber || userService.isLoggedIn(auth);
+        int chatLimitStream = loggedInStream ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
         synchronized (times) {
             while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
-            if (!subscriber && times.size() >= CHAT_RATE_LIMIT)
+            if (!subscriber && times.size() >= chatLimitStream)
                 return ResponseEntity.status(429).build();
             times.addLast(now);
         }
