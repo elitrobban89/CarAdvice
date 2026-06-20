@@ -39,7 +39,8 @@ public class CarController {
     private final UserService userService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
-    private static final int MAX_REQUESTS_PER_HOUR = 30;
+    private static final int MAX_REQUESTS_PER_HOUR = 10;
+    private static final int MAX_SUBSCRIBER_REQUESTS_PER_HOUR = 30;
 
     private static final int CHAT_RATE_LIMIT = 10;
     private static final long CHAT_WINDOW_MS = 60_000L;
@@ -72,11 +73,15 @@ public class CarController {
     public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request,
                                        @RequestHeader(value = "Authorization", required = false) String auth) {
         String ip = getClientIp(request);
-        boolean subscriber = userService.isActiveSubscriber(auth);
-        if (!subscriber && isRateLimited(ip)) {
+        boolean loggedIn = userService.isLoggedIn(auth);
+        int limit = loggedIn ? MAX_SUBSCRIBER_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (isRateLimited(ip, limit)) {
+            String msg = loggedIn
+                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
+                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!";
             return ResponseEntity.status(429).body(Map.of(
                     "success", false,
-                    "error", "Du har använt dina 10 gratis sökningar denna timme. Prenumerera för obegränsade sökningar!",
+                    "error", msg,
                     "rateLimited", true
             ));
         }
@@ -85,8 +90,8 @@ public class CarController {
             Map<String, Object> body = new HashMap<>();
             body.put("success", true);
             body.put("recommendations", result.recommendations());
-            body.put("subscriber", subscriber);
-            if (!subscriber) body.put("remainingSearches", remainingSearches(ip));
+            body.put("subscriber", loggedIn);
+            body.put("remainingSearches", remainingSearches(ip, limit));
             if (result.fromCache()) {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
@@ -225,7 +230,7 @@ public class CarController {
         return request.getRemoteAddr();
     }
 
-    private boolean isRateLimited(String ip) {
+    private boolean isRateLimited(String ip, int limit) {
         long now = System.currentTimeMillis();
         long windowStart = now - 3_600_000;
         ipRequestLog.compute(ip, (k, times) -> {
@@ -234,11 +239,11 @@ public class CarController {
             updated.add(now);
             return updated;
         });
-        return ipRequestLog.get(ip).size() > MAX_REQUESTS_PER_HOUR;
+        return ipRequestLog.get(ip).size() > limit;
     }
 
-    private int remainingSearches(String ip) {
+    private int remainingSearches(String ip, int limit) {
         List<Long> times = ipRequestLog.getOrDefault(ip, List.of());
-        return Math.max(0, MAX_REQUESTS_PER_HOUR - times.size());
+        return Math.max(0, limit - times.size());
     }
 }

@@ -686,7 +686,8 @@ function caUpdateSubBar(isSubscriber, remaining) {
   bar.classList.remove('ca-sub-bar-limited');
   if (isSubscriber) {
     title.textContent = '✓ Prenumerant';
-    desc.textContent = ' – obegr\xe4nsade s\xf6kningar';
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'none';
     loginLink.textContent = 'Konto';
     loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
@@ -694,8 +695,8 @@ function caUpdateSubBar(isSubscriber, remaining) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else if (caEmail) {
     title.textContent = 'Inloggad';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
     loginLink.textContent = 'Logga ut';
@@ -704,8 +705,8 @@ function caUpdateSubBar(isSubscriber, remaining) {
     emailEl.textContent = caEmail; emailEl.style.display = 'inline';
   } else {
     title.textContent = 'Demo';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 gratis s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 gratis s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
     loginLink.textContent = 'Logga in';
