@@ -11,6 +11,8 @@ import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,8 @@ import java.util.Optional;
 
 @Service
 public class StripeService {
+
+    private static final Logger log = LoggerFactory.getLogger(StripeService.class);
 
     @Value("${stripe.secret.key}")
     private String secretKey;
@@ -76,6 +80,7 @@ public class StripeService {
 
         EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
 
+        log.info("Stripe webhook received: {}", event.getType());
         switch (event.getType()) {
             case "checkout.session.completed" -> {
                 if (deserializer.getObject().isPresent()) {
@@ -116,20 +121,29 @@ public class StripeService {
                         deserializer.getObject().get() instanceof Subscription sub) {
                     String customerId = sub.getCustomer();
                     LocalDateTime endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
+                    log.info("Subscription event — customerId={} endsAt={}", customerId, endsAt);
                     Optional<User> userOpt = userRepo.findByStripeCustomerId(customerId);
                     if (userOpt.isEmpty()) {
+                        log.info("No user found by stripeCustomerId, trying email lookup");
                         try {
                             Customer customer = Customer.retrieve(customerId);
+                            log.info("Stripe customer email={}", customer.getEmail());
                             if (customer.getEmail() != null)
                                 userOpt = userRepo.findByEmail(customer.getEmail());
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) {
+                            log.error("Failed to retrieve Stripe customer: {}", e.getMessage());
+                        }
                     }
-                    userOpt.ifPresent(u -> {
-                        u.setStripeCustomerId(customerId);
-                        u.setSubscriptionStatus("active");
-                        if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
-                        userRepo.save(u);
-                    });
+                    if (userOpt.isPresent()) {
+                        log.info("Activating subscription for user={}", userOpt.get().getEmail());
+                        userOpt.get().setStripeCustomerId(customerId);
+                        userOpt.get().setSubscriptionStatus("active");
+                        if (endsAt != null) userOpt.get().setSubscriptionEndsAt(endsAt);
+                        userRepo.save(userOpt.get());
+                        log.info("Subscription activated successfully");
+                    } else {
+                        log.warn("Could not find user for customerId={}", customerId);
+                    }
                 }
             }
         }
