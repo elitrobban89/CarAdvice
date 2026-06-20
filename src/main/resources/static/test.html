@@ -391,28 +391,55 @@ function caRenderCards(recommendations) {
 function caRenderCompare(recs) {
   var cmp = document.getElementById('ca-compare');
   if (!cmp || !recs || recs.length < 2) return;
+  var hasEv = recs.some(function(r){ return r.evSpec; });
+  var S = 'style="';
+  var th = S+'padding:11px 14px;text-align:left;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.08)"';
+  var td = S+'padding:10px 14px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.04)"';
+  var tl = S+'padding:10px 14px;font-size:.72rem;font-weight:700;color:rgba(255,255,255,.3);white-space:nowrap;vertical-align:middle;letter-spacing:.03em;border-bottom:1px solid rgba(255,255,255,.04)"';
+  function cell(r, fn) { return '<td '+td+'>'+fn(r)+'</td>'; }
+  function evCell(r, fn) {
+    if (!r.evSpec) return '<td '+td+'><span style="color:rgba(255,255,255,.2)">&#x2013;</span></td>';
+    return '<td '+td+'>'+fn(r.evSpec)+'</td>';
+  }
+  function chip(text, color) { return '<span style="display:inline-block;font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:20px;background:'+color+';white-space:nowrap">'+text+'</span>'; }
   var headerCells = recs.map(function(r, i) {
-    var short = r.title.split(' ').slice(0, 3).join(' ');
-    return '<th style="padding:10px 12px;text-align:left;font-weight:700;color:#c4b5fd;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.08)">Bil '+(i+1)+'<br><span style="font-weight:500;color:#e2e8f0;font-size:.78rem">'+caEsc(short)+'</span></th>';
+    var short = r.title.replace(/\s*\(\d{4}\)\s*$/, '').split(' ').slice(0, 4).join(' ');
+    return '<th '+th+'><span style="font-size:.65rem;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em">Bil '+(i+1)+'</span><br><span style="font-weight:700;color:#e2e8f0;font-size:.82rem">'+caEsc(short)+'</span></th>';
   }).join('');
-  var rowDefs = [
-    { label: 'Pris',      fn: function(r){ return '<span style="color:#a5f3fc;font-weight:600">'+caEsc(r.price)+'</span>'; } },
-    { label: 'Fördelar',  fn: function(r){ return '<ul style="margin:0;padding-left:14px">'+(r.pros||[]).map(function(p){return'<li style="font-size:.76rem;color:rgba(255,255,255,.7);margin-bottom:2px">'+caEsc(p)+'</li>';}).join('')+'</ul>'; } },
-    { label: 'Nackdel',   fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } },
-    { label: 'Passar för',fn: function(r){ return '<span style="color:rgba(255,255,255,.65);font-size:.8rem">'+caEsc(r.fitSummary)+'</span>'; } }
+  var rows = [
+    { label: '&#x1F4B0; Pris', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
+    { label: '&#x2714; F&#xf6;rdelar', fn: function(r){
+      return '<ul style="margin:0;padding-left:14px">'+(r.pros||[]).map(function(p){
+        return '<li style="font-size:.77rem;color:rgba(255,255,255,.7);margin-bottom:3px">'+caEsc(p)+'</li>';
+      }).join('')+'</ul>';
+    }},
+    { label: '&#x26A0; Nackdel', fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } }
   ];
-  var rowsHtml = rowDefs.map(function(row) {
-    return '<tr style="border-bottom:1px solid rgba(255,255,255,.05)">'+
-      '<td style="padding:10px 12px;font-size:.74rem;color:rgba(255,255,255,.38);white-space:nowrap;vertical-align:top">'+row.label+'</td>'+
-      recs.map(function(r){ return '<td style="padding:10px 12px;vertical-align:top">'+row.fn(r)+'</td>'; }).join('')+
-    '</tr>';
+  if (hasEv) {
+    rows.push({ label: '&#x1F4CF; WLTP', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.wltpKm > 0 ? chip(ev.wltpKm+' km','rgba(56,189,248,.15)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x2600;&#xFE0F; Sommar', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.summerKm > 0 ? chip('~'+ev.summerKm+' km','rgba(59,130,246,.18)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x2744;&#xFE0F; Vinter', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.winterKm > 0 ? chip('~'+ev.winterKm+' km','rgba(148,163,184,.15)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x1F50B; Laddning', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.daysLabel ? '<span style="font-size:.8rem;color:#fcd34d;font-weight:600">'+caEsc(ev.daysLabel)+'</span>' : '&#x2013;'; }); } });
+    rows.push({ label: '&#x26A1; DC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
+    rows.push({ label: '&#x1F50C; AC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh','rgba(56,189,248,.1)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x1F4CA; Prisv&#xe4;rdhet', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.valueLabel ? chip(caEsc(ev.valueLabel),'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>'; }); } });
+  }
+  var rowsHtml = rows.map(function(row) {
+    var cells = row.evOnly
+      ? recs.map(function(r){ return row.fn(r); }).join('')
+      : recs.map(function(r){ return cell(r, row.fn); }).join('');
+    return '<tr><td '+tl+'>'+row.label+'</td>'+cells+'</tr>';
   }).join('');
   cmp.innerHTML =
-    '<div style="background:rgba(255,255,255,.025);border:1px solid rgba(139,92,246,.2);border-radius:16px;overflow:hidden;margin-top:28px">'+
-      '<div style="padding:14px 16px 0;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.65)">Jämförelsevy</div>'+
+    '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(139,92,246,.18);border-radius:18px;overflow:hidden;margin-top:8px">'+
+      '<div style="padding:16px 18px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.06)">'+
+        '<span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.7)">J&#xe4;mf&#xf6;r bilar</span>'+
+        (hasEv ? '<span style="font-size:.7rem;color:rgba(255,255,255,.28)">inkl. elbilsdata</span>' : '')+
+      '</div>'+
       '<div style="overflow-x:auto">'+
-        '<table style="width:100%;border-collapse:collapse;font-size:.84rem">'+
-          '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.08)"><th style="padding:10px 12px"></th>'+headerCells+'</tr></thead>'+
+        '<table style="width:100%;border-collapse:collapse;min-width:420px">'+
+          '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.08)"><th style="padding:10px 14px;width:110px"></th>'+headerCells+'</tr></thead>'+
           '<tbody>'+rowsHtml+'</tbody>'+
         '</table>'+
       '</div>'+
