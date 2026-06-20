@@ -220,8 +220,8 @@ public class GroqService {
     private String buildSystemPrompt(String expertContext) {
         String base = """
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa+motivering","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil"}]}
-                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary ska vara konkret och personlig.
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Erik Naesséns direkta syn på denna bil — max 2 meningar, konkret och i hans typiska raka stil. Basera på expertinsikterna om de finns, annars generell expertbedömning."}]}
+                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska i Naesséns direkta stil.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;

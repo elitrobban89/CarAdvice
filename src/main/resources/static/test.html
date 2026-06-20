@@ -61,7 +61,7 @@
 }
 .ca-field select, .ca-field input[type="number"] {
   width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px; color: #fff; font-size: 1rem; padding: 17px 18px; outline: none;
+  border-radius: 14px; color: #fff; font-size: 1.05rem; padding: 20px 20px; outline: none;
   transition: border-color 0.2s, background 0.2s; appearance: none; -webkit-appearance: none;
 }
 .ca-field select {
@@ -163,6 +163,9 @@
 .ca-pros li::before { content: '✓'; color: #34d399; font-weight: 700; flex-shrink: 0; }
 .ca-con { font-size: 0.85rem; color: rgba(251,191,36,0.85); background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
 .ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
+.ca-expert { background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22); border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; }
+.ca-expert-name { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #c4b5fd; display: block; margin-bottom: 5px; }
+.ca-expert-text { font-size: 0.84rem; color: rgba(255,255,255,0.72); line-height: 1.6; font-style: italic; }
 .ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .ca-blocket-btn, .ca-bytbil-btn { display: inline-block; padding: 7px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: rgba(255,255,255,0.55); font-size: 0.8rem; text-decoration: none; }
 .ca-blocket-btn:hover { background: rgba(255,165,0,0.12); border-color: rgba(255,165,0,0.4); color: rgba(255,200,80,0.95); }
@@ -325,6 +328,7 @@ function caRenderCards(recommendations) {
       '<ul class="ca-pros">'+prosHtml+'</ul>'+
       '<div class="ca-con">⚠ '+caEsc(r.con)+'</div>'+
       '<div class="ca-fit">'+caEsc(r.fitSummary)+'</div>'+
+      (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '')+
       '<div class="ca-market-links">'+
         '<a class="ca-blocket-btn" href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener">Blocket →</a>'+
         '<a class="ca-bytbil-btn" href="'+caBytbilUrl(r.title)+'" target="_blank" rel="noopener">Bytbil →</a>'+

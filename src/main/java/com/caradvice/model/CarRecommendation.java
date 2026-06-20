@@ -8,5 +8,6 @@ public record CarRecommendation(
         String whyRecommended,
         List<String> pros,
         String con,
-        String fitSummary
+        String fitSummary,
+        String expertOpinion
 ) {}
