@@ -242,7 +242,7 @@ Startar EV-spec-synken manuellt. Kräver `X-Admin-Key`-header.
 
 ```bash
 curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
-  -H "X-Admin-Key: caradvice-admin-2024"
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 # → {"status":"sync started — check server logs for result"}
 ```
 
@@ -276,7 +276,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `DB_URL` | PostgreSQL JDBC-URL |
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
-| `ADMIN_KEY` | Nyckel för admin-endpoints (default: `caradvice-admin-2024`) |
+| `ADMIN_KEY` | Nyckel för admin-endpoints — sätt ett starkt slumpmässigt värde i Render |
 
 EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — ingen lokal dator behövs.
 
