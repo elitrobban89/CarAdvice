@@ -104,9 +104,11 @@ public class EvDatabaseScraperService {
                 if (changed) {
                     repo.save(match);
                     updated++;
-                    log.info("Updated {}: range={}km bat={}kWh DC={}kW AC={}kW",
+                    log.info("Updated {}: range={}km bat={}kWh DC={}kW AC={}kW price={}kr",
                             match.getCarName(), scraped.rangeKm(), scraped.batteryKwh(),
-                            scraped.dcKw(), scraped.acKw());
+                            scraped.dcKw(), scraped.acKw(), scraped.priceKr());
+                } else if (scraped.priceKr() == 0) {
+                    log.debug("No price found on page for: {}", scraped.name());
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
