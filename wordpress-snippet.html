@@ -730,6 +730,16 @@
     var d = document.getElementById('ca-js-error');
     if (d) { d.textContent = 'JS-fel rad ' + line + ': ' + msg; d.style.display = 'block'; }
   };
+
+  // Pre-declare onclick functions on window immediately so WordPress scope can't hide them
+  // (WordPress wraps Custom HTML scripts in a closure; onclick looks in global window scope)
+  window.caGetRecommendation = function() { caGetRecommendation(); };
+  window.caShareSearch       = function() { caShareSearch(); };
+  window.caResetForm         = function() { caResetForm(); };
+  window.caCopyResult        = function() { caCopyResult(); };
+  window.caLoadFromHistory   = function(i) { caLoadFromHistory(i); };
+  window.caDeleteHistory     = function(i) { caDeleteHistory(i); };
+
   var caHasSearched = false;
   var caInitialValues = {};
   var caLoadingMessages = [
