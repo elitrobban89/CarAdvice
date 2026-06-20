@@ -9,7 +9,9 @@
         var _orig = window.caRenderCards;
         window.caRenderCards = function(recs) {
           window._caRecommendations = recs;
-          return _orig.call(this, recs);
+          var result = _orig.call(this, recs);
+          caChatSetRecsContext(recs);
+          return result;
         };
         window.caRenderCards.__caHooked = true;
       }
@@ -17,6 +19,55 @@
     document.addEventListener('DOMContentLoaded', hook);
     setTimeout(hook, 500);
   })();
+
+  function shortName(title) {
+    return title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  }
+
+  function caChatSetRecsContext(recs) {
+    if (!recs || !recs.length) return;
+    var names = recs.slice(0, 3).map(function(r) { return shortName(r.title); });
+
+    // Update FAB label
+    var labelEl = document.querySelector('.ca-chat-fab-label');
+    if (labelEl) labelEl.textContent = '💬 Fråga om ' + names[0];
+
+    // Update quick chips
+    caChatUpdateQuickChips(recs, names);
+
+    // Update greeting or post contextual note
+    var hasUserMsgs = caChatHistory.some(function(m) { return m.role === 'user'; });
+    if (!hasUserMsgs) {
+      var firstBot = document.querySelector('#ca-chat-messages .ca-chat-bubble.bot');
+      if (firstBot) {
+        firstBot.innerHTML = caChatMarkdown(
+          'Bra sökning! Du fick förslag på **' + names.join(', ') + '** 🚗\n\nVill du jämföra dem, veta mer om någon specifik bil, eller få hjälp med något annat?'
+        );
+      }
+    } else {
+      var panelOpen = document.getElementById('ca-chat-panel') &&
+                      document.getElementById('ca-chat-panel').style.display !== 'none';
+      if (panelOpen) {
+        caChatAppendBot('Ny sökning klar! Förslag: **' + names.join(', ') + '**. Fråga mig vad du vill veta!', true);
+      }
+    }
+  }
+
+  function caChatUpdateQuickChips(recs, names) {
+    var quick = document.getElementById('ca-chat-quick');
+    if (!quick) return;
+    var chips = [];
+    if (names.length >= 1) chips.push({ label: '🔍 Berätta om ' + names[0], q: 'Berätta mer om ' + names[0] + ' — vad är för- och nackdelarna?' });
+    if (names.length >= 2) chips.push({ label: '⚖️ Jämför ' + names[0] + ' vs ' + names[1], q: 'Jämför ' + names[0] + ' och ' + names[1] + ' — vilken passar mig bäst?' });
+    chips.push({ label: '🎯 Vilken passar mig bäst?', q: 'Av ' + names.join(', ') + ' — vilken passar mig bäst baserat på mina önskemål?' });
+    if (names.length >= 1) chips.push({ label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + names[0] + ' per månad? Skatt, försäkring och driftkostnad.' });
+    quick.innerHTML = chips.slice(0, 4).map(function(c) {
+      return '<button class="ca-chat-quick-btn" data-q="' + c.q.replace(/"/g, '&quot;') + '">' + c.label + '</button>';
+    }).join('');
+    quick.querySelectorAll('.ca-chat-quick-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { caChatSendMessage(btn.dataset.q); });
+    });
+  }
 
   function buildCarContext() {
     var recs = window._caRecommendations;
