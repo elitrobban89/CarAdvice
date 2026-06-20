@@ -866,16 +866,20 @@
     var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
     ids.forEach(function(id) {
       var el = document.getElementById(id);
+      if (!el) return;
       el.addEventListener('change', caCheckChanges);
       el.addEventListener('input', caCheckChanges);
     });
     ['ca-category','ca-budget-slider'].forEach(function(id) {
       var el = document.getElementById(id);
+      if (!el) return;
       el.addEventListener('change', caCheckMismatch);
       el.addEventListener('input', caCheckMismatch);
     });
-    document.getElementById('ca-category').addEventListener('change', caUpdateFuelVisibility);
-    document.getElementById('ca-budget-slider').addEventListener('input', caUpdateSliderFill);
+    var cat = document.getElementById('ca-category');
+    var bud = document.getElementById('ca-budget-slider');
+    if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
+    if (bud) bud.addEventListener('input', caUpdateSliderFill);
   }
 
   var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
@@ -1426,49 +1430,53 @@
     }
   });
 
-  // Init — localStorage first, URL params override
-  caUpdateSliderFill();
-  caLoadPrefs();
-  caReadUrlParams();
-  caBindChangeListeners();
-  caRenderHistory();
+  function caInit() {
+    // Register functions in the global dispatcher
+    window._caFns = {
+      recommend: caGetRecommendation,
+      share: caShareSearch,
+      reset: caResetForm,
+      copy: caCopyResult,
+      history: caLoadFromHistory,
+      delHistory: caDeleteHistory
+    };
 
-  // Register functions in the global dispatcher (window._ca is defined at top of script)
-  window._caFns = {
-    recommend: caGetRecommendation,
-    share: caShareSearch,
-    reset: caResetForm,
-    copy: caCopyResult,
-    history: caLoadFromHistory,
-    delHistory: caDeleteHistory
-  };
+    // Init — localStorage first, URL params override
+    caUpdateSliderFill();
+    caLoadPrefs();
+    caReadUrlParams();
+    caBindChangeListeners();
+    caRenderHistory();
 
-  // Bind all buttons via addEventListener (backup in case WordPress strips onclick)
-  function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
-  caBindEl('ca-btn', caGetRecommendation);
-  caBindEl('ca-share-search-btn', caShareSearch);
-  caBindEl('ca-reset-btn', caResetForm);
-  caBindEl('ca-copy-btn', caCopyResult);
-  caBindEl('ca-share-result-btn', caShareSearch);
-  caBindEl('ca-login-link', function(e) { if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); } });
-  caBindEl('ca-prenumerera-btn', function(e) { e.preventDefault(); caOpenSubscribe(); });
+    // Bind all buttons via addEventListener (backup if onclick is stripped)
+    function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
+    caBindEl('ca-btn', caGetRecommendation);
+    caBindEl('ca-share-search-btn', caShareSearch);
+    caBindEl('ca-reset-btn', caResetForm);
+    caBindEl('ca-copy-btn', caCopyResult);
+    caBindEl('ca-share-result-btn', caShareSearch);
+    caBindEl('ca-login-link', function(e) { if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); } });
+    caBindEl('ca-prenumerera-btn', function(e) { e.preventDefault(); caOpenSubscribe(); });
 
-  // Show "script loaded" indicator so we can confirm script runs
-  (function() { var el = document.getElementById('ca-script-ok'); if (el) el.style.display = 'inline'; })();
+    // Init subscription bar
+    try {
+      var status = localStorage.getItem('ca_status');
+      caUpdateSubBar(status === 'active', null);
+    } catch(e) {}
 
-  // Init subscription bar — wrapped in try/catch so any DOM error doesn't break the rest
-  try {
-    var status = localStorage.getItem('ca_status');
-    caUpdateSubBar(status === 'active', null);
-  } catch(e) {}
-
-  // Auto-search if page was opened via a shared link
-  (function() {
+    // Auto-search if page was opened via a shared link
     try {
       var p = new URLSearchParams(window.location.search);
       if (p.has('category') || p.has('budget')) caGetRecommendation();
     } catch(e) {}
-  })();
+  }
+
+  // Run init when DOM is ready — safe regardless of when WordPress executes this script
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', caInit);
+  } else {
+    caInit();
+  }
   </script>
 
   <script src="https://caradvice.onrender.com/car-advice-chat.js" defer></script>
