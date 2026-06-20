@@ -110,7 +110,7 @@ public class StripeService {
                     });
                 }
             }
-            case "customer.subscription.resumed", "invoice.payment_succeeded" -> {
+            case "customer.subscription.created", "customer.subscription.resumed", "invoice.payment_succeeded" -> {
                 if (deserializer.getObject().isPresent() &&
                         deserializer.getObject().get() instanceof Subscription sub) {
                     String customerId = sub.getCustomer();
