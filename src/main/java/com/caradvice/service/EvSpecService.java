@@ -20,20 +20,34 @@ public class EvSpecService {
     public EvSpecDto formatForTitle(String title, int kmPerYear) {
         if (title == null) return null;
         String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
-        String[] words = cleaned.split("\\s+");
+        String[] titleWords = cleaned.split("\\s+");
 
         List<EvSpec> all = repo.findAll();
-        return all.stream()
+
+        // Pass 1: all title words appear in stored name (title is subset of stored name)
+        EvSpec match = all.stream()
                 .filter(ev -> {
                     String name = normalize(ev.getCarName());
-                    for (String w : words) {
-                        if (!name.contains(w)) return false;
-                    }
+                    for (String w : titleWords) if (!name.contains(w)) return false;
                     return true;
                 })
-                .findFirst()
-                .map(ev -> toDto(ev, kmPerYear))
-                .orElse(null);
+                .findFirst().orElse(null);
+
+        // Pass 2: all stored-name words appear in title (stored name is subset of title)
+        // e.g. "Tesla Model 3" matches "Tesla Model 3 Long Range"
+        if (match == null) {
+            match = all.stream()
+                    .filter(ev -> {
+                        String[] nameWords = normalize(ev.getCarName()).split("\\s+");
+                        for (String w : nameWords) if (!cleaned.contains(w)) return false;
+                        return true;
+                    })
+                    .max(java.util.Comparator.comparingInt(ev ->
+                            normalize(ev.getCarName()).split("\\s+").length))
+                    .orElse(null);
+        }
+
+        return match == null ? null : toDto(match, kmPerYear);
     }
 
     private EvSpecDto toDto(EvSpec spec, int kmPerYear) {
