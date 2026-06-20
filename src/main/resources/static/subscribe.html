@@ -76,7 +76,8 @@
       <button class="btn btn-stripe" id="stripeBtn" onclick="startCheckout()">Betala med kort (Stripe)</button>
     </div>
     <div id="activeSection" style="display:none;">
-      <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">Du har en aktiv prenumeration – tack!</p>
+      <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">✓ Aktiv prenumeration</p>
+      <p id="subEndsAt" style="color:#888;font-size:0.85rem;margin-top:6px;"></p>
     </div>
     <button class="btn btn-logout" onclick="logout()">Logga ut</button>
   </div>
@@ -168,10 +169,10 @@ function saveAndShow(data) {
   if (window.opener) {
     window.opener.postMessage({ type: 'CA_LOGIN', token: data.token, email: data.email, status: data.subscriptionStatus }, '*');
   }
-  showLoggedIn(data.email, data.subscriptionStatus);
+  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt);
 }
 
-function showLoggedIn(email, status) {
+function showLoggedIn(email, status, endsAt) {
   document.getElementById('authView').style.display = 'none';
   document.getElementById('loggedInView').style.display = 'block';
   document.getElementById('userEmail').textContent = email;
@@ -181,8 +182,10 @@ function showLoggedIn(email, status) {
     badge.className = 'status-badge status-active';
     document.getElementById('subscribeSection').style.display = 'none';
     document.getElementById('activeSection').style.display = 'block';
+    const endsEl = document.getElementById('subEndsAt');
+    endsEl.textContent = endsAt ? 'Förnyas ' + endsAt : '';
   } else {
-    badge.textContent = 'Demo';
+    badge.textContent = 'Inte prenumerant';
     badge.className = 'status-badge status-inactive';
     document.getElementById('subscribeSection').style.display = 'block';
     document.getElementById('activeSection').style.display = 'none';
@@ -222,7 +225,7 @@ async function logout() {
     if (r.ok) {
       const data = await r.json();
       localStorage.setItem('ca_status', data.subscriptionStatus);
-      showLoggedIn(data.email, data.subscriptionStatus);
+      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt);
     }
   } catch(e) {}
 })();

@@ -5,6 +5,8 @@ import com.caradvice.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -51,11 +53,16 @@ public class AuthController {
         return ResponseEntity.ok(userDto(user.get()));
     }
 
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("d MMMM yyyy",
+            java.util.Locale.forLanguageTag("sv"));
+
     private Map<String, Object> userDto(User u) {
-        return Map.of(
-                "email", u.getEmail(),
-                "token", u.getSessionToken() != null ? u.getSessionToken() : "",
-                "subscriptionStatus", u.getSubscriptionStatus()
-        );
+        Map<String, Object> m = new HashMap<>();
+        m.put("email", u.getEmail());
+        m.put("token", u.getSessionToken() != null ? u.getSessionToken() : "");
+        m.put("subscriptionStatus", u.getSubscriptionStatus());
+        if (u.getSubscriptionEndsAt() != null)
+            m.put("subscriptionEndsAt", u.getSubscriptionEndsAt().format(DATE_FMT));
+        return m;
     }
 }

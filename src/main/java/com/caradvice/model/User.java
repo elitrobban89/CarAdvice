@@ -29,6 +29,9 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "subscription_ends_at")
+    private LocalDateTime subscriptionEndsAt;
+
     public User() {}
 
     public User(String email, String passwordHash) {
@@ -43,8 +46,10 @@ public class User {
     public String getSubscriptionStatus() { return subscriptionStatus; }
     public String getSessionToken() { return sessionToken; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getSubscriptionEndsAt() { return subscriptionEndsAt; }
 
     public void setStripeCustomerId(String v) { this.stripeCustomerId = v; }
     public void setSubscriptionStatus(String v) { this.subscriptionStatus = v; }
     public void setSessionToken(String v) { this.sessionToken = v; }
+    public void setSubscriptionEndsAt(LocalDateTime v) { this.subscriptionEndsAt = v; }
 }

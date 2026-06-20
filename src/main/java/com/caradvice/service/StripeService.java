@@ -13,6 +13,8 @@ import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Service
@@ -56,6 +58,11 @@ public class StripeService {
         return session.getUrl();
     }
 
+    private LocalDateTime toLocalDateTime(Long epochSeconds) {
+        if (epochSeconds == null || epochSeconds == 0) return null;
+        return LocalDateTime.ofEpochSecond(epochSeconds, 0, ZoneOffset.UTC);
+    }
+
     public void handleWebhook(String payload, String sigHeader) throws Exception {
         Stripe.apiKey = secretKey;
 
@@ -75,9 +82,19 @@ public class StripeService {
                     String userIdStr = session.getMetadata().get("userId");
                     String customerId = session.getCustomer();
                     if (userIdStr != null) {
+                        String subscriptionId = session.getSubscription();
+                        LocalDateTime endsAt = null;
+                        if (subscriptionId != null) {
+                            try {
+                                Subscription sub = Subscription.retrieve(subscriptionId);
+                                endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
+                            } catch (Exception ignored) {}
+                        }
+                        final LocalDateTime finalEndsAt = endsAt;
                         userRepo.findById(Long.parseLong(userIdStr)).ifPresent(u -> {
                             u.setStripeCustomerId(customerId);
                             u.setSubscriptionStatus("active");
+                            if (finalEndsAt != null) u.setSubscriptionEndsAt(finalEndsAt);
                             userRepo.save(u);
                         });
                     }
@@ -97,8 +114,10 @@ public class StripeService {
                 if (deserializer.getObject().isPresent() &&
                         deserializer.getObject().get() instanceof Subscription sub) {
                     String customerId = sub.getCustomer();
+                    LocalDateTime endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
                     userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
                         u.setSubscriptionStatus("active");
+                        if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
                         userRepo.save(u);
                     });
                 }
