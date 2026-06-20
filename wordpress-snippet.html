@@ -602,13 +602,13 @@
         <div id="ca-sub-left"><strong id="ca-sub-title">Demo</strong> <span id="ca-sub-desc">– 10 gratis sökningar per timme</span></div>
         <div id="ca-sub-right">
           <span class="ca-sub-user-email" id="ca-sub-email" style="display:none"></span>
-          <button id="ca-login-link" onclick="caOpenSubscribe()">Logga in</button>
-          <a id="ca-prenumerera-btn" href="#" onclick="event.preventDefault();caOpenSubscribe()">Prenumerera – 99 kr/mån</a>
+          <button id="ca-login-link">Logga in</button>
+          <a id="ca-prenumerera-btn" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera – 99 kr/mån</a>
         </div>
       </div>
       <div class="ca-rate-limit-box" id="ca-rate-limit-box">
         ⏱ Du har använt alla 10 gratis sökningar den här timmen.
-        <a href="#" onclick="event.preventDefault();caOpenSubscribe()">Prenumerera för 99 kr/mån</a> och få obegränsade sökningar!
+        <a id="ca-rate-limit-link" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera för 99 kr/mån</a> och få obegränsade sökningar!
       </div>
 
       <div class="ca-grid">
@@ -1365,7 +1365,7 @@
       desc.textContent = ' – obegränsade sökningar';
       prenBtn.style.display = 'none';
       loginLink.textContent = 'Konto';
-      loginLink.onclick = function() { caOpenSubscribe(); };
+      loginLink.dataset.action = 'subscribe';
       if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
     } else if (caEmail) {
       title.textContent = 'Inloggad';
@@ -1374,7 +1374,7 @@
       prenBtn.style.display = 'inline-block';
       prenBtn.textContent = 'Prenumerera – 99 kr/mån';
       loginLink.textContent = 'Logga ut';
-      loginLink.onclick = function() { caLogoutBar(); };
+      loginLink.dataset.action = 'logout';
       emailEl.textContent = caEmail; emailEl.style.display = 'inline';
     } else {
       title.textContent = 'Demo';
@@ -1383,7 +1383,7 @@
       prenBtn.style.display = 'inline-block';
       prenBtn.textContent = 'Prenumerera – 99 kr/mån';
       loginLink.textContent = 'Logga in';
-      loginLink.onclick = function() { caOpenSubscribe(); };
+      loginLink.dataset.action = 'subscribe';
       emailEl.style.display = 'none';
     }
   }
@@ -1422,6 +1422,12 @@
     var status = localStorage.getItem('ca_status');
     caUpdateSubBar(status === 'active', null);
   })();
+
+  // Wire up login/subscribe buttons via addEventListener (WordPress strips onclick attributes)
+  document.getElementById('ca-login-link').addEventListener('click', function() {
+    if (this.dataset.action === 'logout') caLogoutBar(); else caOpenSubscribe();
+  });
+  document.getElementById('ca-prenumerera-btn').addEventListener('click', function(e) { e.preventDefault(); caOpenSubscribe(); });
 
   // Auto-search if page was opened via a shared link
   (function() {
