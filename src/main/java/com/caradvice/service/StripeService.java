@@ -2,11 +2,12 @@ package com.caradvice.service;
 
 import com.caradvice.model.User;
 import com.caradvice.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Customer;
 import com.stripe.model.Event;
-import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
@@ -24,6 +25,7 @@ import java.util.Optional;
 public class StripeService {
 
     private static final Logger log = LoggerFactory.getLogger(StripeService.class);
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Value("${stripe.secret.key}")
     private String secretKey;
@@ -78,74 +80,86 @@ public class StripeService {
             throw new RuntimeException("Ogiltig webhook-signatur");
         }
 
-        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        String type = event.getType();
+        log.info("Stripe webhook received: {}", type);
 
-        log.info("Stripe webhook received: {}", event.getType());
-        switch (event.getType()) {
+        // Parse raw JSON — works regardless of API version mismatch
+        JsonNode data = mapper.readTree(payload).path("data").path("object");
+
+        switch (type) {
             case "checkout.session.completed" -> {
-                if (deserializer.getObject().isPresent()) {
-                    Session session = (Session) deserializer.getObject().get();
-                    String userIdStr = session.getMetadata().get("userId");
-                    String customerId = session.getCustomer();
-                    if (userIdStr != null) {
-                        String subscriptionId = session.getSubscription();
-                        LocalDateTime endsAt = null;
-                        if (subscriptionId != null) {
-                            try {
-                                Subscription sub = Subscription.retrieve(subscriptionId);
-                                endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
-                            } catch (Exception ignored) {}
-                        }
-                        final LocalDateTime finalEndsAt = endsAt;
-                        userRepo.findById(Long.parseLong(userIdStr)).ifPresent(u -> {
-                            u.setStripeCustomerId(customerId);
-                            u.setSubscriptionStatus("active");
-                            if (finalEndsAt != null) u.setSubscriptionEndsAt(finalEndsAt);
-                            userRepo.save(u);
-                        });
-                    }
-                }
-            }
-            case "customer.subscription.deleted", "customer.subscription.paused" -> {
-                if (deserializer.getObject().isPresent()) {
-                    Subscription sub = (Subscription) deserializer.getObject().get();
-                    String customerId = sub.getCustomer();
-                    userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
-                        u.setSubscriptionStatus("inactive");
+                String userIdStr = data.path("metadata").path("userId").asText(null);
+                String customerId = data.path("customer").asText(null);
+                String subscriptionId = data.path("subscription").asText(null);
+                log.info("checkout.session.completed — userId={} customerId={} subscriptionId={}", userIdStr, customerId, subscriptionId);
+                if (userIdStr != null && customerId != null) {
+                    LocalDateTime endsAt = fetchSubscriptionEnd(subscriptionId);
+                    final String cid = customerId;
+                    final LocalDateTime ea = endsAt;
+                    userRepo.findById(Long.parseLong(userIdStr)).ifPresentOrElse(u -> {
+                        u.setStripeCustomerId(cid);
+                        u.setSubscriptionStatus("active");
+                        if (ea != null) u.setSubscriptionEndsAt(ea);
                         userRepo.save(u);
-                    });
+                        log.info("Activated subscription for userId={}", u.getId());
+                    }, () -> log.warn("User not found for userId={}", userIdStr));
                 }
             }
             case "customer.subscription.created", "customer.subscription.resumed", "invoice.payment_succeeded" -> {
-                if (deserializer.getObject().isPresent() &&
-                        deserializer.getObject().get() instanceof Subscription sub) {
-                    String customerId = sub.getCustomer();
-                    LocalDateTime endsAt = toLocalDateTime(sub.getCurrentPeriodEnd());
-                    log.info("Subscription event — customerId={} endsAt={}", customerId, endsAt);
-                    Optional<User> userOpt = userRepo.findByStripeCustomerId(customerId);
-                    if (userOpt.isEmpty()) {
-                        log.info("No user found by stripeCustomerId, trying email lookup");
-                        try {
-                            Customer customer = Customer.retrieve(customerId);
-                            log.info("Stripe customer email={}", customer.getEmail());
-                            if (customer.getEmail() != null)
-                                userOpt = userRepo.findByEmail(customer.getEmail());
-                        } catch (Exception e) {
-                            log.error("Failed to retrieve Stripe customer: {}", e.getMessage());
-                        }
-                    }
-                    if (userOpt.isPresent()) {
-                        log.info("Activating subscription for user={}", userOpt.get().getEmail());
-                        userOpt.get().setStripeCustomerId(customerId);
-                        userOpt.get().setSubscriptionStatus("active");
-                        if (endsAt != null) userOpt.get().setSubscriptionEndsAt(endsAt);
-                        userRepo.save(userOpt.get());
-                        log.info("Subscription activated successfully");
-                    } else {
-                        log.warn("Could not find user for customerId={}", customerId);
-                    }
+                String customerId = data.path("customer").asText(null);
+                long periodEnd = data.path("current_period_end").asLong(0);
+                LocalDateTime endsAt = toLocalDateTime(periodEnd > 0 ? periodEnd : null);
+                log.info("{} — customerId={} endsAt={}", type, customerId, endsAt);
+                activateByCustomerId(customerId, endsAt);
+            }
+            case "customer.subscription.deleted", "customer.subscription.paused" -> {
+                String customerId = data.path("customer").asText(null);
+                log.info("{} — customerId={}", type, customerId);
+                if (customerId != null) {
+                    userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
+                        u.setSubscriptionStatus("inactive");
+                        userRepo.save(u);
+                        log.info("Deactivated subscription for user={}", u.getEmail());
+                    });
                 }
             }
+        }
+    }
+
+    private LocalDateTime fetchSubscriptionEnd(String subscriptionId) {
+        if (subscriptionId == null) return null;
+        try {
+            Subscription sub = Subscription.retrieve(subscriptionId);
+            return toLocalDateTime(sub.getCurrentPeriodEnd());
+        } catch (Exception e) {
+            log.warn("Could not fetch subscription {}: {}", subscriptionId, e.getMessage());
+            return null;
+        }
+    }
+
+    private void activateByCustomerId(String customerId, LocalDateTime endsAt) {
+        if (customerId == null) return;
+        Optional<User> userOpt = userRepo.findByStripeCustomerId(customerId);
+        if (userOpt.isEmpty()) {
+            log.info("No user by stripeCustomerId={}, trying email lookup", customerId);
+            try {
+                Customer customer = Customer.retrieve(customerId);
+                String email = customer.getEmail();
+                log.info("Stripe customer email={}", email);
+                if (email != null) userOpt = userRepo.findByEmail(email.toLowerCase());
+            } catch (Exception e) {
+                log.error("Failed to retrieve Stripe customer {}: {}", customerId, e.getMessage());
+            }
+        }
+        if (userOpt.isPresent()) {
+            User u = userOpt.get();
+            u.setStripeCustomerId(customerId);
+            u.setSubscriptionStatus("active");
+            if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
+            userRepo.save(u);
+            log.info("Subscription activated for user={}", u.getEmail());
+        } else {
+            log.warn("Could not find user for customerId={}", customerId);
         }
     }
 }
