@@ -688,9 +688,9 @@
       <div id="ca-warning"></div>
 
       <div id="ca-btn-area">
-        <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
-        <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
-        <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
+        <button id="ca-btn" onclick="window._ca('recommend')">Hitta min bil →</button>
+        <button id="ca-share-search-btn" onclick="window._ca('share')">Dela sökning</button>
+        <button id="ca-reset-btn" onclick="window._ca('reset')">Nollställ</button>
       </div>
 
       <div id="ca-history-area"></div>
@@ -715,8 +715,8 @@
           <span class="ca-history-badge" id="ca-history-badge"></span>
         </div>
         <div class="ca-result-actions">
-          <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
-          <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
+          <button class="ca-action-btn" id="ca-copy-btn" onclick="window._ca('copy')">Kopiera lista</button>
+          <button class="ca-action-btn" id="ca-share-result-btn" onclick="window._ca('share')">Dela länk</button>
         </div>
         <div id="ca-cards"></div>
         <div id="ca-compare"></div>
@@ -731,14 +731,10 @@
     if (d) { d.textContent = 'JS-fel rad ' + line + ': ' + msg; d.style.display = 'block'; }
   };
 
-  // Pre-declare onclick functions on window immediately so WordPress scope can't hide them
-  // (WordPress wraps Custom HTML scripts in a closure; onclick looks in global window scope)
-  window.caGetRecommendation = function() { caGetRecommendation(); };
-  window.caShareSearch       = function() { caShareSearch(); };
-  window.caResetForm         = function() { caResetForm(); };
-  window.caCopyResult        = function() { caCopyResult(); };
-  window.caLoadFromHistory   = function(i) { caLoadFromHistory(i); };
-  window.caDeleteHistory     = function(i) { caDeleteHistory(i); };
+  // Single global dispatcher — defined at top so onclick can always find it
+  window._ca = function(action, arg) {
+    if (window._caFns && window._caFns[action]) window._caFns[action](arg);
+  };
 
   var caHasSearched = false;
   var caInitialValues = {};
@@ -955,10 +951,10 @@
     var history = caGetHistory();
     if (history.length === 0) { area.innerHTML = ''; return; }
     var chips = history.map(function(entry, i) {
-      return '<button class="ca-history-chip" onclick="caLoadFromHistory(' + i + ')">' +
+      return '<button class="ca-history-chip" onclick="window._ca(\'history\',' + i + ')">' +
         '<span class="ca-history-chip-text">' + caEsc(caHistoryLabel(entry)) + '</span>' +
         '<span class="ca-history-chip-time">· ' + caTimeAgo(entry.timestamp) + '</span>' +
-        '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteHistory(' + i + ')" title="Ta bort">×</span>' +
+        '<span class="ca-history-chip-del" onclick="event.stopPropagation();window._ca(\'delHistory\',' + i + ')" title="Ta bort">×</span>' +
         '</button>';
     }).join('');
     area.innerHTML = '<div class="ca-history-label">Tidigare sökningar</div><div class="ca-history-chips">' + chips + '</div>';
@@ -1437,13 +1433,15 @@
   caBindChangeListeners();
   caRenderHistory();
 
-  // Export functions to global scope (WordPress scopes scripts so onclick can't find them otherwise)
-  window.caGetRecommendation = caGetRecommendation;
-  window.caShareSearch = caShareSearch;
-  window.caResetForm = caResetForm;
-  window.caCopyResult = caCopyResult;
-  window.caLoadFromHistory = caLoadFromHistory;
-  window.caDeleteHistory = caDeleteHistory;
+  // Register functions in the global dispatcher (window._ca is defined at top of script)
+  window._caFns = {
+    recommend: caGetRecommendation,
+    share: caShareSearch,
+    reset: caResetForm,
+    copy: caCopyResult,
+    history: caLoadFromHistory,
+    delHistory: caDeleteHistory
+  };
 
   // Bind all buttons via addEventListener (backup in case WordPress strips onclick)
   function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
