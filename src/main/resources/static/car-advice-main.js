@@ -788,7 +788,26 @@ function caInit() {
     var status = localStorage.getItem('ca_status');
     var isActive = status === 'active';
     var hasToken = !!localStorage.getItem('ca_token');
+    // Hide subscribe button immediately if we have a token — /api/auth/me will correct it
+    if (hasToken) {
+      var pb = document.getElementById('ca-prenumerera-btn');
+      if (pb) pb.style.display = 'none';
+    }
     caUpdateSubBar(isActive, hasToken && !isActive, null);
+  } catch(e) {}
+
+  try {
+    var caToken = localStorage.getItem('ca_token');
+    if (caToken) {
+      fetch('https://caradvice.onrender.com/api/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + caToken }
+      }).then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+        if (!d) return;
+        localStorage.setItem('ca_status', d.subscriptionStatus || 'inactive');
+        var active = d.subscriptionStatus === 'active';
+        caUpdateSubBar(active, !active, null);
+      }).catch(function() {});
+    }
   } catch(e) {}
 
   try {
