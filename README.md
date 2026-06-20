@@ -83,10 +83,22 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
   ```
 - Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar
 
+### Prenumeration & betalning (Stripe — testläge)
+
+> **Stripe körs för närvarande i testläge.** Inga riktiga betalningar genomförs. Testkort: `4242 4242 4242 4242`, valfritt datum och CVC.
+
+- Anonyma användare får **max 10 sökningar per timme** (IP-baserat)
+- Prenumeranter (99 kr/mån) får **obegränsade sökningar**
+- Konto skapas på `/subscribe.html` — öppnas i nytt fönster
+- Betalning via Stripe Checkout (hosted betalningssida)
+- Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
+- Stripe webhook uppdaterar status automatiskt vid betalning, avslut och paus
+- WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och **"Prenumerera – 99 kr/mån"**-knapp
+
 ### Övrigt
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
 - Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
-- IP-baserad rate limiting: max 10 förfrågningar per IP och timme
+- IP-baserad rate limiting: max 10 förfrågningar per IP och timme (kringgås för prenumeranter)
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
@@ -104,6 +116,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
+| Autentisering | spring-security-crypto (BCrypt), opaka sessionstoken |
+| Betalning | Stripe (testläge) — Checkout + webhooks |
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
 | Deploy | Render.com (Docker) |
 | Monitorering | UptimeRobot |
@@ -121,7 +135,9 @@ CarAdvice/
     ├── java/com/caradvice/
     │   ├── CarAdviceApplication.java
     │   ├── controller/
-    │   │   └── CarController.java  ← REST-endpoints + admin sync-trigger
+    │   │   ├── AuthController.java    ← /api/auth/register, login, logout, me
+    │   │   ├── CarController.java     ← REST-endpoints + admin sync-trigger
+    │   │   └── StripeController.java  ← /api/stripe/checkout, /api/stripe/webhook
     │   ├── data/
     │   │   └── DataLoader.java     ← Seeder: expertinsikter, EV-specs, cargo-specs
     │   ├── model/
@@ -131,12 +147,14 @@ CarAdvice/
     │   │   ├── CargoSpecDto.java
     │   │   ├── EvSpec.java             ← JPA-entity: elbilsdata
     │   │   ├── EvSpecDto.java
-    │   │   └── ExpertInsight.java
+    │   │   ├── ExpertInsight.java
+    │   │   └── User.java               ← JPA-entity: användarkonto + prenumerationsstatus
     │   ├── repository/
     │   │   ├── CargoSpecRepository.java
     │   │   ├── EvSpecRepository.java
     │   │   ├── ExpertInsightRepository.java
-    │   │   └── SafetyRatingRepository.java
+    │   │   ├── SafetyRatingRepository.java
+    │   │   └── UserRepository.java
     │   ├── scraper/
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
     │   │   └── EvSpecSyncScheduler.java       ← @Scheduled cron 03:00 UTC
@@ -145,12 +163,17 @@ CarAdvice/
     │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
     │       ├── ExpertInsightService.java
     │       ├── GroqService.java        ← Groq AI, cache, felhantering
-    │       └── SafetyRatingService.java
+    │       ├── SafetyRatingService.java
+    │       ├── StripeService.java      ← Checkout-session, webhook-hantering
+    │       └── UserService.java        ← Register/login (BCrypt), sessionstoken
     └── resources/
         ├── application.properties
         └── static/
             ├── car-advice-chat.js  ← Chattbot-UI (serveras av Render, laddas av WordPress)
+            ├── cancel.html         ← Visas om Stripe-betalning avbryts
             ├── manifest.json       ← PWA-manifest
+            ├── subscribe.html      ← Login/register + Stripe Checkout (öppnas i nytt fönster)
+            ├── success.html        ← Visas efter lyckad Stripe-betalning
             └── test.html           ← Lokal testmiljö
 ```
 
@@ -251,6 +274,17 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 { "status": "OK" }
 ```
 
+### Auth-endpoints
+
+| Endpoint | Metod | Beskrivning |
+|---|---|---|
+| `/api/auth/register` | POST | Skapa konto `{ email, password }` → `{ email, token, subscriptionStatus }` |
+| `/api/auth/login` | POST | Logga in `{ email, password }` → `{ email, token, subscriptionStatus }` |
+| `/api/auth/logout` | POST | Ogiltigförklara sessionstoken (Bearer-header) |
+| `/api/auth/me` | GET | Hämta inloggad användares info (Bearer-header) |
+| `/api/stripe/checkout` | POST | Skapa Stripe Checkout-session → `{ url }` (Bearer-header krävs) |
+| `/api/stripe/webhook` | POST | Stripe webhook — uppdaterar prenumerationsstatus automatiskt |
+
 ---
 
 ## Databastabeller
@@ -261,6 +295,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
+| `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, sessionstoken |
 
 ---
 
@@ -277,6 +312,10 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
 | `ADMIN_KEY` | Nyckel för admin-endpoints — sätt ett starkt slumpmässigt värde i Render |
+| `STRIPE_SECRET_KEY` | Stripe API-nyckel (`sk_test_...` i testläge, `sk_live_...` i produktion) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE_PRICE_ID` | Stripe Price ID för prenumerationsprodukten (`price_...`) |
+| `APP_BASE_URL` | Bas-URL för success/cancel-redirect (`https://caradvice.onrender.com`) |
 
 EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — ingen lokal dator behövs.
 
