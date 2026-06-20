@@ -212,11 +212,8 @@ async function startCheckout() {
 
 function goBack() {
   if (window.opener && !window.opener.closed) {
-    try {
-      var el = window.opener.document.getElementById('ca-wrap');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch(e) {}
-    setTimeout(function() { window.close(); }, 300);
+    window.opener.postMessage({ type: 'CA_SCROLL_TO_APP' }, '*');
+    setTimeout(function() { window.close(); }, 150);
   } else {
     window.location.href = 'https://elitrobban.se/bilradgivning#ca-wrap';
   }

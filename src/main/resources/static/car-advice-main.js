@@ -732,6 +732,11 @@ window.addEventListener('storage', function(ev) {
 
 window.addEventListener('message', function(ev) {
   if (!ev.data || !ev.data.type) return;
+  if (ev.data.type === 'CA_SCROLL_TO_APP') {
+    var el = document.getElementById('ca-wrap');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   if (ev.data.type === 'CA_LOGIN' || ev.data.type === 'CA_SUBSCRIBED') {
     if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
     if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
