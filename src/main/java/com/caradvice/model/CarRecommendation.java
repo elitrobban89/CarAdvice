@@ -13,5 +13,6 @@ public record CarRecommendation(
         @JsonProperty("expertOpinion")   String expertOpinion,
         @JsonProperty("safetyRating")    String safetyRating,
         @JsonProperty("evSpec")          EvSpecDto evSpec,
-        @JsonProperty("cargoSpec")       CargoSpecDto cargoSpec
+        @JsonProperty("cargoSpec")       CargoSpecDto cargoSpec,
+        @JsonProperty("fuelSpec")        FuelSpecDto fuelSpec
 ) {}

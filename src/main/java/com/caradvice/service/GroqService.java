@@ -114,7 +114,7 @@ public class GroqService {
                     try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
                     return new CarRecommendation(
                             r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                            r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo);
+                            r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec());
                 })
                 .toList();
 
@@ -244,7 +244,8 @@ public class GroqService {
     private String buildSystemPrompt(String expertContext) {
         String base = """
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Erik Naesséns direkta syn på denna bil — max 2 meningar, konkret och i hans typiska raka stil. Basera på expertinsikterna om de finns, annars generell expertbedömning."}]}
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Erik Naesséns direkta syn på denna bil — max 2 meningar, konkret och i hans typiska raka stil. Basera på expertinsikterna om de finns, annars generell expertbedömning.","fuelSpec":null}]}
+                För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden. För elbil och laddhybrid: sätt "fuelSpec":null.
                 Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska i Naesséns direkta stil.
 
                 Prisvärda elbilar att aktivt överväga för svenska marknaden 2024–2026:

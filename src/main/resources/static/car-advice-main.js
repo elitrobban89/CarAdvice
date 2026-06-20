@@ -358,6 +358,18 @@ function caEvChips(ev) {
   return '<div class="ca-ev">'+head+'<div class="ca-ev-chips">'+chips+'</div></div>';
 }
 
+function caFuelChips(fuel) {
+  if (!fuel) return '';
+  var chips = '';
+  if (fuel.consumptionLiterPerMil > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x26FD; ' + fuel.consumptionLiterPerMil.toFixed(1) + ' l/mil</span>';
+  if (fuel.gearbox) chips += '<span class="ca-ev-chip ca-ev-charge">&#x2699;&#xFE0F; ' + caEsc(fuel.gearbox) + '</span>';
+  if (fuel.horsepower > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; ' + fuel.horsepower + ' hk</span>';
+  if (fuel.engineVolumeLiters > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F527; ' + fuel.engineVolumeLiters.toFixed(1) + ' L motor</span>';
+  if (!chips) return '';
+  var head = '<div class="ca-ev-head"><span class="ca-ev-badge">&#x26FD; Bensin/Diesel</span></div>';
+  return '<div class="ca-ev">' + head + '<div class="ca-ev-chips">' + chips + '</div></div>';
+}
+
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
@@ -383,6 +395,7 @@ function caRenderCards(recommendations) {
           (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Erik Naess\xe9n</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
           (r.evSpec ? caEvChips(r.evSpec) : '') +
+          (r.fuelSpec ? caFuelChips(r.fuelSpec) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
           '<button class="ca-ask-btn" data-idx="' + i + '" data-title="' + caEsc(r.title) + '">&#x1F4AC; Fr\xe5ga om Bil ' + (i + 1) + ' &mdash; ' + caEsc(r.title.replace(/\s*\(\d{4}\)\s*$/, '')) + '</button>' +
           '<div class="ca-market-links">' +
@@ -414,7 +427,8 @@ function caRenderCards(recommendations) {
 function caRenderCompare(recs) {
   var cmp = document.getElementById('ca-compare');
   if (!cmp || !recs || recs.length < 2) return;
-  var hasEv = recs.some(function(r){ return r.evSpec; });
+  var hasEv   = recs.some(function(r){ return r.evSpec; });
+  var hasFuel = recs.some(function(r){ return r.fuelSpec; });
   var S = 'style="';
   var th = S+'padding:11px 14px;text-align:left;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.08)"';
   var td = S+'padding:10px 14px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.04)"';
@@ -446,6 +460,24 @@ function caRenderCompare(recs) {
       return txt;
     }}
   ];
+  if (hasFuel) {
+    rows.push({ label: '&#x26FD; F\xf6rbrukning', fn: function(r){
+      if (!r.fuelSpec || r.fuelSpec.consumptionLiterPerMil <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return chip(r.fuelSpec.consumptionLiterPerMil.toFixed(1)+' l/mil','rgba(251,146,60,.15)');
+    }});
+    rows.push({ label: '&#x2699;&#xFE0F; V\xe4xell\xe5da', fn: function(r){
+      if (!r.fuelSpec || !r.fuelSpec.gearbox) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return '<span style="font-size:.78rem;color:rgba(255,255,255,.75)">'+caEsc(r.fuelSpec.gearbox)+'</span>';
+    }});
+    rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r){
+      if (!r.fuelSpec || r.fuelSpec.horsepower <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return chip(r.fuelSpec.horsepower+' hk','rgba(139,92,246,.18)');
+    }});
+    rows.push({ label: '&#x1F527; Motorvolym', fn: function(r){
+      if (!r.fuelSpec || r.fuelSpec.engineVolumeLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return chip(r.fuelSpec.engineVolumeLiters.toFixed(1)+' L','rgba(56,189,248,.1)');
+    }});
+  }
   if (hasEv) {
     rows.push({ label: '&#x1F4CF; WLTP', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.wltpKm > 0 ? chip(ev.wltpKm+' km','rgba(56,189,248,.15)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x2600;&#xFE0F; Sommar', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.summerKm > 0 ? chip('~'+ev.summerKm+' km','rgba(59,130,246,.18)') : '&#x2013;'; }); } });
@@ -662,8 +694,8 @@ function caUpdateSubBar(isSubscriber, remaining) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else if (caEmail) {
     title.textContent = 'Inloggad';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
     loginLink.textContent = 'Logga ut';
@@ -672,8 +704,8 @@ function caUpdateSubBar(isSubscriber, remaining) {
     emailEl.textContent = caEmail; emailEl.style.display = 'inline';
   } else {
     title.textContent = 'Demo';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 gratis s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 gratis s\xf6kningar per timme';
+    if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
     loginLink.textContent = 'Logga in';

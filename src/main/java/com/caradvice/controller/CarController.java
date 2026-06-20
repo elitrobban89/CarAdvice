@@ -39,7 +39,7 @@ public class CarController {
     private final UserService userService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
-    private static final int MAX_REQUESTS_PER_HOUR = 10;
+    private static final int MAX_REQUESTS_PER_HOUR = 30;
 
     private static final int CHAT_RATE_LIMIT = 10;
     private static final long CHAT_WINDOW_MS = 60_000L;
