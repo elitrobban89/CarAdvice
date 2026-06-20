@@ -32,6 +32,9 @@
   .pricing ul { text-align: left; margin-top: 10px; list-style: none; }
   .pricing ul li { padding: 4px 0; color: #444; font-size: 0.9rem; }
   .pricing ul li::before { content: "✓ "; color: #27ae60; font-weight: 700; }
+  .test-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; font-size: 0.82rem; color: #856404; line-height: 1.5; }
+  .test-banner strong { display: block; margin-bottom: 2px; }
+  .test-banner code { background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 4px; font-family: monospace; }
   .logged-in-view { display: none; }
   .user-email { font-weight: 600; color: #1a1a2e; }
   .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 8px; }
@@ -48,6 +51,11 @@
   <div class="logo">
     <h1>BilRådgivning</h1>
     <p>Logga in eller skapa ett konto</p>
+  </div>
+
+  <div class="test-banner">
+    <strong>🧪 Testläge – inga riktiga betalningar</strong>
+    Använd testkort: <code>4242 4242 4242 4242</code> · Valfritt utgångsdatum · Valfri CVC
   </div>
 
   <!-- Logged-in view -->
