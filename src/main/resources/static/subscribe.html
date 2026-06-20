@@ -212,9 +212,13 @@ async function startCheckout() {
 
 function goBack() {
   if (window.opener && !window.opener.closed) {
-    window.close();
+    try {
+      var el = window.opener.document.getElementById('ca-wrap');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch(e) {}
+    setTimeout(function() { window.close(); }, 300);
   } else {
-    window.location.href = 'https://elitrobban.se/bilradgivning';
+    window.location.href = 'https://elitrobban.se/bilradgivning#ca-wrap';
   }
 }
 
