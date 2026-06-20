@@ -687,9 +687,9 @@
       <div id="ca-warning"></div>
 
       <div id="ca-btn-area">
-        <button id="ca-btn">Hitta min bil →</button>
-        <button id="ca-share-search-btn">Dela sökning</button>
-        <button id="ca-reset-btn">Nollställ</button>
+        <button id="ca-btn" onclick="caGetRecommendation()">Hitta min bil →</button>
+        <button id="ca-share-search-btn" onclick="caShareSearch()">Dela sökning</button>
+        <button id="ca-reset-btn" onclick="caResetForm()">Nollställ</button>
       </div>
 
       <div id="ca-history-area"></div>
@@ -714,8 +714,8 @@
           <span class="ca-history-badge" id="ca-history-badge"></span>
         </div>
         <div class="ca-result-actions">
-          <button class="ca-action-btn" id="ca-copy-btn">Kopiera lista</button>
-          <button class="ca-action-btn" id="ca-share-result-btn">Dela länk</button>
+          <button class="ca-action-btn" id="ca-copy-btn" onclick="caCopyResult()">Kopiera lista</button>
+          <button class="ca-action-btn" id="ca-share-result-btn" onclick="caShareSearch()">Dela länk</button>
         </div>
         <div id="ca-cards"></div>
         <div id="ca-compare"></div>
@@ -1421,14 +1421,8 @@
   caBindChangeListeners();
   caRenderHistory();
 
-  // Wire up all buttons via addEventListener (WordPress strips onclick attributes from HTML)
-  // NOTE: bound BEFORE caUpdateSubBar so a crash there never prevents button functionality
+  // Subscription bar buttons use addEventListener (anchor tags — onclick not needed)
   function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
-  caBindEl('ca-btn', caGetRecommendation);
-  caBindEl('ca-share-search-btn', caShareSearch);
-  caBindEl('ca-reset-btn', caResetForm);
-  caBindEl('ca-copy-btn', caCopyResult);
-  caBindEl('ca-share-result-btn', caShareSearch);
   caBindEl('ca-login-link', function(e) { if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); } });
   caBindEl('ca-prenumerera-btn', function(e) { e.preventDefault(); caOpenSubscribe(); });
 
