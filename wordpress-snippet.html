@@ -57,7 +57,8 @@
     .ca-grid { grid-template-columns: 1fr; }
     #ca-hero { padding: 32px 20px; }
     #ca-hero h2 { font-size: 1.5rem; }
-    .ca-card { padding: 24px 20px; }
+    .ca-card-head { padding: 18px 20px 14px; }
+    .ca-card-body { padding: 18px 20px 20px; }
   }
 
   .ca-field label {
@@ -376,14 +377,14 @@
 
   /* Cards */
   .ca-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 18px;
-    padding: 36px;
-    margin-bottom: 40px;
-    transition: background 0.2s, opacity 0.3s, transform 0.3s;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 20px;
+    margin-bottom: 28px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s, opacity 0.3s, transform 0.3s;
   }
-  .ca-card:hover { background: rgba(255,255,255,0.08); }
+  .ca-card:hover { border-color: rgba(139,92,246,0.35); box-shadow: 0 8px 32px rgba(99,102,241,0.12); }
   #ca-cards.fading .ca-card { opacity: 0; transform: translateY(-8px); }
   @keyframes ca-fadein {
     from { opacity: 0; transform: translateY(14px); }
@@ -392,42 +393,70 @@
   .ca-card { animation: ca-fadein 0.4s ease both; }
   .ca-card:nth-child(2) { animation-delay: 0.08s; }
   .ca-card:nth-child(3) { animation-delay: 0.16s; }
+  .ca-card-head {
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 22px 28px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ca-card-body { padding: 22px 28px 24px; }
   .ca-card-num {
     display: inline-block;
     background: linear-gradient(135deg, #8b5cf6, #6366f1);
     color: #fff;
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 3px 10px;
+    font-size: 0.63rem;
+    font-weight: 800;
+    padding: 2px 9px;
     border-radius: 20px;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    align-self: flex-start;
+    margin-bottom: 6px;
   }
-  .ca-card h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 4px; line-height: 1.3; }
-  .ca-price { font-size: 0.92rem; font-weight: 600; color: rgba(167,139,250,0.95); margin-bottom: 14px; }
+  .ca-card h3 { font-size: 1.15rem; font-weight: 800; color: #fff; line-height: 1.3; margin: 0; }
+  .ca-price { font-size: 0.95rem; font-weight: 700; color: rgba(167,139,250,0.95); }
+  .ca-section-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+    display: block;
+    margin-bottom: 7px;
+    margin-top: 18px;
+  }
+  .ca-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 16px 0 0; }
   .ca-why {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.6);
+    font-size: 0.86rem;
+    color: rgba(255,255,255,0.62);
     font-style: italic;
-    margin-bottom: 16px;
-    line-height: 1.6;
-    border-left: 2px solid rgba(139,92,246,0.4);
-    padding-left: 12px;
+    line-height: 1.65;
+    border-left: 2px solid rgba(139,92,246,0.5);
+    padding-left: 13px;
+    margin-bottom: 0;
   }
-  .ca-pros { list-style: none; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
-  .ca-pros li { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
-  .ca-pros li::before { content: '✓'; color: #34d399; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .ca-pros { list-style: none; margin-bottom: 0; display: flex; flex-direction: column; gap: 9px; }
+  .ca-pros li { font-size: 0.88rem; color: rgba(255,255,255,0.82); line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
+  .ca-pros li::before { content: '✓'; color: #34d399; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
   .ca-con {
     font-size: 0.85rem;
     color: rgba(251,191,36,0.85);
     background: rgba(251,191,36,0.06);
-    border: 1px solid rgba(251,191,36,0.2);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 14px;
+    border: 1px solid rgba(251,191,36,0.18);
+    border-radius: 9px;
+    padding: 9px 13px;
+    margin-bottom: 0;
+    line-height: 1.55;
   }
-  .ca-fit { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-bottom: 14px; }
+  .ca-fit {
+    font-size: 0.84rem;
+    color: rgba(255,255,255,0.48);
+    line-height: 1.6;
+    margin-bottom: 0;
+    padding-left: 2px;
+  }
   .ca-raw { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.8; white-space: pre-wrap; }
   .ca-market-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
   .ca-blocket-btn, .ca-bytbil-btn {
@@ -948,19 +977,27 @@
       container.innerHTML = recommendations.map(function(r, i) {
         var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
         return '<div class="ca-card">' +
-          '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
-          '<h3>' + caEsc(r.title) + '</h3>' +
-          '<div class="ca-price">' + caEsc(r.price) + '</div>' +
-          '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
-          '<ul class="ca-pros">' + prosHtml + '</ul>' +
-          '<div class="ca-con">⚠ ' + caEsc(r.con) + '</div>' +
-          '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
-          (r.expertOpinion ? '<div class="ca-expert"><span class="ca-expert-name">🎯 Erik Naessén</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
-          (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
-          (r.evSpec ? caEvChips(r.evSpec) : '') +
-          '<div class="ca-market-links">' +
-          '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket →</a>' +
-          '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil →</a>' +
+          '<div class="ca-card-head">' +
+            '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
+            '<h3>' + caEsc(r.title) + '</h3>' +
+            '<div class="ca-price">' + caEsc(r.price) + '</div>' +
+          '</div>' +
+          '<div class="ca-card-body">' +
+            '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
+            '<span class="ca-section-label">F&#xf6;rdelar</span>' +
+            '<ul class="ca-pros">' + prosHtml + '</ul>' +
+            '<hr class="ca-divider">' +
+            '<span class="ca-section-label">Nackdel</span>' +
+            '<div class="ca-con">&#x26A0; ' + caEsc(r.con) + '</div>' +
+            '<span class="ca-section-label">Passar dig</span>' +
+            '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
+            (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Erik Naess&#xe9;n</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
+            (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
+            (r.evSpec ? caEvChips(r.evSpec) : '') +
+            '<div class="ca-market-links">' +
+              '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket &#x2192;</a>' +
+              '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil &#x2192;</a>' +
+            '</div>' +
           '</div>' +
           '</div>';
       }).join('');
