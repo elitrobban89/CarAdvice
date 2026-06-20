@@ -46,7 +46,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ### Bagageutrymme
 - **🧳 Bagageutrymme-chip** visas på alla bilkort — oavsett drivmedel
 - Visar standardvolym (L) och maxvolym med nedfällt baksäte
-- 75+ bilar seedade: elbilar, laddhybrider, bensin, diesel och mildhybrider
+- 110+ bilar seedade: elbilar, laddhybrider, bensin, diesel och mildhybrider
 - Syns även i jämförelsetabellen som egen rad
 
 ### Jämförelsetabell
@@ -71,8 +71,11 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - 13 startinsikter laddas vid första start; fler kan läggas till via psql eller admin-endpoint
 
 ### EV-spec-skrapare (ev-database.org)
-- Daglig schemalagd sync kl 03:00 UTC — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning per bil
-- Fuzzy-matchning mot befintliga DB-poster — uppdaterar bara kända bilar, skapar inga dubbletter
+- Daglig schemalagd sync kl 03:00 UTC — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
+- **Auto-skapar nya poster** — bilar som finns på ev-database.org men saknas i DB läggs till automatiskt med all tillgänglig data; EUR-pris konverteras till SEK (~11.5×)
+- Fuzzy-matchning i två steg mot befintliga DB-poster — förhindrar dubbletter
+- Priser uppdateras på befintliga poster där `priceKr=0`
+- Synken håller ingen DB-koppling öppen — varje sparande är en egen kort transaktion (förhindrar connection pool-uttömning)
 - Manuell trigger via admin-endpoint:
   ```bash
   curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
@@ -87,6 +90,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
+- **Graceful degradation** — om DB är tillfälligt otillgänglig returneras AI-rekommendationer utan EV/cargo/expert-data istället för ett 500-fel
+- **HikariCP begränsad till 3 kopplingar** med keepalive var 60:e sekund och `SELECT 1`-validering — optimerad för delad free-tier PostgreSQL
 
 ---
 
@@ -253,9 +258,9 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | Tabell | Innehåll |
 |--------|----------|
 | `expert_insight` | Erik Naesséns bilexpertis (RAG-kontext) |
-| `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell |
-| `cargo_spec` | Bagageutrymme (standard + max L) för 75+ bilmodeller |
-| `safety_rating` | Euro NCAP-betyg per modell |
+| `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
+| `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
+| `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
 
 ---
 
