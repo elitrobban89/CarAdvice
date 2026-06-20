@@ -236,6 +236,12 @@ public class GroqService {
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Erik Naesséns direkta syn på denna bil — max 2 meningar, konkret och i hans typiska raka stil. Basera på expertinsikterna om de finns, annars generell expertbedömning."}]}
                 Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska i Naesséns direkta stil.
+
+                Prisvärda elbilar att aktivt överväga för svenska marknaden 2024–2026:
+                - Budget (under 350 000 kr): Volvo EX30, Kia EV3, MG4, BYD Dolphin, Dacia Spring
+                - Mellanklass (350–550 000 kr): Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Tesla Model 3, Volvo EX40, Polestar 2
+                - Premium (550 000+ kr): Volvo EX60, Tesla Model Y (Long Range), Hyundai IONIQ 6, Polestar 3, Audi Q6 e-tron
+                Volvo EX30 och Kia EV3 är särskilt prisvärda för sin räckvidd och utrustning i sina prissegment.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
