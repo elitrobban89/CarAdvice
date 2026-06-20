@@ -71,9 +71,9 @@ public class EvDatabaseScraperService {
                         repo.save(newSpec);
                         nameMap.put(normalize(scraped.name()), newSpec);
                         created++;
-                        log.info("Created {}: range={}km bat={}kWh DC={}kW AC={}kW",
+                        log.info("Created {}: range={}km bat={}kWh DC={}kW AC={}kW price={}kr",
                                 scraped.name(), scraped.rangeKm(), scraped.batteryKwh(),
-                                scraped.dcKw(), scraped.acKw());
+                                scraped.dcKw(), scraped.acKw(), scraped.priceKr());
                     } else {
                         log.debug("No DB match and incomplete data for: {}", scraped.name());
                     }
@@ -214,17 +214,23 @@ public class EvDatabaseScraperService {
     }
 
     private int extractPrice(String text) {
-        // "€ 35,000" or "35.000 €" or "from € 35,000"
-        Matcher m = Pattern.compile("(?:€|EUR)[\\s]*(\\d{2,3}[.,]\\d{3})", Pattern.CASE_INSENSITIVE).matcher(text);
-        if (m.find()) return eurToSek(m.group(1));
-        m = Pattern.compile("(\\d{2,3}[.,]\\d{3})[\\s]*(?:€|EUR)", Pattern.CASE_INSENSITIVE).matcher(text);
-        if (m.find()) return eurToSek(m.group(1));
+        // Matches: €35,000 / € 35.000 / 35,000€ / EUR 35 000 / from €35,900
+        Matcher m = Pattern.compile(
+            "(?:€|EUR)[\\s]*(\\d{2,3}[.,\\s]\\d{3})|" +
+            "(\\d{2,3}[.,\\s]\\d{3})[\\s]*(?:€|EUR)",
+            Pattern.CASE_INSENSITIVE).matcher(text);
+        while (m.find()) {
+            String raw = m.group(1) != null ? m.group(1) : m.group(2);
+            int result = eurToSek(raw);
+            if (result > 0) return result;
+        }
         return 0;
     }
 
     private int eurToSek(String eurStr) {
         try {
-            double eur = Double.parseDouble(eurStr.replace(",", "").replace(".", ""));
+            String digits = eurStr.replaceAll("[^\\d]", "");
+            double eur = Double.parseDouble(digits);
             if (eur < 10_000 || eur > 300_000) return 0;
             return (int) Math.round(eur * EUR_TO_SEK / 1000) * 1000;
         } catch (Exception e) {
