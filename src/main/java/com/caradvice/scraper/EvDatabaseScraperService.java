@@ -23,6 +23,7 @@ public class EvDatabaseScraperService {
     private static final String BASE_URL = "https://ev-database.org";
     private static final String CHEATSHEET_URL = BASE_URL + "/cheatsheet/range-electric-car";
     private static final int REQUEST_DELAY_MS = 1000;
+    private static final double EUR_TO_SEK = 11.5;
 
     private final EvSpecRepository repo;
 
@@ -65,7 +66,7 @@ public class EvDatabaseScraperService {
                                 scraped.dcKw() > 0 ? (double) scraped.dcKw() : 0.0,
                                 scraped.batteryKwh(),
                                 scraped.rangeKm(),
-                                0
+                                scraped.priceKr()
                         );
                         repo.save(newSpec);
                         nameMap.put(normalize(scraped.name()), newSpec);
@@ -94,6 +95,10 @@ public class EvDatabaseScraperService {
                 }
                 if (scraped.acKw() > 0 && !Objects.equals(match.getMaxAcKw(), (double) scraped.acKw())) {
                     match.setMaxAcKw((double) scraped.acKw());
+                    changed = true;
+                }
+                if (scraped.priceKr() > 0 && (match.getPriceKr() == null || match.getPriceKr() == 0)) {
+                    match.setPriceKr(scraped.priceKr());
                     changed = true;
                 }
 
@@ -158,7 +163,8 @@ public class EvDatabaseScraperService {
                     extractWltp(text),
                     extractBattery(text),
                     extractDc(text),
-                    extractAc(text)
+                    extractAc(text),
+                    extractPrice(text)
             );
         } catch (Exception e) {
             log.debug("Skipped {}: {}", url, e.getMessage());
@@ -207,6 +213,25 @@ public class EvDatabaseScraperService {
         return 0;
     }
 
+    private int extractPrice(String text) {
+        // "€ 35,000" or "35.000 €" or "from € 35,000"
+        Matcher m = Pattern.compile("(?:€|EUR)[\\s]*(\\d{2,3}[.,]\\d{3})", Pattern.CASE_INSENSITIVE).matcher(text);
+        if (m.find()) return eurToSek(m.group(1));
+        m = Pattern.compile("(\\d{2,3}[.,]\\d{3})[\\s]*(?:€|EUR)", Pattern.CASE_INSENSITIVE).matcher(text);
+        if (m.find()) return eurToSek(m.group(1));
+        return 0;
+    }
+
+    private int eurToSek(String eurStr) {
+        try {
+            double eur = Double.parseDouble(eurStr.replace(",", "").replace(".", ""));
+            if (eur < 10_000 || eur > 300_000) return 0;
+            return (int) Math.round(eur * EUR_TO_SEK / 1000) * 1000;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private EvSpec findMatch(String scrapedName, Map<String, EvSpec> nameMap) {
         String normScraped = normalize(scrapedName);
 
@@ -240,5 +265,5 @@ public class EvDatabaseScraperService {
                 .trim();
     }
 
-    record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw) {}
+    record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw, int priceKr) {}
 }
