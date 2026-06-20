@@ -67,6 +67,7 @@
     quick.querySelectorAll('.ca-chat-quick-btn').forEach(function(btn) {
       btn.addEventListener('click', function() { caChatSendMessage(btn.dataset.q); });
     });
+    quick.style.display = 'flex';
   }
 
   function buildCarContext() {
