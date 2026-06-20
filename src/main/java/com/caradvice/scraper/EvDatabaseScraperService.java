@@ -31,7 +31,6 @@ public class EvDatabaseScraperService {
         this.repo = repo;
     }
 
-    @Transactional
     public int syncFromEvDatabase() {
         log.info("Starting EV spec sync from ev-database.org");
         List<EvSpec> existing = repo.findAll();
