@@ -114,7 +114,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
 - Stripe webhook (raw JSON-parsning, versionsoberoende) uppdaterar status automatiskt vid betalning, förnyelse, avslut och paus
 - Slutdatum för prenumerationen hämtas från Stripes `current_period_end` och visas på kontosidan
-- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, hur länge man varit prenumerant, startdatum, **periodens slut**, förnyelsestatus (grön/orange) — samt knapp för att **avsluta prenumeration** (cancel at period end via Stripe)
+- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, hur länge man varit prenumerant, startdatum, **periodens slut**, förnyelsestatus (grön/orange) — samt knapp för att **avsluta prenumeration** (cancel at period end via Stripe) eller **återaktivera** om avslut redan schemalagts
 - `subscription_started_at` sätts vid första aktivering (ej vid förnyelse); `/api/auth/me` returnerar formaterat datum + ISO-sträng för duration-beräkning i klienten
 - WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och en sammanslagen **"Prenumerera / Logga in"**-knapp (Demo-läge) — öppnar kontosidan som popup med korrekt `window.opener`
 
@@ -157,10 +157,12 @@ CarAdvice/
 └── src/main/
     ├── java/com/caradvice/
     │   ├── CarAdviceApplication.java
+    │   ├── config/
+    │   │   └── WebConfig.java         ← Global CORS (tillåter elitrobban.se + localhost)
     │   ├── controller/
     │   │   ├── AuthController.java    ← /api/auth/register, login, logout, me
     │   │   ├── CarController.java     ← REST-endpoints + admin sync-trigger
-    │   │   └── StripeController.java  ← /api/stripe/checkout, /api/stripe/webhook
+    │   │   └── StripeController.java  ← /api/stripe/checkout, cancel, reactivate, webhook
     │   ├── data/
     │   │   └── DataLoader.java     ← Seeder: expertinsikter, EV-specs, cargo-specs
     │   ├── model/
@@ -307,6 +309,8 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `/api/auth/logout` | POST | Ogiltigförklara sessionstoken (Bearer-header) |
 | `/api/auth/me` | GET | Hämta inloggad användares info (Bearer-header) |
 | `/api/stripe/checkout` | POST | Skapa Stripe Checkout-session → `{ url }` (Bearer-header krävs) |
+| `/api/stripe/cancel` | POST | Avsluta prenumeration vid periodens slut (Bearer-header krävs) |
+| `/api/stripe/reactivate` | POST | Återaktivera prenumeration (ångrar schemalagd avslutning, Bearer-header krävs) |
 | `/api/stripe/webhook` | POST | Stripe webhook — uppdaterar prenumerationsstatus automatiskt |
 
 ---
@@ -340,6 +344,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
 | `STRIPE_PRICE_ID` | Stripe Price ID för prenumerationsprodukten (`price_...`) |
 | `APP_BASE_URL` | Bas-URL för success/cancel-redirect (`https://caradvice.onrender.com`) |
+| `CORS_ALLOWED_ORIGINS` | Kommaseparerade tillåtna origins (default: `https://elitrobban.se,http://localhost:8080,http://localhost:3000`) |
 
 EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — ingen lokal dator behövs.
 
@@ -387,6 +392,8 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Periodens slut i kontovyn | Visar alltid "Periodens slut: X" plus separat förnyelsestatus — grön "✓ Förnyas automatiskt" eller orange "⚠ Förnyas inte" |
 | `subscriptionEndsAt` sätts direkt vid avslut | Tidigare väntade på webhook för att sätta slutdatumet — nu läses `cancel_at` direkt från Stripes svar och sparas i samma DB-anrop |
 | Stripe webhook-events kompletterade | Lade till `customer.subscription.updated`, `deleted`, `paused`, `resumed` och `invoice.payment_succeeded` i Stripe Dashboard — tidigare saknades dessa och cancel-synken fungerade inte |
+| Återaktivera prenumeration | Ny knapp "Återaktivera prenumeration" visas på kontosidan när `cancelAtPeriodEnd=true` — kallar `/api/stripe/reactivate` som sätter `cancelAtPeriodEnd=false` i Stripe och läser nytt `current_period_end`; knappen växlar tillbaka till "Avsluta prenumeration" vid framgång |
+| Global CORS-konfiguration | `WebConfig.java` ersätter `@CrossOrigin`-annotationen på CarController — alla `/api/**`-endpoints skyddas centralt; tillåtna origins konfigureras via `CORS_ALLOWED_ORIGINS`-miljövariabeln |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
