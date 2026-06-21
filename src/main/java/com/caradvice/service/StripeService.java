@@ -155,10 +155,12 @@ public class StripeService {
                 .setStatus(SubscriptionListParams.Status.ACTIVE)
                 .build());
         if (subs.getData().isEmpty()) throw new RuntimeException("Ingen aktiv prenumeration hittades");
-        subs.getData().get(0).update(SubscriptionUpdateParams.builder()
+        Subscription updated = subs.getData().get(0).update(SubscriptionUpdateParams.builder()
                 .setCancelAtPeriodEnd(true)
                 .build());
         user.setCancelAtPeriodEnd(true);
+        Long cancelAt = updated.getCancelAt();
+        if (cancelAt != null && cancelAt > 0) user.setSubscriptionEndsAt(toLocalDateTime(cancelAt));
         userRepo.save(user);
         log.info("Subscription set to cancel at period end for user={}", user.getEmail());
     }
