@@ -101,8 +101,9 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
 - Stripe webhook (raw JSON-parsning, versionsoberoende) uppdaterar status automatiskt vid betalning, förnyelse, avslut och paus
 - Slutdatum för prenumerationen hämtas från Stripes `current_period_end` och visas på kontosidan
-- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, slutdatum och "← Tillbaka till bilrådgivningen"-knapp
-- WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och **"Prenumerera – 99 kr/mån"**-knapp
+- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, **startdatum** ("Startade: X") och **slutdatum** ("Förnyas: X")
+- `subscription_started_at` sätts vid första aktivering (ej vid förnyelse) och returneras av `/api/auth/me`
+- WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och en sammanslagen **"Prenumerera / Logga in"**-knapp (Demo-läge) — öppnar kontosidan som popup med korrekt `window.opener`
 
 ### Övrigt
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
@@ -305,7 +306,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
-| `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, slutdatum, sessionstoken |
+| `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken |
 
 ---
 
@@ -360,6 +361,8 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Prenumerationsdatum på kontosidan | Kontosidan visade bara "Förnyas X". Nu visas även startdatum ("Startade: X") via nytt `subscription_started_at`-fält i `ca_user` — sätts vid första aktivering och returneras av `/api/auth/me` |
+| Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
 | Utloggning visade fel text | `caUpdateSubBar()` anropades med 2 args vid logout — `remaining` blev `undefined` och visade `"undefined av 10 sökningar"` |
