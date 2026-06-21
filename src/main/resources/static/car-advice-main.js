@@ -842,7 +842,7 @@ function caTcoHtml(r, kmPerYear) {
   var tco = caTcoCalc(r, kmPerYear);
   if (!tco) return '';
   return '<hr class="ca-divider">' +
-    '<span class="ca-section-label">&#x1F4B0; 5-\xe5rs TCO</span>' +
+    '<span class="ca-section-label" style="font-size:.95rem;font-weight:700">&#x1F4B0; 5-\xe5rs TCO</span>' +
     '<div style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 14px;margin-top:6px">' +
       '<div style="display:flex;align-items:center;margin-bottom:5px">' +
         '<span style="font-size:1rem;font-weight:700;color:#a5f3fc">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
