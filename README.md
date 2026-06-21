@@ -70,6 +70,18 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP; sparar historik i localStorage
 
+### Produktionsstatus
+
+Appen är funktionellt klar för produktion. Återstående steg för live-lansering:
+
+1. Byt Stripe-nycklar till live-värden i Render-miljövariabler
+2. Ta bort testläges-bannern i `subscribe.html`
+3. Registrera live webhook-endpoint i Stripe Dashboard
+
+> **Planerat:** Eventuellt samarbete med bilexpert för utökad RAG-data och verifierade rekommendationer.
+
+---
+
 ### Bilexpert-samarbete (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar **Erik Naesséns** bilexpertis
 - Relevanta insikter injiceras automatiskt i AI-prompten baserat på sökt kategori och drivmedel
@@ -89,9 +101,10 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
   ```
 - Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar
 
-### Prenumeration & betalning (Stripe — testläge)
+### Prenumeration & betalning (Stripe)
 
 > **Stripe körs för närvarande i testläge.** Inga riktiga betalningar genomförs. Testkort: `4242 4242 4242 4242`, valfritt datum och CVC.
+> För att aktivera produktion: byt `STRIPE_SECRET_KEY` till `sk_live_...`, `STRIPE_WEBHOOK_SECRET` till live webhook-hemligheten, ta bort testläges-bannern i `subscribe.html` och uppdatera `STRIPE_PRICE_ID` till live-prisets ID. All övrig kod är produktionsklar.
 
 - Ej inloggad: **max 10 sökningar/timme** och **10 chattmeddelanden/minut** (IP-baserat)
 - Inloggad (gratis konto): **30 sökningar/timme** och **30 chattmeddelanden/minut**
@@ -101,7 +114,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
 - Stripe webhook (raw JSON-parsning, versionsoberoende) uppdaterar status automatiskt vid betalning, förnyelse, avslut och paus
 - Slutdatum för prenumerationen hämtas från Stripes `current_period_end` och visas på kontosidan
-- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, hur länge man varit prenumerant, **startdatum** och **slutdatum** — samt knapp för att **avsluta prenumeration** (cancel at period end via Stripe)
+- Kontosidan (`/subscribe.html`) visar prenumerationsstatus, hur länge man varit prenumerant, startdatum, **periodens slut**, förnyelsestatus (grön/orange) — samt knapp för att **avsluta prenumeration** (cancel at period end via Stripe)
 - `subscription_started_at` sätts vid första aktivering (ej vid förnyelse); `/api/auth/me` returnerar formaterat datum + ISO-sträng för duration-beräkning i klienten
 - WordPress-snippeten visar prenumerationsrad med kvarvarande sökningar och en sammanslagen **"Prenumerera / Logga in"**-knapp (Demo-läge) — öppnar kontosidan som popup med korrekt `window.opener`
 
@@ -371,6 +384,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Ta bort backfill-kod | `@PostConstruct backfillSubscriptionStartedAt()` i UserService borttagen efter att ha körts en gång |
 | `cancel_at_period_end` parsning | `current_period_end` finns inte på rotnivå i nyare Stripe API-versioner — faller nu tillbaka på `cancel_at` som alltid finns vid avbokning |
 | `cancelAtPeriodEnd` null-säkerhet | Primitiv `boolean` kraschade vid inloggning för befintliga rader (NULL i DB) — ändrat till boxad `Boolean` med null-säker getter som defaultar till `false` |
+| Periodens slut i kontovyn | Visar alltid "Periodens slut: X" plus separat förnyelsestatus — grön "✓ Förnyas automatiskt" eller orange "⚠ Förnyas inte" |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
