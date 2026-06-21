@@ -1,6 +1,10 @@
 package com.caradvice.config;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -19,5 +23,22 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedHeaders("Authorization", "Content-Type", "Stripe-Signature")
                 .allowCredentials(false)
                 .maxAge(3600);
+    }
+
+    @Bean
+    public FilterRegistrationBean<Filter> securityHeadersFilter() {
+        FilterRegistrationBean<Filter> bean = new FilterRegistrationBean<>();
+        bean.setFilter((request, response, chain) -> {
+            HttpServletResponse res = (HttpServletResponse) response;
+            res.setHeader("X-Frame-Options", "SAMEORIGIN");
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+            res.setHeader("X-XSS-Protection", "0");
+            res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+            chain.doFilter(request, response);
+        });
+        bean.addUrlPatterns("/*");
+        bean.setOrder(1);
+        return bean;
     }
 }
