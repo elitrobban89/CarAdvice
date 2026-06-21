@@ -163,7 +163,8 @@ public class GroqService {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
                (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
-               (prefs.transmission() != null ? prefs.transmission() : "");
+               (prefs.transmission() != null ? prefs.transmission() : "") + "|" +
+               (prefs.budgetType() != null ? prefs.budgetType() : "köp");
     }
 
     private String parseRetryTime(String body) {
@@ -291,6 +292,10 @@ public class GroqService {
         String bilTyp = prefs.newCar() ? "ny" : "begagnad";
         int km = prefs.kmPerYear();
         String milprofil = km < 10000 ? "lågmilare" : km < 20000 ? "normalmilare" : "högmilare";
+        boolean isLeasing = "leasing".equals(prefs.budgetType());
+        String budgetInfo = isLeasing
+                ? String.format("%,d kr/mån (leasing, ca %,d kr i listpris)", prefs.budget(), prefs.budget() * 70)
+                : String.format("%,d kr (%s)", prefs.budget(), bilTyp);
         String fuelLine = (prefs.fuelType() != null && !prefs.fuelType().isBlank()
                 && !"spelar ingen roll".equals(prefs.fuelType()))
                 ? " Drivmedel: " + prefs.fuelType() + "." : "";
@@ -299,9 +304,9 @@ public class GroqService {
                 ? " Växellåda: " + prefs.transmission() + " – rekommendera endast bilar med denna växellåda." : "";
 
         return """
-                Budget: %,d kr (%s). Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s
+                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s
                 """.formatted(
-                prefs.budget(), bilTyp, prefs.carCategory(), laddning,
+                budgetInfo, prefs.carCategory(), laddning,
                 km, milprofil, prefs.usage(), prefs.passengers(), fuelLine, transmissionLine
         );
     }

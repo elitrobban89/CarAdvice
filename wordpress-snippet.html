@@ -575,6 +575,16 @@
   .ca-rate-limit-box a { color: #fcd34d; font-weight: 700; text-decoration: none; }
 
   /* Groq badge */
+  #ca-budget-mode { display:inline-flex; gap:4px; float:right; margin-top:-1px; }
+  .ca-mode-btn {
+    padding: 3px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.15); background: transparent;
+    color: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.2s;
+    font-family: inherit; text-transform: none; letter-spacing: normal; line-height: 1.5;
+  }
+  .ca-mode-btn.ca-mode-active { background: rgba(139,92,246,0.25); border-color: rgba(139,92,246,0.6); color: #c4b5fd; }
+  .ca-mode-btn:hover:not(.ca-mode-active) { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.65); }
+
   .ca-groq-badge {
     display: inline-flex;
     align-items: center;
@@ -624,7 +634,7 @@
           </select>
         </div>
         <div class="ca-field">
-          <label>Budget <span class="ca-budget-val" id="ca-budget-display">200 000 kr</span></label>
+          <label>Budget <span class="ca-budget-val" id="ca-budget-display">200 000 kr</span><span id="ca-budget-mode"><button id="ca-mode-kop" class="ca-mode-btn ca-mode-active" type="button">Köp</button><button id="ca-mode-leasing" class="ca-mode-btn" type="button">Leasing</button></span></label>
           <div class="ca-slider-track">
             <div id="ca-slider-fill"></div>
             <input type="range" id="ca-budget-slider" min="50000" max="1000000" step="25000" value="200000">
@@ -682,6 +692,18 @@
             <option value="hybrid">Hybrid (ej laddhybrid)</option>
           </select>
         </div>
+      </div>
+
+      <div class="ca-grid">
+        <div class="ca-field" id="ca-transmission-field">
+          <label>Växellåda</label>
+          <select id="ca-transmission">
+            <option value="spelar ingen roll">Spelar ingen roll</option>
+            <option value="manuell">Manuell</option>
+            <option value="automat">Automat</option>
+          </select>
+        </div>
+        <div class="ca-field"></div>
       </div>
 
       <div id="ca-js-error" style="display:none;background:#e74c3c;color:#fff;padding:10px 14px;border-radius:8px;font-size:0.8rem;margin-bottom:12px;"></div>

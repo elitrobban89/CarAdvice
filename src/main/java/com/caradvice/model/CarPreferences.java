@@ -9,5 +9,6 @@ public record CarPreferences(
         int passengers,
         boolean newCar,
         String fuelType,
-        String transmission
+        String transmission,
+        String budgetType
 ) {}
