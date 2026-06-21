@@ -849,14 +849,17 @@ function caTcoHtml(r, kmPerYear) {
         caTcoDot(tco.perMonth) +
       '</div>' +
       '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
-        '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
-        '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
-        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
-        '&#x1F3E6; Skatt: ' + tco.tax.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
-        '&#x1F6E1;&#xFE0F; F\xf6rs\xe4kring: ' + tco.insurance.toLocaleString('sv-SE') + ' kr' +
+        '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr<br>' +
+        '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr<br>' +
+        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr<br>' +
+        '&#x1F3E6; Fordonsskatt: ' + tco.tax.toLocaleString('sv-SE') + ' kr<br>' +
+        '&#x1F6E1;&#xFE0F; Halvf\xf6rs\xe4kring: ' + tco.insurance.toLocaleString('sv-SE') + ' kr' +
       '</div>' +
-      '<div style="margin-top:5px;font-size:.7rem;color:rgba(255,255,255,.3)">' +
-        '&#x2248; ' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n &mdash; uppskattning inkl. halvf\xf6rs\xe4kring &amp; skatt' +
+      '<div style="margin-top:5px;font-size:.68rem;color:rgba(255,255,255,.25)">' +
+        'Alla belopp \xe4r totalt \xf6ver 5 \xe5r &bull; uppskattning' +
+      '</div>' +
+      '<div style="margin-top:2px;font-size:.7rem;color:rgba(255,255,255,.3)">' +
+        '&#x2248; ' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n' +
       '</div>' +
     '</div>';
 }
