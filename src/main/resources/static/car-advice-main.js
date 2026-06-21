@@ -786,13 +786,25 @@ function caTcoCalc(r, kmPerYear) {
   };
 }
 
+function caTcoDot(perMonth) {
+  var color, glow, label;
+  if (perMonth <= 4500)      { color = '#22c55e'; glow = '#22c55e66'; label = 'L\xe5g TCO'; }
+  else if (perMonth <= 8000) { color = '#eab308'; glow = '#eab30866'; label = 'Medel TCO'; }
+  else                       { color = '#ef4444'; glow = '#ef444466'; label = 'H\xf6g TCO'; }
+  return '<span title="' + label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;' +
+    'background:' + color + ';box-shadow:0 0 7px ' + glow + ';margin-left:7px;vertical-align:middle;flex-shrink:0"></span>';
+}
+
 function caTcoHtml(r, kmPerYear) {
   var tco = caTcoCalc(r, kmPerYear);
   if (!tco) return '';
   return '<hr class="ca-divider">' +
     '<span class="ca-section-label">&#x1F4B0; 5-\xe5rs TCO</span>' +
     '<div style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 14px;margin-top:6px">' +
-      '<div style="font-size:1rem;font-weight:700;color:#a5f3fc;margin-bottom:5px">~' + tco.total.toLocaleString('sv-SE') + ' kr</div>' +
+      '<div style="display:flex;align-items:center;margin-bottom:5px">' +
+        '<span style="font-size:1rem;font-weight:700;color:#a5f3fc">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
+        caTcoDot(tco.perMonth) +
+      '</div>' +
       '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
         '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
         '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
