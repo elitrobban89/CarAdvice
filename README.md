@@ -12,7 +12,11 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
 - Drivmedelsfilter: bensin, diesel, hybrid — döljs automatiskt för elbil/laddhybrid
-- Budget-slider (50 000–1 000 000 kr) med tickmärken (50k · 200k · 400k · 700k · 1M) och live-uppdaterat värde
+- **Växellådsfilter:** manuell / automat — döljs automatiskt för elbil/laddhybrid; AI-prompten begränsas till vald växellåda
+- Budget-slider med tickmärken och live-uppdaterat värde:
+  - **Köp-läge** (standard): 50 000–1 000 000 kr, steg 25 000 kr (tickmärken: 50k · 200k · 400k · 700k · 1M)
+  - **Leasing-läge:** 1 000–15 000 kr/mån, steg 250 kr — AI konverterar till ungefärligt listpris (×70) för kontextuell matchning
+  - Köp/Leasing-knappen sitter inline i budget-etiketten; separata värden sparas per läge
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - Skeleton-loading: tre kortskelelett med shimmer-animation visas direkt när sökningen startar
@@ -32,7 +36,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ### Bilkortsdesign
 - Tre kort med **per-kort accentfärger**: Bil 1 lila, Bil 2 blå, Bil 3 grön
 - **Aurora-glödeffekt** — animerat radiellt gradient-orb bakom varje kort (CSS `@keyframes` med staggerade delays)
-- **Bilbilder** — varje kort hämtar automatiskt en thumbnail från Wikipedias öppna REST API (engelska → svenska Wikipedia som fallback); laddas asynkront och döljs tyst om ingen bild hittas
+- **Bilbilder** — varje kort hämtar automatiskt en thumbnail från Wikipedias öppna REST API; trefallsordning: direktträff (engelska) → suffixvarianter (`_EV`, `_electric`) → Wikipedia opensearch (fuzzy titelmatchning, upp till 3 kandidater); svenska Wikipedia som sista fallback; döljs tyst om ingen bild hittas
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
 
@@ -273,13 +277,15 @@ mvn spring-boot:run
   "usage": "familj",
   "passengers": 4,
   "newCar": true,
-  "fuelType": "elbil"
+  "fuelType": "elbil",
+  "transmission": "automat",
+  "budgetType": "köp"
 }
 ```
 
 | Fält | Typ | Värden |
 |------|-----|--------|
-| `budget` | int | Kronor |
+| `budget` | int | Kronor (köp) eller kr/mån (leasing) |
 | `carCategory` | string | `ekonomibil`, `familjebil`, `suv`, `elbil`, `laddhybrid`, `smaabil` |
 | `hasCharger` | boolean | Laddbox hemma |
 | `kmPerYear` | int | Kilometer per år |
@@ -287,6 +293,8 @@ mvn spring-boot:run
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
 | `fuelType` | string | `bensin`, `diesel`, `hybrid`, `spelar ingen roll` |
+| `transmission` | string | `manuell`, `automat`, `spelar ingen roll` (null = spelar ingen roll) |
+| `budgetType` | string | `köp` (standard) eller `leasing` |
 
 **Response:**
 ```json
