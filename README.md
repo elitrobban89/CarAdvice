@@ -96,6 +96,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Priser uppdateras på befintliga poster där `priceKr=0`
 - Synken håller ingen DB-koppling öppen — varje sparande är en egen kort transaktion (förhindrar connection pool-uttömning)
 - **Strukturlarm** — loggar `ERROR` om cheatsheet-sidan returnerar 0 bilar (HTML-strukturen har ändrats) eller om >50 % av bilsidorna misslyckas; synksammanfattningen visar `updated/created/failed/total`
+- Kör kl **02:00 Stockholm-tid** med `zone="Europe/Stockholm"` (hanterar DST automatiskt — ingen manuell UTC-offset); aborterar med `WARN` om den mot förmodan pågår efter 08:00
 - Manuell trigger via admin-endpoint:
   ```bash
   curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
@@ -398,6 +399,8 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Global CORS-konfiguration | `WebConfig.java` ersätter `@CrossOrigin`-annotationen på CarController — alla `/api/**`-endpoints skyddas centralt; tillåtna origins konfigureras via `CORS_ALLOWED_ORIGINS`-miljövariabeln |
 | Chatthistorik UX | Välkomstmeddelandet visades alltid vid sidladdning och dolde sparad historik — nu visas historiken direkt utan hälsning; FAB-etiketten ändras till "💬 Fortsätt chatten" när historik finns; chat scrollas automatiskt till botten |
 | EV-scraper-larm | Scraper loggade tyst vid strukturfel — nu loggas `ERROR` om cheatsheet returnerar 0 URL:er och `WARN` om >50 % av bilsidorna misslyckas; synksammanfattning visar `updated/created/failed/total` |
+| Scraper-tidsfönster | Cron ändrad till 02:00 Stockholm-tid med DST-hantering (`zone="Europe/Stockholm"`); scraper-loopen aborterar med `WARN` om den pågår efter 08:00 stockholmstid |
+| `cancelAtPeriodEnd` setter NPE | Setter tog primitiv `boolean` — Hibernate skickar `null` för befintliga DB-rader utan värde, vilket kraschade vid unboxing; ändrat till `Boolean` (getterns null-check hanterar `null → false`) |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
