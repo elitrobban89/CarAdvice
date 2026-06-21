@@ -14,6 +14,7 @@ var caHasSearched = false;
 var caInitialValues = {};
 var caCurrentRecs = null;
 var caSavedFromServer = [];
+var caCurrentKm = 15000;
 var caLoadingMessages = [
   'AI:n analyserar dina behov…',
   'Kollar Bilprovningens statistik…',
@@ -402,6 +403,7 @@ function caRenderCards(recommendations) {
           (r.evSpec ? caEvChips(r.evSpec) : '') +
           (r.fuelSpec ? caFuelChips(r.fuelSpec) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
+          caTcoHtml(r, caCurrentKm) +
           '<button class="ca-ask-btn" data-idx="' + i + '" data-title="' + caEsc(r.title) + '">&#x1F4AC; Fr\xe5ga om Bil ' + (i + 1) + ' &mdash; ' + caEsc(r.title.replace(/\s*\(\d{4}\)\s*$/, '')) + '</button>' +
           '<div class="ca-market-links">' +
             '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket &#x2192;</a>' +
@@ -494,6 +496,12 @@ function caRenderCompare(recs) {
     rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh','rgba(56,189,248,.1)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.valueLabel ? chip(caEsc(ev.valueLabel),'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>'; }); } });
   }
+  rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', fn: function(r) {
+    var tco = caTcoCalc(r, caCurrentKm);
+    if (!tco) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+    return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
+      '<br><span style="font-size:.65rem;color:rgba(255,255,255,.35)">' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
+  }});
   var rowsHtml = rows.map(function(row) {
     var cells = row.evOnly
       ? recs.map(function(r){ return row.fn(r); }).join('')
@@ -691,6 +699,77 @@ async function caSaveSearch() {
   }
 }
 
+// ── TCO-kalkyl (5-år, uppskattning) ─────────────────────────────────────────
+
+function caParsePrice(priceStr) {
+  if (!priceStr) return 0;
+  var s = priceStr.replace(/\s/g, '').replace(/kr/gi, '');
+  var m = s.match(/(\d+)[–\-](\d+)/);
+  if (m) return (parseInt(m[1]) + parseInt(m[2])) / 2;
+  m = s.match(/(\d{5,7})/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function caTcoCalc(r, kmPerYear) {
+  var price = caParsePrice(r.price);
+  if (!price || price < 50000) return null;
+  var km = kmPerYear || 15000;
+  var years = 5;
+  var isEv   = r.evSpec && r.evSpec.carType !== 'PHEV';
+  var isPhev = r.evSpec && r.evSpec.carType === 'PHEV';
+
+  // Drivmedelskostnad
+  var fuelCost = 0;
+  if (isEv && r.evSpec.batteryKwh > 0 && r.evSpec.wltpKm > 0) {
+    var kwhPerKm = r.evSpec.batteryKwh / r.evSpec.wltpKm;
+    fuelCost = kwhPerKm * km * years * 1.5; // 1.50 kr/kWh hemmaladdning
+  } else if (isPhev) {
+    // 50% på el, 50% på bensin (schablonmässigt)
+    var elKwhPerKm = 0.20;
+    fuelCost = (elKwhPerKm * km * 0.5 * years * 1.5) + (0.045 * (km * 0.5 / 10) * years * 18);
+  } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
+    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18; // diesel vs bensin
+    fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 10) * years * fuelPrice;
+  } else {
+    fuelCost = 0.065 * (km / 10) * years * 18; // schablonbensin ~6.5 l/mil
+  }
+
+  // Servicekostnad
+  var service = isEv ? 3000 : isPhev ? 6000 : 8000;
+  var serviceCost = service * years;
+
+  // Värdeminskning (restvärde efter 5 år)
+  var residual = isEv ? 0.42 : 0.48;
+  var depreciation = price * (1 - residual);
+
+  var total = Math.round((fuelCost + serviceCost + depreciation) / 1000) * 1000;
+  return {
+    total: total,
+    fuel: Math.round(fuelCost / 1000) * 1000,
+    service: Math.round(serviceCost / 1000) * 1000,
+    depreciation: Math.round(depreciation / 1000) * 1000,
+    perMonth: Math.round(total / (years * 12) / 100) * 100
+  };
+}
+
+function caTcoHtml(r, kmPerYear) {
+  var tco = caTcoCalc(r, kmPerYear);
+  if (!tco) return '';
+  return '<hr class="ca-divider">' +
+    '<span class="ca-section-label">&#x1F4B0; 5-\xe5rs TCO</span>' +
+    '<div style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 14px;margin-top:6px">' +
+      '<div style="font-size:1rem;font-weight:700;color:#a5f3fc;margin-bottom:5px">~' + tco.total.toLocaleString('sv-SE') + ' kr</div>' +
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
+        '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr &nbsp;' +
+        '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr &nbsp;' +
+        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr' +
+      '</div>' +
+      '<div style="margin-top:5px;font-size:.7rem;color:rgba(255,255,255,.3)">' +
+        '&#x2248; ' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n &mdash; uppskattning exkl. f\xf6rs\xe4kring' +
+      '</div>' +
+    '</div>';
+}
+
 function caFallbackCopy(text) {
   var ta = document.createElement('textarea');
   ta.value = text;
@@ -771,11 +850,12 @@ async function caGetRecommendation() {
   caStartLoadingText();
 
   var fuelVal = document.getElementById('ca-fuel').value;
+  caCurrentKm = parseInt(document.getElementById('ca-km').value) * 10;
   var payload = {
     budget:      parseInt(document.getElementById('ca-budget-slider').value),
     carCategory: document.getElementById('ca-category').value,
     hasCharger:  document.getElementById('ca-charger').value === 'true',
-    kmPerYear:   parseInt(document.getElementById('ca-km').value) * 10,
+    kmPerYear:   caCurrentKm,
     usage:       document.getElementById('ca-usage').value,
     passengers:  parseInt(document.getElementById('ca-passengers').value),
     newCar:      document.getElementById('ca-newcar').value === 'true',

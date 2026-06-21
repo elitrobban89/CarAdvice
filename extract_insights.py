@@ -83,6 +83,7 @@ def get_video_ids(channel_url):
 
 def get_transcript(video_id):
     api = YouTubeTranscriptApi()
+    # Försök svenska och engelska först
     for langs in [["sv", "sv-SE"], ["en"]]:
         try:
             transcript = api.fetch(video_id, languages=langs)
@@ -90,6 +91,18 @@ def get_transcript(video_id):
             return text, langs[0]
         except Exception:
             continue
+    # Fallback: ta den första tillgängliga textningen oavsett språk
+    try:
+        transcript_list = api.list(video_id)
+        for t in transcript_list:
+            try:
+                transcript = t.fetch()
+                text = " ".join(snippet.text for snippet in transcript)
+                return text, t.language_code
+            except Exception:
+                continue
+    except Exception:
+        pass
     return None, None
 
 
