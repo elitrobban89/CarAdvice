@@ -710,6 +710,35 @@ function caParsePrice(priceStr) {
   return m ? parseInt(m[1]) : 0;
 }
 
+function caVehicleTaxPerYear(r) {
+  var isEv   = r.evSpec && r.evSpec.carType !== 'PHEV';
+  var isPhev = r.evSpec && r.evSpec.carType === 'PHEV';
+  var cat    = (r.category || '').toLowerCase();
+  var title  = (r.title || '').toLowerCase();
+  var isHybrid = !isEv && !isPhev && (title.indexOf('hybrid') !== -1);
+  if (isEv) return 360;
+  if (isPhev) return 1500;
+  if (isHybrid) return cat.indexOf('suv') !== -1 ? 3200 : 2000;
+  if (cat.indexOf('suv') !== -1) return 4500;
+  if (cat.indexOf('smaabil') !== -1 || cat.indexOf('ekonomibil') !== -1) return 1200;
+  return 3000;
+}
+
+function caInsurancePerYear(r) {
+  var isEv   = r.evSpec && r.evSpec.carType !== 'PHEV';
+  var isPhev = r.evSpec && r.evSpec.carType === 'PHEV';
+  var cat    = (r.category || '').toLowerCase();
+  var price  = caParsePrice(r.price);
+  var base = 5500;
+  if (cat.indexOf('suv') !== -1) base = 7000;
+  else if (cat.indexOf('smaabil') !== -1 || cat.indexOf('ekonomibil') !== -1) base = 3500;
+  if (isEv)   base += 1500;
+  if (isPhev) base += 500;
+  if (price > 600000) base += 2000;
+  else if (price < 200000) base -= 1000;
+  return Math.round(base / 500) * 500;
+}
+
 function caTcoCalc(r, kmPerYear) {
   var price = caParsePrice(r.price);
   if (!price || price < 50000) return null;
@@ -722,33 +751,35 @@ function caTcoCalc(r, kmPerYear) {
   var fuelCost = 0;
   if (isEv && r.evSpec.batteryKwh > 0 && r.evSpec.wltpKm > 0) {
     var kwhPerKm = r.evSpec.batteryKwh / r.evSpec.wltpKm;
-    fuelCost = kwhPerKm * km * years * 1.5; // 1.50 kr/kWh hemmaladdning
+    fuelCost = kwhPerKm * km * years * 1.5;
   } else if (isPhev) {
-    // 50% på el, 50% på bensin (schablonmässigt)
-    var elKwhPerKm = 0.20;
-    fuelCost = (elKwhPerKm * km * 0.5 * years * 1.5) + (0.045 * (km * 0.5 / 10) * years * 18);
+    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (0.045 * (km * 0.5 / 10) * years * 18);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
-    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18; // diesel vs bensin
+    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18;
     fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 10) * years * fuelPrice;
   } else {
-    fuelCost = 0.065 * (km / 10) * years * 18; // schablonbensin ~6.5 l/mil
+    fuelCost = 0.065 * (km / 10) * years * 18;
   }
 
   // Servicekostnad
-  var service = isEv ? 3000 : isPhev ? 6000 : 8000;
-  var serviceCost = service * years;
+  var serviceCost = (isEv ? 3000 : isPhev ? 6000 : 8000) * years;
 
-  // Värdeminskning (restvärde efter 5 år)
-  var residual = isEv ? 0.42 : 0.48;
-  var depreciation = price * (1 - residual);
+  // Värdeminskning
+  var depreciation = price * (isEv ? 0.58 : 0.52);
 
-  var total = Math.round((fuelCost + serviceCost + depreciation) / 1000) * 1000;
+  // Fordonsskatt + försäkring (halvförsäkring)
+  var taxCost       = caVehicleTaxPerYear(r) * years;
+  var insuranceCost = caInsurancePerYear(r) * years;
+
+  var total = Math.round((fuelCost + serviceCost + depreciation + taxCost + insuranceCost) / 1000) * 1000;
   return {
-    total: total,
-    fuel: Math.round(fuelCost / 1000) * 1000,
-    service: Math.round(serviceCost / 1000) * 1000,
-    depreciation: Math.round(depreciation / 1000) * 1000,
-    perMonth: Math.round(total / (years * 12) / 100) * 100
+    total:       total,
+    fuel:        Math.round(fuelCost / 1000) * 1000,
+    service:     Math.round(serviceCost / 1000) * 1000,
+    depreciation:Math.round(depreciation / 1000) * 1000,
+    tax:         Math.round(taxCost / 1000) * 1000,
+    insurance:   Math.round(insuranceCost / 1000) * 1000,
+    perMonth:    Math.round(total / (years * 12) / 100) * 100
   };
 }
 
@@ -760,12 +791,14 @@ function caTcoHtml(r, kmPerYear) {
     '<div style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 14px;margin-top:6px">' +
       '<div style="font-size:1rem;font-weight:700;color:#a5f3fc;margin-bottom:5px">~' + tco.total.toLocaleString('sv-SE') + ' kr</div>' +
       '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
-        '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr &nbsp;' +
-        '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr &nbsp;' +
-        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr' +
+        '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
+        '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
+        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
+        '&#x1F3E6; Skatt: ' + tco.tax.toLocaleString('sv-SE') + ' kr &nbsp;&nbsp;' +
+        '&#x1F6E1;&#xFE0F; F\xf6rs\xe4kring: ' + tco.insurance.toLocaleString('sv-SE') + ' kr' +
       '</div>' +
       '<div style="margin-top:5px;font-size:.7rem;color:rgba(255,255,255,.3)">' +
-        '&#x2248; ' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n &mdash; uppskattning exkl. f\xf6rs\xe4kring' +
+        '&#x2248; ' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n &mdash; uppskattning inkl. halvf\xf6rs\xe4kring &amp; skatt' +
       '</div>' +
     '</div>';
 }

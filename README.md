@@ -59,12 +59,14 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ### 5-års TCO-kalkyl
 - **💰 5-års TCO**-sektion på varje bilkort — total ägandekostnad (Total Cost of Ownership)
-- Beräknar: köpeskilling × (1 − restvärde) + 5 år drivmedel + 5 år service
-- Elbil: hemmaladdning 1,50 kr/kWh utifrån kWh/km från WLTP; tjänstebilsservice 3 000 kr/år
-- PHEV: 50/50-split el/bensin; service 6 000 kr/år
-- Bensin/diesel: l/mil × km/år × bränslepris; service 8 000 kr/år
-- Restvärde: EV 42%, ICE/hybrid 48% efter 5 år (schablonvärde)
-- Visar uppdelning: värdeminskning / drivmedel / service + kronor/månad
+- Fem kostnadsposter: värdeminskning + drivmedel + service + fordonsskatt + halvförsäkring
+- Elbil: hemmaladdning 1,50 kr/kWh; skatt 360 kr/år (bara trafikavgift); försäkring ~7 000–10 000 kr/år
+- PHEV: 50/50-split el/bensin; skatt 1 500 kr/år; service 6 000 kr/år
+- Hybrid: lägre schablonsskatt (2 000–3 200 kr/år) än ren bensin
+- Bensin/diesel: l/mil × km/år × bränslepris; service 8 000 kr/år; skatt 1 200–4 500 kr/år beroende på kategori
+- Försäkring: schablonhalvförsäkring per kategori (3 500–9 000 kr/år), justeras för pris och elbil-påslag
+- Restvärde: EV 42%, ICE/hybrid 48% efter 5 år
+- Visar uppdelning: värdeminskning / drivmedel / service / skatt / försäkring + kronor/månad
 - Uppdateras automatiskt utifrån vald körsträcka (km/år från formuläret)
 - Syns även som egen rad i jämförelsetabellen
 
@@ -101,8 +103,13 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
 - **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript och laddar upp via admin-endpoint)
-- **68 insikter inladdade:** 37 manuellt skrivna expertinsikter + 16 från YouTube-transkript + 15 Bilprovningen 2025
-- Bilprovningen 2025-insikter: `scrape_bilprovningen.py` laddar ner officiell besiktningsstatistik och genererar 15 insikter om vanliga underkännandeorsaker (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.) — uppladdade via `expert=Bilprovningen`
+- **118 insikter inladdade** från fyra expertkällor:
+  - **Bilexpert** (37): manuellt skrivna för vanliga bilar på svenska marknaden
+  - **Bilexpert** (16): extraherade från YouTube-transkript via `extract_insights.py`
+  - **Bilprovningen** (30): `scrape_bilprovningen.py` genererar modellspecifika besiktningsråd baserade på officiell 2025-komponentstatistik (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.)
+  - **Teknikens Värld** (10): kuraterade testresultat från tidningens biltest — `tv_vb_insights.py`
+  - **Vi Bilägare** (10): kuraterade testresultat och rekommendationer — `tv_vb_insights.py`
+- Ny insikt läggs till med: `py tv_vb_insights.py --upload --admin-key KEY` eller direkt mot admin-endpoint
 - Fler kan läggas till via admin-endpoint med `expert`-parametern
 
 ### EV-spec-skrapare (ev-database.org)
