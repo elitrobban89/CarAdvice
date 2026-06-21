@@ -364,12 +364,19 @@ function caEvChips(ev) {
 function caFuelChips(fuel) {
   if (!fuel) return '';
   var chips = '';
-  if (fuel.consumptionLiterPerMil > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x26FD; ' + fuel.consumptionLiterPerMil.toFixed(1) + ' l/mil</span>';
-  if (fuel.gearbox) chips += '<span class="ca-ev-chip ca-ev-charge">&#x2699;&#xFE0F; ' + caEsc(fuel.gearbox) + '</span>';
+  var isTurbo = fuel.gearbox && /turbo|tsi|tdi|gti|gdi|crdi|vtec.*t|t-gdi/i.test(fuel.gearbox);
+  var isAuto  = fuel.gearbox && /automat|dsg|cvt|pdk|steptronic|s-tronic|e-cvt/i.test(fuel.gearbox);
+  if (fuel.consumptionLiterPerMil > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x26FD; ' + fuel.consumptionLiterPerMil.toFixed(1) + ' l/100km</span>';
   if (fuel.horsepower > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; ' + fuel.horsepower + ' hk</span>';
-  if (fuel.engineVolumeLiters > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F527; ' + fuel.engineVolumeLiters.toFixed(1) + ' L motor</span>';
+  if (fuel.engineVolumeLiters > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F527; ' + fuel.engineVolumeLiters.toFixed(1) + ' L</span>';
+  if (isTurbo)  chips += '<span class="ca-ev-chip ca-ev-charge">&#x1F300; Turbo</span>';
+  if (fuel.gearbox) {
+    var gearLabel = fuel.gearbox.replace(/\s*\(.*?\)/g, '').trim();
+    chips += '<span class="ca-ev-chip" style="background:rgba(167,139,250,.13)">&#x2699;&#xFE0F; ' + caEsc(gearLabel) + '</span>';
+  }
   if (!chips) return '';
-  var head = '<div class="ca-ev-head"><span class="ca-ev-badge">&#x26FD; Bensin/Diesel</span></div>';
+  var autoTag = isAuto ? '<span style="font-size:.6rem;background:rgba(52,211,153,.18);color:#6ee7b7;padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:700">AUTOMAT</span>' : '';
+  var head = '<div class="ca-ev-head"><span class="ca-ev-badge">&#x26FD; Bensin/Diesel</span>' + autoTag + '</div>';
   return '<div class="ca-ev">' + head + '<div class="ca-ev-chips">' + chips + '</div></div>';
 }
 
