@@ -79,15 +79,15 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 2. Ta bort testläges-bannern i `subscribe.html`
 3. Registrera live webhook-endpoint i Stripe Dashboard
 
-> **Planerat:** Eventuellt samarbete med **Peter Esse** (bilexpert) för utökad RAG-data och verifierade rekommendationer.
+> **Pågående:** Kontakt tagen med **Peter Esse** (bilexpert) för samarbete kring RAG-data och verifierade rekommendationer. Inväntar svar.
 
 ---
 
 ### Bilexpert-samarbete (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
-- Nuvarande data baserad på **Erik Naessén** — relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel
-- Chatboten matchar insikter mot bilmärken som nämns i konversationen och avslutar svaret med expertens namn
-- **Planerat samarbete med Peter Esse** — utökad RAG-data med verifierade rekommendationer och expertsignaturer direkt i svaren
+- Nuvarande exempeldata är AI-genererad under **Erik Naesséns** namn — inget bekräftat samarbete ännu (inväntar svar)
+- Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med expertens namn
+- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter
 - 13 startinsikter laddas vid första start; fler kan läggas till via psql eller admin-endpoint
 
 ### EV-spec-skrapare (ev-database.org)
