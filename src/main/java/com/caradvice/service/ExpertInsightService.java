@@ -55,34 +55,40 @@ public class ExpertInsightService {
         }
 
         if (selected.isEmpty()) return "";
-        return formatInsights(selected, "Expertinsikter från Erik Naessén (referera till dessa när relevant, ange källan):\n");
+        return formatInsights(selected, "Bilexpertinsikter (referera till dessa när relevant, ange källan):\n");
     }
 
     public ExpertInsight save(ExpertInsight insight) {
         return repo.save(insight);
     }
 
-    public int importCsv(String csv) {
+    public int importCsv(String csv, String expertName) {
         int count = 0;
         for (String line : csv.split("\\R")) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#") || line.startsWith("car_make")) continue;
             String[] f = SafetyRatingService.parseCsvLine(line);
             if (f.length < 5) continue;
-            String carMake   = f[0];
-            String carModel  = f[1];
-            String fuelType  = f[2];
-            String category  = f[3];
+            String carMake   = blank(f[0]) ? null : f[0];
+            String carModel  = blank(f[1]) ? null : f[1];
+            String fuelType  = blank(f[2]) ? null : f[2];
+            String category  = blank(f[3]) ? null : f[3];
             String insight   = f[4];
             Integer rating   = null;
-            if (f.length > 5 && f[5] != null && !f[5].isBlank()) {
+            if (f.length > 5 && !blank(f[5])) {
                 try { rating = Integer.parseInt(f[5].trim()); } catch (NumberFormatException ignored) {}
             }
-            repo.save(new ExpertInsight("Erik Naessén", carMake, carModel, fuelType, category, insight, rating));
+            repo.save(new ExpertInsight(expertName, carMake, carModel, fuelType, category, insight, rating));
             count++;
         }
         return count;
     }
+
+    public int importCsv(String csv) {
+        return importCsv(csv, "Erik Naessén");
+    }
+
+    private boolean blank(String s) { return s == null || s.isBlank() || s.equals("null"); }
 
     private String formatInsights(List<ExpertInsight> insights, String header) {
         StringBuilder sb = new StringBuilder(header);
