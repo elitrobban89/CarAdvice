@@ -167,7 +167,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 600,
+                "max_tokens", 900,
                 "temperature", 0.5,
                 "messages", msgs
         );
@@ -198,7 +198,7 @@ public class GroqService {
         msgs.addAll(messages);
 
         Map<String, Object> requestBody = Map.of(
-                "model", model, "max_tokens", 600, "temperature", 0.5, "stream", true, "messages", msgs);
+                "model", model, "max_tokens", 900, "temperature", 0.5, "stream", true, "messages", msgs);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_URL))
