@@ -366,7 +366,7 @@ function caFuelChips(fuel) {
   var chips = '';
   var isTurbo = fuel.gearbox && /turbo|tsi|tdi|gti|gdi|crdi|vtec.*t|t-gdi/i.test(fuel.gearbox);
   var isAuto  = fuel.gearbox && /automat|dsg|cvt|pdk|steptronic|s-tronic|e-cvt/i.test(fuel.gearbox);
-  if (fuel.consumptionLiterPerMil > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x26FD; ' + fuel.consumptionLiterPerMil.toFixed(1) + ' l/100km</span>';
+  if (fuel.consumptionLiterPerMil > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x26FD; ' + (fuel.consumptionLiterPerMil / 10).toFixed(2) + ' l/mil</span>';
   if (fuel.horsepower > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; ' + fuel.horsepower + ' hk</span>';
   if (fuel.engineVolumeLiters > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F527; ' + fuel.engineVolumeLiters.toFixed(1) + ' L</span>';
   if (isTurbo)  chips += '<span class="ca-ev-chip ca-ev-charge">&#x1F300; Turbo</span>';
