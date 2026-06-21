@@ -119,9 +119,11 @@ public class StripeService {
             case "customer.subscription.updated" -> {
                 String customerId = data.path("customer").asText(null);
                 boolean cancelAtEnd = data.path("cancel_at_period_end").asBoolean(false);
-                long periodEnd = data.path("current_period_end").asLong(0);
-                LocalDateTime endsAt = toLocalDateTime(periodEnd > 0 ? periodEnd : null);
-                log.info("subscription.updated — customerId={} cancelAtEnd={}", customerId, cancelAtEnd);
+                // current_period_end moved to items in newer Stripe API versions — use cancel_at as fallback
+                long endTs = data.path("current_period_end").asLong(0);
+                if (endTs == 0) endTs = data.path("cancel_at").asLong(0);
+                LocalDateTime endsAt = toLocalDateTime(endTs > 0 ? endTs : null);
+                log.info("subscription.updated — customerId={} cancelAtEnd={} endsAt={}", customerId, cancelAtEnd, endsAt);
                 if (customerId != null) {
                     userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
                         u.setCancelAtPeriodEnd(cancelAtEnd);
