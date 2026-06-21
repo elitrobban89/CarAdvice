@@ -388,8 +388,8 @@ function caRenderCards(recommendations) {
     container.innerHTML = recommendations.map(function(r, i) {
       var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
       return '<div class="ca-card ca-card-'+(i+1)+'">' +
-        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:110px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.03);margin-bottom:0;display:none">' +
-          '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:cover;transition:opacity .4s">' +
+        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:80px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.04);margin-bottom:0;display:none">' +
+          '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:contain;object-position:center center;transition:opacity .4s">' +
         '</div>' +
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
