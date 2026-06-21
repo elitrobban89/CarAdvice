@@ -15,8 +15,8 @@ public class EvSpecSyncScheduler {
         this.scraper = scraper;
     }
 
-    // Runs every day at 03:00 (server time = UTC on Render)
-    @Scheduled(cron = "0 0 3 * * *")
+    // Runs every day at 02:00 Stockholm time (handles DST automatically)
+    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily EV spec sync triggered");
         try {

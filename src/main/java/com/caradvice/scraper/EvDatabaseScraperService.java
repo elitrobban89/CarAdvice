@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +22,7 @@ import java.util.regex.Pattern;
 public class EvDatabaseScraperService {
 
     private static final Logger log = LoggerFactory.getLogger(EvDatabaseScraperService.class);
+    private static final ZoneId STOCKHOLM = ZoneId.of("Europe/Stockholm");
     private static final String BASE_URL = "https://ev-database.org";
     private static final String CHEATSHEET_URL = BASE_URL + "/cheatsheet/range-electric-car";
     private static final int REQUEST_DELAY_MS = 1000;
@@ -57,6 +60,11 @@ public class EvDatabaseScraperService {
         int created = 0;
         int failed = 0;
         for (String path : carUrls) {
+            int hour = ZonedDateTime.now(STOCKHOLM).getHour();
+            if (hour >= 8 && hour < 17) {
+                log.warn("SCRAPER: Aborting at {}:xx Stockholm time — outside allowed window (02:00–07:00). updated={} created={} processed so far.", hour, updated, created);
+                break;
+            }
             try {
                 Thread.sleep(REQUEST_DELAY_MS);
                 ScrapedSpec scraped = scrapeCarPage(BASE_URL + path);
