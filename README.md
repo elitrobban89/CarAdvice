@@ -353,7 +353,7 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje sökning använder upp till **1 500 output-tokens** (höjt från 1 024 för att ge marginal för fuelSpec + verbose AI-svar), plus ~600–800 input-tokens för system-prompt och användarprompt — totalt ~50–60 unika sökningar/dag utan cache. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad.
+Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje sökning använder upp till **1 500 output-tokens** plus ~600–800 input-tokens — totalt ~50–60 unika sökningar/dag utan cache. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad. Chattboten använder upp till **900 output-tokens** per meddelande (höjt från 600 för att undvika avskurna svar).
 
 ---
 
@@ -364,6 +364,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Prenumerationslängd på kontosidan | Kontosidan visar nu "Prenumerant i: X månader/år" (beräknas live i webbläsaren via ISO-datum från `/api/auth/me`), "Startade: X" och "Förnyas: X" |
 | Tidzon UTC→Stockholm | Render kör i UTC — datum formaterades i UTC vilket kunde ge fel dag. Nu konverteras alla prenumerationsdatum till `Europe/Stockholm` innan formatering; ISO-strängen får `Z`-suffix så att `new Date()` i webbläsaren räknar durationen korrekt |
 | Backfill subscriptionStartedAt | Befintliga aktiva prenumeranter saknade startdatum (kolumnen tillkom efter deras aktivering). Vid uppstart sätts `subscriptionStartedAt = createdAt` för alla aktiva användare där fältet är null |
+| Chattbot avskuren text | `max_tokens` för chat/chatStream höjt från 600→900 — Erik Naessén-citatet och längre svar klipptes mitt i meningen |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
