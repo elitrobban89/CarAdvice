@@ -520,7 +520,48 @@ function caRenderCompare(recs) {
           '<tbody>'+rowsHtml+'</tbody>'+
         '</table>'+
       '</div>'+
+      caTcoBarChart(recs) +
     '</div>';
+}
+
+function caTcoBarChart(recs) {
+  var tcos = recs.map(function(r) { return caTcoCalc(r, caCurrentKm); });
+  var valid = tcos.filter(Boolean);
+  if (valid.length < 2) return '';
+  var maxTotal = Math.max.apply(null, valid.map(function(t) { return t.total; }));
+  var segments = [
+    { key: 'depreciation', label: 'V\xe4rdeminskning', color: '#8b5cf6' },
+    { key: 'fuel',         label: 'Drivmedel',           color: '#f97316' },
+    { key: 'service',      label: 'Service',              color: '#38bdf8' },
+    { key: 'tax',          label: 'Fordonsskatt',         color: '#22c55e' },
+    { key: 'insurance',    label: 'Halv\xadförs\xe4kring', color: '#ec4899' }
+  ];
+  var bars = recs.map(function(r, i) {
+    var tco = tcos[i];
+    if (!tco) return '';
+    var name = r.title.replace(/\s*\(\d{4}\)\s*$/, '');
+    var segs = segments.map(function(s) {
+      var w = (tco[s.key] / maxTotal * 100).toFixed(1);
+      return '<span title="' + s.label + ': ' + Math.round(tco[s.key]/1000) + 'k\xa0kr" ' +
+        'style="display:inline-block;height:100%;width:' + w + '%;background:' + s.color + ';flex-shrink:0"></span>';
+    }).join('');
+    return '<div style="margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">' +
+        '<span style="font-size:.72rem;color:rgba(255,255,255,.6)">' + caEsc(name) + '</span>' +
+        '<span style="font-size:.72rem;font-weight:700;color:#a5f3fc">' + tco.total.toLocaleString('sv-SE') + '\xa0kr</span>' +
+      '</div>' +
+      '<div style="display:flex;height:16px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06)">' + segs + '</div>' +
+    '</div>';
+  }).join('');
+  var legend = segments.map(function(s) {
+    return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:.63rem;color:rgba(255,255,255,.45)">' +
+      '<span style="width:9px;height:9px;border-radius:2px;background:' + s.color + ';flex-shrink:0"></span>' + s.label + '</span>';
+  }).join('');
+  return '<div style="padding:14px 18px 16px;border-top:1px solid rgba(255,255,255,.06)">' +
+    '<div style="font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.7);margin-bottom:10px">TCO-f\xf6rdelning (5\xa0\xe5r)</div>' +
+    bars +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' + legend + '</div>' +
+  '</div>';
 }
 
 function caFetchCarImages(recs) {

@@ -93,7 +93,29 @@ public class GroqService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 429) {
-            throw new RuntimeException("Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(response.body()) + ".");
+            Map<String, Object> fallbackBody = Map.of(
+                    "model", chatModel,
+                    "max_tokens", 1500,
+                    "temperature", 0.3,
+                    "response_format", Map.of("type", "json_object"),
+                    "messages", List.of(
+                            Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
+                            Map.of("role", "user", "content", prompt)
+                    )
+            );
+            HttpRequest fallbackRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(GROQ_URL))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(fallbackBody)))
+                    .build();
+            response = httpClient.send(fallbackRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 429) {
+                throw new RuntimeException("Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(response.body()) + ".");
+            }
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
+            }
         }
         if (response.statusCode() != 200) {
             throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");

@@ -20,8 +20,10 @@ public class UserService {
     }
 
     public User register(String email, String password) {
-        if (email == null || !email.contains("@")) throw new RuntimeException("Ogiltig e-postadress");
-        if (password == null || password.length() < 6) throw new RuntimeException("Lösenordet måste vara minst 6 tecken");
+        if (email == null || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) throw new RuntimeException("Ogiltig e-postadress");
+        if (password == null || password.isBlank()) throw new RuntimeException("Lösenord krävs");
+        if (password.length() < 8) throw new RuntimeException("Lösenordet måste vara minst 8 tecken");
+        if (password.length() > 128) throw new RuntimeException("Lösenordet är för långt (max 128 tecken)");
         if (repo.findByEmail(email.toLowerCase()).isPresent()) throw new RuntimeException("E-postadressen är redan registrerad");
         User user = new User(email.toLowerCase(), encoder.encode(password));
         user.setSessionToken(UUID.randomUUID().toString());
