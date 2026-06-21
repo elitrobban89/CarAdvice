@@ -66,5 +66,5 @@ public class User {
     public LocalDateTime getTokenExpiresAt() { return tokenExpiresAt; }
     public void setTokenExpiresAt(LocalDateTime v) { this.tokenExpiresAt = v; }
     public boolean isCancelAtPeriodEnd() { return cancelAtPeriodEnd != null && cancelAtPeriodEnd; }
-    public void setCancelAtPeriodEnd(boolean v) { this.cancelAtPeriodEnd = v; }
+    public void setCancelAtPeriodEnd(Boolean v) { this.cancelAtPeriodEnd = v; }
 }
