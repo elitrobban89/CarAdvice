@@ -128,6 +128,8 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
+- **robots.txt** — `Disallow: /` på hela `caradvice.onrender.com`; backendn är inte en innehållssajt och ska inte indexeras av sökmotorer (innehållet indexeras via `elitrobban.se`)
+- **Säkerhetsheaders** — sätts på alla svar via ett globalt filter i `WebConfig`: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `X-XSS-Protection` och `Permissions-Policy`
 - **Graceful degradation** — om DB är tillfälligt otillgänglig returneras AI-rekommendationer utan EV/cargo/expert-data istället för ett 500-fel
 - **HikariCP begränsad till 3 kopplingar** med keepalive var 60:e sekund och `SELECT 1`-validering — optimerad för delad free-tier PostgreSQL
 
@@ -401,6 +403,8 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | EV-scraper-larm | Scraper loggade tyst vid strukturfel — nu loggas `ERROR` om cheatsheet returnerar 0 URL:er och `WARN` om >50 % av bilsidorna misslyckas; synksammanfattning visar `updated/created/failed/total` |
 | Scraper-tidsfönster | Cron ändrad till 02:00 Stockholm-tid med DST-hantering (`zone="Europe/Stockholm"`); scraper-loopen aborterar med `WARN` om den pågår efter 08:00 stockholmstid |
 | `cancelAtPeriodEnd` setter NPE | Setter tog primitiv `boolean` — Hibernate skickar `null` för befintliga DB-rader utan värde, vilket kraschade vid unboxing; ändrat till `Boolean` (getterns null-check hanterar `null → false`) |
+| robots.txt | Googlebot crawlade `/` utan begränsning — lagt till `robots.txt` med `Disallow: /` för att styra bort indexering från backendsdomänen |
+| Säkerhetsheaders | Inga säkerhetsheaders sattes på svar — globalt filter i `WebConfig` lägger till `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `X-XSS-Protection: 0` och `Permissions-Policy` på alla svar |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
