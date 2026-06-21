@@ -2,6 +2,7 @@ package com.caradvice.service;
 
 import com.caradvice.model.User;
 import com.caradvice.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,16 @@ public class UserService {
 
     public UserService(UserRepository repo) {
         this.repo = repo;
+    }
+
+    @PostConstruct
+    public void backfillSubscriptionStartedAt() {
+        repo.findAll().forEach(u -> {
+            if ("active".equals(u.getSubscriptionStatus()) && u.getSubscriptionStartedAt() == null) {
+                u.setSubscriptionStartedAt(u.getCreatedAt());
+                repo.save(u);
+            }
+        });
     }
 
     public User register(String email, String password) {
