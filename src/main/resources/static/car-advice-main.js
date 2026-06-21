@@ -753,12 +753,15 @@ function caTcoCalc(r, kmPerYear) {
     var kwhPerKm = r.evSpec.batteryKwh / r.evSpec.wltpKm;
     fuelCost = kwhPerKm * km * years * 1.5;
   } else if (isPhev) {
-    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (0.045 * (km * 0.5 / 10) * years * 18);
+    // el: 0.20 kWh/km × km × 0.5 × years × 1.50 kr/kWh
+    // bensin: ~4.5 l/100km × (km×0.5/100) × years × 18 kr/l
+    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * 18);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
+    // AI returnerar l/100km trots fältnamnet "PerMil"
     var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18;
-    fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 10) * years * fuelPrice;
+    fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fuelPrice;
   } else {
-    fuelCost = 0.065 * (km / 10) * years * 18;
+    fuelCost = 6.5 * (km / 100) * years * 18; // schablonbensin 6.5 l/100km
   }
 
   // Servicekostnad
