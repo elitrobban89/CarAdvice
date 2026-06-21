@@ -203,10 +203,10 @@ public class CarController {
     }
 
     // Admin: import expert insights from CSV (car_make,car_model,fuel_type,category,insight,rating)
-    // Optional query param: ?expert=Peter+Esse  (default: Erik Naessén)
+    // Optional query param: ?expert=Peter+Esse  (default: Bilexpert)
     @PostMapping("/admin/import/insights")
     public ResponseEntity<?> importInsights(@RequestHeader("X-Admin-Key") String key,
-                                            @RequestParam(defaultValue = "Erik Naessén") String expert,
+                                            @RequestParam(defaultValue = "Bilexpert") String expert,
                                             @RequestBody String csv) {
         if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
         try {

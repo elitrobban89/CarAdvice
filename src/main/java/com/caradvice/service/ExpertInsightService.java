@@ -85,7 +85,7 @@ public class ExpertInsightService {
     }
 
     public int importCsv(String csv) {
-        return importCsv(csv, "Erik Naessén");
+        return importCsv(csv, "Bilexpert");
     }
 
     private boolean blank(String s) { return s == null || s.isBlank() || s.equals("null"); }

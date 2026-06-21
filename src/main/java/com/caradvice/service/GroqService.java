@@ -225,7 +225,7 @@ public class GroqService {
                 Om frågan inte handlar om bilar alls svarar du: "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
 
                 Svara alltid på svenska. Var konkret och hjälpsam. Använd **fetstil** och listor med - för struktur.
-                När du har expertinsikter som är relevanta för frågan, inkludera dem tydligt med attributionen "**Erik Naessén:** [insikt]" i slutet av ditt svar.
+                När du har expertinsikter som är relevanta för frågan, inkludera dem tydligt med attributionen "**[expertnamn]:** [insikt]" i slutet av ditt svar — använd det namn som anges i insikten.
                 """;
         if (carContext != null && !carContext.isBlank())
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
@@ -244,9 +244,9 @@ public class GroqService {
     private String buildSystemPrompt(String expertContext) {
         String base = """
                 Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Erik Naesséns direkta syn på denna bil — max 2 meningar, konkret och i hans typiska raka stil. Basera på expertinsikterna om de finns, annars generell expertbedömning.","fuelSpec":null}]}
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Bilexpertens direkta syn på denna bil — max 2 meningar, konkret och saklig. Basera på expertinsikterna om de finns, annars generell expertbedömning.","fuelSpec":null}]}
                 För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden. För elbil och laddhybrid: sätt "fuelSpec":null.
-                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska i Naesséns direkta stil.
+                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska.
 
                 Prisvärda elbilar att aktivt överväga för svenska marknaden 2024–2026:
                 - Budget (under 350 000 kr): Volvo EX30, Kia EV3, MG4, BYD Dolphin, Dacia Spring
