@@ -30,7 +30,7 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, Tran
 
 # ── Konfiguration ─────────────────────────────────────────────────────────────
 CHANNEL_URL  = "https://www.youtube.com/@PeterEsse/videos"
-EXPERT_NAME  = "Peter Esse"
+EXPERT_NAME  = "Bilexpert"
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 ADMIN_KEY    = os.environ.get("ADMIN_KEY", "")
 API_URL      = os.environ.get("API_URL", "https://caradvice.onrender.com")
