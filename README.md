@@ -68,7 +68,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna
 - **Per-bil-fokus** — klickar man "Fråga om denna bil" ändras chatboten till att fokusera på just den bilen med specifika chips: Berätta om, Driftkostnad & skatt, Tillförlitlighet & problem, Jämför med
 - Dynamiska follow-up chips baserade på svarsinnehållet
-- Rensa-knapp; max 10 frågor/minut per IP; sparar historik i localStorage
+- Rensa-knapp; max 10 frågor/minut per IP
+- **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
 
 ### Produktionsstatus
 
@@ -94,6 +95,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Fuzzy-matchning i två steg mot befintliga DB-poster — förhindrar dubbletter
 - Priser uppdateras på befintliga poster där `priceKr=0`
 - Synken håller ingen DB-koppling öppen — varje sparande är en egen kort transaktion (förhindrar connection pool-uttömning)
+- **Strukturlarm** — loggar `ERROR` om cheatsheet-sidan returnerar 0 bilar (HTML-strukturen har ändrats) eller om >50 % av bilsidorna misslyckas; synksammanfattningen visar `updated/created/failed/total`
 - Manuell trigger via admin-endpoint:
   ```bash
   curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
@@ -394,6 +396,8 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Stripe webhook-events kompletterade | Lade till `customer.subscription.updated`, `deleted`, `paused`, `resumed` och `invoice.payment_succeeded` i Stripe Dashboard — tidigare saknades dessa och cancel-synken fungerade inte |
 | Återaktivera prenumeration | Ny knapp "Återaktivera prenumeration" visas på kontosidan när `cancelAtPeriodEnd=true` — kallar `/api/stripe/reactivate` som sätter `cancelAtPeriodEnd=false` i Stripe och läser nytt `current_period_end`; knappen växlar tillbaka till "Avsluta prenumeration" vid framgång |
 | Global CORS-konfiguration | `WebConfig.java` ersätter `@CrossOrigin`-annotationen på CarController — alla `/api/**`-endpoints skyddas centralt; tillåtna origins konfigureras via `CORS_ALLOWED_ORIGINS`-miljövariabeln |
+| Chatthistorik UX | Välkomstmeddelandet visades alltid vid sidladdning och dolde sparad historik — nu visas historiken direkt utan hälsning; FAB-etiketten ändras till "💬 Fortsätt chatten" när historik finns; chat scrollas automatiskt till botten |
+| EV-scraper-larm | Scraper loggade tyst vid strukturfel — nu loggas `ERROR` om cheatsheet returnerar 0 URL:er och `WARN` om >50 % av bilsidorna misslyckas; synksammanfattning visar `updated/created/failed/total` |
 | Sammanslagen "Prenumerera / Logga in"-knapp | Demo-läget visade två separata element ("Logga in"-länk + "Prenumerera"-knapp). Nu visas en enda knapp som öppnar kontosidan som popup |
 | Logout-synk: "Konto" öppnas nu som popup | "Konto"-länken för inloggade prenumeranter följde `href` som vanlig länk — subscribe.html fick inget `window.opener` och CA_LOGOUT-meddelandet nådde aldrig WordPress-sidan vid utloggning därifrån. Löst: alla klick på `ca-login-link` (utom logout) öppnar nu subscribe.html via `caOpenSubscribe()` (popup med `window.opener`) |
 | Stale token rensas vid sidladdning | `/api/auth/me` ignorerade 401-svar och lämnade `ca_token`/`ca_email`/`ca_status` i localStorage. WordPress-sidan visade då "✓ Prenumerant" även efter utloggning. Löst: vid non-OK svar rensas localStorage och baren återställs till Demo-läge |
