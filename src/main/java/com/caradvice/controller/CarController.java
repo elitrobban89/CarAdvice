@@ -1,6 +1,8 @@
 package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
+import com.caradvice.model.RateLimitLog;
+import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
@@ -8,9 +10,13 @@ import com.caradvice.service.SafetyRatingService;
 import com.caradvice.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -18,6 +24,8 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,11 +39,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/api")
 public class CarController {
 
+    private static final Logger log = LoggerFactory.getLogger(CarController.class);
+
     private final GroqService groqService;
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
     private final EvDatabaseScraperService evScraper;
     private final UserService userService;
+    private final RateLimitLogRepository rateLimitLogRepo;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -51,12 +62,42 @@ public class CarController {
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
                          SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
-                         UserService userService) {
+                         UserService userService, RateLimitLogRepository rateLimitLogRepo) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evScraper = evScraper;
         this.userService = userService;
+        this.rateLimitLogRepo = rateLimitLogRepo;
+    }
+
+    @PostConstruct
+    public void initRateLimits() {
+        try {
+            LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(1);
+            rateLimitLogRepo.findRecentRecommend(cutoff).forEach(entry -> {
+                long ts = entry.getRequestTime().toEpochSecond(ZoneOffset.UTC) * 1000;
+                ipRequestLog.computeIfAbsent(entry.getIp(), k -> new ArrayList<>()).add(ts);
+            });
+            log.debug("Rate limit: restored {} IP entries from DB", ipRequestLog.size());
+        } catch (Exception e) {
+            log.warn("Could not restore rate limit history from DB: {}", e.getMessage());
+        }
+    }
+
+    @Scheduled(cron = "0 15 * * * *")
+    public void cleanupRateLimitLogs() {
+        try {
+            rateLimitLogRepo.deleteByRequestTimeBefore(LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        } catch (Exception ignored) {}
+    }
+
+    private void persistRateLimit(String ip) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                rateLimitLogRepo.save(new RateLimitLog(ip, "recommend", LocalDateTime.now(ZoneOffset.UTC)));
+            } catch (Exception ignored) {}
+        });
     }
 
     @PostMapping("/admin/sync-ev-specs")
@@ -86,6 +127,7 @@ public class CarController {
                     "rateLimited", true
             ));
         }
+        if (!subscriber) persistRateLimit(ip);
         try {
             GroqService.Result result = groqService.getRecommendation(prefs);
             Map<String, Object> body = new HashMap<>();

@@ -12,6 +12,8 @@ window._ca = function(action, arg) {
 
 var caHasSearched = false;
 var caInitialValues = {};
+var caCurrentRecs = null;
+var caSavedFromServer = [];
 var caLoadingMessages = [
   'AI:n analyserar dina behov…',
   'Kollar Bilprovningens statistik…',
@@ -378,6 +380,9 @@ function caRenderCards(recommendations) {
     container.innerHTML = recommendations.map(function(r, i) {
       var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
       return '<div class="ca-card ca-card-'+(i+1)+'">' +
+        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:160px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.03);margin-bottom:0;display:none">' +
+          '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:cover;transition:opacity .4s">' +
+        '</div>' +
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
@@ -392,7 +397,7 @@ function caRenderCards(recommendations) {
           '<div class="ca-con">&#x26A0; ' + caEsc(r.con) + '</div>' +
           '<span class="ca-section-label">Passar dig</span>' +
           '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
-          (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Erik Naess\xe9n</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
+          (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Bilexpert</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
           (r.evSpec ? caEvChips(r.evSpec) : '') +
           (r.fuelSpec ? caFuelChips(r.fuelSpec) : '') +
@@ -405,6 +410,7 @@ function caRenderCards(recommendations) {
         '</div>' +
         '</div>';
     }).join('');
+    caFetchCarImages(recommendations);
     caRenderCompare(recommendations);
     container.querySelectorAll('.ca-ask-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -507,6 +513,180 @@ function caRenderCompare(recs) {
         '</table>'+
       '</div>'+
     '</div>';
+}
+
+function caFetchCarImages(recs) {
+  recs.forEach(function(r, i) {
+    var q = r.title.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    var wikiQ = q.replace(/\s+/g, '_');
+    (async function() {
+      var urls = [
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
+        'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
+      ];
+      for (var url of urls) {
+        try {
+          var resp = await fetch(url);
+          if (!resp.ok) continue;
+          var data = await resp.json();
+          if (data.thumbnail && data.thumbnail.source) {
+            var wrap = document.getElementById('ca-img-wrap-' + i);
+            var img = document.getElementById('ca-img-' + i);
+            if (wrap && img) { img.src = data.thumbnail.source; wrap.style.display = 'block'; }
+            return;
+          }
+        } catch(e) {}
+      }
+    })();
+  });
+}
+
+// ── Sparade sökningar (server-side) ──────────────────────────────────────────
+
+function caSavedLabel(prefs) {
+  var cat = CA_CAT_NAMES[prefs.carCategory] || prefs.carCategory || '';
+  var budget = prefs.budget ? parseInt(prefs.budget).toLocaleString('sv-SE') + ' kr' : '';
+  var fuel = (prefs.fuelType && prefs.fuelType !== 'spelar ingen roll') ? ' \xb7 ' + (CA_FUEL_NAMES[prefs.fuelType] || prefs.fuelType) : '';
+  return [cat, budget].filter(Boolean).join(' \xb7 ') + fuel;
+}
+
+function caRenderSaved() {
+  var area = document.getElementById('ca-saved-area');
+  if (!area) return;
+  if (caSavedFromServer.length === 0) { area.innerHTML = ''; return; }
+  var chips = caSavedFromServer.map(function(s) {
+    return '<button class="ca-history-chip" onclick="caLoadSavedEntry(\'' + s.id + '\')">' +
+      '<span class="ca-history-chip-text">♥ ' + caEsc(s.label || 'Sparad sökning') + '</span>' +
+      '<span class="ca-history-chip-del" onclick="event.stopPropagation();caDeleteSaved(' + s.id + ')" title="Ta bort">\xd7</span>' +
+      '</button>';
+  }).join('');
+  area.innerHTML = '<div class="ca-history-label">Sparade s\xf6kningar</div><div class="ca-history-chips">' + chips + '</div>';
+}
+
+function caLoadSavedEntry(id) {
+  var s = caSavedFromServer.find(function(x) { return String(x.id) === String(id); });
+  if (!s) return;
+  try {
+    var prefs = JSON.parse(s.prefsJson);
+    if (prefs.carCategory) document.getElementById('ca-category').value = prefs.carCategory;
+    if (prefs.budget)    { document.getElementById('ca-budget-slider').value = prefs.budget; caUpdateSliderFill(); }
+    if (prefs.hasCharger !== undefined) document.getElementById('ca-charger').value = prefs.hasCharger ? 'true' : 'false';
+    if (prefs.kmPerYear) document.getElementById('ca-km').value = Math.round(prefs.kmPerYear / 10);
+    if (prefs.usage)     document.getElementById('ca-usage').value = prefs.usage;
+    if (prefs.passengers) document.getElementById('ca-passengers').value = prefs.passengers;
+    if (prefs.newCar !== undefined) document.getElementById('ca-newcar').value = prefs.newCar ? 'true' : 'false';
+    if (prefs.fuelType)  document.getElementById('ca-fuel').value = prefs.fuelType;
+    caUpdateFuelVisibility(); caCheckMismatch();
+    var recs = JSON.parse(s.recommendationsJson || '[]');
+    if (recs.length > 0) {
+      document.getElementById('ca-divider').style.display = 'block';
+      document.getElementById('ca-results').style.display = 'block';
+      document.getElementById('ca-cache-badge').style.display = 'none';
+      caRenderCards(recs);
+      caCurrentRecs = recs;
+      caShowSaveBtn(true);
+      document.getElementById('ca-copy-btn').style.display = 'inline-block';
+      document.getElementById('ca-share-result-btn').style.display = 'inline-block';
+      var hbadge = document.getElementById('ca-history-badge');
+      if (hbadge) { hbadge.textContent = '♥ Sparad s\xf6kning'; hbadge.style.display = 'inline-block'; }
+      caHasSearched = true; caSnapshotValues();
+      document.getElementById('ca-btn').textContent = 'S\xf6k igen →';
+    } else {
+      caGetRecommendation();
+    }
+  } catch(e) {}
+}
+
+async function caDeleteSaved(id) {
+  var token = localStorage.getItem('ca_token');
+  if (!token) return;
+  try {
+    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (r.ok) {
+      caSavedFromServer = caSavedFromServer.filter(function(s) { return s.id !== id; });
+      caRenderSaved();
+    }
+  } catch(e) {}
+}
+
+async function caLoadSavedFromServer() {
+  var token = localStorage.getItem('ca_token');
+  if (!token) return;
+  try {
+    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) return;
+    caSavedFromServer = await r.json();
+    caEnsureSavedArea();
+    caRenderSaved();
+  } catch(e) {}
+}
+
+function caEnsureSavedArea() {
+  if (document.getElementById('ca-saved-area')) return;
+  var histArea = document.getElementById('ca-history-area');
+  if (!histArea) return;
+  var div = document.createElement('div');
+  div.id = 'ca-saved-area';
+  histArea.parentNode.insertBefore(div, histArea);
+}
+
+function caShowSaveBtn(show) {
+  var token = localStorage.getItem('ca_token');
+  if (!token) return;
+  var btn = document.getElementById('ca-save-btn');
+  if (!btn) {
+    var ref = document.getElementById('ca-share-result-btn');
+    if (!ref) return;
+    btn = document.createElement('button');
+    btn.id = 'ca-save-btn';
+    btn.className = ref.className;
+    btn.style.cssText = 'margin-left:6px';
+    btn.textContent = 'Spara s\xf6kning';
+    btn.addEventListener('click', caSaveSearch);
+    ref.parentNode.insertBefore(btn, ref.nextSibling);
+  }
+  btn.style.display = show ? 'inline-block' : 'none';
+}
+
+async function caSaveSearch() {
+  var token = localStorage.getItem('ca_token');
+  if (!token || !caCurrentRecs) return;
+  var btn = document.getElementById('ca-save-btn');
+  if (btn) { btn.textContent = 'Sparar…'; btn.disabled = true; }
+  try {
+    var prefs = {
+      budget: parseInt(document.getElementById('ca-budget-slider').value),
+      carCategory: document.getElementById('ca-category').value,
+      hasCharger: document.getElementById('ca-charger').value === 'true',
+      kmPerYear: parseInt(document.getElementById('ca-km').value) * 10,
+      usage: document.getElementById('ca-usage').value,
+      passengers: parseInt(document.getElementById('ca-passengers').value),
+      newCar: document.getElementById('ca-newcar').value === 'true',
+      fuelType: document.getElementById('ca-fuel').value
+    };
+    var label = caSavedLabel(prefs);
+    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefsJson: JSON.stringify(prefs), recommendationsJson: JSON.stringify(caCurrentRecs), label: label })
+    });
+    if (r.ok) {
+      var saved = await r.json();
+      caSavedFromServer.unshift({ id: saved.id, label: label, prefsJson: JSON.stringify(prefs), recommendationsJson: JSON.stringify(caCurrentRecs) });
+      caEnsureSavedArea();
+      caRenderSaved();
+      if (btn) { btn.textContent = '♥ Sparad!'; setTimeout(function() { btn.textContent = 'Spara s\xf6kning'; btn.disabled = false; }, 2500); }
+    } else {
+      if (btn) { btn.textContent = 'Spara s\xf6kning'; btn.disabled = false; }
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = 'Spara s\xf6kning'; btn.disabled = false; }
+  }
 }
 
 function caFallbackCopy(text) {
@@ -630,8 +810,10 @@ async function caGetRecommendation() {
 
     if (d.success && d.recommendations) {
       caRenderCards(d.recommendations);
+      caCurrentRecs = d.recommendations;
       document.getElementById('ca-copy-btn').style.display = 'inline-block';
       document.getElementById('ca-share-result-btn').style.display = 'inline-block';
+      caShowSaveBtn(true);
       if (d.cached) {
         var age = d.cachedAgeMinutes;
         var ageText = age < 1 ? 'precis' : age + ' min sedan';
@@ -817,6 +999,7 @@ function caInit() {
         localStorage.setItem('ca_status', d.subscriptionStatus || 'inactive');
         var active = d.subscriptionStatus === 'active';
         caUpdateSubBar(active, !active, null);
+        caLoadSavedFromServer();
       }).catch(function() {});
     }
   } catch(e) {}
