@@ -44,7 +44,8 @@
   .btn-logout:hover { background: #eee; }
   .btn-cancel { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; margin-top: 8px; font-size: 0.88rem; }
   .btn-cancel:hover { background: #fdf2f2; }
-  .btn-cancel:disabled { color: #aaa; border-color: #ddd; cursor: default; }
+  .btn-reactivate { background: #fff; color: #27ae60; border: 1px solid #27ae60; margin-top: 8px; font-size: 0.88rem; }
+  .btn-reactivate:hover { background: #f0faf0; }
   .btn-back { background: #1a1a2e; color: #fff; margin-top: 12px; }
   .btn-back:hover { background: #2d2d4e; }
   #loginForm, #registerForm { display: none; }
@@ -90,6 +91,7 @@
       </div>
       <button class="btn btn-back" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
       <button class="btn btn-cancel" id="cancelBtn" onclick="cancelSubscription()">Avsluta prenumeration</button>
+      <button class="btn btn-reactivate" id="reactivateBtn" onclick="reactivateSubscription()" style="display:none;">Återaktivera prenumeration</button>
     </div>
     <button class="btn btn-logout" onclick="logout()">Logga ut</button>
   </div>
@@ -217,9 +219,15 @@ function showLoggedIn(email, status, endsAt, startedAt, startedAtIso, cancelAtPe
     document.getElementById('subRenewal').textContent = cancelAtPeriodEnd ? '⚠ Förnyas inte — avslutas vid periodens slut' : '✓ Förnyas automatiskt';
     document.getElementById('subRenewal').style.color = cancelAtPeriodEnd ? '#e67e22' : '#27ae60';
     const cancelBtn = document.getElementById('cancelBtn');
+    const reactivateBtn = document.getElementById('reactivateBtn');
     if (cancelAtPeriodEnd) {
-      cancelBtn.textContent = '✓ Prenumerationen avslutas vid periodens slut';
-      cancelBtn.disabled = true;
+      cancelBtn.style.display = 'none';
+      reactivateBtn.style.display = 'block';
+    } else {
+      cancelBtn.style.display = 'block';
+      cancelBtn.textContent = 'Avsluta prenumeration';
+      cancelBtn.disabled = false;
+      reactivateBtn.style.display = 'none';
     }
   } else {
     badge.textContent = 'Inte prenumerant';
@@ -262,12 +270,37 @@ async function cancelSubscription() {
       const renewal = document.getElementById('subRenewal');
       renewal.textContent = '⚠ Förnyas inte — avslutas vid periodens slut';
       renewal.style.color = '#e67e22';
-      btn.textContent = '✓ Prenumerationen avslutas vid periodens slut';
+      btn.style.display = 'none';
+      document.getElementById('reactivateBtn').style.display = 'block';
     } else {
       btn.textContent = 'Avsluta prenumeration'; btn.disabled = false;
       alert('Fel: ' + data.error);
     }
   } catch(ex) { btn.textContent = 'Avsluta prenumeration'; btn.disabled = false; }
+}
+
+async function reactivateSubscription() {
+  if (!confirm('Vill du återaktivera prenumerationen? Den förnyas automatiskt vid periodens slut.')) return;
+  const btn = document.getElementById('reactivateBtn');
+  btn.textContent = 'Återaktiverar...'; btn.disabled = true;
+  const token = localStorage.getItem('ca_token');
+  try {
+    const r = await fetch(API + '/api/stripe/reactivate', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await r.json();
+    if (r.ok) {
+      btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'Återaktivera prenumeration';
+      const cancelBtn = document.getElementById('cancelBtn');
+      cancelBtn.style.display = 'block';
+      cancelBtn.textContent = 'Avsluta prenumeration';
+      cancelBtn.disabled = false;
+      const renewal = document.getElementById('subRenewal');
+      renewal.textContent = '✓ Förnyas automatiskt';
+      renewal.style.color = '#27ae60';
+    } else {
+      btn.textContent = 'Återaktivera prenumeration'; btn.disabled = false;
+      alert('Fel: ' + data.error);
+    }
+  } catch(ex) { btn.textContent = 'Återaktivera prenumeration'; btn.disabled = false; }
 }
 
 async function logout() {

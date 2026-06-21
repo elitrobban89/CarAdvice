@@ -34,6 +34,19 @@ public class StripeController {
         }
     }
 
+    @PostMapping("/reactivate")
+    public ResponseEntity<?> reactivate(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        Optional<User> userOpt = userService.findByToken(userService.extractToken(auth));
+        if (userOpt.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Inte inloggad"));
+        try {
+            stripeService.reactivateSubscription(userOpt.get());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/cancel")
     public ResponseEntity<?> cancel(
             @RequestHeader(value = "Authorization", required = false) String auth) {

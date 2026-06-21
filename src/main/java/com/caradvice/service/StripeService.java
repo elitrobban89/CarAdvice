@@ -147,6 +147,24 @@ public class StripeService {
         }
     }
 
+    public void reactivateSubscription(User user) throws Exception {
+        Stripe.apiKey = secretKey;
+        if (user.getStripeCustomerId() == null) throw new RuntimeException("Ingen aktiv prenumeration");
+        SubscriptionCollection subs = Subscription.list(SubscriptionListParams.builder()
+                .setCustomer(user.getStripeCustomerId())
+                .setStatus(SubscriptionListParams.Status.ACTIVE)
+                .build());
+        if (subs.getData().isEmpty()) throw new RuntimeException("Ingen prenumeration att återaktivera");
+        Subscription updated = subs.getData().get(0).update(SubscriptionUpdateParams.builder()
+                .setCancelAtPeriodEnd(false)
+                .build());
+        user.setCancelAtPeriodEnd(false);
+        Long periodEnd = updated.getCurrentPeriodEnd();
+        if (periodEnd != null && periodEnd > 0) user.setSubscriptionEndsAt(toLocalDateTime(periodEnd));
+        userRepo.save(user);
+        log.info("Subscription reactivated for user={}", user.getEmail());
+    }
+
     public void cancelSubscription(User user) throws Exception {
         Stripe.apiKey = secretKey;
         if (user.getStripeCustomerId() == null) throw new RuntimeException("Ingen aktiv prenumeration");
