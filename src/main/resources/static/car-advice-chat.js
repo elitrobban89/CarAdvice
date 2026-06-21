@@ -340,14 +340,18 @@
     `;
     document.body.appendChild(root);
 
-    caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!", false);
-
     if (caChatHistory.length > 0) {
       document.getElementById("ca-chat-quick").style.display = "none";
       caChatHistory.forEach(function(m) {
         if (m.role === "user") caChatAppendUser(m.content);
         else if (m.role === "assistant") caChatAppendBot(m.content, false);
       });
+      var msgsEl = document.getElementById("ca-chat-messages");
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      var labelEl = document.querySelector(".ca-chat-fab-label");
+      if (labelEl) labelEl.textContent = "💬 Fortsätt chatten";
+    } else {
+      caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!", false);
     }
 
     document.getElementById("ca-chat-fab").addEventListener("click", caChatToggle);

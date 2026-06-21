@@ -48,13 +48,19 @@ public class EvDatabaseScraperService {
         List<String> carUrls = fetchCarUrls();
         log.info("Found {} cars on ev-database.org cheatsheet", carUrls.size());
 
+        if (carUrls.isEmpty()) {
+            log.error("SCRAPER ALERT: Cheatsheet returned 0 car URLs — ev-database.org may have changed its HTML structure. Manual inspection needed.");
+            return 0;
+        }
+
         int updated = 0;
         int created = 0;
+        int failed = 0;
         for (String path : carUrls) {
             try {
                 Thread.sleep(REQUEST_DELAY_MS);
                 ScrapedSpec scraped = scrapeCarPage(BASE_URL + path);
-                if (scraped == null || scraped.name().isBlank()) continue;
+                if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
 
                 EvSpec match = findMatch(scraped.name(), nameMap);
                 if (match == null) {
@@ -114,11 +120,18 @@ public class EvDatabaseScraperService {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
+                failed++;
                 log.warn("Failed to scrape {}: {}", path, e.getMessage());
             }
         }
 
-        log.info("Sync complete — updated {} records, created {} new records.", updated, created);
+        int total = carUrls.size();
+        log.info("Sync complete — updated={} created={} failed={} total={}", updated, created, failed, total);
+        if (failed > total / 2) {
+            log.error("SCRAPER ALERT: {}/{} pages failed — ev-database.org may have changed its HTML structure. Manual inspection needed.", failed, total);
+        } else if (failed > 0) {
+            log.warn("Scraper: {}/{} pages could not be parsed", failed, total);
+        }
         return updated + created;
     }
 
