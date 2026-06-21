@@ -67,6 +67,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Försäkring: schablonhalvförsäkring per kategori (3 500–9 000 kr/år), justeras för pris och elbil-påslag
 - Restvärde: EV 42%, ICE/hybrid 48% efter 5 år
 - Visar uppdelning: värdeminskning / drivmedel / service / skatt / försäkring + kronor/månad
+- **Färgindikator (plupp)** bredvid TCO-summan: 🟢 ≤ 4 500 kr/mån · 🟡 4 500–8 000 kr/mån · 🔴 > 8 000 kr/mån
 - Uppdateras automatiskt utifrån vald körsträcka (km/år från formuläret)
 - Syns även som egen rad i jämförelsetabellen
 
@@ -85,6 +86,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
+- **Modellsplit:** chatbot använder `llama-3.1-8b-instant` (500 000 TPD), rekommendationer använder `llama-3.3-70b-versatile` (100 000 TPD) — minskar tokenförbrukning med ~60%
 
 ### Produktionsstatus
 
