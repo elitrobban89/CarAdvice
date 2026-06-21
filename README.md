@@ -18,7 +18,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Skeleton-loading: tre kortskelelett med shimmer-animation visas direkt när sökningen startar
 - Roterande laddmeddelanden med tips under skeleton-laddningen
 - Delade länkar auto-söker direkt när sidan öppnas (URL-parametrar triggar sökning automatiskt)
-- Sökhistorik: senaste 5 sökningar sparas med resultat — ett klick visar sparade rekommendationer direkt utan API-anrop
+- Sökhistorik: senaste 5 sökningar sparas lokalt (localStorage) — ett klick visar sparade rekommendationer direkt utan API-anrop
+- **Sparade sökningar (server-side):** inloggade användare kan spara sökningar till databasen via "Spara sökning"-knapp; visas som chips ovanför historiken vid nästa besök på vilken enhet som helst (max 20 per konto)
 - Historik-badge "📋 Sparad sökning (X min sedan)" visas när resultat kommer från historik
 - "Sök igen →"-knapp tillgänglig för att hämta färska resultat efter historik-visning
 - Blocket- och Bytbil-länk på varje bilkort — öppnar färdig sökning på märke och modell
@@ -31,6 +32,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ### Bilkortsdesign
 - Tre kort med **per-kort accentfärger**: Bil 1 lila, Bil 2 blå, Bil 3 grön
 - **Aurora-glödeffekt** — animerat radiellt gradient-orb bakom varje kort (CSS `@keyframes` med staggerade delays)
+- **Bilbilder** — varje kort hämtar automatiskt en thumbnail från Wikipedias öppna REST API (engelska → svenska Wikipedia som fallback); laddas asynkront och döljs tyst om ingen bild hittas
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
 
@@ -85,10 +87,10 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 
 ### Bilexpert-samarbete (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
-- Nuvarande exempeldata är AI-genererad under **Erik Naesséns** namn — inget bekräftat samarbete ännu (inväntar svar)
-- Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med expertens namn
-- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter
-- 13 startinsikter laddas vid första start; fler kan läggas till via psql eller admin-endpoint
+- Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
+- Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
+- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript och laddar upp via admin-endpoint)
+- 13 startinsikter laddas vid första start; fler kan läggas till via `extract_insights.py --upload` eller direkt mot admin-endpoint
 
 ### EV-spec-skrapare (ev-database.org)
 - Daglig schemalagd sync kl 03:00 UTC — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
@@ -126,6 +128,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - 2-timmars svar-cache på backend — identiska sökningar kostar inga tokens
 - Cache-ålder visas i resultatet: "⚡ Cachat svar (X min sedan)"
 - IP-baserad rate limiting: 10/h (gäst) · 30/h (inloggad) · obegränsat (prenumerant)
+- **Rate limit-persistens** — rate limit-logg sparas i `rate_limit_log`-tabellen; vid restart/deploy laddas senaste timmens trafik från DB in i minnet via `@PostConstruct` (ingen IP kan nollställa sin kvot via cold start); varje tillåten sökning sparas asynkront utan request-latens; DB-poster äldre än 2 timmar rensas varje timme
 - Vänliga svenska felmeddelanden med exakt återstartstid vid kvotgräns
 - 35-sekunders timeout med cold start-hint
 - **PWA-stöd** — `manifest.json` gör appen installerbar på Android/iOS
@@ -167,8 +170,9 @@ CarAdvice/
     │   │   └── WebConfig.java         ← Global CORS (tillåter elitrobban.se + localhost)
     │   ├── controller/
     │   │   ├── AuthController.java    ← /api/auth/register, login, logout, me
-    │   │   ├── CarController.java     ← REST-endpoints + admin sync-trigger
-    │   │   └── StripeController.java  ← /api/stripe/checkout, cancel, reactivate, webhook
+    │   │   ├── CarController.java     ← REST-endpoints + admin sync-trigger + rate limit-persistens
+    │   │   ├── StripeController.java  ← /api/stripe/checkout, cancel, reactivate, webhook
+    │   │   └── UserController.java    ← /api/user/saved-searches (CRUD)
     │   ├── data/
     │   │   └── DataLoader.java     ← Seeder: expertinsikter, EV-specs, cargo-specs
     │   ├── model/
@@ -180,12 +184,16 @@ CarAdvice/
     │   │   ├── EvSpecDto.java
     │   │   ├── ExpertInsight.java
     │   │   ├── FuelSpecDto.java        ← AI-genererad: förbrukning, växellåda, hk, motorvolym
+    │   │   ├── RateLimitLog.java       ← JPA-entity: rate limit-logg för persistens över restart
+    │   │   ├── SavedSearch.java        ← JPA-entity: sparad sökning kopplad till användare
     │   │   └── User.java               ← JPA-entity: användarkonto + prenumerationsstatus + slutdatum
     │   ├── repository/
     │   │   ├── CargoSpecRepository.java
     │   │   ├── EvSpecRepository.java
     │   │   ├── ExpertInsightRepository.java
+    │   │   ├── RateLimitLogRepository.java
     │   │   ├── SafetyRatingRepository.java
+    │   │   ├── SavedSearchRepository.java
     │   │   └── UserRepository.java
     │   ├── scraper/
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
@@ -196,6 +204,7 @@ CarAdvice/
     │       ├── ExpertInsightService.java
     │       ├── GroqService.java        ← Groq AI, cache, felhantering
     │       ├── SafetyRatingService.java
+    │       ├── SavedSearchService.java ← CRUD för sparade sökningar (max 20/användare)
     │       ├── StripeService.java      ← Checkout-session, webhook-hantering
     │       └── UserService.java        ← Register/login (BCrypt), sessionstoken
     └── resources/
@@ -318,6 +327,9 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 | `/api/stripe/cancel` | POST | Avsluta prenumeration vid periodens slut (Bearer-header krävs) |
 | `/api/stripe/reactivate` | POST | Återaktivera prenumeration (ångrar schemalagd avslutning, Bearer-header krävs) |
 | `/api/stripe/webhook` | POST | Stripe webhook — uppdaterar prenumerationsstatus automatiskt |
+| `/api/user/saved-searches` | POST | Spara sökning (prefsJson + recommendationsJson + label, Bearer-header krävs) |
+| `/api/user/saved-searches` | GET | Lista sparade sökningar för inloggad användare |
+| `/api/user/saved-searches/{id}` | DELETE | Ta bort en sparad sökning (Bearer-header krävs) |
 
 ---
 
@@ -325,11 +337,13 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 
 | Tabell | Innehåll |
 |--------|----------|
-| `expert_insight` | Erik Naesséns bilexpertis (RAG-kontext) |
+| `expert_insight` | Bilexpertinsikter (RAG-kontext för AI-prompten) — märkta "Bilexpert" tills samarbete bekräftas |
 | `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
 | `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken, token-utgångsdatum |
+| `saved_search` | Sparade sökningar per användare: preferenser (JSON), rekommendationer (JSON), etikett, skapad-tid (max 20/användare) |
+| `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
 
 ---
 
@@ -413,3 +427,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Storage-event efter logout | `ca_status`-borttagning skickade `!isActive = true` som `isLoggedIn` → visade "Inloggad" efter utloggning; nu reset till gäst-vy |
 | `FuelSpecDto` null-säkerhet | Primitiva `double`/`int` → boxade `Double`/`Integer` så att `null`-fält från AI inte kraschar deserialisering |
 | `isRateLimited` map-lookup | `compute()` följt av extra `map.get()` — använder nu returvärdet från `compute()` direkt |
+| Bilbilder på korten | Wikipedia REST API (CORS-öppen) lazy-loadar thumbnail per bilkort efter render; försöker engelska Wikipedia → svenska Wikipedia; döljs tyst om ingen bild hittas |
+| Sparade sökningar | Inloggade användare kan spara sökningar till DB via "Spara sökning"-knapp; hämtas från server vid inloggning och visas som chips ovanför historiken; DELETE tar bort enskild post |
+| Rate limit-persistens | In-memory rate limit-karta seedas från DB vid uppstart (`@PostConstruct`) — sökkvoter nollställs inte längre vid deploy eller cold start; async DB-skrivning per tillåten sökning; `@Scheduled` cleanup varje timme |
+| "Erik Naessén" i JS | Hårdkodat namn i expertopinions-div (rad 395 i original) — ändrat till "Bilexpert" för att matcha backend-attributionen |
