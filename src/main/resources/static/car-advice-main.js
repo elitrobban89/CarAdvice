@@ -380,7 +380,7 @@ function caRenderCards(recommendations) {
     container.innerHTML = recommendations.map(function(r, i) {
       var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
       return '<div class="ca-card ca-card-'+(i+1)+'">' +
-        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:160px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.03);margin-bottom:0;display:none">' +
+        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:110px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.03);margin-bottom:0;display:none">' +
           '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:cover;transition:opacity .4s">' +
         '</div>' +
         '<div class="ca-card-head">' +
@@ -519,9 +519,11 @@ function caFetchCarImages(recs) {
   recs.forEach(function(r, i) {
     var q = r.title.replace(/\s*\([^)]*\)\s*$/, '').trim();
     var wikiQ = q.replace(/\s+/g, '_');
+    var titleCaseQ = q.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
     (async function() {
       var urls = [
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
         'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
       ];
       for (var url of urls) {
