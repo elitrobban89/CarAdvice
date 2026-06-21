@@ -26,7 +26,7 @@ import sys
 import time
 import argparse
 import requests
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+from youtube_transcript_api import YouTubeTranscriptApi
 
 # ── Konfiguration ─────────────────────────────────────────────────────────────
 CHANNEL_URL  = "https://www.youtube.com/@PeterEsse/videos"
@@ -82,12 +82,13 @@ def get_video_ids(channel_url):
 
 
 def get_transcript(video_id):
+    api = YouTubeTranscriptApi()
     for langs in [["sv", "sv-SE"], ["en"]]:
         try:
-            parts = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
-            text = " ".join(p["text"] for p in parts)
+            transcript = api.fetch(video_id, languages=langs)
+            text = " ".join(snippet.text for snippet in transcript)
             return text, langs[0]
-        except (NoTranscriptFound, TranscriptsDisabled):
+        except Exception:
             continue
     return None, None
 
