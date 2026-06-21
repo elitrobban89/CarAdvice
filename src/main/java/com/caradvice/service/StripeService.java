@@ -100,6 +100,7 @@ public class StripeService {
                         u.setStripeCustomerId(cid);
                         u.setSubscriptionStatus("active");
                         if (ea != null) u.setSubscriptionEndsAt(ea);
+                        if (u.getSubscriptionStartedAt() == null) u.setSubscriptionStartedAt(LocalDateTime.now(ZoneOffset.UTC));
                         userRepo.save(u);
                         log.info("Activated subscription for userId={}", u.getId());
                     }, () -> log.warn("User not found for userId={}", userIdStr));
@@ -156,6 +157,7 @@ public class StripeService {
             u.setStripeCustomerId(customerId);
             u.setSubscriptionStatus("active");
             if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
+            if (u.getSubscriptionStartedAt() == null) u.setSubscriptionStartedAt(LocalDateTime.now(ZoneOffset.UTC));
             userRepo.save(u);
             log.info("Subscription activated for user={}", u.getEmail());
         } else {

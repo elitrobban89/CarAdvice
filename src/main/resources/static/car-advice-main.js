@@ -689,6 +689,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     title.textContent = '✓ Prenumerant';
     desc.textContent = ' – obegr\xe4nsade s\xf6kningar';
     prenBtn.style.display = 'none';
+    loginLink.style.display = 'inline';
     loginLink.textContent = 'Konto';
     loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
     loginLink.dataset.action = 'subscribe';
@@ -699,6 +700,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
+    loginLink.style.display = 'inline';
     loginLink.textContent = 'Logga ut';
     loginLink.href = '#';
     loginLink.dataset.action = 'logout';
@@ -708,10 +710,8 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 gratis s\xf6kningar per timme';
     if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
-    prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
-    loginLink.textContent = 'Logga in';
-    loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
-    loginLink.dataset.action = 'subscribe';
+    prenBtn.textContent = 'Prenumerera / Logga in';
+    loginLink.style.display = 'none';
     emailEl.style.display = 'none';
   }
 }

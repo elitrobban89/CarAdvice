@@ -79,7 +79,10 @@
     </div>
     <div id="activeSection" style="display:none;">
       <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">✓ Aktiv prenumeration</p>
-      <p id="subEndsAt" style="color:#888;font-size:0.85rem;margin-top:6px;"></p>
+      <div style="margin-top:10px;font-size:0.85rem;color:#666;line-height:2;">
+        <p id="subStartedAt"></p>
+        <p id="subEndsAt"></p>
+      </div>
       <button class="btn btn-back" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
     </div>
     <button class="btn btn-logout" onclick="logout()">Logga ut</button>
@@ -172,10 +175,10 @@ function saveAndShow(data) {
   if (window.opener) {
     window.opener.postMessage({ type: 'CA_LOGIN', token: data.token, email: data.email, status: data.subscriptionStatus }, '*');
   }
-  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt);
+  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt);
 }
 
-function showLoggedIn(email, status, endsAt) {
+function showLoggedIn(email, status, endsAt, startedAt) {
   document.getElementById('authView').style.display = 'none';
   document.getElementById('loggedInView').style.display = 'block';
   document.getElementById('userEmail').textContent = email;
@@ -185,8 +188,8 @@ function showLoggedIn(email, status, endsAt) {
     badge.className = 'status-badge status-active';
     document.getElementById('subscribeSection').style.display = 'none';
     document.getElementById('activeSection').style.display = 'block';
-    const endsEl = document.getElementById('subEndsAt');
-    endsEl.textContent = endsAt ? 'Förnyas ' + endsAt : '';
+    document.getElementById('subStartedAt').textContent = startedAt ? 'Startade: ' + startedAt : '';
+    document.getElementById('subEndsAt').textContent = endsAt ? 'Förnyas: ' + endsAt : '';
   } else {
     badge.textContent = 'Inte prenumerant';
     badge.className = 'status-badge status-inactive';
@@ -233,7 +236,7 @@ async function logout() {
     if (r.ok) {
       const data = await r.json();
       localStorage.setItem('ca_status', data.subscriptionStatus);
-      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt);
+      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt);
     }
   } catch(e) {}
 })();

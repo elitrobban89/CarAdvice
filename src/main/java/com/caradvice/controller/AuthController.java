@@ -63,6 +63,8 @@ public class AuthController {
         m.put("subscriptionStatus", u.getSubscriptionStatus());
         if (u.getSubscriptionEndsAt() != null)
             m.put("subscriptionEndsAt", u.getSubscriptionEndsAt().format(DATE_FMT));
+        if (u.getSubscriptionStartedAt() != null)
+            m.put("subscriptionStartedAt", u.getSubscriptionStartedAt().format(DATE_FMT));
         return m;
     }
 }
