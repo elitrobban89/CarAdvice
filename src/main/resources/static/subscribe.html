@@ -186,8 +186,10 @@ function subDurationLabel(isoDate) {
   const totalMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
   const years = Math.floor(totalMonths / 12);
   const months = totalMonths % 12;
-  const days = Math.floor((now - start) / 86400000);
-  if (years > 0 && months > 0) return years + (years === 1 ? ' år' : ' år') + ' och ' + months + (months === 1 ? ' månad' : ' månader');
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((nowDay - startDay) / 86400000);
+  if (years > 0 && months > 0) return years + ' år och ' + months + (months === 1 ? ' månad' : ' månader');
   if (years > 0) return years + (years === 1 ? ' år' : ' år');
   if (totalMonths > 0) return totalMonths + (totalMonths === 1 ? ' månad' : ' månader');
   return days + (days === 1 ? ' dag' : ' dagar');
