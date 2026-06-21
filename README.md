@@ -76,6 +76,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Rader: Pris · Fördelar · Nackdel · 🧳 Bagageutrymme · 💰 5-års TCO
 - Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri · Prisvärdhet
 - Färgkodade kolumnrubriker matchar kortens accentfärger
+- **TCO-stapeldiagram** under tabellen — horisontella staplar för varje bil med fem färgkodade segment: 🟣 värdeminskning · 🟠 drivmedel · 🔵 service · 🟢 fordonsskatt · 🩷 halvförsäkring; hover-tooltip visar kostnad i tkr per post
 
 ### Chatbot
 - Flytande knapp nere till höger med bil-ikon i glassmorphism-design; lila/indigo-tema
@@ -105,13 +106,13 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
 - **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript och laddar upp via admin-endpoint)
-- **118 insikter inladdade** från fyra expertkällor:
+- **138 insikter inladdade** från fyra expertkällor:
   - **Bilexpert** (37): manuellt skrivna för vanliga bilar på svenska marknaden
   - **Bilexpert** (16): extraherade från YouTube-transkript via `extract_insights.py`
   - **Bilprovningen** (30): `scrape_bilprovningen.py` genererar modellspecifika besiktningsråd baserade på officiell 2025-komponentstatistik (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.)
-  - **Teknikens Värld** (10): kuraterade testresultat från tidningens biltest — `tv_vb_insights.py`
-  - **Vi Bilägare** (10): kuraterade testresultat och rekommendationer — `tv_vb_insights.py`
-- Ny insikt läggs till med: `py tv_vb_insights.py --upload --admin-key KEY` eller direkt mot admin-endpoint
+  - **Teknikens Värld** (20): kuraterade testresultat — `tv_vb_insights.py` (10) + `more_insights.py` (10, täcker XC40 Recharge, Corolla, Kia Niro, VW ID.3, Audi Q4, Ford Puma, Cupra Born, Mazda CX-5, Mégane E-Tech, m.fl.)
+  - **Vi Bilägare** (20): kuraterade testresultat och rekommendationer — `tv_vb_insights.py` (10) + `more_insights.py` (10, täcker Seat Leon, Ford Kuga, Subaru Forester, Hyundai Kona EV, VW Passat, BMW 3-serie, T-Roc, Toyota bZ4X, Opel Astra, m.fl.)
+- Ny insikt läggs till med: `python more_insights.py --upload --admin-key KEY` eller direkt mot admin-endpoint
 - Fler kan läggas till via admin-endpoint med `expert`-parametern
 
 ### EV-spec-skrapare (ev-database.org)
@@ -415,6 +416,8 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje sökning använder upp till **1 500 output-tokens** plus ~600–800 input-tokens — totalt ~50–60 unika sökningar/dag utan cache. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad. Chattboten använder upp till **900 output-tokens** per meddelande (höjt från 600 för att undvika avskurna svar).
 
+**Groq 429-fallback:** om `llama-3.3-70b-versatile` svarar med 429 (dagsgräns nådd) försöker `getRecommendation()` automatiskt en gång med `llama-3.1-8b-instant` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
+
 ---
 
 ## Senaste bugfixar
@@ -449,6 +452,9 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Storage-event efter logout | `ca_status`-borttagning skickade `!isActive = true` som `isLoggedIn` → visade "Inloggad" efter utloggning; nu reset till gäst-vy |
 | `FuelSpecDto` null-säkerhet | Primitiva `double`/`int` → boxade `Double`/`Integer` så att `null`-fält från AI inte kraschar deserialisering |
 | `isRateLimited` map-lookup | `compute()` följt av extra `map.get()` — använder nu returvärdet från `compute()` direkt |
+| Lösenordsvalidering (skärpt) | Min 6 → min 8 tecken; max 128 tecken; email valideras med regex `^[^@\s]+@[^@\s]+\.[^@\s]+$` istf bara `contains("@")` |
+| Groq 429-fallback | `getRecommendation()` retryar automatiskt med `llama-3.1-8b-instant` om 70b svarar 429 — kastar bara fel om båda modellerna nekar |
+| TCO-stapeldiagram | `caTcoBarChart()` ritar horisontella staplad-bar-chart under jämförelsetabellen med fem färgkodade segment per bil |
 | Bilbilder på korten | Wikipedia REST API (CORS-öppen) lazy-loadar thumbnail per bilkort efter render; försöker engelska Wikipedia → svenska Wikipedia; döljs tyst om ingen bild hittas |
 | Sparade sökningar | Inloggade användare kan spara sökningar till DB via "Spara sökning"-knapp; hämtas från server vid inloggning och visas som chips ovanför historiken; DELETE tar bort enskild post |
 | Rate limit-persistens | In-memory rate limit-karta seedas från DB vid uppstart (`@PostConstruct`) — sökkvoter nollställs inte längre vid deploy eller cold start; async DB-skrivning per tillåten sökning; `@Scheduled` cleanup varje timme |
