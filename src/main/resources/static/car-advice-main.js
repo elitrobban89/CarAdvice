@@ -785,7 +785,7 @@ function caInit() {
   caBindEl('ca-reset-btn', caResetForm);
   caBindEl('ca-copy-btn', caCopyResult);
   caBindEl('ca-share-result-btn', caShareSearch);
-  caBindEl('ca-login-link', function(e) { if (this.dataset.action === 'logout') { e.preventDefault(); caLogoutBar(); } });
+  caBindEl('ca-login-link', function(e) { e.preventDefault(); if (this.dataset.action === 'logout') { caLogoutBar(); } else { caOpenSubscribe(); } });
   caBindEl('ca-prenumerera-btn', function(e) { e.preventDefault(); caOpenSubscribe(); });
 
   try {
@@ -805,7 +805,14 @@ function caInit() {
     if (caToken) {
       fetch('https://caradvice.onrender.com/api/auth/me', {
         headers: { 'Authorization': 'Bearer ' + caToken }
-      }).then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+      }).then(function(r) {
+        if (!r.ok) {
+          localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
+          caUpdateSubBar(false, false, null);
+          return null;
+        }
+        return r.json();
+      }).then(function(d) {
         if (!d) return;
         localStorage.setItem('ca_status', d.subscriptionStatus || 'inactive');
         var active = d.subscriptionStatus === 'active';
