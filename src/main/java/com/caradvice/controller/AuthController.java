@@ -5,6 +5,8 @@ import com.caradvice.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +55,7 @@ public class AuthController {
         return ResponseEntity.ok(userDto(user.get()));
     }
 
+    private static final ZoneId STOCKHOLM = ZoneId.of("Europe/Stockholm");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("d MMMM yyyy",
             java.util.Locale.forLanguageTag("sv"));
 
@@ -62,10 +65,13 @@ public class AuthController {
         m.put("token", u.getSessionToken() != null ? u.getSessionToken() : "");
         m.put("subscriptionStatus", u.getSubscriptionStatus());
         if (u.getSubscriptionEndsAt() != null)
-            m.put("subscriptionEndsAt", u.getSubscriptionEndsAt().format(DATE_FMT));
+            m.put("subscriptionEndsAt", u.getSubscriptionEndsAt().atZone(ZoneOffset.UTC)
+                    .withZoneSameInstant(STOCKHOLM).format(DATE_FMT));
         if (u.getSubscriptionStartedAt() != null) {
-            m.put("subscriptionStartedAt", u.getSubscriptionStartedAt().format(DATE_FMT));
-            m.put("subscriptionStartedAtIso", u.getSubscriptionStartedAt().toString());
+            var stockholmStart = u.getSubscriptionStartedAt().atZone(ZoneOffset.UTC)
+                    .withZoneSameInstant(STOCKHOLM);
+            m.put("subscriptionStartedAt", stockholmStart.format(DATE_FMT));
+            m.put("subscriptionStartedAtIso", u.getSubscriptionStartedAt().toInstant(ZoneOffset.UTC).toString());
         }
         return m;
     }
