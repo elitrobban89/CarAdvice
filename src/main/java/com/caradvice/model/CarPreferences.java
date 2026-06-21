@@ -8,5 +8,6 @@ public record CarPreferences(
         String usage,
         int passengers,
         boolean newCar,
-        String fuelType
+        String fuelType,
+        String transmission
 ) {}

@@ -29,6 +29,7 @@ var CA_HISTORY_KEY = 'ca-history';
 var CA_HISTORY_MAX = 5;
 var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Sm\xe5bil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
 var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
+var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
 var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
 
 function caStartLoadingText() {
@@ -56,22 +57,30 @@ function caUpdateSliderFill() {
 function caUpdateFuelVisibility() {
   var cat = document.getElementById('ca-category').value;
   var fuelField = document.getElementById('ca-fuel-field');
+  var transField = document.getElementById('ca-transmission-field');
   var hide = (cat === 'elbil' || cat === 'laddhybrid');
   fuelField.style.display = hide ? 'none' : '';
-  if (hide) document.getElementById('ca-fuel').value = 'spelar ingen roll';
+  if (transField) transField.style.display = hide ? 'none' : '';
+  if (hide) {
+    document.getElementById('ca-fuel').value = 'spelar ingen roll';
+    var t = document.getElementById('ca-transmission');
+    if (t) t.value = 'spelar ingen roll';
+  }
 }
 
 function caSavePrefs() {
   try {
+    var t = document.getElementById('ca-transmission');
     localStorage.setItem('ca-prefs', JSON.stringify({
-      category:   document.getElementById('ca-category').value,
-      budget:     document.getElementById('ca-budget-slider').value,
-      charger:    document.getElementById('ca-charger').value,
-      km:         document.getElementById('ca-km').value,
-      usage:      document.getElementById('ca-usage').value,
-      passengers: document.getElementById('ca-passengers').value,
-      newcar:     document.getElementById('ca-newcar').value,
-      fuelType:   document.getElementById('ca-fuel').value
+      category:     document.getElementById('ca-category').value,
+      budget:       document.getElementById('ca-budget-slider').value,
+      charger:      document.getElementById('ca-charger').value,
+      km:           document.getElementById('ca-km').value,
+      usage:        document.getElementById('ca-usage').value,
+      passengers:   document.getElementById('ca-passengers').value,
+      newcar:       document.getElementById('ca-newcar').value,
+      fuelType:     document.getElementById('ca-fuel').value,
+      transmission: t ? t.value : 'spelar ingen roll'
     }));
   } catch(e) {}
 }
@@ -88,6 +97,7 @@ function caLoadPrefs() {
     if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
     if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
     if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
+    if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
     caUpdateFuelVisibility();
     caCheckMismatch();
   } catch(e) {}
@@ -103,28 +113,31 @@ function caReadUrlParams() {
     if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
     if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
     if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
-    if (p.get('fuelType'))   document.getElementById('ca-fuel').value        = p.get('fuelType');
+    if (p.get('fuelType'))    document.getElementById('ca-fuel').value        = p.get('fuelType');
+    if (p.get('transmission')) { var t = document.getElementById('ca-transmission'); if (t) t.value = p.get('transmission'); }
     if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
   } catch(e) {}
 }
 
 function caSnapshotValues() {
+  var t = document.getElementById('ca-transmission');
   caInitialValues = {
-    category:   document.getElementById('ca-category').value,
-    budget:     document.getElementById('ca-budget-slider').value,
-    charger:    document.getElementById('ca-charger').value,
-    km:         document.getElementById('ca-km').value,
-    usage:      document.getElementById('ca-usage').value,
-    passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value,
-    fuelType:   document.getElementById('ca-fuel').value
+    category:     document.getElementById('ca-category').value,
+    budget:       document.getElementById('ca-budget-slider').value,
+    charger:      document.getElementById('ca-charger').value,
+    km:           document.getElementById('ca-km').value,
+    usage:        document.getElementById('ca-usage').value,
+    passengers:   document.getElementById('ca-passengers').value,
+    newcar:       document.getElementById('ca-newcar').value,
+    fuelType:     document.getElementById('ca-fuel').value,
+    transmission: t ? t.value : 'spelar ingen roll'
   };
 }
 
 function caCheckChanges() {
   if (!caHasSearched) return;
-  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
-  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType'];
+  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission'];
+  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType','transmission'];
   var anyChanged = false;
   ids.forEach(function(id, i) {
     var el = document.getElementById(id);
@@ -142,7 +155,7 @@ function caCheckChanges() {
 }
 
 function caBindChangeListeners() {
-  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel'];
+  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -178,6 +191,7 @@ function caCheckMismatch() {
 
 function caSaveHistory(recommendations) {
   try {
+    var tEl = document.getElementById('ca-transmission');
     var entry = {
       category:        document.getElementById('ca-category').value,
       budget:          document.getElementById('ca-budget-slider').value,
@@ -187,13 +201,14 @@ function caSaveHistory(recommendations) {
       passengers:      document.getElementById('ca-passengers').value,
       newcar:          document.getElementById('ca-newcar').value,
       fuelType:        document.getElementById('ca-fuel').value,
+      transmission:    tEl ? tEl.value : 'spelar ingen roll',
       timestamp:       Date.now(),
       recommendations: recommendations || []
     };
     var history = caGetHistory();
-    var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
+    var key = entry.category + '|' + entry.budget + '|' + entry.fuelType + '|' + entry.transmission + '|' + entry.km + '|' + entry.usage + '|' + entry.newcar;
     history = history.filter(function(h) {
-      return (h.category + '|' + h.budget + '|' + h.fuelType + '|' + h.km + '|' + h.usage + '|' + h.newcar) !== key;
+      return (h.category + '|' + h.budget + '|' + h.fuelType + '|' + (h.transmission||'') + '|' + h.km + '|' + h.usage + '|' + h.newcar) !== key;
     });
     history.unshift(entry);
     history = history.slice(0, CA_HISTORY_MAX);
@@ -213,7 +228,8 @@ function caHistoryLabel(entry) {
   var cat = CA_CAT_NAMES[entry.category] || entry.category;
   var budget = parseInt(entry.budget).toLocaleString('sv-SE') + ' kr';
   var fuel = (entry.fuelType && entry.fuelType !== 'spelar ingen roll') ? ' \xb7 ' + (CA_FUEL_NAMES[entry.fuelType] || entry.fuelType) : '';
-  return cat + ' \xb7 ' + budget + fuel;
+  var trans = (entry.transmission && entry.transmission !== 'spelar ingen roll') ? ' \xb7 ' + (CA_TRANSMISSION_NAMES[entry.transmission] || entry.transmission) : '';
+  return cat + ' \xb7 ' + budget + fuel + trans;
 }
 
 function caTimeAgo(ts) {
@@ -262,7 +278,8 @@ function caLoadFromHistory(index) {
   if (entry.usage)      document.getElementById('ca-usage').value       = entry.usage;
   if (entry.passengers) document.getElementById('ca-passengers').value  = entry.passengers;
   if (entry.newcar)     document.getElementById('ca-newcar').value      = entry.newcar;
-  if (entry.fuelType)   document.getElementById('ca-fuel').value        = entry.fuelType;
+  if (entry.fuelType)    document.getElementById('ca-fuel').value        = entry.fuelType;
+  if (entry.transmission) { var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = entry.transmission; }
   caUpdateFuelVisibility();
   caCheckMismatch();
 
@@ -314,6 +331,7 @@ function caResetForm() {
   document.getElementById('ca-passengers').value = 4;
   document.getElementById('ca-newcar').value     = 'false';
   document.getElementById('ca-fuel').value       = 'spelar ingen roll';
+  var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = 'spelar ingen roll';
   caUpdateSliderFill();
   caUpdateFuelVisibility();
   caCheckMismatch();
@@ -584,7 +602,9 @@ function caFetchCarImages(recs) {
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
         'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ)
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ),
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
       ];
       for (var url of urls) {
         try {
@@ -609,7 +629,8 @@ function caSavedLabel(prefs) {
   var cat = CA_CAT_NAMES[prefs.carCategory] || prefs.carCategory || '';
   var budget = prefs.budget ? parseInt(prefs.budget).toLocaleString('sv-SE') + ' kr' : '';
   var fuel = (prefs.fuelType && prefs.fuelType !== 'spelar ingen roll') ? ' \xb7 ' + (CA_FUEL_NAMES[prefs.fuelType] || prefs.fuelType) : '';
-  return [cat, budget].filter(Boolean).join(' \xb7 ') + fuel;
+  var trans = (prefs.transmission && prefs.transmission !== 'spelar ingen roll') ? ' \xb7 ' + (CA_TRANSMISSION_NAMES[prefs.transmission] || prefs.transmission) : '';
+  return [cat, budget].filter(Boolean).join(' \xb7 ') + fuel + trans;
 }
 
 function caRenderSaved() {
@@ -637,7 +658,8 @@ function caLoadSavedEntry(id) {
     if (prefs.usage)     document.getElementById('ca-usage').value = prefs.usage;
     if (prefs.passengers) document.getElementById('ca-passengers').value = prefs.passengers;
     if (prefs.newCar !== undefined) document.getElementById('ca-newcar').value = prefs.newCar ? 'true' : 'false';
-    if (prefs.fuelType)  document.getElementById('ca-fuel').value = prefs.fuelType;
+    if (prefs.fuelType)    document.getElementById('ca-fuel').value = prefs.fuelType;
+    if (prefs.transmission) { var tEl2 = document.getElementById('ca-transmission'); if (tEl2) tEl2.value = prefs.transmission; }
     caUpdateFuelVisibility(); caCheckMismatch();
     var recs = JSON.parse(s.recommendationsJson || '[]');
     if (recs.length > 0) {
@@ -729,7 +751,8 @@ async function caSaveSearch() {
       usage: document.getElementById('ca-usage').value,
       passengers: parseInt(document.getElementById('ca-passengers').value),
       newCar: document.getElementById('ca-newcar').value === 'true',
-      fuelType: document.getElementById('ca-fuel').value
+      fuelType:     document.getElementById('ca-fuel').value,
+      transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })()
     };
     var label = caSavedLabel(prefs);
     var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches', {
@@ -916,7 +939,8 @@ function caShareSearch() {
     usage:      document.getElementById('ca-usage').value,
     passengers: document.getElementById('ca-passengers').value,
     newcar:     document.getElementById('ca-newcar').value,
-    fuelType:   document.getElementById('ca-fuel').value
+    fuelType:     document.getElementById('ca-fuel').value,
+    transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })()
   });
   var url = window.location.origin + window.location.pathname + '?' + params.toString();
   var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
@@ -964,7 +988,8 @@ async function caGetRecommendation() {
     usage:       document.getElementById('ca-usage').value,
     passengers:  parseInt(document.getElementById('ca-passengers').value),
     newCar:      document.getElementById('ca-newcar').value === 'true',
-    fuelType:    fuelVal
+    fuelType:     fuelVal,
+    transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })()
   };
 
   var controller = new AbortController();

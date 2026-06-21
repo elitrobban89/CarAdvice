@@ -162,7 +162,8 @@ public class GroqService {
     private String buildCacheKey(CarPreferences prefs) {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
-               (prefs.fuelType() != null ? prefs.fuelType() : "");
+               (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
+               (prefs.transmission() != null ? prefs.transmission() : "");
     }
 
     private String parseRetryTime(String body) {
@@ -293,12 +294,15 @@ public class GroqService {
         String fuelLine = (prefs.fuelType() != null && !prefs.fuelType().isBlank()
                 && !"spelar ingen roll".equals(prefs.fuelType()))
                 ? " Drivmedel: " + prefs.fuelType() + "." : "";
+        String transmissionLine = (prefs.transmission() != null && !prefs.transmission().isBlank()
+                && !"spelar ingen roll".equals(prefs.transmission()))
+                ? " Växellåda: " + prefs.transmission() + " – rekommendera endast bilar med denna växellåda." : "";
 
         return """
-                Budget: %,d kr (%s). Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s
+                Budget: %,d kr (%s). Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s
                 """.formatted(
                 prefs.budget(), bilTyp, prefs.carCategory(), laddning,
-                km, milprofil, prefs.usage(), prefs.passengers(), fuelLine
+                km, milprofil, prefs.usage(), prefs.passengers(), fuelLine, transmissionLine
         );
     }
 }
