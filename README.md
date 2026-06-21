@@ -101,8 +101,8 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
 - **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript och laddar upp via admin-endpoint)
-- 53 insikter inladdade: 37 manuellt skrivna expertinsikter för vanliga bilar + 16 extraherade från YouTube-transkript
-- Bilprovningen 2025-insikter: `scrape_bilprovningen.py` laddar ner officiell besiktningsstatistik och genererar 15 insikter om vanliga underkännandeorsaker (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.)
+- **68 insikter inladdade:** 37 manuellt skrivna expertinsikter + 16 från YouTube-transkript + 15 Bilprovningen 2025
+- Bilprovningen 2025-insikter: `scrape_bilprovningen.py` laddar ner officiell besiktningsstatistik och genererar 15 insikter om vanliga underkännandeorsaker (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.) — uppladdade via `expert=Bilprovningen`
 - Fler kan läggas till via admin-endpoint med `expert`-parametern
 
 ### EV-spec-skrapare (ev-database.org)
