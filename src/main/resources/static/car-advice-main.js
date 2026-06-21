@@ -782,7 +782,7 @@ function caInsurancePerYear(r) {
 
 function caTcoCalc(r, kmPerYear) {
   var price = caParsePrice(r.price);
-  if (!price || price < 50000) return null;
+  if (!price) return null;
   var km = kmPerYear || 15000;
   var years = 5;
   var isEv   = r.evSpec && r.evSpec.carType !== 'PHEV';
@@ -808,8 +808,9 @@ function caTcoCalc(r, kmPerYear) {
   // Servicekostnad
   var serviceCost = (isEv ? 3000 : isPhev ? 6000 : 8000) * years;
 
-  // Värdeminskning
-  var depreciation = price * (isEv ? 0.58 : 0.52);
+  // Värdeminskning (billiga begagnade tappar ~40% i värde, dyra nya ~52–58%)
+  var deprRate = isEv ? 0.58 : price < 80000 ? 0.35 : price < 150000 ? 0.42 : 0.52;
+  var depreciation = price * deprRate;
 
   // Fordonsskatt + försäkring (halvförsäkring)
   var taxCost       = caVehicleTaxPerYear(r) * years;
