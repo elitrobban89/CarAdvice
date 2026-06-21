@@ -744,10 +744,11 @@ async function caSaveSearch() {
 
 function caParsePrice(priceStr) {
   if (!priceStr) return 0;
-  var s = priceStr.replace(/\s/g, '').replace(/kr/gi, '');
-  var m = s.match(/(\d+)[–\-](\d+)/);
+  // strip whitespace, thousands separators (. and ,) and "kr"
+  var s = priceStr.replace(/[\s.,]/g, '').replace(/kr/gi, '');
+  var m = s.match(/(\d+)[–\-—](\d+)/);
   if (m) return (parseInt(m[1]) + parseInt(m[2])) / 2;
-  m = s.match(/(\d{5,7})/);
+  m = s.match(/(\d{4,7})/);
   return m ? parseInt(m[1]) : 0;
 }
 
