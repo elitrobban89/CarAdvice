@@ -30,6 +30,9 @@ public class GroqService {
     @Value("${groq.model:llama-3.3-70b-versatile}")
     private String model;
 
+    @Value("${groq.chat.model:llama-3.1-8b-instant}")
+    private String chatModel;
+
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
     private final EvSpecService evSpecService;
@@ -166,7 +169,7 @@ public class GroqService {
         msgs.addAll(messages);
 
         Map<String, Object> requestBody = Map.of(
-                "model", model,
+                "model", chatModel,
                 "max_tokens", 900,
                 "temperature", 0.5,
                 "messages", msgs
@@ -198,7 +201,7 @@ public class GroqService {
         msgs.addAll(messages);
 
         Map<String, Object> requestBody = Map.of(
-                "model", model, "max_tokens", 900, "temperature", 0.5, "stream", true, "messages", msgs);
+                "model", chatModel, "max_tokens", 900, "temperature", 0.5, "stream", true, "messages", msgs);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_URL))
