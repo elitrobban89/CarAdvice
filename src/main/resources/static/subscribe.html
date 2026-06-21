@@ -80,6 +80,7 @@
     <div id="activeSection" style="display:none;">
       <p style="color:#27ae60;margin-top:16px;font-size:0.95rem;">✓ Aktiv prenumeration</p>
       <div style="margin-top:10px;font-size:0.85rem;color:#666;line-height:2;">
+        <p id="subDuration"></p>
         <p id="subStartedAt"></p>
         <p id="subEndsAt"></p>
       </div>
@@ -175,10 +176,24 @@ function saveAndShow(data) {
   if (window.opener) {
     window.opener.postMessage({ type: 'CA_LOGIN', token: data.token, email: data.email, status: data.subscriptionStatus }, '*');
   }
-  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt);
+  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso);
 }
 
-function showLoggedIn(email, status, endsAt, startedAt) {
+function subDurationLabel(isoDate) {
+  if (!isoDate) return '';
+  const start = new Date(isoDate);
+  const now = new Date();
+  const totalMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  const days = Math.floor((now - start) / 86400000);
+  if (years > 0 && months > 0) return years + (years === 1 ? ' år' : ' år') + ' och ' + months + (months === 1 ? ' månad' : ' månader');
+  if (years > 0) return years + (years === 1 ? ' år' : ' år');
+  if (totalMonths > 0) return totalMonths + (totalMonths === 1 ? ' månad' : ' månader');
+  return days + (days === 1 ? ' dag' : ' dagar');
+}
+
+function showLoggedIn(email, status, endsAt, startedAt, startedAtIso) {
   document.getElementById('authView').style.display = 'none';
   document.getElementById('loggedInView').style.display = 'block';
   document.getElementById('userEmail').textContent = email;
@@ -188,6 +203,8 @@ function showLoggedIn(email, status, endsAt, startedAt) {
     badge.className = 'status-badge status-active';
     document.getElementById('subscribeSection').style.display = 'none';
     document.getElementById('activeSection').style.display = 'block';
+    const dur = subDurationLabel(startedAtIso);
+    document.getElementById('subDuration').textContent = dur ? 'Prenumerant i: ' + dur : '';
     document.getElementById('subStartedAt').textContent = startedAt ? 'Startade: ' + startedAt : '';
     document.getElementById('subEndsAt').textContent = endsAt ? 'Förnyas: ' + endsAt : '';
   } else {
@@ -236,7 +253,7 @@ async function logout() {
     if (r.ok) {
       const data = await r.json();
       localStorage.setItem('ca_status', data.subscriptionStatus);
-      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt);
+      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso);
     }
   } catch(e) {}
 })();
