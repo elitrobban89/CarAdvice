@@ -39,7 +39,7 @@ public class User {
     private LocalDateTime tokenExpiresAt;
 
     @Column(name = "cancel_at_period_end")
-    private boolean cancelAtPeriodEnd = false;
+    private Boolean cancelAtPeriodEnd = false;
 
     public User() {}
 
@@ -65,6 +65,6 @@ public class User {
     public void setSubscriptionStartedAt(LocalDateTime v) { this.subscriptionStartedAt = v; }
     public LocalDateTime getTokenExpiresAt() { return tokenExpiresAt; }
     public void setTokenExpiresAt(LocalDateTime v) { this.tokenExpiresAt = v; }
-    public boolean isCancelAtPeriodEnd() { return cancelAtPeriodEnd; }
+    public boolean isCancelAtPeriodEnd() { return cancelAtPeriodEnd != null && cancelAtPeriodEnd; }
     public void setCancelAtPeriodEnd(boolean v) { this.cancelAtPeriodEnd = v; }
 }
