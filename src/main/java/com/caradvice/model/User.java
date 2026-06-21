@@ -35,6 +35,9 @@ public class User {
     @Column(name = "subscription_started_at")
     private LocalDateTime subscriptionStartedAt;
 
+    @Column(name = "token_expires_at")
+    private LocalDateTime tokenExpiresAt;
+
     public User() {}
 
     public User(String email, String passwordHash) {
@@ -57,4 +60,6 @@ public class User {
     public void setSessionToken(String v) { this.sessionToken = v; }
     public void setSubscriptionEndsAt(LocalDateTime v) { this.subscriptionEndsAt = v; }
     public void setSubscriptionStartedAt(LocalDateTime v) { this.subscriptionStartedAt = v; }
+    public LocalDateTime getTokenExpiresAt() { return tokenExpiresAt; }
+    public void setTokenExpiresAt(LocalDateTime v) { this.tokenExpiresAt = v; }
 }

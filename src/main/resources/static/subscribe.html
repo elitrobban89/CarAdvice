@@ -42,6 +42,9 @@
   .status-inactive { background: #f8d7da; color: #721c24; }
   .btn-logout { background: #f5f5f5; color: #666; border: 1px solid #ddd; margin-top: 12px; }
   .btn-logout:hover { background: #eee; }
+  .btn-cancel { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; margin-top: 8px; font-size: 0.88rem; }
+  .btn-cancel:hover { background: #fdf2f2; }
+  .btn-cancel:disabled { color: #aaa; border-color: #ddd; cursor: default; }
   .btn-back { background: #1a1a2e; color: #fff; margin-top: 12px; }
   .btn-back:hover { background: #2d2d4e; }
   #loginForm, #registerForm { display: none; }
@@ -85,6 +88,7 @@
         <p id="subEndsAt"></p>
       </div>
       <button class="btn btn-back" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
+      <button class="btn btn-cancel" id="cancelBtn" onclick="cancelSubscription()">Avsluta prenumeration</button>
     </div>
     <button class="btn btn-logout" onclick="logout()">Logga ut</button>
   </div>
@@ -235,6 +239,25 @@ async function startCheckout() {
 function goBack() {
   localStorage.setItem('ca_scroll_to_app', '1');
   window.close();
+}
+
+async function cancelSubscription() {
+  const endsText = document.getElementById('subEndsAt').textContent;
+  if (!confirm('Är du säker? Prenumerationen fortsätter att gälla till ' + endsText.replace('Förnyas: ', '') + ' och avslutas sedan.')) return;
+  const btn = document.getElementById('cancelBtn');
+  btn.textContent = 'Avslutar...'; btn.disabled = true;
+  const token = localStorage.getItem('ca_token');
+  try {
+    const r = await fetch(API + '/api/stripe/cancel', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await r.json();
+    if (r.ok) {
+      document.getElementById('subEndsAt').textContent = endsText.replace('Förnyas:', 'Avslutas:');
+      btn.textContent = '✓ Prenumerationen avslutas vid periodens slut';
+    } else {
+      btn.textContent = 'Avsluta prenumeration'; btn.disabled = false;
+      alert('Fel: ' + data.error);
+    }
+  } catch(ex) { btn.textContent = 'Avsluta prenumeration'; btn.disabled = false; }
 }
 
 async function logout() {

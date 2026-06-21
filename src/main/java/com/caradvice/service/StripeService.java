@@ -9,8 +9,11 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Customer;
 import com.stripe.model.Event;
 import com.stripe.model.Subscription;
+import com.stripe.model.SubscriptionCollection;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
+import com.stripe.param.SubscriptionListParams;
+import com.stripe.param.SubscriptionUpdateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,6 +128,20 @@ public class StripeService {
                 }
             }
         }
+    }
+
+    public void cancelSubscription(User user) throws Exception {
+        Stripe.apiKey = secretKey;
+        if (user.getStripeCustomerId() == null) throw new RuntimeException("Ingen aktiv prenumeration");
+        SubscriptionCollection subs = Subscription.list(SubscriptionListParams.builder()
+                .setCustomer(user.getStripeCustomerId())
+                .setStatus(SubscriptionListParams.Status.ACTIVE)
+                .build());
+        if (subs.getData().isEmpty()) throw new RuntimeException("Ingen aktiv prenumeration hittades");
+        subs.getData().get(0).update(SubscriptionUpdateParams.builder()
+                .setCancelAtPeriodEnd(true)
+                .build());
+        log.info("Subscription set to cancel at period end for user={}", user.getEmail());
     }
 
     private LocalDateTime fetchSubscriptionEnd(String subscriptionId) {
