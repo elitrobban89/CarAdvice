@@ -116,12 +116,27 @@ public class StripeService {
                 log.info("{} — customerId={} endsAt={}", type, customerId, endsAt);
                 activateByCustomerId(customerId, endsAt);
             }
+            case "customer.subscription.updated" -> {
+                String customerId = data.path("customer").asText(null);
+                boolean cancelAtEnd = data.path("cancel_at_period_end").asBoolean(false);
+                long periodEnd = data.path("current_period_end").asLong(0);
+                LocalDateTime endsAt = toLocalDateTime(periodEnd > 0 ? periodEnd : null);
+                log.info("subscription.updated — customerId={} cancelAtEnd={}", customerId, cancelAtEnd);
+                if (customerId != null) {
+                    userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
+                        u.setCancelAtPeriodEnd(cancelAtEnd);
+                        if (endsAt != null) u.setSubscriptionEndsAt(endsAt);
+                        userRepo.save(u);
+                    });
+                }
+            }
             case "customer.subscription.deleted", "customer.subscription.paused" -> {
                 String customerId = data.path("customer").asText(null);
                 log.info("{} — customerId={}", type, customerId);
                 if (customerId != null) {
                     userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {
                         u.setSubscriptionStatus("inactive");
+                        u.setCancelAtPeriodEnd(false);
                         userRepo.save(u);
                         log.info("Deactivated subscription for user={}", u.getEmail());
                     });
@@ -141,6 +156,8 @@ public class StripeService {
         subs.getData().get(0).update(SubscriptionUpdateParams.builder()
                 .setCancelAtPeriodEnd(true)
                 .build());
+        user.setCancelAtPeriodEnd(true);
+        userRepo.save(user);
         log.info("Subscription set to cancel at period end for user={}", user.getEmail());
     }
 

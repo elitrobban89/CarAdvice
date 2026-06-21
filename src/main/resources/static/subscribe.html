@@ -180,7 +180,7 @@ function saveAndShow(data) {
   if (window.opener) {
     window.opener.postMessage({ type: 'CA_LOGIN', token: data.token, email: data.email, status: data.subscriptionStatus }, '*');
   }
-  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso);
+  showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso, data.cancelAtPeriodEnd);
 }
 
 function subDurationLabel(isoDate) {
@@ -199,7 +199,7 @@ function subDurationLabel(isoDate) {
   return days + (days === 1 ? ' dag' : ' dagar');
 }
 
-function showLoggedIn(email, status, endsAt, startedAt, startedAtIso) {
+function showLoggedIn(email, status, endsAt, startedAt, startedAtIso, cancelAtPeriodEnd) {
   document.getElementById('authView').style.display = 'none';
   document.getElementById('loggedInView').style.display = 'block';
   document.getElementById('userEmail').textContent = email;
@@ -212,7 +212,12 @@ function showLoggedIn(email, status, endsAt, startedAt, startedAtIso) {
     const dur = subDurationLabel(startedAtIso);
     document.getElementById('subDuration').textContent = dur ? 'Prenumerant i: ' + dur : '';
     document.getElementById('subStartedAt').textContent = startedAt ? 'Startade: ' + startedAt : '';
-    document.getElementById('subEndsAt').textContent = endsAt ? 'Förnyas: ' + endsAt : '';
+    document.getElementById('subEndsAt').textContent = endsAt ? (cancelAtPeriodEnd ? 'Avslutas: ' : 'Förnyas: ') + endsAt : '';
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelAtPeriodEnd) {
+      cancelBtn.textContent = '✓ Prenumerationen avslutas vid periodens slut';
+      cancelBtn.disabled = true;
+    }
   } else {
     badge.textContent = 'Inte prenumerant';
     badge.className = 'status-badge status-inactive';
@@ -278,7 +283,7 @@ async function logout() {
     if (r.ok) {
       const data = await r.json();
       localStorage.setItem('ca_status', data.subscriptionStatus);
-      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso);
+      showLoggedIn(data.email, data.subscriptionStatus, data.subscriptionEndsAt, data.subscriptionStartedAt, data.subscriptionStartedAtIso, data.cancelAtPeriodEnd);
     }
   } catch(e) {}
 })();

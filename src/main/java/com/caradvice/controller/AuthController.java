@@ -85,6 +85,7 @@ public class AuthController {
         m.put("email", u.getEmail());
         m.put("token", u.getSessionToken() != null ? u.getSessionToken() : "");
         m.put("subscriptionStatus", u.getSubscriptionStatus());
+        m.put("cancelAtPeriodEnd", u.isCancelAtPeriodEnd());
         if (u.getSubscriptionEndsAt() != null)
             m.put("subscriptionEndsAt", u.getSubscriptionEndsAt().atZone(ZoneOffset.UTC)
                     .withZoneSameInstant(STOCKHOLM).format(DATE_FMT));
