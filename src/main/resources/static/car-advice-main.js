@@ -574,13 +574,17 @@ function caTcoBarChart(recs) {
 function caFetchCarImages(recs) {
   recs.forEach(function(r, i) {
     var q = r.title.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    var wikiQ = q.replace(/\s+/g, '_');
-    var titleCaseQ = q.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
+    // Strip variant suffixes so "Kia Sportage PHEV" → "Kia Sportage"
+    var base = q.replace(/\s+(PHEV|HEV|Recharge|e-tron|Plug.?in|GTE|EV|Electric|T[4-9]|B[3-9]|xDrive\d*|quattro|AWD|4WD|Hybrid|Long\s*Range|Performance)(\s.*)?$/i, '').trim();
+    var wikiQ = base.replace(/\s+/g, '_');
+    var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
+    var origQ = q.replace(/\s+/g, '_');
     (async function() {
       var urls = [
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
-        'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
+        'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
+        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ)
       ];
       for (var url of urls) {
         try {
