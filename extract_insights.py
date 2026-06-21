@@ -37,7 +37,7 @@ API_URL      = os.environ.get("API_URL", "https://caradvice.onrender.com")
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 OUTPUT_CSV   = "peter_esse_insights.csv"
 PROGRESS_FILE = "peter_esse_progress.json"
-DELAY_SECONDS = 3        # Sekunder mellan varje video (respekterar API-ratelimit)
+DELAY_SECONDS = 5        # Sekunder mellan varje video (respekterar API-ratelimit)
 MAX_TRANSCRIPT_CHARS = 6000  # Groq-kontextgräns
 
 SYSTEM_PROMPT = """Du är en assistent som extraherar bilexpertinsikter från svenska YouTube-transkript.
@@ -95,35 +95,43 @@ def get_transcript(video_id):
 
 def extract_insights_groq(transcript, video_id, language):
     trimmed = transcript[:MAX_TRANSCRIPT_CHARS]
-    try:
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Transkript (språk: {language}):\n\n{trimmed}"}
-                ],
-                "max_tokens": 1000,
-                "temperature": 0.2
-            },
-            timeout=30
-        )
-        r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"].strip()
-        # Strip potential markdown code fences
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        return json.loads(content).get("insights", [])
-    except (json.JSONDecodeError, KeyError):
-        print(f"  Kunde inte parsa JSON-svar för {video_id}")
-        return []
-    except requests.RequestException as e:
-        print(f"  Groq-fel för {video_id}: {e}")
-        return []
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Transkript (språk: {language}):\n\n{trimmed}"}
+        ],
+        "max_tokens": 1000,
+        "temperature": 0.2
+    }
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=30
+            )
+            if r.status_code == 429:
+                wait = 30 * (attempt + 1)
+                print(f"  Rate limit — väntar {wait}s...")
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            content = r.json()["choices"][0]["message"]["content"].strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            return json.loads(content).get("insights", [])
+        except (json.JSONDecodeError, KeyError):
+            print(f"  Kunde inte parsa JSON-svar för {video_id}")
+            return []
+        except requests.RequestException as e:
+            print(f"  Groq-fel för {video_id}: {e}")
+            return []
+    print(f"  Rate limit kvarstår efter 3 försök — hoppar över {video_id}")
+    return []
 
 
 def load_progress():
