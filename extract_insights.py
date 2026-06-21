@@ -67,7 +67,7 @@ def get_video_ids(channel_url):
     print(f"Hämtar videolista från {channel_url} ...")
     try:
         result = subprocess.run(
-            ["yt-dlp", "--flat-playlist", "--get-id", channel_url],
+            [sys.executable, "-m", "yt_dlp", "--flat-playlist", "--get-id", channel_url],
             capture_output=True, text=True, timeout=120
         )
         ids = [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
@@ -76,8 +76,8 @@ def get_video_ids(channel_url):
     except subprocess.TimeoutExpired:
         print("Timeout — försök igen.")
         sys.exit(1)
-    except FileNotFoundError:
-        print("yt-dlp saknas. Installera med: pip install yt-dlp")
+    except Exception as e:
+        print(f"yt-dlp fel: {e}")
         sys.exit(1)
 
 
