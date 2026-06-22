@@ -151,11 +151,13 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Mercedes EQC",                      11.0, 110.0,  80.0, 415, 610_000),
             new EvSpec("Mercedes EQE 350",                  11.0, 170.0,  91.0, 660, 760_000),
             new EvSpec("Mercedes EQS 450",                  22.0, 200.0, 107.8, 784, 1_100_000),
-            // Ford / BYD / MG
+            // Ford / BYD / MG / Dacia
             new EvSpec("Ford Mustang Mach-E",               11.0, 150.0,  91.0, 540, 540_000),
             new EvSpec("BYD Atto 3",                        11.0, 100.0,  60.5, 420, 310_000),
             new EvSpec("BYD Dolphin",                        7.0,  88.0,  44.9, 427, 280_000),
+            new EvSpec("Dacia Spring",                       7.0,  30.0,  26.8, 225, 195_000),
             new EvSpec("MG ZS EV",                          11.0,  92.0,  72.6, 440, 300_000),
+            new EvSpec("MG4",                               11.0, 150.0,  64.0, 450, 335_000),
             new EvSpec("MG4 Standard Range",                11.0, 117.0,  51.0, 350, 295_000),
             new EvSpec("MG4 Long Range",                    11.0, 150.0,  64.0, 450, 335_000),
             new EvSpec("MG4 Extended Range",                11.0, 150.0,  77.0, 520, 375_000),

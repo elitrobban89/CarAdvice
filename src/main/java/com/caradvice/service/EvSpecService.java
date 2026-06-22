@@ -19,7 +19,7 @@ public class EvSpecService {
 
     public EvSpecDto formatForTitle(String title, int kmPerYear) {
         if (title == null) return null;
-        String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
+        String cleaned = normalize(title.replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "").trim());
         String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet = new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
 
@@ -42,6 +42,21 @@ public class EvSpecService {
                     .filter(ev -> {
                         String[] nameWords = normalize(ev.getCarName()).split("\\s+");
                         for (String w : nameWords) if (!titleSet.contains(w)) return false;
+                        return true;
+                    })
+                    .max(java.util.Comparator.comparingInt(ev ->
+                            normalize(ev.getCarName()).split("\\s+").length))
+                    .orElse(null);
+        }
+
+        // Pass 3: all title words appear as words in the stored name
+        // Handles "MG4" matching "MG4 Long Range", "Volvo EX30" matching "Volvo EX30 Single Motor"
+        if (match == null) {
+            match = all.stream()
+                    .filter(ev -> {
+                        java.util.Set<String> nameSet = new java.util.HashSet<>(
+                                java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
+                        for (String w : titleWords) if (!nameSet.contains(w)) return false;
                         return true;
                     })
                     .max(java.util.Comparator.comparingInt(ev ->
