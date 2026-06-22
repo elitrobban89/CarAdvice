@@ -46,14 +46,21 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - AI-genererade värden direkt i rekommendationen — `fuelSpec: null` för elbil/laddhybrid
 - Visas även som egna rader i jämförelsetabellen
 
+### Hästkrafter (alla biltyper)
+- **💪 Hästkrafter** visas på alla bilkort oavsett drivlina — elbil, laddhybrid, bensin och diesel
+- Nytt `horsepower`-fält i AI-svaret (toppnivå, utanför `fuelSpec`) — AI är instruerad att alltid ange systemeffekten i hk
+- Bensin/diesel: hämtas även ur `fuelSpec.horsepower` (dubblerad källa)
+- Jämförelsetabellen har en dedikerad **💪 Hästkrafter**-rad för alla biltyper
+
 ### Elbils- och laddhybriddata (EV-chip)
 - **⚡ Elbil**-badge eller **🔌 Laddhybrid**-badge per bil
 - WLTP-räckvidd, uppskattad sommar- och vinterräckvidd
 - Laddfrekvens baserat på körsträcka ("ladda var 4:e dag")
-- Max DC-laddning (kW) och AC-laddning (kW)
+- Max DC-laddning (kW), AC-laddning (kW) och hästkrafter
 - Batteristorlek (kWh) och startpris
-- Prisvärdhetsbedömning (Utmärkt / Bra / Ok prisvärdhet)
-- Tvåstegs fuzzy-matchning: titel-ord mot DB-namn och DB-namn som exakta ord i titel (förhindrar att "Kia Niro PHEV" matchar "Kia Niro EV")
+- **Prisvärdhetsbedömning** (Utmärkt / Bra / Ok prisvärdhet) — sammansatt poäng av räckvidd/kr (60 %), batteri/kr (40 %) + DC-laddningsbonus; visas nu även för bensin/diesel baserat på hk + förbrukning per kr
+- Trestegsfuzzy-matchning mot EV-databasen: (1) alla titelord i lagrad namntext, (2) alla lagrade namnord som exakta ord i titel, (3) alla titelord som exakta ord i lagrat namn — förhindrar att "Kia Niro PHEV" matchar "Kia Niro EV" och att "MG4 2025" missar "MG4 Long Range"
+- Årstal strippas innan matchning oavsett om det skrivs med eller utan parenteser
 
 ### Bagageutrymme
 - **🧳 Bagageutrymme-chip** visas på alla bilkort — oavsett drivmedel
@@ -77,8 +84,9 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ### Jämförelsetabell
 - Scrollbar tabell under de tre bilkorten
-- Rader: Pris · Fördelar · Nackdel · 🧳 Bagageutrymme · 💰 5-års TCO
-- Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri · Prisvärdhet
+- Rader: Pris · Fördelar · Nackdel · 💪 Hästkrafter · 📊 Prisvärdhet · 🧳 Bagageutrymme · 💰 5-års TCO
+- Hästkrafter och Prisvärdhet visas för alla biltyper (inte bara EV)
+- Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri
 - Färgkodade kolumnrubriker matchar kortens accentfärger
 - **TCO-stapeldiagram** under tabellen — horisontella staplar för varje bil med fem färgkodade segment: 🟣 värdeminskning · 🟠 drivmedel · 🔵 service · 🟢 fordonsskatt · 🩷 halvförsäkring; hover-tooltip visar kostnad i tkr per post
 
@@ -432,6 +440,12 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 
 | Fix | Beskrivning |
 |-----|-------------|
+| TCO leasing-kalkyl | `caParseLeaseMonthly` läste köppriser (t.ex. "330 000 kr") som månadskostnad → TCO visades som ~18 miljoner. Fixat: parsar nu bara som månadsbelopp om strängen innehåller "mån"; faller tillbaka på användarens budget-slider som leasingkostnad |
+| Elbilar: "obligatorisk årsavgift" | Chatbotten påstod att BYD/MG4 m.fl. har en obligatorisk årsavgift på 1 800 kr — det finns ingen sådan generell avgift i svensk lag. System-prompt korrigerad med faktaanvisning |
+| Elbilar: "turbo/ej turbo" i fördelar | AI annoterade elbilars batterivarianter med "(turbo)" / "(ej turbo)". Fixat: turbo-terminologi förbjuds för elbil/laddhybrid i systempromptarna |
+| BYD Seal, Genesis GV60, Toyota Camry borttagna | Dessa bilar säljs inte i Sverige; borttagna från EV-spec-databas och systempromptarna |
+| Dacia Spring saknade EV-data | Dacia Spring fattades i ev_spec-tabellen — lade till (225 km WLTP, 26,8 kWh, 30 kW DC) |
+| MG4 matchade inte EV-databasen | EV-spec-posterna hette "MG4 Long Range" m.fl. — "MG4 2025" hittade ingenting. Fixat med ny Pass 3 i fuzzy-matchningen + baspost "MG4" |
 | Prenumerationslängd på kontosidan | Kontosidan visar nu "Prenumerant i: X månader/år" (beräknas live i webbläsaren via ISO-datum från `/api/auth/me`), "Startade: X" och "Förnyas: X" |
 | Tidzon UTC→Stockholm | Render kör i UTC — datum formaterades i UTC vilket kunde ge fel dag. Nu konverteras alla prenumerationsdatum till `Europe/Stockholm` innan formatering; ISO-strängen får `Z`-suffix så att `new Date()` i webbläsaren räknar durationen korrekt |
 | Backfill subscriptionStartedAt | Befintliga aktiva prenumeranter saknade startdatum (kolumnen tillkom efter deras aktivering). Vid uppstart sätts `subscriptionStartedAt = createdAt` för alla aktiva användare där fältet är null |
