@@ -1291,32 +1291,81 @@ window.addEventListener('message', function(ev) {
 // ── Fri bilj\xe4mf\xf6relse ─────────────────────────────────────────────────────────
 
 var CA_FC_CARS = [
-  "Audi A3","Audi A4","Audi A6","Audi e-tron GT","Audi Q2","Audi Q3","Audi Q4 e-tron","Audi Q5","Audi Q6 e-tron","Audi Q7",
-  "BMW 1-serie","BMW 3-serie","BMW 5-serie","BMW i4","BMW iX1","BMW iX3","BMW X1","BMW X3","BMW X5",
-  "BYD Atto 3","BYD Dolphin","BYD Seal",
+  // Audi
+  "Audi A3","Audi A4","Audi A6","Audi e-tron GT","Audi Q2","Audi Q3","Audi Q5","Audi Q7",
+  "Audi Q4 e-tron","Audi Q4 e-tron 40","Audi Q4 e-tron 50 quattro",
+  "Audi Q6 e-tron","Audi Q6 e-tron quattro",
+  // BMW
+  "BMW 1-serie","BMW 3-serie","BMW 5-serie","BMW X1","BMW X3","BMW X5",
+  "BMW i4","BMW i4 eDrive40","BMW i4 M50",
+  "BMW iX1","BMW iX1 xDrive30",
+  "BMW iX3",
+  // BYD
+  "BYD Atto 3","BYD Dolphin","BYD Seal","BYD Seal Standard Range","BYD Seal Long Range",
+  // Dacia
   "Dacia Duster","Dacia Jogger","Dacia Sandero","Dacia Spring",
-  "Ford Focus","Ford Kuga","Ford Kuga PHEV","Ford Mustang Mach-E","Ford Puma",
+  // Ford
+  "Ford Focus","Ford Kuga","Ford Kuga PHEV","Ford Mustang Mach-E","Ford Mustang Mach-E Standard Range","Ford Mustang Mach-E Extended Range","Ford Puma",
+  // Honda
   "Honda Civic","Honda CR-V","Honda Jazz",
-  "Hyundai i20","Hyundai i30","Hyundai IONIQ 5","Hyundai IONIQ 6","Hyundai Santa Fe","Hyundai Tucson","Hyundai Tucson PHEV",
-  "Kia Ceed","Kia EV3","Kia EV6","Kia Niro","Kia Niro EV","Kia Niro PHEV","Kia Picanto","Kia Rio","Kia Sportage","Kia Sportage PHEV","Kia Stonic",
+  // Hyundai
+  "Hyundai i20","Hyundai i30","Hyundai Santa Fe","Hyundai Tucson","Hyundai Tucson PHEV",
+  "Hyundai IONIQ 5","Hyundai IONIQ 5 Standard Range","Hyundai IONIQ 5 Long Range",
+  "Hyundai IONIQ 6","Hyundai IONIQ 6 Standard Range","Hyundai IONIQ 6 Long Range",
+  // Kia
+  "Kia Ceed","Kia Niro","Kia Niro EV","Kia Niro PHEV","Kia Picanto","Kia Rio","Kia Sportage","Kia Sportage PHEV","Kia Stonic",
+  "Kia EV3","Kia EV3 Standard Range","Kia EV3 Long Range",
+  "Kia EV6","Kia EV6 Standard Range","Kia EV6 Long Range","Kia EV6 GT",
+  // Mazda
   "Mazda2","Mazda3","Mazda CX-30","Mazda CX-5","Mazda MX-5",
-  "Mercedes A-Klass","Mercedes C-Klass","Mercedes E-Klass","Mercedes EQA","Mercedes EQB","Mercedes GLA","Mercedes GLC",
-  "MG4","MG HS","MG ZS","MG ZS EV",
+  // Mercedes
+  "Mercedes A-Klass","Mercedes C-Klass","Mercedes E-Klass","Mercedes GLA","Mercedes GLC",
+  "Mercedes EQA","Mercedes EQA 250","Mercedes EQB","Mercedes EQB 300",
+  // MG
+  "MG4","MG4 Standard Range","MG4 Long Range","MG4 Extended Range",
+  "MG ZS EV","MG ZS","MG HS",
+  // Mini
   "Mini Cooper","Mini Countryman",
+  // Mitsubishi
   "Mitsubishi Outlander PHEV",
+  // Nissan
   "Nissan Ariya","Nissan Leaf","Nissan Qashqai",
+  // Opel
   "Opel Astra","Opel Corsa","Opel Grandland","Opel Mokka-e",
+  // Peugeot
   "Peugeot 208","Peugeot 2008","Peugeot 308","Peugeot e-208","Peugeot e-2008",
-  "Polestar 2","Polestar 3","Polestar 4",
-  "Renault Arkana","Renault Captur","Renault Clio","Renault Megane E-Tech",
+  // Polestar
+  "Polestar 2","Polestar 2 Single Motor","Polestar 2 Long Range","Polestar 2 Performance",
+  "Polestar 3","Polestar 4",
+  // Renault
+  "Renault Arkana","Renault Captur","Renault Clio","Renault Megane E-Tech","Renault Megane E-Tech Standard Range","Renault Megane E-Tech Long Range",
+  // Seat / Cupra
   "Seat Arona","Seat Ateca","Seat Ibiza","Seat Leon",
-  "Skoda Enyaq","Skoda Fabia","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Scala","Skoda Superb",
+  // Skoda
+  "Skoda Fabia","Skoda Scala","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Superb",
+  "Skoda Enyaq","Skoda Enyaq iV 60","Skoda Enyaq iV 85",
+  // Subaru
   "Subaru Forester","Subaru Outback","Subaru XV",
+  // Suzuki
   "Suzuki Jimny","Suzuki Swift","Suzuki Vitara",
-  "Tesla Model 3","Tesla Model S","Tesla Model X","Tesla Model Y",
-  "Toyota Aygo X","Toyota bZ4X","Toyota C-HR","Toyota Corolla","Toyota Corolla PHEV","Toyota RAV4","Toyota RAV4 PHEV","Toyota Yaris","Toyota Yaris Cross",
-  "Volkswagen Arteon","Volkswagen Golf","Volkswagen ID.3","Volkswagen ID.4","Volkswagen ID.7","Volkswagen Passat","Volkswagen Polo","Volkswagen T-Cross","Volkswagen T-Roc","Volkswagen Tiguan",
-  "Volvo EX30","Volvo EX40","Volvo EX60","Volvo EX90","Volvo S60","Volvo S60 Recharge","Volvo V60","Volvo V60 Recharge","Volvo V90","Volvo XC40","Volvo XC40 Recharge","Volvo XC60","Volvo XC60 PHEV","Volvo XC90"
+  // Tesla
+  "Tesla Model 3","Tesla Model 3 Standard Range","Tesla Model 3 Long Range","Tesla Model 3 Performance",
+  "Tesla Model Y","Tesla Model Y Standard Range","Tesla Model Y Long Range","Tesla Model Y Performance",
+  "Tesla Model S","Tesla Model X",
+  // Toyota
+  "Toyota Aygo X","Toyota C-HR","Toyota Corolla","Toyota Corolla PHEV","Toyota Yaris","Toyota Yaris Cross",
+  "Toyota RAV4","Toyota RAV4 PHEV",
+  "Toyota bZ4X",
+  // Volkswagen
+  "Volkswagen Polo","Volkswagen Golf","Volkswagen Arteon","Volkswagen Passat","Volkswagen T-Cross","Volkswagen T-Roc","Volkswagen Tiguan",
+  "Volkswagen ID.3","Volkswagen ID.3 Pure","Volkswagen ID.3 Pro",
+  "Volkswagen ID.4","Volkswagen ID.4 Pure","Volkswagen ID.4 Pro","Volkswagen ID.4 GTX",
+  "Volkswagen ID.7",
+  // Volvo
+  "Volvo S60","Volvo S60 Recharge","Volvo V60","Volvo V60 Recharge","Volvo V90","Volvo XC40","Volvo XC40 Recharge","Volvo XC60","Volvo XC60 PHEV","Volvo XC90",
+  "Volvo EX30","Volvo EX30 Single Motor","Volvo EX30 Extended Range","Volvo EX30 Twin Motor",
+  "Volvo EX40","Volvo EX40 Single Motor","Volvo EX40 Twin Motor",
+  "Volvo EX60","Volvo EX90"
 ];
 
 var caFcLoading = false;
