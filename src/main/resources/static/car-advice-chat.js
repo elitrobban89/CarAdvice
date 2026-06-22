@@ -1,5 +1,5 @@
 (function () {
-  var CA_CHAT_API = window.CA_API_URL || "https://caradvice.onrender.com";
+  var CA_CHAT_API = window.CA_API_URL || (typeof CA_API_BASE !== 'undefined' ? CA_API_BASE : "https://caradvice.onrender.com");
   var caChatHistory = (function(){ try{ return JSON.parse(localStorage.getItem('ca-chat')||'[]'); }catch(e){ return []; } })();
 
   // Intercept caRenderCards to capture current recommendations as context
@@ -121,7 +121,9 @@
     if (!recs || recs.length === 0) return null;
     var lines = ["Aktuella bilrekommendationer:"];
     recs.forEach(function(r, i) {
-      lines.push((i+1) + ". " + r.title + " — " + r.price + " — " + r.whyRecommended);
+      var priceInfo = r.price;
+      if (r.blocketPrice) priceInfo += " (Blocket just nu: " + r.blocketPrice + ")";
+      lines.push((i+1) + ". " + r.title + " — " + priceInfo + " — " + r.whyRecommended);
     });
     return lines.join("\n");
   }
