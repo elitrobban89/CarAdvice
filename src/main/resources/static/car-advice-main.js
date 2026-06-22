@@ -399,7 +399,7 @@ function caCargoChip(cargo) {
   return '<div class="ca-cargo">' + txt + '</div>';
 }
 
-function caEvChips(ev) {
+function caEvChips(ev, hp) {
   if (!ev) return '';
   var isPhev = ev.carType === 'PHEV';
   var badgeLabel = isPhev ? '&#x1F50C; Laddhybrid' : '&#x26A1; Elbil';
@@ -411,6 +411,7 @@ function caEvChips(ev) {
   if (ev.daysLabel) chips += '<div style="width:100%;height:0;margin:0"></div><span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
   if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC '+ev.maxDcKw+' kW</span>';
   if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC '+ev.maxAcKw+' kW</span>';
+  if (hp > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; '+hp+' hk</span>';
   if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">'+ev.batteryKwh+' kWh</span>';
   if (ev.priceKr > 0) chips += '<span class="ca-ev-chip ca-ev-price">fr\xe5n '+Math.round(ev.priceKr/1000)+' tkr</span>';
   if (ev.valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">'+caEsc(ev.valueLabel)+'</span>';
@@ -482,7 +483,7 @@ function caRenderCards(recommendations) {
           '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
           (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Bilexpert</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
-          (r.evSpec ? caEvChips(r.evSpec) : '') +
+          (r.evSpec ? caEvChips(r.evSpec, r.horsepower) : '') +
           (r.fuelSpec ? caFuelChips(r.fuelSpec, caParsePrice(r.price)) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
           caTcoHtml(r, caCurrentKm) +
@@ -580,7 +581,11 @@ function caRenderCompare(recs, targetEl) {
     rows.push({ label: '&#x26A1; DC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
     rows.push({ label: '&#x1F50C; AC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh','rgba(56,189,248,.1)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', fn: function(r) {
+    rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r) {
+    var hp = r.horsepower || (r.fuelSpec && r.fuelSpec.horsepower) || 0;
+    return hp > 0 ? chip(hp + ' hk', 'rgba(251,191,36,.13)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+  } });
+rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', fn: function(r) {
     if (r.evSpec && r.evSpec.valueLabel) return chip(caEsc(r.evSpec.valueLabel), 'rgba(52,211,153,.14)');
     var cl = caValueLabelCombustion(r.fuelSpec, caParsePrice(r.price));
     return cl ? chip(caEsc(cl), 'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
