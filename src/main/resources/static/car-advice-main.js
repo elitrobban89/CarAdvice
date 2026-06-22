@@ -346,8 +346,8 @@ function caEsc(s) {
 }
 
 function caBlocketUrl(title) {
-  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
-  return 'https://www.blocket.se/annonser/hela_sverige/fordon/bilar?q=' + encodeURIComponent(q);
+  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim().toLowerCase();
+  return 'https://www.blocket.se/recommerce/forsale/search?q=' + encodeURIComponent(q);
 }
 
 function caBytbilUrl(title) {
@@ -450,8 +450,8 @@ function caRenderCards(recommendations) {
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
-          '<div class="ca-price">' + caEsc(r.price) + '</div>' +
-          (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket: ' + caEsc(r.blocketPrice) + '</div>' : '') +
+          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Nypris</span>' + caEsc(r.price) + '</div>' +
+          (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket nu: ' + caEsc(r.blocketPrice) + '</div>' : '') +
         '</div>' +
         '<div class="ca-card-body">' +
           '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
@@ -518,7 +518,7 @@ function caRenderCompare(recs, targetEl) {
     return '<th '+th+'><span style="font-size:.65rem;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.08em">Bil '+(i+1)+'</span><br><span style="font-weight:700;color:#e2e8f0;font-size:.82rem">'+caEsc(short)+'</span></th>';
   }).join('');
   var rows = [
-    { label: '&#x1F4B0; Pris (AI)', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
+    { label: '&#x1F3F7;&#xFE0F; Nypris', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
     { label: '&#x1F535; Blocket nu', fn: function(r){
       if (!r.blocketPrice) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
       return '<a href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener" style="color:#60a5fa;font-size:.8rem;font-weight:600;text-decoration:none">'+caEsc(r.blocketPrice)+'&#x2192;</a>';
@@ -1382,8 +1382,9 @@ function caFcRenderResult(recs) {
     return '<div class="ca-fc-mini-card" style="border-color:' + col + '33">' +
       '<div style="font-size:.65rem;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Bil ' + (i + 1) + '</div>' +
       '<div style="font-weight:700;color:#e2e8f0;font-size:.85rem">' + caEsc(r.title) + '</div>' +
-      '<div style="color:#a5f3fc;font-size:.8rem;font-weight:600;margin-top:3px">' + caEsc(r.price) + '</div>' +
-      (r.blocketPrice ? '<div style="font-size:.72rem;color:#60a5fa;margin-top:2px">🔵 ' + caEsc(r.blocketPrice) + '</div>' : '') +
+      '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Nypris</div>' +
+      '<div style="color:#a5f3fc;font-size:.8rem;font-weight:600">' + caEsc(r.price) + '</div>' +
+      (r.blocketPrice ? '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:5px">Blocket nu</div><div style="font-size:.8rem;color:#60a5fa;font-weight:600">🔵 ' + caEsc(r.blocketPrice) + '</div>' : '') +
       '<a href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:.72rem;color:#60a5fa;text-decoration:none">S\xf6k p\xe5 Blocket →</a>' +
     '</div>';
   }).join('');
