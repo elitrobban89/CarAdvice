@@ -2,6 +2,8 @@ package com.caradvice.controller;
 
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.RateLimitLog;
+import com.caradvice.repository.CargoSpecRepository;
+import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.ExpertInsightService;
@@ -33,6 +35,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
@@ -47,6 +50,8 @@ public class CarController {
     private final EvDatabaseScraperService evScraper;
     private final UserService userService;
     private final RateLimitLogRepository rateLimitLogRepo;
+    private final CargoSpecRepository cargoSpecRepo;
+    private final EvSpecRepository evSpecRepo;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -62,13 +67,16 @@ public class CarController {
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
                          SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
-                         UserService userService, RateLimitLogRepository rateLimitLogRepo) {
+                         UserService userService, RateLimitLogRepository rateLimitLogRepo,
+                         CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evScraper = evScraper;
         this.userService = userService;
         this.rateLimitLogRepo = rateLimitLogRepo;
+        this.cargoSpecRepo = cargoSpecRepo;
+        this.evSpecRepo = evSpecRepo;
     }
 
     @PostConstruct
@@ -257,6 +265,14 @@ public class CarController {
                 .header("Cache-Control", "no-cache")
                 .header("X-Accel-Buffering", "no")
                 .body(body);
+    }
+
+    @GetMapping("/cars")
+    public ResponseEntity<List<String>> getCars() {
+        TreeSet<String> names = new TreeSet<>();
+        cargoSpecRepo.findAll().forEach(c -> { if (c.getCarName() != null) names.add(c.getCarName()); });
+        evSpecRepo.findAll().forEach(e -> { if (e.getCarName() != null) names.add(e.getCarName()); });
+        return ResponseEntity.ok(new ArrayList<>(names));
     }
 
     @GetMapping("/health")
