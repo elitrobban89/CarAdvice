@@ -552,6 +552,14 @@ function caRenderCompare(recs, targetEl) {
       if (!r.expertOpinion) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
       return '<span style="font-size:.78rem;color:rgba(255,255,255,.75);font-style:italic">'+caEsc(r.expertOpinion)+'</span>';
     }},
+    { label: '&#x1F6E1;&#xFE0F; Euro NCAP', fn: function(r){
+      if (!r.safetyRating) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      var parts = r.safetyRating.split(' \u00b7 ');
+      var stars = parts[0] || '';
+      var details = parts.slice(1).join(' \u00b7 ');
+      return '<span style="font-size:.95rem;letter-spacing:.05em;color:#fcd34d">' + caEsc(stars) + '</span>' +
+        (details ? '<br><span style="font-size:.7rem;color:rgba(255,255,255,.45)">' + caEsc(details) + '</span>' : '');
+    }},
     { label: '&#x1F9F3; Bagageutrymme', fn: function(r){
       if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
       var txt = chip(r.cargoSpec.cargoLiters+' L', 'rgba(251,191,36,.12)');
