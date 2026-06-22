@@ -377,6 +377,8 @@ public class GroqService {
                 Svara alltid på svenska. Var konkret och hjälpsam. Använd **fetstil** och listor med - för struktur.
                 När du har expertinsikter som är relevanta för frågan, inkludera dem tydligt med attributionen "**[expertnamn]:** [insikt]" i slutet av ditt svar — använd det namn som anges i insikten.
 
+                VIKTIGT — nämn ALDRIG specifika obligatoriska årsavgifter, abonnemangsavgifter eller månadsavgifter som är knutna till ett specifikt leasingavtal eller erbjudande. Sådana avgifter gäller inte generellt för bilen och är missvisande. Tala enbart om allmänna ägandekostnader (skatt, försäkring, drivmedel, service).
+
                 PRISER — använd aldrig orimligt låga priser. Verifierade svenska nyprisintervall 2025–2026:
                 Budget-elbilar: Dacia Spring ~195 000 kr, BYD Dolphin ~300 000–340 000 kr, MG4 ~330 000–365 000 kr.
                 Mellanklass-elbilar: Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr, BYD Seal ~400 000–460 000 kr.
