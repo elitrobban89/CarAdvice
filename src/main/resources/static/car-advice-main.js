@@ -1339,35 +1339,42 @@ var CA_FC_CARS = [
   "Audi A3","Audi A4","Audi A6","Audi e-tron GT","Audi Q2","Audi Q3","Audi Q5","Audi Q7",
   "Audi Q4 e-tron","Audi Q4 e-tron 40","Audi Q4 e-tron 50 quattro",
   "Audi Q6 e-tron","Audi Q6 e-tron quattro",
+  "Audi Q8 e-tron","Audi Q8 e-tron Sportback",
   // BMW
   "BMW 1-serie","BMW 3-serie","BMW 5-serie","BMW X1","BMW X3","BMW X5",
   "BMW i4","BMW i4 eDrive40","BMW i4 M50",
   "BMW iX1","BMW iX1 xDrive30",
-  "BMW iX3",
+  "BMW iX3","BMW iX",
+  "BMW i5","BMW i5 eDrive40",
   // BYD
-  "BYD Atto 3","BYD Dolphin","BYD Seal","BYD Seal Standard Range","BYD Seal Long Range",
+  "BYD Atto 3","BYD Dolphin",
   // Dacia
   "Dacia Duster","Dacia Jogger","Dacia Sandero","Dacia Spring",
+  // Fiat
+  "Fiat 500","Fiat 500e",
   // Ford
   "Ford Focus","Ford Kuga","Ford Kuga PHEV","Ford Mustang Mach-E","Ford Mustang Mach-E Standard Range","Ford Mustang Mach-E Extended Range","Ford Puma",
   // Honda
   "Honda Civic","Honda CR-V","Honda Jazz",
   // Hyundai
   "Hyundai i20","Hyundai i30","Hyundai Santa Fe","Hyundai Tucson","Hyundai Tucson PHEV",
+  "Hyundai Kona","Hyundai Kona PHEV","Hyundai Kona Electric",
   "Hyundai IONIQ 5","Hyundai IONIQ 5 Standard Range","Hyundai IONIQ 5 Long Range",
   "Hyundai IONIQ 6","Hyundai IONIQ 6 Standard Range","Hyundai IONIQ 6 Long Range",
   // Kia
   "Kia Ceed","Kia Niro","Kia Niro EV","Kia Niro PHEV","Kia Picanto","Kia Rio","Kia Sportage","Kia Sportage PHEV","Kia Stonic",
   "Kia EV3","Kia EV3 Standard Range","Kia EV3 Long Range",
   "Kia EV6","Kia EV6 Standard Range","Kia EV6 Long Range","Kia EV6 GT",
+  "Kia EV9",
   // Mazda
   "Mazda2","Mazda3","Mazda CX-30","Mazda CX-5","Mazda MX-5",
   // Mercedes
   "Mercedes A-Klass","Mercedes C-Klass","Mercedes E-Klass","Mercedes GLA","Mercedes GLC",
   "Mercedes EQA","Mercedes EQA 250","Mercedes EQB","Mercedes EQB 300",
+  "Mercedes EQC","Mercedes EQE","Mercedes EQS",
   // MG
   "MG4","MG4 Standard Range","MG4 Long Range","MG4 Extended Range",
-  "MG ZS EV","MG ZS","MG HS",
+  "MG5","MG ZS EV","MG ZS","MG HS",
   // Mini
   "Mini Cooper","Mini Countryman",
   // Mitsubishi
@@ -1382,12 +1389,15 @@ var CA_FC_CARS = [
   "Polestar 2","Polestar 2 Single Motor","Polestar 2 Long Range","Polestar 2 Performance",
   "Polestar 3","Polestar 4",
   // Renault
-  "Renault Arkana","Renault Captur","Renault Clio","Renault Megane E-Tech","Renault Megane E-Tech Standard Range","Renault Megane E-Tech Long Range",
+  "Renault Arkana","Renault Captur","Renault Clio","Renault Zoe",
+  "Renault Megane E-Tech","Renault Megane E-Tech Standard Range","Renault Megane E-Tech Long Range",
   // Seat / Cupra
   "Seat Arona","Seat Ateca","Seat Ibiza","Seat Leon",
+  "Cupra Born","Cupra Formentor","Cupra Formentor e-Hybrid",
   // Skoda
   "Skoda Fabia","Skoda Kamiq","Skoda Scala","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Superb",
   "Skoda Enyaq","Skoda Enyaq iV 60","Skoda Enyaq iV 85",
+  "Skoda Elroq",
   // Subaru
   "Subaru Forester","Subaru Outback","Subaru XV",
   // Suzuki
@@ -1404,10 +1414,12 @@ var CA_FC_CARS = [
   "Volkswagen Polo","Volkswagen Golf","Volkswagen Arteon","Volkswagen Passat","Volkswagen T-Cross","Volkswagen T-Roc","Volkswagen Tiguan",
   "Volkswagen ID.3","Volkswagen ID.3 Pure","Volkswagen ID.3 Pro",
   "Volkswagen ID.4","Volkswagen ID.4 Pure","Volkswagen ID.4 Pro","Volkswagen ID.4 GTX",
-  "Volkswagen ID.7",
+  "Volkswagen ID.7","Volkswagen ID.5",
+  "Volkswagen ID.Buzz",
   // Volvo
   "Volvo S60","Volvo S60 Recharge","Volvo V60","Volvo V60 Recharge","Volvo V90","Volvo XC40","Volvo XC40 Recharge","Volvo XC60","Volvo XC60 PHEV","Volvo XC90",
   "Volvo EX30","Volvo EX30 Single Motor","Volvo EX30 Single Motor Extended Range","Volvo EX30 Twin Motor Performance","Volvo EX30 Cross Country",
+  "Volvo C40",
   "Volvo EX40","Volvo EX40 Single Motor","Volvo EX40 Twin Motor",
   "Volvo EX60","Volvo EX90"
 ];
