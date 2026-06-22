@@ -595,5 +595,6 @@
     caSaveChatHistory();
   }
 
+  window.caChatSetRecsContext = caChatSetRecsContext;
   initCaChat();
 })();

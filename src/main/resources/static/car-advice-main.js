@@ -496,8 +496,8 @@ function caRenderCards(recommendations) {
   }, 250);
 }
 
-function caRenderCompare(recs) {
-  var cmp = document.getElementById('ca-compare');
+function caRenderCompare(recs, targetEl) {
+  var cmp = targetEl || document.getElementById('ca-compare');
   if (!cmp || !recs || recs.length < 2) return;
   var hasEv   = recs.some(function(r){ return r.evSpec; });
   var hasFuel = recs.some(function(r){ return r.fuelSpec; });
@@ -1288,6 +1288,130 @@ window.addEventListener('message', function(ev) {
   }
 });
 
+// ── Fri bilj\xe4mf\xf6relse ─────────────────────────────────────────────────────────
+
+var CA_FC_CARS = [
+  "Audi A3","Audi A4","Audi A6","Audi e-tron GT","Audi Q2","Audi Q3","Audi Q4 e-tron","Audi Q5","Audi Q6 e-tron","Audi Q7",
+  "BMW 1-serie","BMW 3-serie","BMW 5-serie","BMW i4","BMW iX1","BMW iX3","BMW X1","BMW X3","BMW X5",
+  "BYD Atto 3","BYD Dolphin","BYD Seal",
+  "Dacia Duster","Dacia Jogger","Dacia Sandero","Dacia Spring",
+  "Ford Focus","Ford Kuga","Ford Kuga PHEV","Ford Mustang Mach-E","Ford Puma",
+  "Honda Civic","Honda CR-V","Honda Jazz",
+  "Hyundai i20","Hyundai i30","Hyundai IONIQ 5","Hyundai IONIQ 6","Hyundai Santa Fe","Hyundai Tucson","Hyundai Tucson PHEV",
+  "Kia Ceed","Kia EV3","Kia EV6","Kia Niro","Kia Niro EV","Kia Niro PHEV","Kia Picanto","Kia Rio","Kia Sportage","Kia Sportage PHEV","Kia Stonic",
+  "Mazda2","Mazda3","Mazda CX-30","Mazda CX-5","Mazda MX-5",
+  "Mercedes A-Klass","Mercedes C-Klass","Mercedes E-Klass","Mercedes EQA","Mercedes EQB","Mercedes GLA","Mercedes GLC",
+  "MG4","MG HS","MG ZS","MG ZS EV",
+  "Mini Cooper","Mini Countryman",
+  "Mitsubishi Outlander PHEV",
+  "Nissan Ariya","Nissan Leaf","Nissan Qashqai",
+  "Opel Astra","Opel Corsa","Opel Grandland","Opel Mokka-e",
+  "Peugeot 208","Peugeot 2008","Peugeot 308","Peugeot e-208","Peugeot e-2008",
+  "Polestar 2","Polestar 3","Polestar 4",
+  "Renault Arkana","Renault Captur","Renault Clio","Renault Megane E-Tech",
+  "Seat Arona","Seat Ateca","Seat Ibiza","Seat Leon",
+  "Skoda Enyaq","Skoda Fabia","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Scala","Skoda Superb",
+  "Subaru Forester","Subaru Outback","Subaru XV",
+  "Suzuki Jimny","Suzuki Swift","Suzuki Vitara",
+  "Tesla Model 3","Tesla Model S","Tesla Model X","Tesla Model Y",
+  "Toyota Aygo X","Toyota bZ4X","Toyota C-HR","Toyota Corolla","Toyota Corolla PHEV","Toyota RAV4","Toyota RAV4 PHEV","Toyota Yaris","Toyota Yaris Cross",
+  "Volkswagen Arteon","Volkswagen Golf","Volkswagen ID.3","Volkswagen ID.4","Volkswagen ID.7","Volkswagen Passat","Volkswagen Polo","Volkswagen T-Cross","Volkswagen T-Roc","Volkswagen Tiguan",
+  "Volvo EX30","Volvo EX40","Volvo EX60","Volvo EX90","Volvo S60","Volvo S60 Recharge","Volvo V60","Volvo V60 Recharge","Volvo V90","Volvo XC40","Volvo XC40 Recharge","Volvo XC60","Volvo XC60 PHEV","Volvo XC90"
+];
+
+var caFcLoading = false;
+
+function caFcInit() {
+  var datalist = document.getElementById('ca-fc-datalist');
+  if (datalist) {
+    datalist.innerHTML = CA_FC_CARS.map(function(c) { return '<option value="' + caEsc(c) + '">'; }).join('');
+  }
+  var btn = document.getElementById('ca-fc-btn');
+  if (btn) btn.addEventListener('click', caFcCompare);
+  ['ca-fc-car1','ca-fc-car2'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') caFcCompare(); });
+  });
+}
+
+function caFcCompare() {
+  if (caFcLoading) return;
+  var car1 = (document.getElementById('ca-fc-car1').value || '').trim();
+  var car2 = (document.getElementById('ca-fc-car2').value || '').trim();
+  if (!car1 || !car2) { alert('V\xe4lj tv\xe5 bilar att j\xe4mf\xf6ra.'); return; }
+  if (car1.toLowerCase() === car2.toLowerCase()) { alert('V\xe4lj tv\xe5 olika bilar.'); return; }
+
+  caFcLoading = true;
+  var btn = document.getElementById('ca-fc-btn');
+  var loader = document.getElementById('ca-fc-loader');
+  var result = document.getElementById('ca-fc-result');
+  btn.disabled = true; btn.textContent = 'H\xe4mtar…';
+  loader.style.display = 'block'; result.innerHTML = '';
+
+  var token = localStorage.getItem('ca_token');
+  var hdrs = { 'Content-Type': 'application/json' };
+  if (token) hdrs['Authorization'] = 'Bearer ' + token;
+
+  fetch(CA_API_BASE + '/api/compare-cars', {
+    method: 'POST', headers: hdrs,
+    body: JSON.stringify({ car1: car1, car2: car2 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    caFcLoading = false; btn.disabled = false; btn.textContent = 'J\xe4mf\xf6r →';
+    loader.style.display = 'none';
+    if (!data.success) {
+      result.innerHTML = '<div style="color:#fca5a5;font-size:.8rem;padding:10px 0">' + caEsc(data.error || 'N\xe5got gick fel.') + '</div>';
+      return;
+    }
+    caFcRenderResult(data.recommendations);
+  })
+  .catch(function() {
+    caFcLoading = false; btn.disabled = false; btn.textContent = 'J\xe4mf\xf6r →';
+    loader.style.display = 'none';
+    result.innerHTML = '<div style="color:#fca5a5;font-size:.8rem;padding:10px 0">N\xe5got gick fel. F\xf6rs\xf6k igen.</div>';
+  });
+}
+
+function caFcRenderResult(recs) {
+  var result = document.getElementById('ca-fc-result');
+  if (!result || !recs || recs.length < 2) return;
+
+  var mini = recs.slice(0, 2).map(function(r, i) {
+    var col = i === 0 ? '#a78bfa' : '#38bdf8';
+    return '<div class="ca-fc-mini-card" style="border-color:' + col + '33">' +
+      '<div style="font-size:.65rem;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Bil ' + (i + 1) + '</div>' +
+      '<div style="font-weight:700;color:#e2e8f0;font-size:.85rem">' + caEsc(r.title) + '</div>' +
+      '<div style="color:#a5f3fc;font-size:.8rem;font-weight:600;margin-top:3px">' + caEsc(r.price) + '</div>' +
+      (r.blocketPrice ? '<div style="font-size:.72rem;color:#60a5fa;margin-top:2px">🔵 ' + caEsc(r.blocketPrice) + '</div>' : '') +
+      '<a href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:.72rem;color:#60a5fa;text-decoration:none">S\xf6k p\xe5 Blocket →</a>' +
+    '</div>';
+  }).join('');
+
+  result.innerHTML = '<div class="ca-fc-mini-row">' + mini + '</div>';
+
+  var cmpDiv = document.createElement('div');
+  result.appendChild(cmpDiv);
+  caRenderCompare(recs, cmpDiv);
+
+  var chatBtn = document.createElement('button');
+  chatBtn.className = 'ca-fc-chat-btn';
+  var n1 = recs[0].title.replace(/\s*\(\d{4}\)\s*$/, '');
+  var n2 = recs[1].title.replace(/\s*\(\d{4}\)\s*$/, '');
+  chatBtn.textContent = '💬 Fr\xe5ga chatboten om ' + n1 + ' vs ' + n2;
+  chatBtn.addEventListener('click', function() {
+    var panel = document.getElementById('ca-chat-panel');
+    if (panel) panel.style.display = 'flex';
+    if (window.caChatFocusCar) window.caChatFocusCar(0, recs[0].title);
+  });
+  result.appendChild(chatBtn);
+
+  window._caRecommendations = recs;
+  if (window.caChatSetRecsContext) window.caChatSetRecsContext(recs);
+
+  setTimeout(function() { result.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+}
+
 function caInit() {
   window._caFns = {
     recommend: caGetRecommendation,
@@ -1303,6 +1427,7 @@ function caInit() {
   caReadUrlParams();
   caBindChangeListeners();
   caRenderHistory();
+  caFcInit();
   var kopBtn = document.getElementById('ca-mode-kop');
   var leaseBtn = document.getElementById('ca-mode-leasing');
   if (kopBtn) kopBtn.addEventListener('click', function() {

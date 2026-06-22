@@ -149,6 +149,36 @@ public class CarController {
         }
     }
 
+    @PostMapping("/compare-cars")
+    public ResponseEntity<?> compareCars(@RequestBody Map<String, String> req, HttpServletRequest httpReq,
+                                         @RequestHeader(value = "Authorization", required = false) String auth) {
+        String car1 = req.getOrDefault("car1", "").trim();
+        String car2 = req.getOrDefault("car2", "").trim();
+        if (car1.isBlank() || car2.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Ange två bilmodeller"));
+        if (car1.equalsIgnoreCase(car2))
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Välj två olika bilar"));
+
+        String ip = getClientIp(httpReq);
+        boolean subscriber = userService.isActiveSubscriber(auth);
+        boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (!subscriber && isRateLimited(ip, limit)) {
+            return ResponseEntity.status(429).body(Map.of("success", false,
+                    "error", loggedIn ? "För många förfrågningar. Försök igen om en stund."
+                                      : "Du har använt alla gratis förfrågningar. Prenumerera för obegränsat!",
+                    "rateLimited", true));
+        }
+        if (!subscriber) persistRateLimit(ip);
+
+        try {
+            List<com.caradvice.model.CarRecommendation> result = groqService.compareSpecific(car1, car2);
+            return ResponseEntity.ok(Map.of("success", true, "recommendations", result));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/chat")
     public ResponseEntity<?> chat(@RequestBody Map<String, Object> req, HttpServletRequest httpReq,
                                   @RequestHeader(value = "Authorization", required = false) String auth) {

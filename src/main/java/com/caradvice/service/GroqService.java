@@ -178,6 +178,86 @@ public class GroqService {
         cache.values().removeIf(e -> e.timestamp() < cutoff);
     }
 
+    public List<CarRecommendation> compareSpecific(String car1, String car2) throws Exception {
+        String userPrompt = "Jämför dessa exakt 2 bilar: 1. " + car1 + "  2. " + car2;
+
+        Map<String, Object> requestBody = Map.of(
+                "model", model,
+                "max_tokens", 1800,
+                "temperature", 0.2,
+                "response_format", Map.of("type", "json_object"),
+                "messages", List.of(
+                        Map.of("role", "system", "content", buildCompareSystemPrompt()),
+                        Map.of("role", "user", "content", userPrompt)
+                )
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(GROQ_URL))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200)
+            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ".");
+
+        JsonNode json = mapper.readTree(response.body());
+        String content = json.at("/choices/0/message/content").asText();
+        JsonNode recsNode = mapper.readTree(content).at("/recommendations");
+        List<CarRecommendation> parsed = mapper.convertValue(
+                recsNode,
+                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
+        );
+
+        List<CompletableFuture<String>> blocketFutures = parsed.stream()
+                .map(r -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        BlocketPriceService.PriceRange pr = blocketPriceService.fetchPriceRange(r.title());
+                        return pr != null ? pr.formatted() : null;
+                    } catch (Exception e) { return null; }
+                }))
+                .toList();
+
+        List<CarRecommendation> result = new ArrayList<>();
+        for (int i = 0; i < parsed.size(); i++) {
+            CarRecommendation r = parsed.get(i);
+            String safety = null;
+            com.caradvice.model.EvSpecDto evSpec = null;
+            com.caradvice.model.CargoSpecDto cargo = null;
+            String blocketPrice = null;
+            try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
+            try { evSpec = evSpecService.formatForTitle(r.title(), 15000); } catch (Exception ignored) {}
+            try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
+            try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+            result.add(new CarRecommendation(
+                    r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice));
+        }
+        return result;
+    }
+
+    private String buildCompareSystemPrompt() {
+        return """
+                Svensk bilrådgivare, svenska marknaden 2025–2026. Du jämför exakt de 2 bilar som användaren anger.
+                Svara ENDAST med JSON i exakt detta format (EXAKT 2 bilar i arrayen):
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"en mening om bilens styrka, t.ex. referens från Teknikens Värld","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"en mening om vem bilen passar","expertOpinion":"Bilexpertens syn — max 2 meningar, konkret och saklig.","fuelSpec":null}]}
+                För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad (turbo)","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden.
+                För elbil och laddhybrid: sätt "fuelSpec":null.
+                Ange alltid exakt årsmodell i title (t.ex. "MG ZS EV (2024)"), välj den vanligaste varianten på svenska marknaden.
+                Returnera EXAKT 2 bilar — inte fler, inte färre. Svara på svenska.
+
+                KRITISKT — PRISER: Använd ALDRIG påhittade eller orimligt låga priser.
+                Verifierade svenska nyprisintervall 2025–2026:
+                - Dacia Spring ~195 000 kr, BYD Dolphin ~300 000–340 000 kr, MG4 ~330 000–365 000 kr
+                - MG ZS EV ~290 000–350 000 kr, Kia Niro EV ~380 000–430 000 kr
+                - Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr
+                - Polestar 2 ~609 000 kr, Tesla Model Y Long Range ~600 000 kr, Polestar 4 ~660 000 kr
+                Begagnad 1 år: nypris × 0.85. Begagnad 2 år: nypris × 0.75.
+                """;
+    }
+
     private String buildCacheKey(CarPreferences prefs) {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
