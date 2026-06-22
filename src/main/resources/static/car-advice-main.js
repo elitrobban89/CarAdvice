@@ -566,7 +566,7 @@ function caRenderCompare(recs, targetEl) {
   }
   rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', fn: function(r) {
     if (caIsLeasing) {
-      var tcoL = caTcoLeasingCalc(r, caCurrentKm);
+      var tcoL = caTcoLeasingCalc(r, caCurrentKm, parseInt(document.getElementById('ca-budget-slider').value) || 0);
       if (!tcoL) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
       return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tcoL.total.toLocaleString('sv-SE') + ' kr</span>' +
         '<br><span style="font-size:.65rem;color:rgba(255,255,255,.35)">' + tcoL.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
@@ -948,15 +948,18 @@ function caTcoCalc(r, kmPerYear) {
 
 function caParseLeaseMonthly(priceStr) {
   if (!priceStr) return 0;
+  if (!/m[åa]n/i.test(priceStr)) return 0;
   var s = priceStr.replace(/[\s ]/g, '').replace(/kr\/m[åa]n/gi, '').replace(/\/m[åa]n/gi, '').replace(/kr/gi, '');
   var m = s.match(/(\d+)[–\-—](\d+)/);
   if (m) return (parseInt(m[1]) + parseInt(m[2])) / 2;
   m = s.match(/(\d{3,6})/);
   return m ? parseInt(m[1]) : 0;
+})/);
+  return m ? parseInt(m[1]) : 0;
 }
 
-function caTcoLeasingCalc(r, kmPerYear) {
-  var monthly = caParseLeaseMonthly(r.price);
+function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {
+  var monthly = caParseLeaseMonthly(r.price) || monthlyFallback || 0;
   if (!monthly || monthly < 500) return null;
   var km = kmPerYear || 15000;
   var years = 5;
@@ -997,7 +1000,7 @@ function caTcoDot(perMonth) {
 
 function caTcoHtml(r, kmPerYear) {
   if (caIsLeasing) {
-    var tcoL = caTcoLeasingCalc(r, kmPerYear);
+    var tcoL = caTcoLeasingCalc(r, kmPerYear, parseInt(document.getElementById('ca-budget-slider').value) || 0);
     if (!tcoL) return '';
     return '<hr class="ca-divider">' +
       '<span class="ca-section-label" style="font-size:.95rem;font-weight:700">&#x1F4B0; 5-\xe5rs leasingkostnad</span>' +
