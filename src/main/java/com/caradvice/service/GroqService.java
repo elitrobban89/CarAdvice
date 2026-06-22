@@ -159,7 +159,7 @@ public class GroqService {
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower()));
         }
 
         evictIfNeeded();
@@ -257,7 +257,7 @@ public class GroqService {
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower()));
         }
         return result;
     }
