@@ -127,7 +127,21 @@
     quick.style.display = 'flex';
   }
 
-  function buildCarContext() {
+  function detectMentionedCar(msg) {
+    var recs = window._caRecommendations;
+    if (!recs || !recs.length || !msg) return null;
+    var msgLower = msg.toLowerCase();
+    var best = null, bestScore = 0;
+    recs.forEach(function(r) {
+      var name = r.title.replace(/\s*\(\d{4}\)\s*$/, '').toLowerCase();
+      var words = name.split(' ').filter(function(w) { return w.length > 3; });
+      var score = words.filter(function(w) { return msgLower.indexOf(w) !== -1; }).length;
+      if (score > bestScore) { bestScore = score; best = r; }
+    });
+    return bestScore > 0 ? best : null;
+  }
+
+  function buildCarContext(userMsg) {
     var recs = window._caRecommendations;
     if (!recs || recs.length === 0) return null;
     var lines = ["Aktuella bilrekommendationer:"];
@@ -136,6 +150,13 @@
       if (r.blocketPrice) priceInfo += " (Blocket just nu: " + r.blocketPrice + ")";
       lines.push((i+1) + ". " + r.title + " — " + priceInfo + " — " + r.whyRecommended);
     });
+    if (userMsg) {
+      var focused = detectMentionedCar(userMsg);
+      if (focused) {
+        var focusName = focused.title.replace(/\s*\(\d{4}\)\s*$/, '');
+        lines.push("\nOBS: Användaren frågar specifikt om " + focusName + ". Svara ENBART om denna bil, inte om de andra.");
+      }
+    }
     return lines.join("\n");
   }
 
@@ -498,13 +519,17 @@
     caChatHistory.push({ role: "user", content: message });
     caSaveChatHistory();
 
+    var mentionedCar = detectMentionedCar(message);
+    var isAppearanceQ = /ser ut|utseende|bild|design|exteriör|looks|stilig|se ut|färg|form/i.test(message);
+    if (mentionedCar) caChatSetCarImg(mentionedCar.title);
+
     var msgsEl = document.getElementById("ca-chat-messages");
     var typingDiv = document.createElement("div");
     typingDiv.innerHTML = '<div class="ca-chat-bubble bot"><div class="ca-chat-typing"><span></span><span></span><span></span></div></div>';
     msgsEl.appendChild(typingDiv);
     msgsEl.scrollTop = msgsEl.scrollHeight;
 
-    var context = buildCarContext();
+    var context = buildCarContext(message);
     var limited = caChatHistory.slice(-10);
 
     var resp;
@@ -601,6 +626,18 @@
     }
 
     bubble.innerHTML = caChatMarkdown(fullText);
+
+    if (isAppearanceQ && mentionedCar && typeof window.caFetchOneImage === 'function') {
+      var ts = Date.now();
+      var iwId = 'ca-mi-' + ts, iId = 'ca-mii-' + ts;
+      var imgWrap = document.createElement('div');
+      imgWrap.id = iwId;
+      imgWrap.style.cssText = 'display:none;margin-top:10px;height:90px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.04)';
+      imgWrap.innerHTML = '<img id="' + iId + '" src="" alt="' + mentionedCar.title.replace(/"/g,'') + '" style="width:100%;height:100%;object-fit:contain">';
+      bubble.appendChild(imgWrap);
+      window.caFetchOneImage(mentionedCar.title, iwId, iId);
+    }
+
     caAddFeedback(outer);
     caAddFollowupChips(fullText, outer);
     msgsEl.scrollTop = msgsEl.scrollHeight;
