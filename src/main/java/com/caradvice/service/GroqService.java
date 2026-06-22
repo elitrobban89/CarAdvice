@@ -159,7 +159,7 @@ public class GroqService {
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower()));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
         }
 
         evictIfNeeded();
@@ -257,7 +257,7 @@ public class GroqService {
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower()));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
         }
         return result;
     }
@@ -266,7 +266,7 @@ public class GroqService {
         return """
                 Svensk bilrådgivare, svenska marknaden 2025–2026. Du jämför exakt de 2 bilar som användaren anger.
                 Svara ENDAST med JSON i exakt detta format (EXAKT 2 bilar i arrayen):
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"en mening om bilens styrka, t.ex. referens från Teknikens Värld","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"en mening om vem bilen passar","expertOpinion":"Bilexpertens syn på bilen — max 2 meningar om körkänsla, tillförlitlighet och begagnatvärde. Nämn INTE listpris — Blocket-pris visas separat.","fuelSpec":null}]}
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"en mening om bilens styrka, t.ex. referens från Teknikens Värld","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"en mening om vem bilen passar","expertOpinion":"Bilexpertens syn på bilen — max 2 meningar om körkänsla, tillförlitlighet och begagnatvärde. Om de jämförda bilarna har tydligt olika storlek eller bagageutrymme, nämn om man behöver mer eller mindre utrymme. Nämn INTE listpris.","engineOptions":"Kommaseparerade motoralternativ på svenska marknaden, t.ex. '1.0 TSI 95 hk manuell, 1.0 TSI 115 hk automat, 1.5 TSI 150 hk automat'. För elbilar: batteripaket och räckvidd, t.ex. '51 kWh 170 hk (420 km), 77 kWh 286 hk (560 km)'.","fuelSpec":null}]}
                 För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad (turbo)","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden.
                 För elbil och laddhybrid: sätt "fuelSpec":null.
                 Ange alltid exakt årsmodell i title (t.ex. "MG ZS EV (2024)"), välj den vanligaste varianten på svenska marknaden.

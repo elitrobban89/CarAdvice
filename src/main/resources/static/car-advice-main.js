@@ -565,6 +565,12 @@ function caRenderCompare(recs, targetEl) {
       var txt = chip(r.cargoSpec.cargoLiters+' L', 'rgba(251,191,36,.12)');
       if (r.cargoSpec.cargoMaxLiters > 0) txt += ' <span style="font-size:.72rem;color:rgba(255,255,255,.4)">/ '+r.cargoSpec.cargoMaxLiters+' L</span>';
       return txt;
+    }},
+    { label: '&#x1F527; Motoralternativ', fn: function(r){
+      if (!r.engineOptions) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return r.engineOptions.split(',').map(function(opt) {
+        return '<span style="display:inline-block;font-size:.72rem;color:rgba(255,255,255,.65);background:rgba(255,255,255,.06);border-radius:12px;padding:2px 8px;margin:2px 2px 2px 0">' + caEsc(opt.trim()) + '</span>';
+      }).join('');
     }}
   ];
   if (hasFuel) {
