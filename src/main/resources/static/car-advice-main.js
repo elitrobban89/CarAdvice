@@ -10,6 +10,8 @@ window._ca = function(action, arg) {
   if (window._caFns && window._caFns[action]) window._caFns[action](arg);
 };
 
+var CA_API_BASE = 'https://caradvice.onrender.com';
+
 var caHasSearched = false;
 var caInitialValues = {};
 var caCurrentRecs = null;
@@ -449,6 +451,7 @@ function caRenderCards(recommendations) {
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
           '<div class="ca-price">' + caEsc(r.price) + '</div>' +
+          (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket: ' + caEsc(r.blocketPrice) + '</div>' : '') +
         '</div>' +
         '<div class="ca-card-body">' +
           '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
@@ -515,7 +518,11 @@ function caRenderCompare(recs) {
     return '<th '+th+'><span style="font-size:.65rem;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.08em">Bil '+(i+1)+'</span><br><span style="font-weight:700;color:#e2e8f0;font-size:.82rem">'+caEsc(short)+'</span></th>';
   }).join('');
   var rows = [
-    { label: '&#x1F4B0; Pris', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
+    { label: '&#x1F4B0; Pris (AI)', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
+    { label: '&#x1F535; Blocket nu', fn: function(r){
+      if (!r.blocketPrice) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return '<a href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener" style="color:#60a5fa;font-size:.8rem;font-weight:600;text-decoration:none">'+caEsc(r.blocketPrice)+'&#x2192;</a>';
+    }},
     { label: '&#x2714; F\xf6rdelar', fn: function(r){
       return '<ul style="margin:0;padding-left:14px">'+(r.pros||[]).map(function(p){
         return '<li style="font-size:.77rem;color:rgba(255,255,255,.7);margin-bottom:3px">'+caEsc(p)+'</li>';
@@ -532,7 +539,7 @@ function caRenderCompare(recs) {
   if (hasFuel) {
     rows.push({ label: '&#x26FD; F\xf6rbrukning', fn: function(r){
       if (!r.fuelSpec || r.fuelSpec.consumptionLiterPerMil <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return chip(r.fuelSpec.consumptionLiterPerMil.toFixed(1)+' l/mil','rgba(251,146,60,.15)');
+      return chip((r.fuelSpec.consumptionLiterPerMil / 10).toFixed(2)+' l/mil','rgba(251,146,60,.15)');
     }});
     rows.push({ label: '&#x2699;&#xFE0F; V\xe4xell\xe5da', fn: function(r){
       if (!r.fuelSpec || !r.fuelSpec.gearbox) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
@@ -558,6 +565,12 @@ function caRenderCompare(recs) {
     rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.valueLabel ? chip(caEsc(ev.valueLabel),'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>'; }); } });
   }
   rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', fn: function(r) {
+    if (caIsLeasing) {
+      var tcoL = caTcoLeasingCalc(r, caCurrentKm);
+      if (!tcoL) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tcoL.total.toLocaleString('sv-SE') + ' kr</span>' +
+        '<br><span style="font-size:.65rem;color:rgba(255,255,255,.35)">' + tcoL.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
+    }
     var tco = caTcoCalc(r, caCurrentKm);
     if (!tco) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
     return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
@@ -586,6 +599,7 @@ function caRenderCompare(recs) {
 }
 
 function caTcoBarChart(recs) {
+  if (caIsLeasing) return '';
   var tcos = recs.map(function(r) { return caTcoCalc(r, caCurrentKm); });
   var valid = tcos.filter(Boolean);
   if (valid.length < 2) return '';
@@ -633,7 +647,7 @@ function caFetchCarImages(recs) {
     var wikiQ = base.replace(/\s+/g, '_');
     var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
     var origQ = q.replace(/\s+/g, '_');
-    (async function() {
+    (function() {
       var urls = [
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
@@ -642,40 +656,32 @@ function caFetchCarImages(recs) {
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
         'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
       ];
-      for (var url of urls) {
-        try {
-          var resp = await fetch(url);
-          if (!resp.ok) continue;
-          var data = await resp.json();
-          if (data.thumbnail && data.thumbnail.source) {
-            var wrap = document.getElementById('ca-img-wrap-' + i);
-            var img = document.getElementById('ca-img-' + i);
-            if (wrap && img) { img.src = data.thumbnail.source; wrap.style.display = 'block'; }
-            return;
-          }
-        } catch(e) {}
+      function setImg(src) {
+        var wrap = document.getElementById('ca-img-wrap-' + i);
+        var img = document.getElementById('ca-img-' + i);
+        if (wrap && img) { img.src = src; wrap.style.display = 'block'; }
       }
-      try {
-        var srResp = await fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*');
-        if (srResp.ok) {
-          var srData = await srResp.json();
-          if (srData[1]) {
-            for (var title of srData[1]) {
-              try {
-                var sr2 = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title.replace(/ /g, '_')));
-                if (!sr2.ok) continue;
-                var d2 = await sr2.json();
-                if (d2.thumbnail && d2.thumbnail.source) {
-                  var wrap2 = document.getElementById('ca-img-wrap-' + i);
-                  var img2 = document.getElementById('ca-img-' + i);
-                  if (wrap2 && img2) { img2.src = d2.thumbnail.source; wrap2.style.display = 'block'; }
-                  return;
-                }
-              } catch(e) {}
-            }
-          }
-        }
-      } catch(e) {}
+      function fetchThumb(url) {
+        return fetch(url).then(function(resp) {
+          if (!resp.ok) throw new Error('not ok');
+          return resp.json();
+        }).then(function(data) {
+          if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
+          return data.thumbnail.source;
+        });
+      }
+      Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
+        fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*')
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(srData) {
+            if (!srData || !srData[1]) return;
+            return Promise.any(srData[1].map(function(title) {
+              return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title.replace(/ /g, '_')));
+            }));
+          })
+          .then(function(src) { if (src) setImg(src); })
+          .catch(function() {});
+      });
     })();
   });
 }
@@ -745,7 +751,7 @@ async function caDeleteSaved(id) {
   var token = localStorage.getItem('ca_token');
   if (!token) return;
   try {
-    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches/' + id, {
+    var r = await fetch(CA_API_BASE + '/api/user/saved-searches/' + id, {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -760,7 +766,7 @@ async function caLoadSavedFromServer() {
   var token = localStorage.getItem('ca_token');
   if (!token) return;
   try {
-    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches', {
+    var r = await fetch(CA_API_BASE + '/api/user/saved-searches', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (!r.ok) return;
@@ -816,7 +822,7 @@ async function caSaveSearch() {
       budgetType:   caIsLeasing ? 'leasing' : 'köp'
     };
     var label = caSavedLabel(prefs);
-    var r = await fetch('https://caradvice.onrender.com/api/user/saved-searches', {
+    var r = await fetch(CA_API_BASE + '/api/user/saved-searches', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ prefsJson: JSON.stringify(prefs), recommendationsJson: JSON.stringify(caCurrentRecs), label: label })
@@ -924,6 +930,46 @@ function caTcoCalc(r, kmPerYear) {
   };
 }
 
+function caParseLeaseMonthly(priceStr) {
+  if (!priceStr) return 0;
+  var s = priceStr.replace(/[\s ]/g, '').replace(/kr\/m[åa]n/gi, '').replace(/\/m[åa]n/gi, '').replace(/kr/gi, '');
+  var m = s.match(/(\d+)[–\-—](\d+)/);
+  if (m) return (parseInt(m[1]) + parseInt(m[2])) / 2;
+  m = s.match(/(\d{3,6})/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function caTcoLeasingCalc(r, kmPerYear) {
+  var monthly = caParseLeaseMonthly(r.price);
+  if (!monthly || monthly < 500) return null;
+  var km = kmPerYear || 15000;
+  var years = 5;
+  var isEv   = r.evSpec && r.evSpec.carType !== 'PHEV';
+  var isPhev = r.evSpec && r.evSpec.carType === 'PHEV';
+
+  var fuelCost = 0;
+  if (isEv && r.evSpec.batteryKwh > 0 && r.evSpec.wltpKm > 0) {
+    fuelCost = (r.evSpec.batteryKwh / r.evSpec.wltpKm) * km * years * 1.5;
+  } else if (isPhev) {
+    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * 18);
+  } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
+    var fp = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18;
+    fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fp;
+  } else {
+    fuelCost = 6.5 * (km / 100) * years * 18;
+  }
+
+  var leaseCost = monthly * 12 * years;
+  var total = Math.round((leaseCost + fuelCost) / 1000) * 1000;
+  return {
+    total:    total,
+    lease:    Math.round(leaseCost / 1000) * 1000,
+    fuel:     Math.round(fuelCost / 1000) * 1000,
+    monthly:  monthly,
+    perMonth: Math.round(total / (years * 12) / 100) * 100
+  };
+}
+
 function caTcoDot(perMonth) {
   var color, glow, label;
   if (perMonth <= 4500)      { color = '#22c55e'; glow = '#22c55e66'; label = 'L\xe5g TCO'; }
@@ -934,6 +980,28 @@ function caTcoDot(perMonth) {
 }
 
 function caTcoHtml(r, kmPerYear) {
+  if (caIsLeasing) {
+    var tcoL = caTcoLeasingCalc(r, kmPerYear);
+    if (!tcoL) return '';
+    return '<hr class="ca-divider">' +
+      '<span class="ca-section-label" style="font-size:.95rem;font-weight:700">&#x1F4B0; 5-\xe5rs leasingkostnad</span>' +
+      '<div style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 14px;margin-top:6px">' +
+        '<div style="display:flex;align-items:center;margin-bottom:5px">' +
+          '<span style="font-size:1rem;font-weight:700;color:#a5f3fc">~' + tcoL.total.toLocaleString('sv-SE') + ' kr</span>' +
+          caTcoDot(tcoL.perMonth) +
+        '</div>' +
+        '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
+          '&#x1F4CB; Leasingavgifter: ' + tcoL.lease.toLocaleString('sv-SE') + ' kr<br>' +
+          '&#x26FD; Drivmedel: ' + tcoL.fuel.toLocaleString('sv-SE') + ' kr' +
+        '</div>' +
+        '<div style="margin-top:5px;font-size:.68rem;color:rgba(255,255,255,.25)">' +
+          'Service &amp; f\xf6rs\xe4kring ing\xe5r ofta i leasing &bull; uppskattning' +
+        '</div>' +
+        '<div style="margin-top:2px;font-size:.7rem;color:rgba(255,255,255,.3)">' +
+          '&#x2248; ' + tcoL.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n' +
+        '</div>' +
+      '</div>';
+  }
   var tco = caTcoCalc(r, kmPerYear);
   if (!tco) return '';
   return '<hr class="ca-divider">' +
@@ -1062,7 +1130,7 @@ async function caGetRecommendation() {
   if (caToken) headers['Authorization'] = 'Bearer ' + caToken;
 
   try {
-    var r = await fetch('https://caradvice.onrender.com/api/recommend', {
+    var r = await fetch(CA_API_BASE + '/api/recommend', {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(payload),
@@ -1128,7 +1196,7 @@ async function caGetRecommendation() {
 }
 
 function caOpenSubscribe() {
-  window.open('https://caradvice.onrender.com/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
+  window.open(CA_API_BASE + '/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
 }
 
 function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
@@ -1148,7 +1216,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     prenBtn.style.display = 'none';
     loginLink.style.display = 'inline';
     loginLink.textContent = 'Konto';
-    loginLink.href = 'https://caradvice.onrender.com/subscribe.html';
+    loginLink.href = CA_API_BASE + '/subscribe.html';
     loginLink.dataset.action = 'subscribe';
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else if (isLoggedIn || caEmail) {
@@ -1175,7 +1243,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
 
 function caLogoutBar() {
   var token = localStorage.getItem('ca_token');
-  fetch('https://caradvice.onrender.com/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (token || '') } });
+  fetch(CA_API_BASE + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (token || '') } });
   localStorage.removeItem('ca_token'); localStorage.removeItem('ca_email'); localStorage.removeItem('ca_status');
   caUpdateSubBar(false, false, null);
 }
@@ -1270,7 +1338,7 @@ function caInit() {
   try {
     var caToken = localStorage.getItem('ca_token');
     if (caToken) {
-      fetch('https://caradvice.onrender.com/api/auth/me', {
+      fetch(CA_API_BASE + '/api/auth/me', {
         headers: { 'Authorization': 'Bearer ' + caToken }
       }).then(function(r) {
         if (!r.ok) {

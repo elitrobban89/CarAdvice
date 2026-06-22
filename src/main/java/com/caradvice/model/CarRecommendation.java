@@ -14,5 +14,6 @@ public record CarRecommendation(
         @JsonProperty("safetyRating")    String safetyRating,
         @JsonProperty("evSpec")          EvSpecDto evSpec,
         @JsonProperty("cargoSpec")       CargoSpecDto cargoSpec,
-        @JsonProperty("fuelSpec")        FuelSpecDto fuelSpec
+        @JsonProperty("fuelSpec")        FuelSpecDto fuelSpec,
+        @JsonProperty("blocketPrice")    String blocketPrice
 ) {}

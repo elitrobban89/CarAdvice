@@ -15,7 +15,9 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,13 +39,16 @@ public class GroqService {
     private final SafetyRatingService safetyRatingService;
     private final EvSpecService evSpecService;
     private final CargoSpecService cargoSpecService;
+    private final BlocketPriceService blocketPriceService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
-                       EvSpecService evSpecService, CargoSpecService cargoSpecService) {
+                       EvSpecService evSpecService, CargoSpecService cargoSpecService,
+                       BlocketPriceService blocketPriceService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
         this.cargoSpecService = cargoSpecService;
+        this.blocketPriceService = blocketPriceService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -129,19 +134,33 @@ public class GroqService {
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
         );
 
-        List<CarRecommendation> result = parsed.stream()
-                .map(r -> {
-                    String safety = null;
-                    com.caradvice.model.EvSpecDto evSpec = null;
-                    com.caradvice.model.CargoSpecDto cargo = null;
-                    try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
-                    try { evSpec = evSpecService.formatForTitle(r.title(), prefs.kmPerYear()); } catch (Exception ignored) {}
-                    try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
-                    return new CarRecommendation(
-                            r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                            r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec());
-                })
+        // Fetch Blocket prices in parallel while the rest enriches sequentially
+        List<CompletableFuture<String>> blocketFutures = parsed.stream()
+                .map(r -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        BlocketPriceService.PriceRange pr = blocketPriceService.fetchPriceRange(r.title());
+                        return pr != null ? pr.formatted() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }))
                 .toList();
+
+        List<CarRecommendation> result = new ArrayList<>();
+        for (int i = 0; i < parsed.size(); i++) {
+            CarRecommendation r = parsed.get(i);
+            String safety = null;
+            com.caradvice.model.EvSpecDto evSpec = null;
+            com.caradvice.model.CargoSpecDto cargo = null;
+            String blocketPrice = null;
+            try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
+            try { evSpec = evSpecService.formatForTitle(r.title(), prefs.kmPerYear()); } catch (Exception ignored) {}
+            try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
+            try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+            result.add(new CarRecommendation(
+                    r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice));
+        }
 
         evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
@@ -243,7 +262,7 @@ public class GroqService {
 
     private String buildChatSystemPrompt(String carContext, String expertContext) {
         String base = """
-                Du är en svensk bilrådgivare för bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2024–2026.
+                Du är en svensk bilrådgivare för bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2025–2026.
 
                 Du svarar på frågor om köp, jämförelser, driftkostnader, försäkring, skatt, värdeminskning, räckvidd och tillförlitlighet.
 
@@ -270,17 +289,19 @@ public class GroqService {
 
     private String buildSystemPrompt(String expertContext) {
         String base = """
-                Svensk bilrådgivare, svenska marknaden 2024–2026. Svara ENDAST med JSON:
+                Svensk bilrådgivare, svenska marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Bilexpertens direkta syn på denna bil — max 2 meningar, konkret och saklig. Basera på expertinsikterna om de finns, annars generell expertbedömning.","fuelSpec":null}]}
                 För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden för den rekommenderade varianten. Ange alltid om motorn är turboladdad eller atmosfärisk i gearbox-strängen, t.ex. "Manuell 5-växlad (ej turbo)", "Automat DSG 7-växlad (TSI turbo)", "CVT (ej turbo)". För elbil och laddhybrid: sätt "fuelSpec":null.
-                Exakt 3 bilar. Pris anpassat ny/begagnad. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska.
+                Exakt 3 bilar. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska.
                 Motorvariant: ange alltid exakt vilken motor och växellåda du rekommenderar (t.ex. "1.0 TSI 110hk DSG" inte bara "Skoda Fabia"). Om bilen finns i populär alternativvariant (t.ex. manuell 75hk och automat 110hk TSI), nämn det i pros med prisskillnad: "Finns även som 110hk TSI DSG-automat (+20 000 kr, turbo)".
 
-                Prisvärda elbilar att aktivt överväga för svenska marknaden 2024–2026:
-                - Budget (under 350 000 kr): Volvo EX30, Kia EV3, MG4, BYD Dolphin, Dacia Spring
-                - Mellanklass (350–550 000 kr): Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Tesla Model 3, Volvo EX40, Polestar 2
-                - Premium (550 000+ kr): Volvo EX60, Tesla Model Y (Long Range), Hyundai IONIQ 6, Polestar 3, Audi Q6 e-tron
-                Volvo EX30 och Kia EV3 är särskilt prisvärda för sin räckvidd och utrustning i sina prissegment.
+                KRITISKT — PRISER: Använd ALDRIG påhittade eller orimligt låga priser. Priset i fältet "price" ska vara det verkliga svenska marknadspriset på Blocket/Bytbil för den aktuella modellen och årsmodellen, med formatet "X–Y kr" eller "X kr/mån" (leasing). En begagnad bil kostar ungefär: nypris × 0,85 (1 år), × 0,75 (2 år), × 0,65 (3 år). Välj årsmodell som faktiskt ryms i budgeten.
+
+                Verifierade nyprisintervall för elbilar på svenska marknaden 2025–2026:
+                - Budget (under 350 000 kr ny): Dacia Spring (~195 000 kr), BYD Dolphin (~300 000–340 000 kr), MG4 (~330 000–365 000 kr, kampanjpris ibland lägre)
+                - Mellanklass (350 000–550 000 kr ny): Kia EV3 (~430 000 kr), Volvo EX30 (~430 000 kr), Tesla Model 3 (~427 000 kr), Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Toyota bZ4X, BYD Seal (~400 000–460 000 kr)
+                - Premium (550 000+ kr ny): Polestar 2 (~609 000 kr), Tesla Model Y Long Range (~600 000 kr), Volvo EX40, Hyundai IONIQ 6, Polestar 3, Polestar 4 (~660 000 kr), Audi Q6 e-tron, BMW iX1, Volvo EX60
+                OBS: Kia EV3 och Volvo EX30 kostar ~430 000 kr ny och ~365 000 kr begagnad (1 år) — rekommendera dem ALDRIG under 300 000 kr. En 2024 Kia EV3 kostar INTE 179 000 kr — sådana priser är felaktiga och ska aldrig användas.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
@@ -294,7 +315,7 @@ public class GroqService {
         String milprofil = km < 10000 ? "lågmilare" : km < 20000 ? "normalmilare" : "högmilare";
         boolean isLeasing = "leasing".equals(prefs.budgetType());
         String budgetInfo = isLeasing
-                ? String.format("%,d kr/mån (leasing, ca %,d kr i listpris)", prefs.budget(), prefs.budget() * 70)
+                ? String.format("%,d kr/mån (leasing, ca %,d kr i listpris)", prefs.budget(), prefs.budget() * 85)
                 : String.format("%,d kr (%s)", prefs.budget(), bilTyp);
         String fuelLine = (prefs.fuelType() != null && !prefs.fuelType().isBlank()
                 && !"spelar ingen roll".equals(prefs.fuelType()))
