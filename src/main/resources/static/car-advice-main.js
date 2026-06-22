@@ -548,6 +548,10 @@ function caRenderCompare(recs, targetEl) {
       }).join('')+'</ul>';
     }},
     { label: '&#x26A0; Nackdel', fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } },
+    { label: '&#x1F3AF; Expertrecension', fn: function(r){
+      if (!r.expertOpinion) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      return '<span style="font-size:.78rem;color:rgba(255,255,255,.75);font-style:italic">'+caEsc(r.expertOpinion)+'</span>';
+    }},
     { label: '&#x1F9F3; Bagageutrymme', fn: function(r){
       if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
       var txt = chip(r.cargoSpec.cargoLiters+' L', 'rgba(251,191,36,.12)');
