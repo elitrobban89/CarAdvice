@@ -1363,7 +1363,7 @@ var CA_FC_CARS = [
   "Volkswagen ID.7",
   // Volvo
   "Volvo S60","Volvo S60 Recharge","Volvo V60","Volvo V60 Recharge","Volvo V90","Volvo XC40","Volvo XC40 Recharge","Volvo XC60","Volvo XC60 PHEV","Volvo XC90",
-  "Volvo EX30","Volvo EX30 Single Motor","Volvo EX30 Extended Range","Volvo EX30 Twin Motor",
+  "Volvo EX30","Volvo EX30 Single Motor","Volvo EX30 Single Motor Extended Range","Volvo EX30 Twin Motor Performance","Volvo EX30 Cross Country",
   "Volvo EX40","Volvo EX40 Single Motor","Volvo EX40 Twin Motor",
   "Volvo EX60","Volvo EX90"
 ];

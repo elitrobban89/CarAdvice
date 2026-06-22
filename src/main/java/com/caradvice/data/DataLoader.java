@@ -104,10 +104,10 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Škoda Enyaq iV 85",                 11.0, 175.0,  82.0, 550, 490_000),
             new EvSpec("Škoda Enyaq iV 60",                 11.0, 135.0,  58.0, 390, 420_000),
             // Volvo
-            new EvSpec("Volvo EX30 Single Motor",           11.0, 153.0,  49.0, 344, 320_000),
-            new EvSpec("Volvo EX30 Extended Range",         11.0, 153.0,  62.0, 480, 350_000),
-            new EvSpec("Volvo EX30 Twin Motor",             11.0, 200.0,  62.0, 460, 385_000),
-            new EvSpec("Volvo EX30 Cross Country",          11.0, 153.0,  62.0, 455, 395_000),
+            new EvSpec("Volvo EX30 Single Motor",                   11.0, 153.0,  51.0, 344, 320_000),
+            new EvSpec("Volvo EX30 Single Motor Extended Range",    11.0, 153.0,  69.0, 480, 370_000),
+            new EvSpec("Volvo EX30 Twin Motor Performance",         11.0, 200.0,  69.0, 460, 430_000),
+            new EvSpec("Volvo EX30 Cross Country",                  11.0, 153.0,  69.0, 455, 395_000),
             new EvSpec("Volvo EX40 Single Motor",           11.0, 150.0,  75.0, 530, 465_000),
             new EvSpec("Volvo EX40 Twin Motor",             11.0, 150.0,  75.0, 508, 500_000),
             new EvSpec("Volvo C40 Single Motor",            11.0, 150.0,  75.0, 530, 475_000),
@@ -215,10 +215,45 @@ public class DataLoader implements CommandLineRunner {
     }
 
     private void seedEvSpecExtras() {
-        java.util.List<String> existing = evSpecRepo.findAll().stream()
-                .map(com.caradvice.model.EvSpec::getCarName).toList();
+        java.util.List<com.caradvice.model.EvSpec> allSpecs = evSpecRepo.findAll();
+        java.util.Set<String> existing = allSpecs.stream()
+                .map(com.caradvice.model.EvSpec::getCarName)
+                .collect(java.util.stream.Collectors.toCollection(java.util.HashSet::new));
 
+        java.util.List<com.caradvice.model.EvSpec> toUpdate = new java.util.ArrayList<>();
+        java.util.List<com.caradvice.model.EvSpec> toDelete = new java.util.ArrayList<>();
         java.util.List<EvSpec> extras = new java.util.ArrayList<>();
+
+        // Korrigera EX30 poster med fel batteristorlek eller fel namn
+        for (com.caradvice.model.EvSpec spec : allSpecs) {
+            switch (spec.getCarName()) {
+                case "Volvo EX30 Single Motor" -> {
+                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() < 51.0) {
+                        spec.setBatteryKwh(51.0);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo EX30 Cross Country" -> {
+                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() < 69.0) {
+                        spec.setBatteryKwh(69.0);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo EX30 Extended Range", "Volvo EX30 Twin Motor", "Volvo EX30 Single Motor 51" -> {
+                    toDelete.add(spec);
+                    existing.remove(spec.getCarName());
+                }
+                default -> {}
+            }
+        }
+        if (!toUpdate.isEmpty()) evSpecRepo.saveAll(toUpdate);
+        if (!toDelete.isEmpty()) evSpecRepo.deleteAll(toDelete);
+
+        // Korrekt namngivna EX30 varianter
+        if (!existing.contains("Volvo EX30 Single Motor Extended Range"))
+            extras.add(new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000));
+        if (!existing.contains("Volvo EX30 Twin Motor Performance"))
+            extras.add(new EvSpec("Volvo EX30 Twin Motor Performance",      11.0, 200.0, 69.0, 460, 430_000));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))
