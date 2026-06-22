@@ -346,8 +346,8 @@ function caEsc(s) {
 }
 
 function caBlocketUrl(title) {
-  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim().toLowerCase();
-  return 'https://www.blocket.se/recommerce/forsale/search?q=' + encodeURIComponent(q);
+  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  return 'https://www.blocket.se/mobility/search/car?q=' + encodeURIComponent(q);
 }
 
 function caBytbilUrl(title) {
