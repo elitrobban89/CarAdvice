@@ -192,6 +192,7 @@ public class DataLoader implements CommandLineRunner {
         add.accept("Volkswagen|ID.5",         new SafetyRating("Volkswagen", "ID.5",              2021, 5, 91, 89, 76, 93));
         add.accept("Volkswagen|ID.7",         new SafetyRating("Volkswagen", "ID.7",              2023, 5, 92, 89, 77, 95));
         add.accept("Škoda|Enyaq iV",          new SafetyRating("Škoda",      "Enyaq iV",          2021, 5, 89, 90, 71, 89));
+        add.accept("Skoda|Kamiq",             new SafetyRating("Skoda",      "Kamiq",             2019, 5, 84, 83, 62, 75));
         add.accept("BMW|i4",                  new SafetyRating("BMW",        "i4",                2022, 5, 91, 87, 74, 94));
         add.accept("BMW|iX",                  new SafetyRating("BMW",        "iX",                2021, 5, 90, 87, 80, 97));
         add.accept("BMW|iX3",                 new SafetyRating("BMW",        "iX3",               2021, 5, 87, 83, 71, 90));
@@ -509,6 +510,7 @@ public class DataLoader implements CommandLineRunner {
             { "Seat Ateca",              510,  1505 },
             { "Seat Ibiza",              355,  1165 },
             { "Skoda Fabia",             380,  1190 },
+            { "Skoda Kamiq",             400,  1395 },
             { "Skoda Karoq",             521,  1630 },
             { "Skoda Kodiaq",            765,  2065 },
             { "Skoda Scala",             467,  1410 },
