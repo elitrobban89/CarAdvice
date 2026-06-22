@@ -976,8 +976,6 @@ function caParseLeaseMonthly(priceStr) {
   if (m) return (parseInt(m[1]) + parseInt(m[2])) / 2;
   m = s.match(/(\d{3,6})/);
   return m ? parseInt(m[1]) : 0;
-})/);
-  return m ? parseInt(m[1]) : 0;
 }
 
 function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {
