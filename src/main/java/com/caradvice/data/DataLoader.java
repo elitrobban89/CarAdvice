@@ -168,7 +168,6 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Nissan Ariya",                      22.0, 130.0,  87.0, 533, 490_000),
             new EvSpec("Nissan Leaf",                        6.6,  50.0,  40.0, 270, 290_000),
             new EvSpec("Fiat 500e",                         11.0,  85.0,  42.0, 320, 290_000),
-            new EvSpec("Genesis GV60",                      11.0, 233.0,  77.4, 517, 560_000),
             new EvSpec("Xpeng G6",                          11.0, 250.0,  87.5, 570, 470_000)
         ));
     }
@@ -413,7 +412,6 @@ public class DataLoader implements CommandLineRunner {
             { "Toyota RAV4",             580,  1604 },
             { "Toyota Corolla",          361,  1354 },
             { "Toyota Yaris",            286,  768  },
-            { "Toyota Camry",            493,  0    },
             { "Volkswagen Golf",         381,  1270 },
             { "Volkswagen Passat",       650,  1769 },
             { "Volkswagen Tiguan",       615,  1655 },
@@ -458,7 +456,6 @@ public class DataLoader implements CommandLineRunner {
             { "Nissan Ariya",            415,  1440 },
             { "Nissan Leaf",             435,  1176 },
             { "Fiat 500e",               185,  0    },
-            { "Genesis GV60",            432,  1571 },
             { "Xpeng G6",               571,  1374 },
             { "Škoda Enyaq iV",          585,  1710 },
             { "Škoda Elroq",             470,  1580 },
