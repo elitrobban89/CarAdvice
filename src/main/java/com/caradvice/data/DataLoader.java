@@ -154,7 +154,6 @@ public class DataLoader implements CommandLineRunner {
             // Ford / BYD / MG
             new EvSpec("Ford Mustang Mach-E",               11.0, 150.0,  91.0, 540, 540_000),
             new EvSpec("BYD Atto 3",                        11.0, 100.0,  60.5, 420, 310_000),
-            new EvSpec("BYD Seal",                          11.0, 150.0,  82.5, 570, 390_000),
             new EvSpec("BYD Dolphin",                        7.0,  88.0,  44.9, 427, 280_000),
             new EvSpec("MG ZS EV",                          11.0,  92.0,  72.6, 440, 300_000),
             new EvSpec("MG4 Standard Range",                11.0, 117.0,  51.0, 350, 295_000),
@@ -450,7 +449,6 @@ public class DataLoader implements CommandLineRunner {
             { "Mercedes EQE",            430,  0    },
             { "Mercedes EQS",            610,  1770 },
             { "Ford Mustang Mach-E",     402,  1420 },
-            { "BYD Seal",                400,  0    },
             { "MG ZS EV",               448,  1166 },
             { "MG5",                     578,  1456 },
             { "Toyota bZ4X",             452,  1589 },

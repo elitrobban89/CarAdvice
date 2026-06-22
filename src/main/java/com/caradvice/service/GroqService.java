@@ -381,7 +381,7 @@ public class GroqService {
 
                 PRISER — använd aldrig orimligt låga priser. Verifierade svenska nyprisintervall 2025–2026:
                 Budget-elbilar: Dacia Spring ~195 000 kr, BYD Dolphin ~300 000–340 000 kr, MG4 ~330 000–365 000 kr.
-                Mellanklass-elbilar: Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr, BYD Seal ~400 000–460 000 kr.
+                Mellanklass-elbilar: Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr.
                 Premium-elbilar: Polestar 2 ~609 000 kr, Tesla Model Y Long Range ~600 000 kr, Polestar 4 ~660 000 kr.
                 Om bilrekommendationer med Blocket-priser finns i kontexten nedan — prioritera de priserna framför dina egna uppskattningar.
                 """;
@@ -412,7 +412,7 @@ public class GroqService {
 
                 Verifierade nyprisintervall för elbilar på svenska marknaden 2025–2026:
                 - Budget (under 350 000 kr ny): Dacia Spring (~195 000 kr), BYD Dolphin (~300 000–340 000 kr), MG4 (~330 000–365 000 kr, kampanjpris ibland lägre)
-                - Mellanklass (350 000–550 000 kr ny): Kia EV3 (~430 000 kr), Volvo EX30 (~430 000 kr), Tesla Model 3 (~427 000 kr), Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Toyota bZ4X, BYD Seal (~400 000–460 000 kr)
+                - Mellanklass (350 000–550 000 kr ny): Kia EV3 (~430 000 kr), Volvo EX30 (~430 000 kr), Tesla Model 3 (~427 000 kr), Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Toyota bZ4X
                 - Premium (550 000+ kr ny): Polestar 2 (~609 000 kr), Tesla Model Y Long Range (~600 000 kr), Volvo EX40, Hyundai IONIQ 6, Polestar 3, Polestar 4 (~660 000 kr), Audi Q6 e-tron, BMW iX1, Volvo EX60
                 OBS: Kia EV3 och Volvo EX30 kostar ~430 000 kr ny och ~365 000 kr begagnad (1 år) — rekommendera dem ALDRIG under 300 000 kr. En 2024 Kia EV3 kostar INTE 179 000 kr — sådana priser är felaktiga och ska aldrig användas.
                 """;

@@ -74,10 +74,14 @@ public class EvSpecService {
 
         String valueLabel = "";
         if (price > 0 && wltp > 0) {
-            double score = (double) wltp / (price / 100_000.0);
-            valueLabel = score > 160 ? "Utmärkt prisvärdhet"
-                       : score > 130 ? "Bra prisvärdhet"
-                       : score > 100 ? "Ok prisvärdhet"
+            double priceUnit  = price / 100_000.0;                          // units of 100k kr
+            double rangeScore = wltp / priceUnit;                           // km per 100k kr
+            double batScore   = bat > 0 ? (bat / priceUnit) * 4.0 : 0;     // kWh per 100k kr, weighted
+            double dcBonus    = maxDc >= 150 ? 20 : maxDc >= 100 ? 12 : maxDc >= 50 ? 5 : 0;
+            double score      = rangeScore * 0.6 + batScore + dcBonus;
+            valueLabel = score > 145 ? "Utmärkt prisvärdhet"
+                       : score > 110 ? "Bra prisvärdhet"
+                       : score > 80  ? "Ok prisvärdhet"
                        : "";
         }
 

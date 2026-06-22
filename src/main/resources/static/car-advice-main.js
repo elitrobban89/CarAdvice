@@ -417,7 +417,21 @@ function caEvChips(ev) {
   return '<div class="ca-ev">'+head+'<div class="ca-ev-chips">'+chips+'</div></div>';
 }
 
-function caFuelChips(fuel) {
+function caValueLabelCombustion(fuel, price) {
+  if (!fuel || !price || price < 30000) return '';
+  var hp    = fuel.horsepower > 0 ? fuel.horsepower : 0;
+  var fuelL = fuel.consumptionLiterPerMil > 0 ? fuel.consumptionLiterPerMil : 0;
+  if (!hp || !fuelL) return '';
+  var hpPerKr  = hp / price * 10000;
+  var effBonus = Math.max(0, 8 - fuelL);
+  var score = hpPerKr + effBonus;
+  if (score > 10) return 'Utmärkt prisvärdhet';
+  if (score > 7)  return 'Bra prisvärdhet';
+  if (score > 5)  return 'Ok prisvärdhet';
+  return '';
+}
+
+function caFuelChips(fuel, price) {
   if (!fuel) return '';
   var chips = '';
   var isTurbo = fuel.gearbox && /turbo|tsi|tdi|gti|gdi|crdi|vtec.*t|t-gdi/i.test(fuel.gearbox);
@@ -433,6 +447,10 @@ function caFuelChips(fuel) {
   if (!chips) return '';
   var autoTag = isAuto ? '<span style="font-size:.6rem;background:rgba(52,211,153,.18);color:#6ee7b7;padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:700">AUTOMAT</span>' : '';
   var head = '<div class="ca-ev-head"><span class="ca-ev-badge">&#x26FD; Bensin/Diesel</span>' + autoTag + '</div>';
+  var valueLabel = caValueLabelCombustion(fuel, price);
+  if (valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">' + caEsc(valueLabel) + '</span>';
+  var valueLabel = caValueLabelCombustion(fuel, price);
+  if (valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">' + caEsc(valueLabel) + '</span>';
   return '<div class="ca-ev">' + head + '<div class="ca-ev-chips">' + chips + '</div></div>';
 }
 
@@ -465,7 +483,7 @@ function caRenderCards(recommendations) {
           (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Bilexpert</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
           (r.evSpec ? caEvChips(r.evSpec) : '') +
-          (r.fuelSpec ? caFuelChips(r.fuelSpec) : '') +
+          (r.fuelSpec ? caFuelChips(r.fuelSpec, caParsePrice(r.price)) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
           caTcoHtml(r, caCurrentKm) +
           '<button class="ca-ask-btn" data-idx="' + i + '" data-title="' + caEsc(r.title) + '">&#x1F4AC; Fr\xe5ga om Bil ' + (i + 1) + ' &mdash; ' + caEsc(r.title.replace(/\s*\(\d{4}\)\s*$/, '')) + '</button>' +
@@ -562,7 +580,11 @@ function caRenderCompare(recs, targetEl) {
     rows.push({ label: '&#x26A1; DC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
     rows.push({ label: '&#x1F50C; AC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh','rgba(56,189,248,.1)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.valueLabel ? chip(caEsc(ev.valueLabel),'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>'; }); } });
+    rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', fn: function(r) {
+    if (r.evSpec && r.evSpec.valueLabel) return chip(caEsc(r.evSpec.valueLabel), 'rgba(52,211,153,.14)');
+    var cl = caValueLabelCombustion(r.fuelSpec, caParsePrice(r.price));
+    return cl ? chip(caEsc(cl), 'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+  } });
   }
   rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', fn: function(r) {
     if (caIsLeasing) {
