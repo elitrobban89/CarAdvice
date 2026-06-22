@@ -84,7 +84,10 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 
 ### Jämförelsetabell
 - Scrollbar tabell under de tre bilkorten
-- Rader: Pris · Fördelar · Nackdel · 💪 Hästkrafter · 📊 Prisvärdhet · 🧳 Bagageutrymme · 💰 5-års TCO
+- Rader: Pris · Blocket nu · ✔ Fördelar · ⚠ Nackdel · 🎯 Expertrecension · 🛡️ Euro NCAP · 🧳 Bagageutrymme · 🔧 Motoralternativ · 💪 Hästkrafter · 📊 Prisvärdhet · 💰 5-års TCO
+- **🎯 Expertrecension** — AI:ns bilexpertkommentar per bil sida vid sida
+- **🛡️ Euro NCAP** — stjärnbetyg i guld + detaljprocent (vuxna/barn/fotgängare + testår)
+- **🔧 Motoralternativ** — kommaseparerade motorvarianter från AI, varje variant som pill-chip; för elbilar: batteripaket + räckvidd; AI instrueras att notera storleks-/utrymmeskillnad i expertrecensionen när bilarna är i tydligt olika klasser
 - Hästkrafter och Prisvärdhet visas för alla biltyper (inte bara EV)
 - Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri
 - Färgkodade kolumnrubriker matchar kortens accentfärger
@@ -128,7 +131,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Fler kan läggas till via admin-endpoint med `expert`-parametern
 
 ### EV-spec-skrapare (ev-database.org)
-- Daglig schemalagd sync kl 03:00 UTC — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
+- Daglig schemalagd sync kl 02:00 Stockholm-tid — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
 - **Auto-skapar nya poster** — bilar som finns på ev-database.org men saknas i DB läggs till automatiskt med all tillgänglig data; EUR-pris konverteras till SEK (~11.5×)
 - Fuzzy-matchning i två steg mot befintliga DB-poster — förhindrar dubbletter
 - Priser uppdateras på befintliga poster där `priceKr=0`
@@ -141,6 +144,12 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
     -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
   ```
 - Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar
+
+### Dynamisk autocomplete (`/api/cars`)
+- **`GET /api/cars`** — returnerar union av alla bilnamn ur `cargo_spec` + `ev_spec`, sorterat A–Ö
+- Autocomplete-listan hämtas live vid sidladdning istället för hårdkodad JS-array
+- Nattsynkens nya elbilsposter (inkl. batterivarianter) dyker automatiskt upp i autocomplete nästa sidladdning
+- 130+ bilar täcks: alla CargoSpec-modeller + alla EvSpec-varianter (t.ex. "Tesla Model Y Long Range", "Volvo EX30 Single Motor")
 
 ### Prenumeration & betalning (Stripe)
 
@@ -349,6 +358,14 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
 # → {"status":"sync started — check server logs for result"}
 ```
 
+### `GET /api/cars`
+
+Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Används av autocomplete-fälten.
+
+```json
+["Audi A3", "Audi Q4 e-tron", "BMW i4", "Dacia Spring", "MG4", "Tesla Model Y Long Range", "Volvo EX30", ...]
+```
+
 ### `GET /api/health`
 ```json
 { "status": "OK" }
@@ -481,3 +498,11 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Sparade sökningar | Inloggade användare kan spara sökningar till DB via "Spara sökning"-knapp; hämtas från server vid inloggning och visas som chips ovanför historiken; DELETE tar bort enskild post |
 | Rate limit-persistens | In-memory rate limit-karta seedas från DB vid uppstart (`@PostConstruct`) — sökkvoter nollställs inte längre vid deploy eller cold start; async DB-skrivning per tillåten sökning; `@Scheduled` cleanup varje timme |
 | "Erik Naessén" i JS | Hårdkodat namn i expertopinions-div (rad 395 i original) — ändrat till "Bilexpert" för att matcha backend-attributionen |
+| Expertrecension i jämförelsetabell | `expertOpinion` visades bara på enskilda kort, ej i compare-tabellen — ny 🎯 Expertrecension-rad tillagd |
+| Euro NCAP i jämförelsetabell | Säkerhetsbetyg saknades i compare-vyn — ny 🛡️ Euro NCAP-rad med stjärnor + procentdetaljer |
+| Motoralternativ i jämförelsetabell | Nytt `engineOptions`-fält på `CarRecommendation`; AI genererar kommaseparerade motorvarianter per bil i compare-prompten; visas som pill-chips i ny 🔧-rad |
+| Kontextuell expertrecension vid storleksskillnad | AI instrueras att nämna storleks-/utrymmeskillnad i `expertOpinion` när jämförda bilar är i olika klasser (t.ex. Kamiq vs Karoq) |
+| Off-topic expertinsikter i chatt | `buildChatExpertContext` fyllde upp med allmänna insikter (`carMake=null`) oavsett ämne — MG4-insikt dök upp vid T-Roc vs Kamiq-fråga. Löst: allmänna insikter borttagna; max 3 bilspecifika; AI-instruktion skärpt till "bara om insikten gäller exakt denna bil" |
+| BYD Seal borttagen från autocomplete | BYD Seal togs bort ur DB men låg kvar i den hårdkodade CA_FC_CARS-arrayen — nu borttagen |
+| Autocomplete utökat (17 bilar) | Lade till: Audi Q8 e-tron, BMW iX/i5, Fiat 500/500e, Hyundai Kona/PHEV/Electric, Kia EV9, Mercedes EQC/EQE/EQS, MG5, Renault Zoe, Cupra Born/Formentor, Škoda Elroq, VW ID.5/ID.Buzz, Volvo C40 |
+| Dynamisk autocomplete från `/api/cars` | Hårdkodad CA_FC_CARS-array (~80 rader) ersatt med live-fetch från `GET /api/cars` vid sidladdning — autocomplete hålls automatiskt synkad med databasen |
