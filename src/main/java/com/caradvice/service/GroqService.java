@@ -276,9 +276,9 @@ public class GroqService {
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"typ (turbo/ej)","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar.
                 Ange exakt årsmodell. Svara på svenska.
-                PRISER — skriv ALLTID fullt belopp med format "X–Y kr" (ex: "280 000–320 000 kr"). Aldrig förkortningar som "280k" eller prefix som "Nypris".
-                Begagnad ca: nypris×0.85 (1år), ×0.75 (2år).
-                Referenspriser ny 2025–26: Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000 kr.
+                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
+                Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
+                Referenspriser (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000.
                 """;
     }
 
@@ -383,7 +383,7 @@ public class GroqService {
                 Svara på svenska. Använd **fetstil** och - listor.
                 Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne som frågas — aldrig om annan bil. Citera: "**[namn]:** [insikt]".
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
-                PRISER — skriv alltid fullt belopp "X–Y kr" (ex: "280 000–320 000 kr"), aldrig förkortningar. Referenspriser ny 2025–26: Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000 kr. Blocket-priser i kontexten prioriteras.
+                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
                 """;
         if (carContext != null && !carContext.isBlank())
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
@@ -406,9 +406,9 @@ public class GroqService {
                 OBLIGATORISKA fält — sätt ALDRIG null: horsepower (systemeffekt i hk som heltal), engineOptions (STRÄNG med kommaseparerade varianter; bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)').
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
-                PRISER — skriv ALLTID fullt belopp med format "X–Y kr" (ex: "85 000–100 000 kr"). Aldrig förkortningar som "85k" eller prefix som "Nypris".
-                Begagnad ca: nypris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
-                Referenspriser ny 2025–26: Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000 kr.
+                PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
+                Begagnad ca: listpris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
+                Referenspriser för vanliga bilar (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
