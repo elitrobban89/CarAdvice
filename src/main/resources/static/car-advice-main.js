@@ -1386,7 +1386,7 @@ var CA_FC_CARS = [
   // Seat / Cupra
   "Seat Arona","Seat Ateca","Seat Ibiza","Seat Leon",
   // Skoda
-  "Skoda Fabia","Skoda Scala","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Superb",
+  "Skoda Fabia","Skoda Kamiq","Skoda Scala","Skoda Karoq","Skoda Kodiaq","Skoda Octavia","Skoda Superb",
   "Skoda Enyaq","Skoda Enyaq iV 60","Skoda Enyaq iV 85",
   // Subaru
   "Subaru Forester","Subaru Outback","Subaru XV",
