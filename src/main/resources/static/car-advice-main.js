@@ -665,6 +665,10 @@ function caFetchOneImage(title, wrapId, imgId) {
       return resp.json();
     }).then(function(data) {
       if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
+      var w = data.thumbnail.width  || 0;
+      var h = data.thumbnail.height || 1;
+      // Avvisa logotyper/emblem: för smala eller extremt porträttformat
+      if (w < 120 || h > w * 1.8) throw new Error('bad aspect');
       return data.thumbnail.source;
     });
   }
@@ -673,6 +677,7 @@ function caFetchOneImage(title, wrapId, imgId) {
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
     'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ),
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile'),
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
   ];
