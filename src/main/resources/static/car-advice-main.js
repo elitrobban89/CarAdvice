@@ -641,7 +641,16 @@ function caTcoBarChart(recs) {
 
 function caFetchOneImage(title, wrapId, imgId) {
   var q = title.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  var base = q.replace(/\s+(PHEV|HEV|Recharge|e-tron|Plug.?in|GTE|EV|Electric|T[4-9]|B[3-9]|xDrive\d*|quattro|AWD|4WD|Hybrid|Long\s*Range|Performance)(\s.*)?$/i, '').trim();
+  var base = q
+    // Karosseri/variant (tar med allt som följer efter)
+    .replace(/\s+(Kombi|Estate|SW|Break|Wagon|Touring|Hatchback|Sedan|Coupe|Cabriolet|Cabrio|Avant|Sportback|Allroad|Shooting\s*Brake|Fastback|Cross\s*Country)(\s.*)?$/i, '')
+    // EV/PHEV-varianter
+    .replace(/\s+(PHEV|HEV|Recharge|e-tron|Plug.?in|GTE|EV|Electric|T[4-9]|B[3-9]|xDrive\d*|quattro|AWD|4WD|Hybrid|Long\s*Range|Performance)(\s.*)?$/i, '')
+    // Motorkod + resten (1.0 TSI 110hk, 2.0 TDI osv)
+    .replace(/\s+\d+[.,]?\d*\s*(TSI|TDI|TFSI|TCI|HDi|CDi|CDTi|GTI|GTD|GTS|Turbo|EcoBoost|SkyActiv|VTi|THP|dCi|TCe|SCe|GTe)(\s.*)?$/i, '')
+    // Kvar motorvolym utan motorkod (1.0, 2.0 osv)
+    .replace(/\s+\d+[.,]\d+(\s.*)?$/, '')
+    .trim();
   var wikiQ = base.replace(/\s+/g, '_');
   var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
   var origQ = q.replace(/\s+/g, '_');
