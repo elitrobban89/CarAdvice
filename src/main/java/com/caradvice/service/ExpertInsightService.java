@@ -34,28 +34,20 @@ public class ExpertInsightService {
         List<ExpertInsight> all = repo.findAll();
         if (all.isEmpty()) return "";
 
-        // Pick insights that mention car makes/models found in recent messages
+        // Only include insights whose car make is explicitly mentioned in the conversation.
+        // Never add general (carMake == null) insights — they appear regardless of topic and cause off-topic noise.
         String combined = String.join(" ", recentMessages).toLowerCase();
         List<ExpertInsight> matched = new ArrayList<>();
-        List<ExpertInsight> general = new ArrayList<>();
 
         for (ExpertInsight i : all) {
             if (i.getCarMake() != null && combined.contains(i.getCarMake().toLowerCase())) {
                 matched.add(i);
-            } else if (i.getCarMake() == null) {
-                general.add(i);
             }
         }
 
-        List<ExpertInsight> selected = new ArrayList<>(matched);
-        // Fill up to 6 with general insights
-        for (ExpertInsight g : general) {
-            if (selected.size() >= 6) break;
-            selected.add(g);
-        }
-
-        if (selected.isEmpty()) return "";
-        return formatInsights(selected, "Bilexpertinsikter (referera till dessa när relevant, ange källan):\n");
+        if (matched.isEmpty()) return "";
+        List<ExpertInsight> selected = matched.stream().limit(3).toList();
+        return formatInsights(selected, "Bilexpertinsikter (referera BARA till dessa om de direkt gäller den bil användaren frågar om just nu — inkludera dem INTE om de handlar om en annan bil):\n");
     }
 
     public ExpertInsight save(ExpertInsight insight) {
