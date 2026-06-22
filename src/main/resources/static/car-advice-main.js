@@ -639,50 +639,52 @@ function caTcoBarChart(recs) {
   '</div>';
 }
 
+function caFetchOneImage(title, wrapId, imgId) {
+  var q = title.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  var base = q.replace(/\s+(PHEV|HEV|Recharge|e-tron|Plug.?in|GTE|EV|Electric|T[4-9]|B[3-9]|xDrive\d*|quattro|AWD|4WD|Hybrid|Long\s*Range|Performance)(\s.*)?$/i, '').trim();
+  var wikiQ = base.replace(/\s+/g, '_');
+  var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
+  var origQ = q.replace(/\s+/g, '_');
+  function setImg(src) {
+    var wrap = document.getElementById(wrapId);
+    var img  = document.getElementById(imgId);
+    if (wrap && img) { img.src = src; wrap.style.display = 'block'; }
+  }
+  function fetchThumb(url) {
+    return fetch(url).then(function(resp) {
+      if (!resp.ok) throw new Error('not ok');
+      return resp.json();
+    }).then(function(data) {
+      if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
+      return data.thumbnail.source;
+    });
+  }
+  var urls = [
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
+    'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ),
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
+  ];
+  Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
+    fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(srData) {
+        if (!srData || !srData[1]) return;
+        return Promise.any(srData[1].map(function(t) {
+          return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')));
+        }));
+      })
+      .then(function(src) { if (src) setImg(src); })
+      .catch(function() {});
+  });
+}
+window.caFetchOneImage = caFetchOneImage;
+
 function caFetchCarImages(recs) {
   recs.forEach(function(r, i) {
-    var q = r.title.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    // Strip variant suffixes so "Kia Sportage PHEV" → "Kia Sportage"
-    var base = q.replace(/\s+(PHEV|HEV|Recharge|e-tron|Plug.?in|GTE|EV|Electric|T[4-9]|B[3-9]|xDrive\d*|quattro|AWD|4WD|Hybrid|Long\s*Range|Performance)(\s.*)?$/i, '').trim();
-    var wikiQ = base.replace(/\s+/g, '_');
-    var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
-    var origQ = q.replace(/\s+/g, '_');
-    (function() {
-      var urls = [
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
-        'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ),
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
-        'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
-      ];
-      function setImg(src) {
-        var wrap = document.getElementById('ca-img-wrap-' + i);
-        var img = document.getElementById('ca-img-' + i);
-        if (wrap && img) { img.src = src; wrap.style.display = 'block'; }
-      }
-      function fetchThumb(url) {
-        return fetch(url).then(function(resp) {
-          if (!resp.ok) throw new Error('not ok');
-          return resp.json();
-        }).then(function(data) {
-          if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
-          return data.thumbnail.source;
-        });
-      }
-      Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
-        fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*')
-          .then(function(r) { return r.ok ? r.json() : null; })
-          .then(function(srData) {
-            if (!srData || !srData[1]) return;
-            return Promise.any(srData[1].map(function(title) {
-              return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title.replace(/ /g, '_')));
-            }));
-          })
-          .then(function(src) { if (src) setImg(src); })
-          .catch(function() {});
-      });
-    })();
+    caFetchOneImage(r.title, 'ca-img-wrap-' + i, 'ca-img-' + i);
   });
 }
 
@@ -1429,6 +1431,9 @@ function caFcRenderResult(recs) {
   var mini = recs.slice(0, 2).map(function(r, i) {
     var col = i === 0 ? '#a78bfa' : '#38bdf8';
     return '<div class="ca-fc-mini-card" style="border-color:' + col + '33">' +
+      '<div id="ca-fc-img-wrap-' + i + '" style="width:100%;height:60px;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:8px;display:none">' +
+        '<img id="ca-fc-img-' + i + '" src="" alt="' + caEsc(r.title) + '" style="width:100%;height:100%;object-fit:contain;object-position:center center;transition:opacity .4s">' +
+      '</div>' +
       '<div style="font-size:.65rem;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Bil ' + (i + 1) + '</div>' +
       '<div style="font-weight:700;color:#e2e8f0;font-size:.85rem">' + caEsc(r.title) + '</div>' +
       '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Nypris</div>' +
@@ -1439,6 +1444,10 @@ function caFcRenderResult(recs) {
   }).join('');
 
   result.innerHTML = '<div class="ca-fc-mini-row">' + mini + '</div>';
+
+  recs.slice(0, 2).forEach(function(r, i) {
+    caFetchOneImage(r.title, 'ca-fc-img-wrap-' + i, 'ca-fc-img-' + i);
+  });
 
   var cmpDiv = document.createElement('div');
   result.appendChild(cmpDiv);

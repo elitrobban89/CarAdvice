@@ -24,9 +24,19 @@
     return title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
   }
 
+  function caChatSetCarImg(title) {
+    var wrap = document.getElementById('ca-chat-img-wrap');
+    if (wrap) wrap.style.display = 'none';
+    if (title && typeof window.caFetchOneImage === 'function') {
+      window.caFetchOneImage(title, 'ca-chat-img-wrap', 'ca-chat-car-img');
+    }
+  }
+
   window.caChatFocusCar = function(idx, title) {
     var name = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
     var recs = window._caRecommendations || [];
+
+    caChatSetCarImg(title);
 
     // Update FAB label
     var labelEl = document.querySelector('.ca-chat-fab-label');
@@ -73,6 +83,7 @@
   function caChatSetRecsContext(recs) {
     if (!recs || !recs.length) return;
     var names = recs.slice(0, 3).map(function(r) { return shortName(r.title); });
+    caChatSetCarImg(recs[0].title);
 
     // Update FAB label
     var labelEl = document.querySelector('.ca-chat-fab-label');
@@ -320,6 +331,9 @@
       <div class="ca-chat-panel" id="ca-chat-panel" style="display:none;">
         <div class="ca-chat-header">
           <div class="ca-chat-header-title">
+            <div id="ca-chat-img-wrap" style="width:40px;height:28px;flex-shrink:0;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.08);display:none;margin-right:6px">
+              <img id="ca-chat-car-img" src="" alt="" style="width:100%;height:100%;object-fit:contain">
+            </div>
             <span>🚗 Bilrådgivaren</span>
           </div>
           <div class="ca-chat-header-actions">
