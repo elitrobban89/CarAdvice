@@ -52,7 +52,7 @@ public class GroqService {
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final long CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+    private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -79,7 +79,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 1500,
+                "max_tokens", 1050,
                 "temperature", 0.3,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
@@ -100,7 +100,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             Map<String, Object> fallbackBody = Map.of(
                     "model", chatModel,
-                    "max_tokens", 1500,
+                    "max_tokens", 1050,
                     "temperature", 0.3,
                     "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
@@ -116,7 +116,11 @@ public class GroqService {
                     .build();
             response = httpClient.send(fallbackRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 429) {
-                throw new RuntimeException("Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(response.body()) + ".");
+                if (cached != null) {
+                    long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
+                    return new Result(cached.result(), true, ageSeconds);
+                }
+                throw new RuntimeException(buildRateLimitError(response.body()));
             }
             if (response.statusCode() != 200) {
                 throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
@@ -183,7 +187,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 1800,
+                "max_tokens", 1200,
                 "temperature", 0.2,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
@@ -204,7 +208,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             Map<String, Object> fallbackBody = Map.of(
                     "model", chatModel,
-                    "max_tokens", 1800,
+                    "max_tokens", 1200,
                     "temperature", 0.2,
                     "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
@@ -220,7 +224,7 @@ public class GroqService {
                     .build();
             response = httpClient.send(fallbackRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 429)
-                throw new RuntimeException("Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(response.body()) + ".");
+                throw new RuntimeException(buildRateLimitError(response.body()));
             if (response.statusCode() != 200)
                 throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
         }
@@ -264,21 +268,12 @@ public class GroqService {
 
     private String buildCompareSystemPrompt() {
         return """
-                Svensk bilrådgivare, svenska marknaden 2025–2026. Du jämför exakt de 2 bilar som användaren anger.
-                Svara ENDAST med JSON i exakt detta format (EXAKT 2 bilar i arrayen):
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"en mening om bilens styrka, t.ex. referens från Teknikens Värld","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"en mening om vem bilen passar","expertOpinion":"Bilexpertens syn på bilen — max 2 meningar om körkänsla, tillförlitlighet och begagnatvärde. Om de jämförda bilarna har tydligt olika storlek eller bagageutrymme, nämn om man behöver mer eller mindre utrymme. Nämn INTE listpris.","engineOptions":"Kommaseparerade motoralternativ på svenska marknaden, t.ex. '1.0 TSI 95 hk manuell, 1.0 TSI 115 hk automat, 1.5 TSI 150 hk automat'. För elbilar: batteripaket och räckvidd, t.ex. '51 kWh 170 hk (420 km), 77 kWh 286 hk (560 km)'.","fuelSpec":null}]}
-                För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad (turbo)","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden.
-                För elbil och laddhybrid: sätt "fuelSpec":null.
-                Ange alltid exakt årsmodell i title (t.ex. "MG ZS EV (2024)"), välj den vanligaste varianten på svenska marknaden.
-                Returnera EXAKT 2 bilar — inte fler, inte färre. Svara på svenska.
-
-                KRITISKT — PRISER: Använd ALDRIG påhittade eller orimligt låga priser.
-                Verifierade svenska nyprisintervall 2025–2026:
-                - Dacia Spring ~195 000 kr, BYD Dolphin ~300 000–340 000 kr, MG4 ~330 000–365 000 kr
-                - MG ZS EV ~290 000–350 000 kr, Kia Niro EV ~380 000–430 000 kr
-                - Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr
-                - Polestar 2 ~609 000 kr, Tesla Model Y Long Range ~600 000 kr, Polestar 4 ~660 000 kr
-                Begagnad 1 år: nypris × 0.85. Begagnad 2 år: nypris × 0.75.
+                Svensk bilrådgivare, sv. marknaden 2025–2026. Jämför EXAKT de 2 bilar användaren anger. Svara ENDAST med JSON (EXAKT 2 bilar):
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
+                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"typ (turbo/ej)","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar.
+                Ange exakt årsmodell. Svara på svenska.
+                PRISER — aldrig påhittade. Begagnad: nypris×0.85 (1år), ×0.75 (2år).
+                Nypris 2025–26: Spring 195k, Dolphin 300–340k, MG4 330–365k, EV3/EX30/Model3 ~430k, Polestar2 609k, ModelY LR 600k, Polestar4 660k. EV3/EX30 aldrig under 300k begagnad.
                 """;
     }
 
@@ -304,6 +299,18 @@ public class GroqService {
         } catch (Exception e) {
             return "en stund";
         }
+    }
+
+    private String buildRateLimitError(String body) {
+        try {
+            JsonNode err = mapper.readTree(body);
+            String msg = err.at("/error/message").asText("");
+            log.warn("Groq 429: {}", msg);
+            if (msg.contains("per day") || msg.contains("RPD") || msg.contains("TPD")) {
+                return "Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(body) + ".";
+            }
+        } catch (Exception ignored) {}
+        return "AI-tjänsten är tillfälligt överbelastad. Vänta " + parseRetryTime(body) + " och försök igen.";
     }
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
@@ -366,25 +373,12 @@ public class GroqService {
 
     private String buildChatSystemPrompt(String carContext, String expertContext) {
         String base = """
-                Du är en svensk bilrådgivare för bensin-, diesel-, hybrid- och elbilar på den svenska marknaden 2025–2026.
-
-                Du svarar på frågor om köp, jämförelser, driftkostnader, försäkring, skatt, värdeminskning, räckvidd och tillförlitlighet.
-
-                Du hjälper INTE med att hitta närmaste laddstation, realtidsladdning eller navigering.
-                Om användaren frågar om sådant svarar du: "Det kan jag inte hjälpa med här — för att hitta laddstationer rekommenderar jag elbilsladdning-appen."
-                Om frågan inte handlar om bilar alls svarar du: "Det faller utanför mitt område — jag är specialiserad på bilköp och bilrådgivning."
-
-                Svara alltid på svenska. Var konkret och hjälpsam. Använd **fetstil** och listor med - för struktur.
-                Om expertinsikter finns nedan: inkludera dem BARA om de direkt berör den specifika bil eller det exakta ämne användaren frågar om just nu. Nämn dem ALDRIG om de handlar om en annan bil. Om relevant: citera med "**[expertnamn]:** [insikt]" i slutet av svaret.
-
-                SKATT PÅ ELBILAR — korrekt fakta: Elbilar i Sverige är befriade från fordonsskatt. Det finns INGEN obligatorisk årsavgift eller milbaserad avgift på 1 800 kr (eller liknande) som gäller generellt för elbilar. Nämn ALDRIG sådana avgifter — de är felaktiga eller hör till specifika leasingavtal och ska inte presenteras som allmänna fakta om en bil.
-
-                PRISER — använd aldrig orimligt låga priser. Verifierade svenska nyprisintervall 2025–2026:
-                Budget-elbilar: Dacia Spring ~195 000 kr, BYD Dolphin ~300 000–340 000 kr, MG4 ~330 000–365 000 kr.
-                Mellanklass-elbilar: Kia EV3 ~430 000 kr, Volvo EX30 ~430 000 kr, Tesla Model 3 ~427 000 kr.
-                Premium-elbilar: Polestar 2 ~609 000 kr, Tesla Model Y Long Range ~600 000 kr, Polestar 4 ~660 000 kr.
-                Bensin/diesel: Škoda Kamiq 1.0 TSI 110hk DSG ~290 000–350 000 kr ny (~230 000–280 000 kr begagnad 1–2 år). Škoda Fabia ~240 000–300 000 kr ny. Škoda Karoq ~370 000–430 000 kr ny.
-                Om bilrekommendationer med Blocket-priser finns i kontexten nedan — prioritera de priserna framför dina egna uppskattningar.
+                Svensk bilrådgivare, sv. marknaden 2025–2026. Svarar på köp, jämförelser, driftkostnad, skatt, värdeminskning och tillförlitlighet.
+                Ej hjälp med laddstationer/navigering. Ej bilfrågor: "Det faller utanför mitt område."
+                Svara på svenska. Använd **fetstil** och - listor.
+                Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne som frågas — aldrig om annan bil. Citera: "**[namn]:** [insikt]".
+                SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
+                PRISER — aldrig orimligt låga. Nypris 2025–26: Spring 195k, Dolphin 300–340k, MG4 330–365k, EV3/EX30/Model3 ~430k, Polestar2 609k, ModelY LR 600k, Polestar4 660k. Kamiq 290–350k, Fabia 240–300k, Golf 320–400k. Blocket-priser i kontexten prioriteras.
                 """;
         if (carContext != null && !carContext.isBlank())
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
@@ -402,27 +396,14 @@ public class GroqService {
 
     private String buildSystemPrompt(String expertContext) {
         String base = """
-                Svensk bilrådgivare, svenska marknaden 2025–2026. Svara ENDAST med JSON:
-                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källhänvisning till tidning eller test t.ex. 'Teknikens Värld: toppbetyg i klassen' eller 'Vi Bilägare: bäst i test'","pros":["fördel1","fördel2","fördel3"],"con":"nackdel","fitSummary":"varför just denna bil passar denna specifika persons profil","expertOpinion":"Bilexpertens syn på denna bil — max 2 meningar om körkänsla, tillförlitlighet och verkligt ägarvärde på begagnatmarknaden. Nämn INTE listpris eller nypris — Blocket-pris visas redan separat. Basera på expertinsikterna om de finns, annars generell bedömning.","horsepower":150,"fuelSpec":null}]}
-                Fältet "horsepower" är OBLIGATORISKT för alla biltyper (bensin, diesel, elbil, laddhybrid) — ange systemeffekten i hk för den rekommenderade varianten.
-                För bensin- och dieselbilar: sätt "fuelSpec":{"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":150,"engineVolumeLiters":1.5} med verkliga värden för den rekommenderade varianten. Ange alltid om motorn är turboladdad eller atmosfärisk i gearbox-strängen, t.ex. "Manuell 5-växlad (ej turbo)", "Automat DSG 7-växlad (TSI turbo)", "CVT (ej turbo)". För elbil och laddhybrid: sätt "fuelSpec":null.
-                Exakt 3 bilar. Fördelar specifika för profilen. Driftkostnad i pros vid hög körsträcka. fitSummary konkret och personlig. expertOpinion alltid på svenska.
-                Motorvariant (ENDAST för bensin/diesel): ange alltid exakt vilken motor och växellåda du rekommenderar (t.ex. "1.0 TSI 110hk DSG" inte bara "Skoda Fabia"). Om en bensin/dieselbil finns i populär alternativvariant, nämn det i pros med prisskillnad: "Finns även som 110hk TSI DSG-automat (+20 000 kr, turbo)".
-                ELBILAR och LADDHYBRIDER: nämn ALDRIG "turbo", "ej turbo" eller liknande — det är irrelevant. Om en elbil finns i alternativ batteristorlek, skriv t.ex. "Finns även som 77 kWh (+30 000 kr)" utan några motortekniska termer.
-
-                KRITISKT — PRISER: Använd ALDRIG påhittade eller orimligt låga priser. Priset i fältet "price" ska vara det verkliga svenska marknadspriset på Blocket/Bytbil för den aktuella modellen och årsmodellen, med formatet "X–Y kr" eller "X kr/mån" (leasing). En begagnad bil kostar ungefär: nypris × 0,85 (1 år), × 0,75 (2 år), × 0,65 (3 år). Välj årsmodell som faktiskt ryms i budgeten.
-
-                Verifierade nyprisintervall för elbilar på svenska marknaden 2025–2026:
-                - Budget (under 350 000 kr ny): Dacia Spring (~195 000 kr), BYD Dolphin (~300 000–340 000 kr), MG4 (~330 000–365 000 kr, kampanjpris ibland lägre)
-                - Mellanklass (350 000–550 000 kr ny): Kia EV3 (~430 000 kr), Volvo EX30 (~430 000 kr), Tesla Model 3 (~427 000 kr), Kia EV6, Hyundai IONIQ 5, Volkswagen ID.4, Toyota bZ4X
-                - Premium (550 000+ kr ny): Polestar 2 (~609 000 kr), Tesla Model Y Long Range (~600 000 kr), Volvo EX40, Hyundai IONIQ 6, Polestar 3, Polestar 4 (~660 000 kr), Audi Q6 e-tron, BMW iX1, Volvo EX60
-                OBS: Kia EV3 och Volvo EX30 kostar ~430 000 kr ny och ~365 000 kr begagnad (1 år) — rekommendera dem ALDRIG under 300 000 kr. En 2024 Kia EV3 kostar INTE 179 000 kr — sådana priser är felaktiga och ska aldrig användas.
-
-                Verifierade nyprisintervall för utvalda bensin/diesel på svenska marknaden 2025–2026:
-                - Škoda Kamiq 1.0 TSI 110hk DSG: ~290 000–350 000 kr ny; begagnad 1–2 år ~230 000–280 000 kr
-                - Škoda Fabia 1.0 TSI 110hk: ~240 000–300 000 kr ny
-                - Škoda Karoq 1.5 TSI 150hk: ~370 000–430 000 kr ny
-                - Volkswagen Golf 1.5 TSI 130hk: ~320 000–400 000 kr ny
+                Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
+                {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
+                OBLIGATORISKA fält: horsepower (systemeffekt hk), engineOptions (bensin/diesel: '1.0 TSI 110hk DSG'; elbil: '51 kWh 170hk (420km), 77 kWh 286hk (560km)').
+                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
+                Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
+                PRISER — aldrig påhittade. Begagnad: nypris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
+                Nypris elbilar 2025–26: Spring 195k, Dolphin 300–340k, MG4 330–365k, EV3/EX30/Model3 ~430k, Polestar2 609k, ModelY LR 600k, Polestar4 660k. EV3/EX30 aldrig under 300k begagnad.
+                Nypris bensin/diesel: Fabia 240–300k, Kamiq 290–350k, Golf 320–400k, Karoq 370–430k.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;

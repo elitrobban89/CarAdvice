@@ -414,6 +414,7 @@
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/^[-•]\s+(.+)$/gm, "<li>$1</li>")
+      .replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>")
       .replace(/(<li>[\s\S]*<\/li>)/, "<ul>$1</ul>")
       .replace(/\n/g, "<br>");
   }

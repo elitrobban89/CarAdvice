@@ -57,8 +57,8 @@ public class CarController {
     private static final int MAX_REQUESTS_PER_HOUR = 10;
     private static final int MAX_LOGGED_IN_REQUESTS_PER_HOUR = 30;
 
-    private static final int CHAT_RATE_LIMIT = 10;
-    private static final int CHAT_LOGGED_IN_RATE_LIMIT = 30;
+    private static final int CHAT_RATE_LIMIT = 20;
+    private static final int CHAT_LOGGED_IN_RATE_LIMIT = 50;
     private static final long CHAT_WINDOW_MS = 60_000L;
     private final ConcurrentHashMap<String, Deque<Long>> chatTimestamps = new ConcurrentHashMap<>();
 
@@ -270,8 +270,8 @@ public class CarController {
     @GetMapping("/cars")
     public ResponseEntity<List<String>> getCars() {
         TreeSet<String> names = new TreeSet<>();
-        cargoSpecRepo.findAll().forEach(c -> { if (c.getCarName() != null) names.add(c.getCarName()); });
-        evSpecRepo.findAll().forEach(e -> { if (e.getCarName() != null) names.add(e.getCarName()); });
+        names.addAll(cargoSpecRepo.findAllCarNames());
+        names.addAll(evSpecRepo.findAllCarNames());
         return ResponseEntity.ok(new ArrayList<>(names));
     }
 
