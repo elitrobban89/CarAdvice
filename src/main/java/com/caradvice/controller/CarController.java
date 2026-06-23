@@ -5,7 +5,9 @@ import com.caradvice.model.RateLimitLog;
 import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
+import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.SafetyRatingService;
@@ -48,6 +50,8 @@ public class CarController {
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
     private final EvDatabaseScraperService evScraper;
+    private final CargoSpecSyncService cargoSpecSyncService;
+    private final CargoSpecService cargoSpecService;
     private final UserService userService;
     private final RateLimitLogRepository rateLimitLogRepo;
     private final CargoSpecRepository cargoSpecRepo;
@@ -67,12 +71,15 @@ public class CarController {
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
                          SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
+                         CargoSpecSyncService cargoSpecSyncService, CargoSpecService cargoSpecService,
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evScraper = evScraper;
+        this.cargoSpecSyncService = cargoSpecSyncService;
+        this.cargoSpecService = cargoSpecService;
         this.userService = userService;
         this.rateLimitLogRepo = rateLimitLogRepo;
         this.cargoSpecRepo = cargoSpecRepo;
@@ -116,6 +123,28 @@ public class CarController {
             catch (Exception e) { /* logged inside scraper */ }
         });
         return ResponseEntity.accepted().body(Map.of("status", "sync started — check server logs for result"));
+    }
+
+    @PostMapping("/admin/sync-cargo-specs")
+    public ResponseEntity<?> syncCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        Thread.ofVirtual().start(() -> {
+            try { cargoSpecSyncService.syncCarNames(); }
+            catch (Exception e) { /* logged inside service */ }
+        });
+        return ResponseEntity.accepted().body(Map.of("status", "CargoSpec sync started — check server logs for result"));
+    }
+
+    @PostMapping("/admin/import/cargospecs")
+    public ResponseEntity<?> importCargoSpecs(@RequestHeader("X-Admin-Key") String key,
+                                              @RequestBody String csv) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        try {
+            int count = cargoSpecService.importCsv(csv);
+            return ResponseEntity.ok(Map.of("imported", count, "table", "cargo_spec"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/recommend")
@@ -288,6 +317,15 @@ public class CarController {
                 "groq", configured ? "OK" : "WARN",
                 "rekommendation", configured
         ));
+    }
+
+    @DeleteMapping("/admin/insights")
+    public ResponseEntity<?> deleteInsightsByExpert(@RequestHeader("X-Admin-Key") String key,
+                                                    @RequestParam String expert) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        long before = expertInsightService.countByExpert(expert);
+        expertInsightService.deleteByExpert(expert);
+        return ResponseEntity.ok(Map.of("deleted", before, "expert", expert));
     }
 
     // Admin: import expert insights from CSV (car_make,car_model,fuel_type,category,insight,rating)

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CargoSpecService {
@@ -52,6 +53,30 @@ public class CargoSpecService {
                 match.getCargoLiters() != null ? match.getCargoLiters() : 0,
                 match.getCargoMaxLiters() != null ? match.getCargoMaxLiters() : 0
         );
+    }
+
+    // CSV format: car_name,cargo_liters,cargo_max_liters (header row optional, cargo cols optional)
+    public int importCsv(String csv) {
+        Set<String> existing = repo.findAllCarNames().stream()
+                .map(CargoSpecService::normalize)
+                .collect(Collectors.toSet());
+        int count = 0;
+        for (String line : csv.split("\\R")) {
+            line = line.trim();
+            if (line.isBlank() || line.startsWith("#") || line.toLowerCase().startsWith("car_name")) continue;
+            String[] parts = line.split(",", 3);
+            String name = parts[0].trim().replaceAll("^\"|\"$", "");
+            if (name.isBlank()) continue;
+            Integer liters = null, maxLiters = null;
+            if (parts.length > 1) { try { liters = Integer.parseInt(parts[1].trim()); } catch (NumberFormatException ignored) {} }
+            if (parts.length > 2) { try { maxLiters = Integer.parseInt(parts[2].trim()); } catch (NumberFormatException ignored) {} }
+            if (!existing.contains(normalize(name))) {
+                repo.save(new CargoSpec(name, liters, maxLiters));
+                existing.add(normalize(name));
+                count++;
+            }
+        }
+        return count;
     }
 
     private static String normalize(String s) {

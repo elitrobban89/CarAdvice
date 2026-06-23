@@ -54,6 +54,14 @@ public class ExpertInsightService {
         return repo.save(insight);
     }
 
+    public void deleteByExpert(String expertName) {
+        repo.deleteByExpertName(expertName);
+    }
+
+    public long countByExpert(String expertName) {
+        return repo.countByExpertName(expertName);
+    }
+
     public int importCsv(String csv, String expertName) {
         int count = 0;
         for (String line : csv.split("\\R")) {
