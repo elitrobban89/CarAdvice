@@ -4,6 +4,7 @@ import com.caradvice.model.CarPreferences;
 import com.caradvice.model.ExpertInsight;
 import com.caradvice.repository.ExpertInsightRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +55,7 @@ public class ExpertInsightService {
         return repo.save(insight);
     }
 
+    @Transactional
     public void deleteByExpert(String expertName) {
         repo.deleteByExpertName(expertName);
     }
