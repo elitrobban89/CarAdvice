@@ -48,11 +48,9 @@ public class CargoSpecService {
                     .orElse(null);
         }
 
-        if (match == null) return null;
-        return new CargoSpecDto(
-                match.getCargoLiters() != null ? match.getCargoLiters() : 0,
-                match.getCargoMaxLiters() != null ? match.getCargoMaxLiters() : 0
-        );
+        if (match == null || match.getCargoLiters() == null) return null;
+        return new CargoSpecDto(match.getCargoLiters(),
+                match.getCargoMaxLiters() != null ? match.getCargoMaxLiters() : 0);
     }
 
     // CSV format: car_name,cargo_liters,cargo_max_liters (header row optional, cargo cols optional)
