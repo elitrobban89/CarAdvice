@@ -161,7 +161,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **`GET /api/cars`** — returnerar union av alla bilnamn ur `cargo_spec` + `ev_spec`, sorterat A–Ö
 - Autocomplete-listan hämtas live vid sidladdning istället för hårdkodad JS-array
 - Nattsynkens nya elbilsposter (inkl. batterivarianter) dyker automatiskt upp i autocomplete nästa sidladdning
-- **600+ bilar täcks**: CargoSpec-modeller från Bilweb.se-sync + alla EvSpec-varianter (t.ex. "Tesla Model Y Long Range", "Volvo EX30 Single Motor")
+- **650+ bilar täcks**: CargoSpec-modeller från Bilweb.se-sync + alla EvSpec-varianter (t.ex. "Tesla Model Y Long Range", "Volvo EX30 Single Motor")
 
 ### Prenumeration & betalning (Stripe)
 
@@ -383,10 +383,21 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-cargo-specs \
 
 ### `POST /api/admin/import/cargospecs`
 
-Importerar bagagevolym-data från CSV. Kräver `X-Admin-Key`-header. Format: `car_name,cargo_liters,cargo_max_liters` (en bil per rad).
+Importerar bagagevolym-data från CSV — lägger bara till nya poster, hoppar över befintliga. Format: `car_name,cargo_liters,cargo_max_liters`.
 
 ```bash
 curl -X POST https://caradvice.onrender.com/api/admin/import/cargospecs \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
+  -H "Content-Type: text/plain" \
+  --data-binary @cargo.csv
+```
+
+### `POST /api/admin/upsert/cargospecs`
+
+Uppdaterar befintliga poster med `null`-volym OCH lägger till nya — används för att fylla i saknad bagagedata på bilar som Bilweb-synken lade till utan volymer. Format: `car_name,cargo_liters,cargo_max_liters`.
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/upsert/cargospecs \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
   -H "Content-Type: text/plain" \
   --data-binary @cargo.csv
