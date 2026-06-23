@@ -130,6 +130,18 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Ny insikt läggs till med: `python more_insights.py --upload --admin-key KEY` eller direkt mot admin-endpoint
 - Fler kan läggas till via admin-endpoint med `expert`-parametern
 
+### CargoSpec-skrapare (Bilweb.se)
+- Daglig schemalagd sync kl **03:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
+- Skrapar `bilweb.se/sok/bilar` för märkeslista, sedan per märkessida för modellnamn
+- Hoppar över modeller som redan finns i databasen (normaliserad jämförelse)
+- 1 500 ms fördröjning mellan requests för att undvika blockering
+- Utökar autocomplete-listan (`/api/cars`) automatiskt utan manuell inmatning
+- Manuell trigger via admin-endpoint:
+  ```bash
+  curl -X POST https://caradvice.onrender.com/api/admin/sync-cargo-specs \
+    -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+  ```
+
 ### EV-spec-skrapare (ev-database.org)
 - Daglig schemalagd sync kl 02:00 Stockholm-tid — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
 - **Auto-skapar nya poster** — bilar som finns på ev-database.org men saknas i DB läggs till automatiskt med all tillgänglig data; EUR-pris konverteras till SEK (~11.5×)
@@ -240,8 +252,10 @@ CarAdvice/
     │   │   ├── SavedSearchRepository.java
     │   │   └── UserRepository.java
     │   ├── scraper/
+    │   │   ├── CargoSpecSyncService.java      ← Jsoup-skrapare mot Bilweb.se
+    │   │   ├── CargoSpecSyncScheduler.java    ← @Scheduled cron 03:00 Stockholm-tid
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
-    │   │   └── EvSpecSyncScheduler.java       ← @Scheduled cron 03:00 UTC
+    │   │   └── EvSpecSyncScheduler.java       ← @Scheduled cron 02:00 Stockholm-tid
     │   └── service/
     │       ├── CargoSpecService.java   ← Fuzzy-matchning på bilnamn → bagagevolym
     │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
@@ -356,6 +370,35 @@ Startar EV-spec-synken manuellt. Kräver `X-Admin-Key`-header.
 curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 # → {"status":"sync started — check server logs for result"}
+```
+
+### `POST /api/admin/sync-cargo-specs`
+
+Startar CargoSpec-synken (Bilweb.se) manuellt. Kräver `X-Admin-Key`-header. Returnerar antal nyligen tillagda poster.
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/sync-cargo-specs \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
+### `POST /api/admin/import/cargospecs`
+
+Importerar bagagevolym-data från CSV. Kräver `X-Admin-Key`-header. Format: `car_name,cargo_liters,cargo_max_liters` (en bil per rad).
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/import/cargospecs \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
+  -H "Content-Type: text/plain" \
+  --data-binary @cargo.csv
+```
+
+### `DELETE /api/admin/insights?expert=Name`
+
+Tar bort alla expertinsikter för ett givet expertnamn. Kräver `X-Admin-Key`-header.
+
+```bash
+curl -X DELETE "https://caradvice.onrender.com/api/admin/insights?expert=Bilprovningen" \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 ```
 
 ### `GET /api/cars`
