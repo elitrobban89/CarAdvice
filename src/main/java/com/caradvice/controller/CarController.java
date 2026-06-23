@@ -147,6 +147,18 @@ public class CarController {
         }
     }
 
+    @PostMapping("/admin/upsert/cargospecs")
+    public ResponseEntity<?> upsertCargoSpecs(@RequestHeader("X-Admin-Key") String key,
+                                              @RequestBody String csv) {
+        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        try {
+            int count = cargoSpecService.upsertCsv(csv);
+            return ResponseEntity.ok(Map.of("upserted", count, "table", "cargo_spec"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/recommend")
     public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request,
                                        @RequestHeader(value = "Authorization", required = false) String auth) {
