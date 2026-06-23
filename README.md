@@ -161,7 +161,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **`GET /api/cars`** — returnerar union av alla bilnamn ur `cargo_spec` + `ev_spec`, sorterat A–Ö
 - Autocomplete-listan hämtas live vid sidladdning istället för hårdkodad JS-array
 - Nattsynkens nya elbilsposter (inkl. batterivarianter) dyker automatiskt upp i autocomplete nästa sidladdning
-- 130+ bilar täcks: alla CargoSpec-modeller + alla EvSpec-varianter (t.ex. "Tesla Model Y Long Range", "Volvo EX30 Single Motor")
+- **600+ bilar täcks**: CargoSpec-modeller från Bilweb.se-sync + alla EvSpec-varianter (t.ex. "Tesla Model Y Long Range", "Volvo EX30 Single Motor")
 
 ### Prenumeration & betalning (Stripe)
 
