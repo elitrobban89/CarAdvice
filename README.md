@@ -168,9 +168,18 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 > **Stripe körs för närvarande i testläge.** Inga riktiga betalningar genomförs. Testkort: `4242 4242 4242 4242`, valfritt datum och CVC.
 > För att aktivera produktion: byt `STRIPE_SECRET_KEY` till `sk_live_...`, `STRIPE_WEBHOOK_SECRET` till live webhook-hemligheten, ta bort testläges-bannern i `subscribe.html` och uppdatera `STRIPE_PRICE_ID` till live-prisets ID. All övrig kod är produktionsklar.
 
+### Korsåtkomst — båda tjänsterna ingår
+
+En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med samma konto och token:
+
+- **AI Bilrådgivning** — [elitrobban.se/bilradgivning](https://elitrobban.se/bilradgivning/)
+- **AI EV Laddningsassistenten** — [elitrobban.se/elbilsladdning](https://elitrobban.se/elbilsladdning/)
+
+`ca_token` lagras i `localStorage` under domänen `elitrobban.se` och delas automatiskt mellan sidorna. `ev-charging.js` (serveras av CarAdvice-backenden) agerar access guard på elbilsladdning-sidan — kontrollerar token mot `/api/auth/me` och visar antingen innehållet eller ett betalvägg-kort.
+
 - Ej inloggad: **max 10 sökningar/timme** och **10 chattmeddelanden/minut** (IP-baserat)
 - Inloggad (gratis konto): **30 sökningar/timme** och **30 chattmeddelanden/minut**
-- Aktiv prenumerant (99 kr/mån): **obegränsade sökningar och chatt**
+- Aktiv prenumerant (49 kr/mån): **obegränsade sökningar och chatt på båda tjänsterna**
 - Konto skapas på `/subscribe.html` — öppnas i nytt fönster
 - Betalning via Stripe Checkout (hosted betalningssida)
 - Prenumerationsstatusen sparas i `ca_user`-tabellen och verifieras via sessionstoken (Bearer-header)
@@ -268,11 +277,13 @@ CarAdvice/
     └── resources/
         ├── application.properties
         └── static/
+            ├── car-advice-main.js  ← Bilrådgivnings-UI (serveras av Render, laddas av WordPress)
             ├── car-advice-chat.js  ← Chattbot-UI (serveras av Render, laddas av WordPress)
+            ├── ev-charging.js      ← Access guard för elbilsladdning-sidan (kontrollerar prenumeration)
             ├── cancel.html         ← Visas om Stripe-betalning avbryts
             ├── manifest.json       ← PWA-manifest
             ├── subscribe.html      ← Login/register + Stripe Checkout (öppnas i nytt fönster)
-            ├── success.html        ← Visas efter lyckad Stripe-betalning
+            ├── success.html        ← Visas efter lyckad Stripe-betalning; visar länkar till båda tjänsterna
             └── test.html           ← Lokal testmiljö
 ```
 
