@@ -1281,12 +1281,16 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     loginLink.href = CA_API_BASE + '/subscribe.html';
     loginLink.dataset.action = 'subscribe';
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
+    var evPromo = document.getElementById('ca-ev-promo');
+    if (evPromo) evPromo.style.display = 'flex';
   } else if (isLoggedIn || caEmail) {
+    var evPromo = document.getElementById('ca-ev-promo');
+    if (evPromo) evPromo.style.display = 'none';
     title.textContent = 'Inloggad';
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
-    prenBtn.textContent = 'Prenumerera – 99 kr/m\xe5n';
+    prenBtn.textContent = 'Prenumerera – 29\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
     loginLink.textContent = 'Logga ut';
     loginLink.href = '#';
@@ -1300,6 +1304,8 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     prenBtn.textContent = 'Prenumerera / Logga in';
     loginLink.style.display = 'none';
     emailEl.style.display = 'none';
+    var evPromo = document.getElementById('ca-ev-promo');
+    if (evPromo) evPromo.style.display = 'none';
   }
 }
 

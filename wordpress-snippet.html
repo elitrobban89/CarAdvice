@@ -574,6 +574,25 @@
     font-size: 0.88rem; color: rgba(255,255,255,0.85); line-height: 1.5; display: none;
   }
   .ca-rate-limit-box a { color: #fcd34d; font-weight: 700; text-decoration: none; }
+  #ca-ev-promo {
+    display: none; margin-bottom: 16px;
+    background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.22);
+    border-radius: 12px; padding: 10px 16px 10px 14px;
+    gap: 10px; align-items: center;
+  }
+  #ca-ev-promo a {
+    display: flex; align-items: center; gap: 10px; text-decoration: none;
+    color: inherit; width: 100%;
+  }
+  #ca-ev-promo a:hover .ca-ev-promo-title { color: #86efac; }
+  .ca-ev-promo-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .ca-ev-promo-body { flex: 1; min-width: 0; }
+  .ca-ev-promo-title {
+    font-size: 0.82rem; font-weight: 700; color: rgba(134,239,172,0.85);
+    transition: color 0.18s; white-space: nowrap;
+  }
+  .ca-ev-promo-sub { font-size: 0.72rem; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .ca-ev-promo-arrow { font-size: 0.9rem; color: rgba(134,239,172,0.5); flex-shrink: 0; }
 
   /* Groq badge */
   #ca-budget-mode { display:inline-flex; gap:4px; float:right; margin-top:-1px; }
@@ -634,9 +653,18 @@
           <a id="ca-prenumerera-btn" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera / Logga in</a>
         </div>
       </div>
+      <div id="ca-ev-promo">
+        <a href="https://elitrobban.se/elbilsladdning/" target="_blank" rel="noopener">
+          <span class="ca-ev-promo-icon">⚡</span>
+          <span class="ca-ev-promo-body">
+            <span class="ca-ev-promo-title">Mer intresserad av elbilar? AI EV Laddassistent ↗</span>
+            <span class="ca-ev-promo-sub">Ingår också i din prenumeration för 29 kr/mån</span>
+          </span>
+        </a>
+      </div>
       <div class="ca-rate-limit-box" id="ca-rate-limit-box">
         ⏱ Du har använt alla 10 gratis sökningar den här timmen.
-        <a id="ca-rate-limit-link" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera för 99 kr/mån</a> och få obegränsade sökningar!
+        <a id="ca-rate-limit-link" href="https://caradvice.onrender.com/subscribe.html" target="_blank" rel="noopener">Prenumerera för 29 kr/mån</a> och få obegränsade sökningar!
       </div>
 
       <div class="ca-grid">
@@ -754,6 +782,7 @@
           <svg class="ca-groq-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>
           Drivs av <span class="ca-groq-name">Groq AI</span>
         </span>
+        <a href="https://elitrobban.se/elbilsladdning/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:6px 13px 6px 9px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:20px;font-size:.73rem;color:rgba(255,255,255,.5);text-decoration:none;transition:border-color .2s,color .2s" onmouseover="this.style.color='rgba(134,239,172,.9)';this.style.borderColor='rgba(34,197,94,.45)'" onmouseout="this.style.color='rgba(255,255,255,.5)';this.style.borderColor='rgba(34,197,94,.2)'">⚡ Mer intresserad av elbilar? <strong style="color:#86efac;font-weight:700">AI EV Laddassistent ↗</strong></a>
       </div>
 
       <div id="ca-loader">
