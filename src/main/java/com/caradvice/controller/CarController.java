@@ -316,6 +316,18 @@ public class CarController {
         return ResponseEntity.ok(new ArrayList<>(names));
     }
 
+    @GetMapping("/ev-consumption")
+    public ResponseEntity<List<Map<String, Object>>> getEvConsumption() {
+        List<Map<String, Object>> result = evSpecRepo.findAll().stream()
+            .filter(e -> e.getBatteryKwh() != null && e.getRangeKm() != null && e.getRangeKm() > 0)
+            .map(e -> {
+                double kwhPerMil = Math.round((e.getBatteryKwh() * 10.0 / e.getRangeKm()) * 100.0) / 100.0;
+                return Map.<String, Object>of("carName", e.getCarName(), "kwhPerMil", kwhPerMil);
+            })
+            .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of("status", "OK"));
