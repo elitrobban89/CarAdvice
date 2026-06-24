@@ -1290,7 +1290,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
-    prenBtn.textContent = 'Prenumerera – 29\xa0kr/m\xe5n';
+    prenBtn.textContent = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
     loginLink.textContent = 'Logga ut';
     loginLink.href = '#';

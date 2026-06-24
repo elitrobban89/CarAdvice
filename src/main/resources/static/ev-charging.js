@@ -110,7 +110,7 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
     desc.textContent     = ' – prenumeration kr\xe4vs';
     bar.classList.add('ev-limited');
     prenBtn.style.display  = 'inline-block';
-    prenBtn.textContent    = 'Prenumerera – 29\xa0kr/m\xe5n';
+    prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
     loginLink.textContent   = 'Logga ut';
     loginLink.dataset.action = 'logout';
@@ -150,10 +150,10 @@ function evBuildPaywallCard(isLoggedIn) {
     ? 'Prenumeration kr\xe4vs'
     : 'Logga in f\xf6r att se inneh\xe5llet';
   var text = isLoggedIn
-    ? 'Ditt konto saknar aktiv prenumeration. Prenumerera f\xf6r 29\xa0kr/m\xe5n och f\xe5 full \xe5tkomst till b\xe5da tj\xe4nsterna.'
-    : 'AI EV Laddningsassistenten och elbils k\xf6pguiden ing\xe5r i prenumerationen p\xe5 29\xa0kr/m\xe5n.';
+    ? 'Ditt konto saknar aktiv prenumeration. Prenumerera f\xf6r 49\xa0kr/m\xe5n och f\xe5 full \xe5tkomst till b\xe5da tj\xe4nsterna.'
+    : 'AI EV Laddningsassistenten och elbils k\xf6pguiden ing\xe5r i prenumerationen p\xe5 49\xa0kr/m\xe5n.';
   var btnText = isLoggedIn
-    ? 'Prenumerera – 29\xa0kr/m\xe5n'
+    ? 'Prenumerera – 49\xa0kr/m\xe5n'
     : 'Logga in / Prenumerera';
   return (
     '<div class="ev-pw-icon">⚡</div>' +
