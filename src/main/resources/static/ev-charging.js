@@ -166,7 +166,15 @@ function evBuildPaywallCard(isLoggedIn) {
       '<li>Obegr\xe4nsad AI-chatt</li>' +
       '<li>Avbryt n\xe4r som helst</li>' +
     '</ul>' +
-    '<button id="ev-paywall-btn" onclick="evOpenSubscribe()">' + btnText + '</button>'
+    '<button id="ev-paywall-btn" onclick="evOpenSubscribe()">' + btnText + '</button>' +
+    '<div style="margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)">' +
+      '<p style="margin:0;font-size:.78rem;color:rgba(255,255,255,.45);line-height:1.7">' +
+        'Vill du veta vad bilresan kostar? ' +
+        '<a href="https://elitrobban.se/branslekostnad-berakning/" target="_blank" ' +
+           'style="color:#a5b4fc;font-weight:600;text-decoration:none">Br\xe4nslekostnadsber\xe4kning ↗</a>' +
+        ' — ing\xe5r ocks\xe5 i prenumerationen.' +
+      '</p>' +
+    '</div>'
   );
 }
 

@@ -165,7 +165,15 @@ function bcGuardBuildPaywallCard(isLoggedIn) {
       '<li>Obegr\xe4nsad AI-chatt</li>' +
       '<li>Avbryt n\xe4r som helst</li>' +
     '</ul>' +
-    '<button id="bc-paywall-btn" onclick="bcGuardOpenSubscribe()">' + btnText + '</button>'
+    '<button id="bc-paywall-btn" onclick="bcGuardOpenSubscribe()">' + btnText + '</button>' +
+    '<div style="margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)">' +
+      '<p style="margin:0;font-size:.78rem;color:rgba(255,255,255,.45);line-height:1.7">' +
+        'Mer intresserad av elbilar? ' +
+        '<a href="https://elitrobban.se/elbilsladdning/" target="_blank" ' +
+           'style="color:#a5b4fc;font-weight:600;text-decoration:none">AI EV Laddassistent ↗</a>' +
+        ' — ing\xe5r ocks\xe5 i prenumerationen.' +
+      '</p>' +
+    '</div>'
   );
 }
 
