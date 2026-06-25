@@ -719,12 +719,8 @@ function caFetchOneImage(title, wrapId, imgId) {
   }
   var urls = [
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titleCaseQ),
     'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(origQ),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile'),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_EV'),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_electric')
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile')
   ];
   Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
     fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*')

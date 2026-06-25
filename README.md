@@ -112,7 +112,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 2. Ta bort testläges-bannern i `subscribe.html`
 3. Registrera live webhook-endpoint i Stripe Dashboard
 
-> **Pågående:** Kontakt tagen med **Peter Esse** (bilexpert) för samarbete kring RAG-data och verifierade rekommendationer. Inväntar svar.
+> **Bilexpertsamarbete:** Infrastrukturen för RAG-data är klar. Expertinsikter attributeras "Bilexpert" tills samarbete med namngiven expert är bekräftat.
 
 ---
 
