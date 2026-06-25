@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 public class GroqService {
 
     private static final Logger log = LoggerFactory.getLogger(GroqService.class);
+    private static final String SUBSCRIPTION_PRICE = "49 kr/mån";
 
     public record Result(List<CarRecommendation> recommendations, boolean fromCache, long cacheAgeSeconds) {}
 
@@ -378,16 +379,16 @@ public class GroqService {
     }
 
     private String buildChatSystemPrompt(String carContext, String expertContext) {
-        String base = """
+        String base = ("""
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svarar på köp, jämförelser, driftkostnad, skatt, värdeminskning och tillförlitlighet.
-                Som prenumerant (49 kr/mån) ingår tre tjänster: 1) Bilrådgivaren (köprådgivning, bilanalyser, driftkostnad, skatt, värdeminskning, tillförlitlighet), 2) Bränslekostnadsberäkning (beräkna bränslekostnad för din bilmodell), 3) EV-assistenten (laddkostnad och räckvidd för elbilar).
+                Som prenumerant (%s) ingår tre tjänster: 1) Bilrådgivaren (köprådgivning, bilanalyser, driftkostnad, skatt, värdeminskning, tillförlitlighet), 2) Bränslekostnadsberäkning (beräkna bränslekostnad för din bilmodell), 3) EV-assistenten (laddkostnad och räckvidd för elbilar).
                 Ej hjälp med laddstationsnätverk/navigering till laddpunkter. Ej övriga bilfrågor: "Det faller utanför mitt område."
                 Svara på svenska. Använd **fetstil** och - listor.
                 Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne som frågas — aldrig om annan bil. Citera: "**[namn]:** [insikt]".
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren frågar om elbil.
-                """;
+                """).formatted(SUBSCRIPTION_PRICE);
         if (carContext != null && !carContext.isBlank())
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
         if (expertContext != null && !expertContext.isBlank())
