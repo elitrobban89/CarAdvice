@@ -11,5 +11,6 @@ public record EvSpecDto(
         int maxAcKw,
         int priceKr,
         String valueLabel,
-        String carType
+        String carType,
+        String chemistry
 ) {}

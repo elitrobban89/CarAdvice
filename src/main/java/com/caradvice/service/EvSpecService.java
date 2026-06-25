@@ -65,10 +65,13 @@ public class EvSpecService {
                     .orElse(null);
         }
 
-        return match == null ? null : toDto(match, kmPerYear);
+        if (match == null) return null;
+        String chemistry = null;
+        try { chemistry = getBatteryChemistry(title); } catch (Exception ignored) {}
+        return toDto(match, kmPerYear, chemistry);
     }
 
-    private EvSpecDto toDto(EvSpec spec, int kmPerYear) {
+    private EvSpecDto toDto(EvSpec spec, int kmPerYear, String chemistry) {
         int wltp   = spec.getRangeKm() != null ? spec.getRangeKm() : 0;
         int summer = (int) (wltp * 0.85);
         int winter = (int) (wltp * 0.70);
@@ -102,7 +105,7 @@ public class EvSpecService {
         }
 
         String carType = spec.getCarType() != null ? spec.getCarType() : "EV";
-        return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel, carType);
+        return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel, carType, chemistry);
     }
 
     // Battery chemistry per model. LFP: kan laddas till 100% dagligen utan slitage,

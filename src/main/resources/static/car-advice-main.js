@@ -412,7 +412,7 @@ function caEvChips(ev, hp) {
   if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC '+ev.maxDcKw+' kW</span>';
   if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC '+ev.maxAcKw+' kW</span>';
   if (hp > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; '+hp+' hk</span>';
-  if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">'+ev.batteryKwh+' kWh</span>';
+  if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F50B; '+ev.batteryKwh+' kWh'+(ev.chemistry ? ' &middot; '+ev.chemistry : '')+'</span>';
   if (ev.priceKr > 0) chips += '<span class="ca-ev-chip ca-ev-price">fr\xe5n '+Math.round(ev.priceKr/1000)+' tkr</span>';
   if (ev.valueLabel) chips += '<span class="ca-ev-chip ca-ev-value">'+caEsc(ev.valueLabel)+'</span>';
   return '<div class="ca-ev">'+head+'<div class="ca-ev-chips">'+chips+'</div></div>';
@@ -598,7 +598,7 @@ function caRenderCompare(recs, targetEl) {
     rows.push({ label: '&#x1F50B; Laddning', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.daysLabel ? '<span style="font-size:.8rem;color:#fcd34d;font-weight:600">'+caEsc(ev.daysLabel)+'</span>' : '&#x2013;'; }); } });
     rows.push({ label: '&#x26A1; DC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
     rows.push({ label: '&#x1F50C; AC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh','rgba(56,189,248,.1)') : '&#x2013;'; }); } });
+    rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh'+(ev.chemistry ? ' &middot; '+ev.chemistry : ''),'rgba(56,189,248,.1)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r) {
     var hp = r.horsepower || (r.fuelSpec && r.fuelSpec.horsepower) || 0;
     return hp > 0 ? chip(hp + ' hk', 'rgba(251,191,36,.13)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
