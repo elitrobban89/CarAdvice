@@ -696,7 +696,20 @@ function caFetchOneImage(title, wrapId, imgId) {
     // Kvar motorvolym utan motorkod (1.0, 2.0 osv)
     .replace(/\s+\d+[.,]\d+(\s.*)?$/, '')
     .trim();
-  var wikiQ = base.replace(/\s+/g, '_');
+  // Överskridande Wikipedia-artikelnamn för bilar som krockar med annat (vapen, emblem m.m.)
+  var WIKI_OVERRIDES = {
+    'MG4':              'MG4_EV',
+    'MG 4':             'MG4_EV',
+    'MG ZS EV':         'MG_ZS_EV',
+    'MG ZS':            'MG_ZS',
+    'MG5':              'MG5_(car)',
+    'Smart 1':          'Smart_#1',
+    'Smart 3':          'Smart_#3',
+    'Smart 5':          'Smart_#5',
+    'Fiat Grande Panda':'Fiat_Grande_Panda',
+    'Alpine A290':      'Alpine_A290'
+  };
+  var wikiQ = (WIKI_OVERRIDES[base] || base.replace(/\s+/g, '_'));
   var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
   var origQ = q.replace(/\s+/g, '_');
   function setImg(src) {
@@ -704,26 +717,30 @@ function caFetchOneImage(title, wrapId, imgId) {
     var img  = document.getElementById(imgId);
     if (wrap && img) { img.src = src; wrap.style.display = 'block'; }
   }
+  // Avvisa logotyper/emblem/vapen: för smala, extremt porträttformat, eller icke-foto
+  var BAD_THUMB_KEYWORDS = ['logo', 'emblem', 'badge', 'gun', 'weapon', 'flag', 'coat_of_arms', 'icon'];
   function fetchThumb(url) {
     return fetch(url).then(function(resp) {
       if (!resp.ok) throw new Error('not ok');
       return resp.json();
     }).then(function(data) {
       if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
+      var src = data.thumbnail.source;
+      var srcLower = src.toLowerCase();
+      if (BAD_THUMB_KEYWORDS.some(function(kw) { return srcLower.indexOf(kw) !== -1; })) throw new Error('bad image');
       var w = data.thumbnail.width  || 0;
       var h = data.thumbnail.height || 1;
-      // Avvisa logotyper/emblem: för smala eller extremt porträttformat
       if (w < 120 || h > w * 1.8) throw new Error('bad aspect');
-      return data.thumbnail.source;
+      return src;
     });
   }
   var urls = [
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-    'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile')
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile'),
+    'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
   ];
   Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
-    fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' car') + '&limit=3&format=json&origin=*')
+    fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(srData) {
         if (!srData || !srData[1]) return;
