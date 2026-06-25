@@ -1248,7 +1248,7 @@ async function caGetRecommendation() {
     caStopLoadingText();
     loader.style.display = 'none';
     var msg = e.name === 'AbortError'
-      ? '⏱ Servern svarade inte inom 35 sekunder. Render kan ha haft en cold start – f\xf6rs\xf6k igen om en stund.'
+      ? '⏱ Servern svarade inte inom 35 sekunder – försök igen om en stund.'
       : '🔌 Kunde inte n\xe5 servern: ' + e.message;
     document.getElementById('ca-cards').innerHTML =
       '<div class="ca-card"><div class="ca-raw">' + msg + '</div></div>';
