@@ -57,7 +57,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - WLTP-räckvidd, uppskattad sommar- och vinterräckvidd
 - Laddfrekvens baserat på körsträcka ("ladda var 4:e dag")
 - Max DC-laddning (kW), AC-laddning (kW) och hästkrafter
-- Batteristorlek (kWh) och startpris
+- Batteristorlek (kWh) och startpris; **batterikemi (LFP/NMC) visas direkt i 🔋-chippen** — t.ex. "51 kWh · LFP" eller "75 kWh · NMC"
 - **Prisvärdhetsbedömning** (Utmärkt / Bra / Ok prisvärdhet) — sammansatt poäng av räckvidd/kr (60 %), batteri/kr (40 %) + DC-laddningsbonus; visas nu även för bensin/diesel baserat på hk + förbrukning per kr
 - Trestegsfuzzy-matchning mot EV-databasen: (1) alla titelord i lagrad namntext, (2) alla lagrade namnord som exakta ord i titel, (3) alla titelord som exakta ord i lagrat namn — förhindrar att "Kia Niro PHEV" matchar "Kia Niro EV" och att "MG4 2025" missar "MG4 Long Range"
 - Årstal strippas innan matchning oavsett om det skrivs med eller utan parenteser
@@ -89,7 +89,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - **🛡️ Euro NCAP** — stjärnbetyg i guld + detaljprocent (vuxna/barn/fotgängare + testår)
 - **🔧 Motoralternativ** — kommaseparerade motorvarianter från AI, varje variant som pill-chip; för elbilar: batteripaket + räckvidd
 - Hästkrafter och Prisvärdhet visas för alla biltyper (inte bara EV)
-- Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri
+- Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri (inkl. LFP/NMC)
 
 ### Jämförelsekontext för AI (verifierade specs)
 Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska kartor och injiceras i prompten som kontext:
@@ -105,7 +105,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Flytande knapp nere till höger med bil-ikon i glassmorphism-design; lila/indigo-tema
 - Svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil)
 - Streaming-svar — token för token via SSE; automatisk fallback till JSON om ReadableStream saknas
-- **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna
+- **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna; benutrymme bak (mm) och batterikemi (LFP/NMC) för de rekommenderade bilarna injiceras automatiskt i chattens systemprompt så AI:n kan svara korrekt på frågor som "kan jag ladda till 100%?" eller "hur mycket plats är det i baksätet?"
 - **Per-bil-fokus** — klickar man "Fråga om denna bil" ändras chatboten till att fokusera på just den bilen med specifika chips: Berätta om, Driftkostnad & skatt, Tillförlitlighet & problem, Jämför med
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
