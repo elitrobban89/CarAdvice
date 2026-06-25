@@ -571,3 +571,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | BYD Seal borttagen från autocomplete | BYD Seal togs bort ur DB men låg kvar i den hårdkodade CA_FC_CARS-arrayen — nu borttagen |
 | Autocomplete utökat (17 bilar) | Lade till: Audi Q8 e-tron, BMW iX/i5, Fiat 500/500e, Hyundai Kona/PHEV/Electric, Kia EV9, Mercedes EQC/EQE/EQS, MG5, Renault Zoe, Cupra Born/Formentor, Škoda Elroq, VW ID.5/ID.Buzz, Volvo C40 |
 | Dynamisk autocomplete från `/api/cars` | Hårdkodad CA_FC_CARS-array (~80 rader) ersatt med live-fetch från `GET /api/cars` vid sidladdning — autocomplete hålls automatiskt synkad med databasen |
+| BYD Dolphin borttagen ur AI-förslag | Dolphin säljs inte på svenska marknaden — explicit regel tillagd i alla tre systempromptarna (rekommendation, chat, jämförelse) |
+| Kamiq ej elbil | AI föreslog Kamiq (bensinbil) som elbil — systempromptarna korrigerade: "Kamiq är en bensinbil, rekommendera den aldrig som elbil" |
+| Lazy-load autocomplete | `/api/cars` hämtades vid varje sidladdning för alla besökare — nu hämtas listan enbart när användaren klickar i ett jämförelsefält |
+| Gzip-komprimering aktiverad | `server.compression.enabled=true` i `application.properties` — JS/JSON komprimeras med ~70% (135 KB → ~35 KB); 1 dags browser-cache för statiska filer |

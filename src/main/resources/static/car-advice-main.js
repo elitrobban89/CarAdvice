@@ -1360,7 +1360,10 @@ window.addEventListener('message', function(ev) {
 
 var caFcLoading = false;
 
-function caFcInit() {
+var caFcCarsFetched = false;
+function caFcFetchCars() {
+  if (caFcCarsFetched) return;
+  caFcCarsFetched = true;
   var datalist = document.getElementById('ca-fc-datalist');
   fetch(CA_API_BASE + '/api/cars')
     .then(function(r) { return r.json(); })
@@ -1370,11 +1373,17 @@ function caFcInit() {
       }
     })
     .catch(function() {});
+}
+
+function caFcInit() {
   var btn = document.getElementById('ca-fc-btn');
   if (btn) btn.addEventListener('click', caFcCompare);
   ['ca-fc-car1','ca-fc-car2'].forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') caFcCompare(); });
+    if (el) {
+      el.addEventListener('focus', caFcFetchCars);
+      el.addEventListener('keydown', function(e) { if (e.key === 'Enter') caFcCompare(); });
+    }
   });
 }
 

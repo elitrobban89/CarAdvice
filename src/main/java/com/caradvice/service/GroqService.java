@@ -278,7 +278,8 @@ public class GroqService {
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
-                Referenspriser (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000.
+                Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000.
+                VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 """;
     }
 
@@ -384,7 +385,8 @@ public class GroqService {
                 Svara på svenska. Använd **fetstil** och - listor.
                 Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne som frågas — aldrig om annan bil. Citera: "**[namn]:** [insikt]".
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
-                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
+                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
+                VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren frågar om elbil.
                 """;
         if (carContext != null && !carContext.isBlank())
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
@@ -409,7 +411,8 @@ public class GroqService {
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
-                Referenspriser för vanliga bilar (SEK): Spring 195 000, Dolphin 300–340 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000.
+                Referenspriser för vanliga bilar (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000.
+                VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
