@@ -435,12 +435,42 @@ public class GroqService {
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren frågar om elbil.
+                BATTERIKEMI: LFP = ladda till 100%% dagligen utan slitage, ~3 000+ cykler, tåligare i kyla. NMC = ladda helst till 80%% för lång livslängd, ~1 000–2 000 cykler, mer räckvidd per kWh. Om du vet vilken kemi bilen har, nämn det konkret när det är relevant.
                 """).formatted(SUBSCRIPTION_PRICE);
-        if (carContext != null && !carContext.isBlank())
+        if (carContext != null && !carContext.isBlank()) {
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
+            String specFacts = buildChatSpecFacts(carContext);
+            if (!specFacts.isBlank())
+                base += "\n\nVerifierade fakta om rekommenderade bilar:\n" + specFacts;
+        }
         if (expertContext != null && !expertContext.isBlank())
             base += "\n\n" + expertContext;
         return base;
+    }
+
+    // Parsar bilnamn ur context-strängen och slår upp benutrymme + batterikemi
+    private String buildChatSpecFacts(String carContext) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                "^\\d+\\.\\s+(.+?)\\s*—", java.util.regex.Pattern.MULTILINE);
+        java.util.regex.Matcher m = p.matcher(carContext);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            String raw = m.group(1).trim();
+            String name = raw.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
+            Integer legroom = null;
+            String chem = null;
+            try { legroom = cargoSpecService.getLegroom(name); } catch (Exception ignored) {}
+            try { chem = evSpecService.getBatteryChemistry(name); } catch (Exception ignored) {}
+            if (legroom == null && chem == null) continue;
+            sb.append(name).append(": ");
+            if (legroom != null) sb.append("benutrymme bak ").append(legroom).append(" mm");
+            if (chem != null) {
+                if (legroom != null) sb.append(", ");
+                sb.append("batterikemi ").append(chem);
+            }
+            sb.append("\n");
+        }
+        return sb.toString().trim();
     }
 
     private List<String> extractUserTexts(List<Map<String, String>> messages) {
