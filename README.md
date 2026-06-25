@@ -87,9 +87,17 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Rader: Pris · Blocket nu · ✔ Fördelar · ⚠ Nackdel · 🎯 Expertrecension · 🛡️ Euro NCAP · 🧳 Bagageutrymme · 🔧 Motoralternativ · 💪 Hästkrafter · 📊 Prisvärdhet · 💰 5-års TCO
 - **🎯 Expertrecension** — AI:ns bilexpertkommentar per bil sida vid sida
 - **🛡️ Euro NCAP** — stjärnbetyg i guld + detaljprocent (vuxna/barn/fotgängare + testår)
-- **🔧 Motoralternativ** — kommaseparerade motorvarianter från AI, varje variant som pill-chip; för elbilar: batteripaket + räckvidd; AI instrueras att notera storleks-/utrymmeskillnad i expertrecensionen när bilarna är i tydligt olika klasser
+- **🔧 Motoralternativ** — kommaseparerade motorvarianter från AI, varje variant som pill-chip; för elbilar: batteripaket + räckvidd
 - Hästkrafter och Prisvärdhet visas för alla biltyper (inte bara EV)
 - Vid EV/PHEV: WLTP · Sommar · Vinter · Laddning · DC max · AC max · Batteri
+
+### Jämförelsekontext för AI (verifierade specs)
+Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska kartor och injiceras i prompten som kontext:
+- **Benutrymme bak (mm)** — bakre benutrymme i millimeter för 55+ modeller; data från evspecifications.com (mätvärden) resp. kända uppskattningar för övriga; EX30=821 mm, XC40/EX40/C40=917 mm, Model Y=1 029 mm m.fl.
+- **Storleksklass** — om skillnaden i benutrymme överstiger 60 mm instrueras AI att explicit nämna det i jämförelsen ("EX30 är en kompakt bil, XC40 är en mellanstor SUV — avsevärt mer plats i baksätet")
+- **Batterikemi (LFP / NMC)** — visas per bil i jämförelsetexten med förklaring: LFP (litiumjärnfosfat) kan laddas till 100 % dagligen utan slitage och är tåligare i kyla; NMC ger högre energitäthet och längre räckvidd per kg; ~55 modeller kartlagda
+- **Snabbladdning (DC)** — AI förklarar att DC = snabbladdning (t.ex. längs motorväg), att ≥150 kW är bra och att AC = hemmaladdning (max ~22 kW); DC-maxvärde från databasen injiceras per bil
+- **Bagageutrymme** — standard- och maxvolym (L med fällda säten) injiceras från `cargo_spec`-tabellen
 - Färgkodade kolumnrubriker matchar kortens accentfärger
 - **TCO-stapeldiagram** under tabellen — horisontella staplar för varje bil med fem färgkodade segment: 🟣 värdeminskning · 🟠 drivmedel · 🔵 service · 🟢 fordonsskatt · 🩷 halvförsäkring; hover-tooltip visar kostnad i tkr per post
 

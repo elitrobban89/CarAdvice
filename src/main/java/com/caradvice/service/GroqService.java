@@ -188,7 +188,16 @@ public class GroqService {
     }
 
     public List<CarRecommendation> compareSpecific(String car1, String car2) throws Exception {
+        com.caradvice.model.CargoSpecDto prefCargo1 = null, prefCargo2 = null;
+        com.caradvice.model.EvSpecDto prefEv1 = null, prefEv2 = null;
+        try { prefCargo1 = cargoSpecService.formatForTitle(car1); } catch (Exception ignored) {}
+        try { prefCargo2 = cargoSpecService.formatForTitle(car2); } catch (Exception ignored) {}
+        try { prefEv1 = evSpecService.formatForTitle(car1, 15000); } catch (Exception ignored) {}
+        try { prefEv2 = evSpecService.formatForTitle(car2, 15000); } catch (Exception ignored) {}
+
+        String specContext = buildCompareSpecContext(car1, prefCargo1, prefEv1, car2, prefCargo2, prefEv2);
         String userPrompt = "Jämför dessa exakt 2 bilar: 1. " + car1 + "  2. " + car2;
+        if (!specContext.isBlank()) userPrompt += "\n\nVerifierade specifikationer från databas:\n" + specContext;
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -280,8 +289,46 @@ public class GroqService {
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
                 Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000.
+                VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt i jämförelsen — prioritera dem över generell kunskap.
+                STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, LYFT FRAM detta tydligt i fitSummary. Nämn konkreta mm-tal. Förklara vad skillnaden innebär i praktiken (t.ex. "XC40 har 96 mm mer benutrymme bak — märkbar skillnad för vuxna passagerare och familjer").
+                BATTERIKEMI: LFP (litiumjärnfosfat) = kan laddas till 100% dagligen utan att batteriet degraderas, tåligare i kyla och över tid. NMC (nickel-mangan-kobolt) = högre energitäthet, mer räckvidd per kg. LFP/NMC = modellen finns i båda kemier beroende på variant. Om bilarna har olika kemi, lyft det som fördel/nackdel i pros/con.
+                SNABBLADDNING (DC): Snabbladdning är DC-laddning. Max DC kW avgör hur snabbt bilen laddas på snabbladdare längs väg. ≥150 kW = bra/snabb. <100 kW = långsammare.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 """;
+    }
+
+    private String buildCompareSpecContext(String car1, com.caradvice.model.CargoSpecDto c1, com.caradvice.model.EvSpecDto ev1,
+                                           String car2, com.caradvice.model.CargoSpecDto c2, com.caradvice.model.EvSpecDto ev2) {
+        Integer legroom1 = null, legroom2 = null;
+        String chem1 = null, chem2 = null;
+        try { legroom1 = cargoSpecService.getLegroom(car1); } catch (Exception ignored) {}
+        try { legroom2 = cargoSpecService.getLegroom(car2); } catch (Exception ignored) {}
+        try { chem1 = evSpecService.getBatteryChemistry(car1); } catch (Exception ignored) {}
+        try { chem2 = evSpecService.getBatteryChemistry(car2); } catch (Exception ignored) {}
+        StringBuilder sb = new StringBuilder();
+        appendCarSpec(sb, car1, c1, ev1, legroom1, chem1);
+        appendCarSpec(sb, car2, c2, ev2, legroom2, chem2);
+        return sb.toString().trim();
+    }
+
+    private void appendCarSpec(StringBuilder sb, String carName,
+                                com.caradvice.model.CargoSpecDto cargo, com.caradvice.model.EvSpecDto ev,
+                                Integer legroom, String chemistry) {
+        if (cargo == null && ev == null && legroom == null) return;
+        sb.append(carName).append(": ");
+        if (legroom != null) sb.append("benutrymme bak ").append(legroom).append(" mm");
+        if (cargo != null && cargo.cargoLiters() > 0) {
+            if (legroom != null) sb.append(", ");
+            sb.append("bagageutrymme ").append(cargo.cargoLiters()).append("L");
+            if (cargo.cargoMaxLiters() > 0) sb.append(" (max ").append(cargo.cargoMaxLiters()).append("L fällda säten)");
+        }
+        if (ev != null && ev.batteryKwh() > 0) {
+            sb.append(", batteri ").append(ev.batteryKwh()).append(" kWh");
+            if (ev.wltpKm() > 0) sb.append(", räckvidd ").append(ev.wltpKm()).append(" km (WLTP)");
+            if (ev.maxDcKw() > 0) sb.append(", snabbladdning (DC) max ").append(ev.maxDcKw()).append(" kW");
+            if (chemistry != null) sb.append(", batterikemi ").append(chemistry);
+        }
+        sb.append("\n");
     }
 
     private String buildCacheKey(CarPreferences prefs) {
