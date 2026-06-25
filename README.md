@@ -95,7 +95,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska kartor och injiceras i prompten som kontext:
 - **Benutrymme bak (mm)** — bakre benutrymme i millimeter för 55+ modeller; data från evspecifications.com (mätvärden) resp. kända uppskattningar för övriga; EX30=821 mm, XC40/EX40/C40=917 mm, Model Y=1 029 mm m.fl.
 - **Storleksklass** — om skillnaden i benutrymme överstiger 60 mm instrueras AI att explicit nämna det i jämförelsen ("EX30 är en kompakt bil, XC40 är en mellanstor SUV — avsevärt mer plats i baksätet")
-- **Batterikemi (LFP / NMC)** — visas per bil i jämförelsetexten med förklaring: LFP (litiumjärnfosfat) kan laddas till 100 % dagligen utan slitage och är tåligare i kyla; NMC ger högre energitäthet och längre räckvidd per kg; ~55 modeller kartlagda
+- **Batterikemi (LFP / NMC)** — visas per bil i jämförelsetexten med förklaring: LFP kan laddas till 100 % dagligen utan slitage (~3 000+ cykler), tåligare i kyla; NMC ger högre energitäthet och längre räckvidd per kg men laddas helst till 80 % (~1 000–2 000 cykler); AI lyfter skillnaden som konkret fördel/nackdel; 130+ modeller kartlagda inkl. Citroën ë-C3=LFP, Ford Puma Gen-E=LFP, hela BYD-familjen=LFP, Leapmotor=LFP
 - **Snabbladdning (DC)** — AI förklarar att DC = snabbladdning (t.ex. längs motorväg), att ≥150 kW är bra och att AC = hemmaladdning (max ~22 kW); DC-maxvärde från databasen injiceras per bil
 - **Bagageutrymme** — standard- och maxvolym (L med fällda säten) injiceras från `cargo_spec`-tabellen
 - Färgkodade kolumnrubriker matchar kortens accentfärger
