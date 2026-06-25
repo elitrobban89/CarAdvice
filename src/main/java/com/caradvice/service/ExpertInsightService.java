@@ -101,8 +101,16 @@ public class ExpertInsightService {
             sb.append(i.getInsight());
             if (i.getRating() != null)
                 sb.append(" [").append(i.getRating()).append("/10]");
-            sb.append(" (").append(i.getExpertName()).append(")\n");
+            sb.append(" (").append(resolveExpertName(i.getExpertName())).append(")\n");
         }
         return sb.toString();
+    }
+
+    private String resolveExpertName(String name) {
+        if (name == null) return "Bilexpert";
+        return switch (name) {
+            case "Bilprovningen", "Teknikens Värld", "Vi Bilägare" -> name;
+            default -> "Bilexpert";
+        };
     }
 }
