@@ -278,6 +278,44 @@ public class EvSpecService {
         Map.entry("Mazda 6e",                              "NMC")
     ));
 
+    private static final java.util.Set<String> PRICE_STRIP_WORDS = java.util.Set.of(
+        "standard", "extended", "long", "short", "single", "twin", "dual",
+        "range", "motor", "performance", "plus", "pro", "max", "rwd", "awd",
+        "quattro", "xpower", "sport", "premium", "comfort", "launch", "edition",
+        "gt", "rs", "cross", "country"
+    );
+
+    public String buildPriceReferenceContext() {
+        java.util.Map<String, Integer> minPrices = new java.util.TreeMap<>();
+        repo.findAll().stream()
+            .filter(ev -> ev.getPriceKr() != null && ev.getPriceKr() > 50_000)
+            .forEach(ev -> {
+                String base = java.util.Arrays.stream(ev.getCarName().split("\\s+"))
+                    .filter(w -> !PRICE_STRIP_WORDS.contains(w.toLowerCase()))
+                    .collect(java.util.stream.Collectors.joining(" "))
+                    .trim();
+                if (base.isBlank()) base = ev.getCarName();
+                minPrices.merge(base, ev.getPriceKr(), Math::min);
+            });
+        if (minPrices.isEmpty()) return "";
+        String prices = minPrices.entrySet().stream()
+            .map(e -> e.getKey() + " fr. " + formatSek(e.getValue()))
+            .collect(java.util.stream.Collectors.joining(", "));
+        return "EV-referenspriser (fr.pris från databas): " + prices;
+    }
+
+    private static String formatSek(int amount) {
+        String s = String.valueOf(amount);
+        StringBuilder sb = new StringBuilder();
+        int start = s.length() % 3;
+        if (start > 0) sb.append(s, 0, start);
+        for (int i = start; i < s.length(); i += 3) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(s, i, i + 3);
+        }
+        return sb.toString();
+    }
+
     public String getBatteryChemistry(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
