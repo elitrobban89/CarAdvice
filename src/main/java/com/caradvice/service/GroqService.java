@@ -86,7 +86,6 @@ public class GroqService {
                 "model", model,
                 "max_tokens", 1050,
                 "temperature", 0.3,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
                         Map.of("role", "user", "content", prompt)
@@ -107,7 +106,6 @@ public class GroqService {
                     "model", chatModel,
                     "max_tokens", 1050,
                     "temperature", 0.3,
-                    "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
                             Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
                             Map.of("role", "user", "content", prompt)
@@ -203,7 +201,6 @@ public class GroqService {
                 "model", model,
                 "max_tokens", 1200,
                 "temperature", 0.2,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", buildCompareSystemPrompt()),
                         Map.of("role", "user", "content", userPrompt)
@@ -224,7 +221,6 @@ public class GroqService {
                     "model", chatModel,
                     "max_tokens", 1200,
                     "temperature", 0.2,
-                    "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
                             Map.of("role", "system", "content", buildCompareSystemPrompt()),
                             Map.of("role", "user", "content", userPrompt)
