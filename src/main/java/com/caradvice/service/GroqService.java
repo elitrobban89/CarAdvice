@@ -288,6 +288,8 @@ public class GroqService {
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
+                FABRICERA ALDRIG PRISER: Skriv aldrig ett lägre pris än verkligheten. Ref. nypris bensin/diesel (SEK): Fabia fr. 210 000, Polo fr. 220 000, Ibiza fr. 210 000, Kamiq fr. 290 000, Golf fr. 320 000, Octavia fr. 340 000. Begagnad Fabia/Polo/Ibiza (3–5 år) ca 120 000–170 000 kr.
+                MOTORTYPER: Fabia/Polo/Ibiza använder 1.0 MPI eller 1.0/1.5 TSI (bensin) — det finns INGEN 1.0 TDI-variant för dessa modeller. Skriv ALDRIG motorvarianter du är osäker på.
                 VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt — prioritera dem över generell kunskap.
                 STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, lyft fram det i fitSummary med konkreta mm-tal.
                 BATTERIKEMI: LFP = ladda till 100% dagligen, tålig i kyla. NMC = ladda till 80% för livslängd, mer räckvidd per kWh. Nämn kemin om bilarna skiljer sig.
