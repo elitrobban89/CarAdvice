@@ -299,6 +299,8 @@ public class EvSpecService {
             });
         if (minPrices.isEmpty()) return "";
         String prices = minPrices.entrySet().stream()
+            .sorted(java.util.Map.Entry.comparingByValue())
+            .limit(40)
             .map(e -> e.getKey() + " fr. " + formatSek(e.getValue()))
             .collect(java.util.stream.Collectors.joining(", "));
         return "EV-referenspriser (fr.pris från databas): " + prices;
