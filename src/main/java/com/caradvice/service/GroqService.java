@@ -84,7 +84,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 1050,
+                "max_tokens", 2000,
                 "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
@@ -104,7 +104,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             Map<String, Object> fallbackBody = Map.of(
                     "model", chatModel,
-                    "max_tokens", 1050,
+                    "max_tokens", 4000,
                     "temperature", 0.3,
                     "messages", List.of(
                             Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
@@ -203,7 +203,7 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 1200,
+                "max_tokens", 4000,
                 "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", buildCompareSystemPrompt()),
@@ -223,7 +223,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             Map<String, Object> fallbackBody = Map.of(
                     "model", chatModel,
-                    "max_tokens", 1200,
+                    "max_tokens", 4000,
                     "temperature", 0.2,
                     "messages", List.of(
                             Map.of("role", "system", "content", buildCompareSystemPrompt()),
