@@ -288,7 +288,7 @@ public class GroqService {
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
-                Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000.
+                Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, ModelY LR 600 000, Škoda Epiq fr. 389 000, Škoda Elroq fr. 450 000, Škoda Enyaq fr. 599 500, Škoda Peaq 654 000.
                 VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt i jämförelsen — prioritera dem över generell kunskap.
                 STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, LYFT FRAM detta tydligt i fitSummary. Nämn konkreta mm-tal. Förklara vad skillnaden innebär i praktiken (t.ex. "XC40 har 96 mm mer benutrymme bak — märkbar skillnad för vuxna passagerare och familjer").
                 BATTERIKEMI: LFP (litiumjärnfosfat) = kan laddas till 100% dagligen utan degradering, ~3 000+ laddcykler, tåligare i kyla, lägre energitäthet (kortare räckvidd per kWh). NMC (nickel-mangan-kobolt) = högre energitäthet och längre räckvidd per kg, men ladda helst till 80% för att skydda batteriet, ~1 000–2 000 laddcykler, något känsligare för extrem kyla. LFP/NMC = varianter med båda kemier finns. Lyft kemiskillnaden som konkret för-/nackdel om bilarna skiljer sig — t.ex. "LFP låter dig ladda till 100% varje dag utan att tänka på det" eller "NMC ger längre räckvidd men vill laddas till 80% för bästa livslängd".
@@ -435,7 +435,7 @@ public class GroqService {
                 Svara på svenska. Använd **fetstil** och - listor.
                 Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne som frågas — aldrig om annan bil. Citera: "**[namn]:** [insikt]".
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
-                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
+                PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000, Škoda Epiq fr. 389 000, Škoda Elroq fr. 450 000, Škoda Enyaq fr. 599 500, Škoda Peaq 654 000. Blocket-priser i kontexten prioriteras.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren frågar om elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om du är osäker på om en specifik modell existerar, säg det tydligt istället för att hitta på ett modellnamn.
@@ -493,7 +493,7 @@ public class GroqService {
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
-                Referenspriser för vanliga bilar (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000.
+                Referenspriser för vanliga bilar (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000, Škoda Epiq fr. 389 000, Škoda Elroq fr. 450 000, Škoda Enyaq fr. 599 500, Škoda Peaq 654 000.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
