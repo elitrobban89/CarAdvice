@@ -457,6 +457,8 @@ function caFuelChips(fuel, price) {
 
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
+  var isNewCar = (document.getElementById('ca-newcar').value === 'true');
+  var priceLabel = isNewCar ? 'Nypris' : 'Begagnatpris';
   container.classList.add('fading');
   setTimeout(function() {
     container.classList.remove('fading');
@@ -469,7 +471,7 @@ function caRenderCards(recommendations) {
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
-          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Nypris</span>' + caEsc(r.price) + '</div>' +
+          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">'+priceLabel+'</span>' + caEsc(r.price) + '</div>' +
           (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket nu: ' + caEsc(r.blocketPrice) + '</div>' : '') +
         '</div>' +
         '<div class="ca-card-body">' +
@@ -1451,7 +1453,7 @@ function caFcRenderResult(recs) {
       '</div>' +
       '<div style="font-size:.65rem;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Bil ' + (i + 1) + '</div>' +
       '<div style="font-weight:700;color:#e2e8f0;font-size:.85rem">' + caEsc(r.title) + '</div>' +
-      '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Nypris</div>' +
+      '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Pris</div>' +
       '<div style="color:#a5f3fc;font-size:.8rem;font-weight:600">' + caEsc(r.price) + '</div>' +
       (r.blocketPrice ? '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:5px">Blocket nu</div><div style="font-size:.8rem;color:#60a5fa;font-weight:600">🔵 ' + caEsc(r.blocketPrice) + '</div>' : '') +
       '<a href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:.72rem;color:#60a5fa;text-decoration:none">S\xf6k p\xe5 Blocket →</a>' +
