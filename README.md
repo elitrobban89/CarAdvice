@@ -539,7 +539,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Prenumerationslängd på kontosidan | Kontosidan visar nu "Prenumerant i: X månader/år" (beräknas live i webbläsaren via ISO-datum från `/api/auth/me`), "Startade: X" och "Förnyas: X" |
 | Tidzon UTC→Stockholm | Render kör i UTC — datum formaterades i UTC vilket kunde ge fel dag. Nu konverteras alla prenumerationsdatum till `Europe/Stockholm` innan formatering; ISO-strängen får `Z`-suffix så att `new Date()` i webbläsaren räknar durationen korrekt |
 | Backfill subscriptionStartedAt | Befintliga aktiva prenumeranter saknade startdatum (kolumnen tillkom efter deras aktivering). Vid uppstart sätts `subscriptionStartedAt = createdAt` för alla aktiva användare där fältet är null |
-| Chattbot avskuren text | `max_tokens` för chat/chatStream höjt från 600→900 — Erik Naessén-citatet och längre svar klipptes mitt i meningen |
+| Chattbot avskuren text | `max_tokens` för chat/chatStream höjt från 600→900 — längre svar klipptes mitt i meningen |
 | Sessionstoken 30 dagars utgångstid | `token_expires_at`-kolumn i `ca_user` — token ogiltigförklaras automatiskt efter 30 dagar; rensas vid logout |
 | Rate limiting på login/register | Max 10 inloggningsförsök per minut per IP — returnerar 429 vid överträdelse |
 | Avsluta prenumeration | Knapp på kontosidan med bekräftelsedialog — kallar Stripe med `cancelAtPeriodEnd=true`; texten ändras från "Förnyas:" till "Avslutas:" |
@@ -570,7 +570,7 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Bilbilder på korten | Wikipedia REST API (CORS-öppen) lazy-loadar thumbnail per bilkort efter render; försöker engelska Wikipedia → svenska Wikipedia; döljs tyst om ingen bild hittas |
 | Sparade sökningar | Inloggade användare kan spara sökningar till DB via "Spara sökning"-knapp; hämtas från server vid inloggning och visas som chips ovanför historiken; DELETE tar bort enskild post |
 | Rate limit-persistens | In-memory rate limit-karta seedas från DB vid uppstart (`@PostConstruct`) — sökkvoter nollställs inte längre vid deploy eller cold start; async DB-skrivning per tillåten sökning; `@Scheduled` cleanup varje timme |
-| "Erik Naessén" i JS | Hårdkodat namn i expertopinions-div (rad 395 i original) — ändrat till "Bilexpert" för att matcha backend-attributionen |
+| Expertnamn i JS | Hårdkodat namn i expertopinions-div ändrat till "Bilexpert" för att matcha backend-attributionen |
 | Expertrecension i jämförelsetabell | `expertOpinion` visades bara på enskilda kort, ej i compare-tabellen — ny 🎯 Expertrecension-rad tillagd |
 | Euro NCAP i jämförelsetabell | Säkerhetsbetyg saknades i compare-vyn — ny 🛡️ Euro NCAP-rad med stjärnor + procentdetaljer |
 | Motoralternativ i jämförelsetabell | Nytt `engineOptions`-fält på `CarRecommendation`; AI genererar kommaseparerade motorvarianter per bil i compare-prompten; visas som pill-chips i ny 🔧-rad |
