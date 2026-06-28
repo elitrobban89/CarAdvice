@@ -504,9 +504,13 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                Begagnad ca nypris: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år). Välj årsmodell som ryms i budget.
-                BEGAGNAT GOLVPRIS — prissätt ALDRIG under dessa nivåer oavsett ålder: Fabia/Polo/Ibiza/Sandero 2018+ min 75 000 kr, 2015–2017 min 55 000 kr. Octavia/Golf 2018+ min 100 000 kr. Ny Fabia fr. 210 000, ny Sandero fr. 170 000, ny Polo fr. 220 000, ny Golf fr. 320 000.
-                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget med realistiska priser — rekommendera ändå rätt pris och förklara att budgeten är knapp. Skriv ALDRIG ett lägre pris än verkligheten för att passa budget.
+                BEGAGNADE MARKNADSREFERENSER Sverige 2025 (Blocket-snitt) — använd dessa som prisankare:
+                Fabia: 2015 ca 55–75 000, 2018 ca 80–105 000, 2021 ca 125–155 000, 2023 ca 170–200 000.
+                Sandero/Stepway: 2015 ca 45–60 000, 2018 ca 70–90 000, 2021 ca 105–130 000, 2022 ca 120–145 000.
+                Polo: 2015 ca 55–75 000, 2018 ca 90–115 000, 2020 ca 115–140 000, 2022 ca 150–175 000.
+                Ibiza: 2015 ca 55–70 000, 2018 ca 85–110 000, 2020 ca 110–135 000.
+                Golf: 2018 ca 140–170 000, 2020 ca 165–200 000. Octavia: 2018 ca 130–160 000, 2021 ca 175–210 000.
+                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget med realistiska priser — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker att den varianten existerar för just den bilen och årsmodellen. Fabia/Polo/Ibiza har INGEN 1.0 TDI. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
