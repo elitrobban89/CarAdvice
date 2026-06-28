@@ -134,6 +134,7 @@ public class GroqService {
             throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
         }
 
+        log.info("Groq full response body: {}", response.body());
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
         log.info("GPT OSS raw content: {}", content);
