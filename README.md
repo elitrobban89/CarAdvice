@@ -110,7 +110,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** chatbot använder `openai/gpt-oss-20b` (1 000 t/s), rekommendationer använder `openai/gpt-oss-120b` (500 t/s) — snabbare och billigare än tidigare llama-modeller
+- **Modellsplit:** chatbot använder `openai/gpt-oss-20b` (1 000 t/s, gratis tier), rekommendationer använder `llama-3.3-70b-versatile` (280 t/s) — stabil JSON-output med response_format
 
 ### Produktionsstatus
 
@@ -217,7 +217,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | Del | Teknologi |
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
-| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt) |
+| AI | Groq API (`llama-3.3-70b-versatile` rekommendationer, `openai/gpt-oss-20b` chatt) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
@@ -520,9 +520,9 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq developer plan: `openai/gpt-oss-120b` (rekommendationer) och `openai/gpt-oss-20b` (chatt) — 250K TPM, 1K RPM. Varje sökning använder upp till **1 500 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad. Chattboten använder upp till **900 output-tokens** per meddelande.
+Groq: `llama-3.3-70b-versatile` (rekommendationer, 300K TPM) och `openai/gpt-oss-20b` (chatt, gratis tier). Varje sökning använder upp till **1 500 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad. Chattboten använder upp till **900 output-tokens** per meddelande.
 
-**Groq 429-fallback:** om `openai/gpt-oss-120b` svarar med 429 försöker `getRecommendation()` automatiskt en gång med `openai/gpt-oss-20b` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
+**Groq 429-fallback:** om `llama-3.3-70b-versatile` svarar med 429 försöker `getRecommendation()` automatiskt en gång med `openai/gpt-oss-20b` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
 
 ---
 

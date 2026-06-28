@@ -84,8 +84,9 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 2000,
+                "max_tokens", 1050,
                 "temperature", 0.3,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
                         Map.of("role", "user", "content", prompt)
@@ -134,10 +135,8 @@ public class GroqService {
             throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
         }
 
-        log.info("Groq full response body: {}", response.body());
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
-        log.info("GPT OSS raw content: {}", content);
         JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
         List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
@@ -203,8 +202,9 @@ public class GroqService {
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 4000,
+                "max_tokens", 1200,
                 "temperature", 0.2,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", buildCompareSystemPrompt()),
                         Map.of("role", "user", "content", userPrompt)
