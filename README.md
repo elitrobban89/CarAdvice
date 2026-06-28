@@ -583,3 +583,5 @@ Groq free tier ger **100 000 tokens/dag** för `llama-3.3-70b-versatile`. Varje 
 | Kamiq ej elbil | AI föreslog Kamiq (bensinbil) som elbil — systempromptarna korrigerade: "Kamiq är en bensinbil, rekommendera den aldrig som elbil" |
 | Lazy-load autocomplete | `/api/cars` hämtades vid varje sidladdning för alla besökare — nu hämtas listan enbart när användaren klickar i ett jämförelsefält |
 | Gzip-komprimering aktiverad | `server.compression.enabled=true` i `application.properties` — JS/JSON komprimeras med ~70% (135 KB → ~35 KB); 1 dags browser-cache för statiska filer |
+| Volvo EV-hallucination förhindrad | Chatboten hittade på modeller som "C90" som inte existerar. Explicit Volvo EV-lista tillagd i alla tre systempromptarna: EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Generell regel: nämn aldrig modeller som inte officiellt säljs på svenska marknaden |
+| Škoda EV-referenspriser tillagda | Epiq (fr. 389 000 kr), Elroq (fr. 450 000 kr), Enyaq (fr. 599 500 kr) och Peaq (654 000 kr) tillagda i alla tre referensprislistorna — förbättrar AI:ns prisuppskattningar för Škoda-elbilar |
