@@ -130,12 +130,13 @@ public class GroqService {
             }
         }
         if (response.statusCode() != 200) {
-            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
+            log.error("Groq {} för getRecommendation: {}", response.statusCode(), response.body());
+            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
         }
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
-        JsonNode recsNode = mapper.readTree(content).at("/recommendations");
+        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
         List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
@@ -243,7 +244,7 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
-        JsonNode recsNode = mapper.readTree(content).at("/recommendations");
+        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
         List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
@@ -327,6 +328,13 @@ public class GroqService {
             if (chemistry != null) sb.append(", batterikemi ").append(chemistry);
         }
         sb.append("\n");
+    }
+
+    private String extractJson(String content) {
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start != -1 && end != -1 && end > start) return content.substring(start, end + 1);
+        return content;
     }
 
     private String buildCacheKey(CarPreferences prefs) {
