@@ -136,11 +136,13 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
+        log.info("GPT OSS raw content: {}", content);
         JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
         List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
                 mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
         );
+        if (parsed == null) throw new RuntimeException("AI svarade utan recommendations-nyckel. Råsvar: " + content);
 
         // Fetch Blocket prices in parallel while the rest enriches sequentially
         List<CompletableFuture<String>> blocketFutures = parsed.stream()
