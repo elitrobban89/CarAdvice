@@ -457,8 +457,6 @@ function caFuelChips(fuel, price) {
 
 function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
-  var isNewCar = (document.getElementById('ca-newcar').value === 'true');
-  var priceLabel = isNewCar ? 'Nypris' : 'Begagnatpris';
   container.classList.add('fading');
   setTimeout(function() {
     container.classList.remove('fading');
@@ -471,7 +469,7 @@ function caRenderCards(recommendations) {
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
-          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">'+priceLabel+'</span>' + caEsc(r.price) + '</div>' +
+          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Nypris</span>' + caEsc(r.price) + '</div>' +
           (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket nu: ' + caEsc(r.blocketPrice) + '</div>' : '') +
         '</div>' +
         '<div class="ca-card-body">' +
