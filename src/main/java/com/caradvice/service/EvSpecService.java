@@ -20,7 +20,11 @@ public class EvSpecService {
 
     public EvSpecDto formatForTitle(String title, int kmPerYear) {
         if (title == null) return null;
-        String cleaned = normalize(title.replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "").trim());
+        String cleaned = normalize(title
+                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")   // strip year
+                .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
+                .trim());
         String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet = new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
 
@@ -276,7 +280,11 @@ public class EvSpecService {
 
     public String getBatteryChemistry(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title.replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "").trim());
+        String cleaned = normalize(title
+                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("(?i)\\bElectric\\b", "")
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
+                .trim());
         String[] cleanedWords = cleaned.split("\\s+");
         java.util.Set<String> cleanedSet = new java.util.HashSet<>(java.util.Arrays.asList(cleanedWords));
 
