@@ -504,9 +504,10 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                Begagnad ca: listpris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
-                FABRICERA ALDRIG PRISER: Om en bil inte ryms i budget med verkliga priser — rekommendera en annan bil som faktiskt ryms. Skriv aldrig ett lägre pris än verkligheten bara för att passa budget.
-                Referenspriser bensin/diesel (SEK): Fabia fr. 240 000, Kamiq fr. 290 000, Golf fr. 320 000.
+                Begagnad ca nypris: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år). Välj årsmodell som ryms i budget.
+                BEGAGNAT GOLVPRIS — prissätt ALDRIG under dessa nivåer oavsett ålder: Fabia/Polo/Ibiza/Sandero 2018+ min 75 000 kr, 2015–2017 min 55 000 kr. Octavia/Golf 2018+ min 100 000 kr. Ny Fabia fr. 210 000, ny Sandero fr. 170 000, ny Polo fr. 220 000, ny Golf fr. 320 000.
+                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget med realistiska priser — rekommendera ändå rätt pris och förklara att budgeten är knapp. Skriv ALDRIG ett lägre pris än verkligheten för att passa budget.
+                MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker att den varianten existerar för just den bilen och årsmodellen. Fabia/Polo/Ibiza har INGEN 1.0 TDI. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
