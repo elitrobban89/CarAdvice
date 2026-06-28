@@ -505,11 +505,11 @@ public class GroqService {
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 BEGAGNADE MARKNADSREFERENSER Sverige 2025 (Blocket-snitt) — använd dessa som prisankare:
-                Fabia: 2015 ca 55–75 000, 2018 ca 80–105 000, 2021 ca 125–155 000, 2023 ca 170–200 000.
-                Sandero/Stepway: 2015 ca 45–60 000, 2018 ca 70–90 000, 2021 ca 105–130 000, 2022 ca 120–145 000.
-                Polo: 2015 ca 55–75 000, 2018 ca 90–115 000, 2020 ca 115–140 000, 2022 ca 150–175 000.
-                Ibiza: 2015 ca 55–70 000, 2018 ca 85–110 000, 2020 ca 110–135 000.
-                Golf: 2018 ca 140–170 000, 2020 ca 165–200 000. Octavia: 2018 ca 130–160 000, 2021 ca 175–210 000.
+                Fabia: 2015 (Gen3, nypris ~140k) ca 65–90 000, 2018 ca 85–110 000, 2021 (Gen4, nypris ~185k) ca 130–160 000, 2023 ca 170–205 000.
+                Sandero/Stepway: 2015 ca 45–65 000, 2018 ca 72–95 000, 2021 ca 105–130 000, 2022 ca 120–148 000.
+                Polo: 2015 (nypris ~160k) ca 60–80 000, 2018 ca 90–118 000, 2020 ca 118–145 000, 2022 ca 150–178 000.
+                Ibiza: 2015 ca 55–75 000, 2018 ca 88–113 000, 2020 ca 112–138 000.
+                Golf: 2018 ca 145–175 000, 2020 ca 168–205 000. Octavia: 2018 ca 132–162 000, 2021 ca 178–215 000.
                 FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget med realistiska priser — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker att den varianten existerar för just den bilen och årsmodellen. Fabia/Polo/Ibiza har INGEN 1.0 TDI. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
