@@ -294,6 +294,8 @@ public class GroqService {
                 BATTERIKEMI: LFP (litiumjärnfosfat) = kan laddas till 100% dagligen utan degradering, ~3 000+ laddcykler, tåligare i kyla, lägre energitäthet (kortare räckvidd per kWh). NMC (nickel-mangan-kobolt) = högre energitäthet och längre räckvidd per kg, men ladda helst till 80% för att skydda batteriet, ~1 000–2 000 laddcykler, något känsligare för extrem kyla. LFP/NMC = varianter med båda kemier finns. Lyft kemiskillnaden som konkret för-/nackdel om bilarna skiljer sig — t.ex. "LFP låter dig ladda till 100% varje dag utan att tänka på det" eller "NMC ger längre räckvidd men vill laddas till 80% för bästa livslängd".
                 SNABBLADDNING (DC): Snabbladdning är DC-laddning. Max DC kW avgör hur snabbt bilen laddas på snabbladdare längs väg. ≥150 kW = bra/snabb. <100 kW = långsammare.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
+                VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
+                GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
                 """;
     }
 
@@ -435,6 +437,8 @@ public class GroqService {
                 SKATT elbilar: befriade från fordonsskatt — nämn aldrig generella årsavgifter.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror, aldrig förkortningar. Referenspriser (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Kamiq 290–350 000, Golf 320–400 000. Blocket-priser i kontexten prioriteras.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren frågar om elbil.
+                VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
+                GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om du är osäker på om en specifik modell existerar, säg det tydligt istället för att hitta på ett modellnamn.
                 BATTERIKEMI: LFP = ladda till 100%% dagligen utan slitage, ~3 000+ cykler, tåligare i kyla. NMC = ladda helst till 80%% för lång livslängd, ~1 000–2 000 cykler, mer räckvidd per kWh. Om du vet vilken kemi bilen har, nämn det konkret när det är relevant.
                 """).formatted(SUBSCRIPTION_PRICE);
         if (carContext != null && !carContext.isBlank()) {
@@ -491,6 +495,8 @@ public class GroqService {
                 Begagnad ca: listpris×0.85 (1år), ×0.75 (2år), ×0.65 (3år). Välj årsmodell som ryms i budget.
                 Referenspriser för vanliga bilar (SEK): Spring 195 000, MG4 330–365 000, EV3/EX30/Model3 430 000, Polestar2 609 000, Fabia 240–300 000, Kamiq 290–350 000, Golf 320–400 000.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
+                VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
+                GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
                 """;
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
