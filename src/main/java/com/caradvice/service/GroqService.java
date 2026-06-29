@@ -61,6 +61,12 @@ public class GroqService {
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
+    private static final long PRICES_TTL_MS = 60 * 60 * 1000;
+    private static final int CHAT_MAX_HISTORY = 8;
+
+    private volatile String cachedIcePrices = "";
+    private volatile String cachedEvPrices = "";
+    private volatile long pricesCachedAt = 0L;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -107,7 +113,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             Map<String, Object> fallbackBody = Map.of(
                     "model", chatModel,
-                    "max_tokens", 4000,
+                    "max_tokens", 1050,
                     "temperature", 0.3,
                     "messages", List.of(
                             Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
@@ -179,6 +185,16 @@ public class GroqService {
         return new Result(result, false, 0);
     }
 
+    private synchronized void refreshPricesIfNeeded() {
+        if (System.currentTimeMillis() - pricesCachedAt < PRICES_TTL_MS) return;
+        try { cachedIcePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception e) { cachedIcePrices = ""; }
+        try { cachedEvPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception e) { cachedEvPrices = ""; }
+        pricesCachedAt = System.currentTimeMillis();
+    }
+
+    private String getIcePrices() { refreshPricesIfNeeded(); return cachedIcePrices; }
+    private String getEvPrices()  { refreshPricesIfNeeded(); return cachedEvPrices; }
+
     private void evictIfNeeded() {
         if (cache.size() < MAX_CACHE_SIZE) return;
         long cutoff = cache.values().stream()
@@ -191,6 +207,11 @@ public class GroqService {
     }
 
     public List<CarRecommendation> compareSpecific(String car1, String car2) throws Exception {
+        String compareCacheKey = "compare|" + car1 + "|" + car2;
+        CacheEntry cachedCompare = cache.get(compareCacheKey);
+        if (cachedCompare != null && System.currentTimeMillis() - cachedCompare.timestamp() < CACHE_TTL_MS)
+            return cachedCompare.result();
+
         com.caradvice.model.CargoSpecDto prefCargo1 = null, prefCargo2 = null;
         com.caradvice.model.EvSpecDto prefEv1 = null, prefEv2 = null;
         try { prefCargo1 = cargoSpecService.formatForTitle(car1); } catch (Exception ignored) {}
@@ -279,12 +300,13 @@ public class GroqService {
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
         }
+        evictIfNeeded();
+        cache.put(compareCacheKey, new CacheEntry(result, System.currentTimeMillis()));
         return result;
     }
 
     private String buildCompareSystemPrompt() {
-        String icePrices = "";
-        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
+        String icePrices = getIcePrices();
         return """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Jämför EXAKT de 2 bilar användaren anger. Svara ENDAST med JSON (EXAKT 2 bilar):
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
@@ -386,13 +408,15 @@ public class GroqService {
         try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
+        List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY
+                ? messages.subList(messages.size() - CHAT_MAX_HISTORY, messages.size()) : messages;
         List<Map<String, String>> msgs = new ArrayList<>();
         msgs.add(Map.of("role", "system", "content", systemPrompt));
-        msgs.addAll(messages);
+        msgs.addAll(history);
 
         Map<String, Object> requestBody = Map.of(
                 "model", chatModel,
-                "max_tokens", 900,
+                "max_tokens", 1200,
                 "temperature", 0.5,
                 "messages", msgs
         );
@@ -418,12 +442,14 @@ public class GroqService {
         try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
+        List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY
+                ? messages.subList(messages.size() - CHAT_MAX_HISTORY, messages.size()) : messages;
         List<Map<String, String>> msgs = new ArrayList<>();
         msgs.add(Map.of("role", "system", "content", systemPrompt));
-        msgs.addAll(messages);
+        msgs.addAll(history);
 
         Map<String, Object> requestBody = Map.of(
-                "model", chatModel, "max_tokens", 900, "temperature", 0.5, "stream", true, "messages", msgs);
+                "model", chatModel, "max_tokens", 1200, "temperature", 0.5, "stream", true, "messages", msgs);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_URL))
@@ -440,10 +466,8 @@ public class GroqService {
     }
 
     private String buildChatSystemPrompt(String carContext, String expertContext) {
-        String evPrices = "";
-        String icePrices = "";
-        try { evPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception ignored) {}
-        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
+        String icePrices = getIcePrices();
+        String evPrices = getEvPrices();
         String base = ("""
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svarar på köp, jämförelser, driftkostnad, skatt, värdeminskning och tillförlitlighet. Prenumerant (%s).
                 Ej laddstationsnätverk/navigering. Ej övriga bilfrågor: "Det faller utanför mitt område."
@@ -503,10 +527,8 @@ public class GroqService {
     }
 
     private String buildSystemPrompt(String expertContext) {
-        String evPrices = "";
-        String icePrices = "";
-        try { evPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception ignored) {}
-        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
+        String icePrices = getIcePrices();
+        String evPrices = getEvPrices();
         String base = """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
