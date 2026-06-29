@@ -34,10 +34,10 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:llama-3.3-70b-versatile}")
+    @Value("${groq.model:openai/gpt-oss-120b}")
     private String model;
 
-    @Value("${groq.chat.model:llama-3.1-8b-instant}")
+    @Value("${groq.chat.model:qwen/qwen3.6-27b}")
     private String chatModel;
 
     private final ExpertInsightService expertInsightService;
@@ -45,15 +45,17 @@ public class GroqService {
     private final EvSpecService evSpecService;
     private final CargoSpecService cargoSpecService;
     private final BlocketPriceService blocketPriceService;
+    private final NewCarPriceService newCarPriceService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
-                       BlocketPriceService blocketPriceService) {
+                       BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
         this.cargoSpecService = cargoSpecService;
         this.blocketPriceService = blocketPriceService;
+        this.newCarPriceService = newCarPriceService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -281,15 +283,17 @@ public class GroqService {
     }
 
     private String buildCompareSystemPrompt() {
+        String icePrices = "";
+        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
         return """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Jämför EXAKT de 2 bilar användaren anger. Svara ENDAST med JSON (EXAKT 2 bilar):
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"typ (turbo/ej)","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar.
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                Begagnad ca: listpris×0.85 (1år), ×0.75 (2år).
-                FABRICERA ALDRIG PRISER: Skriv aldrig ett lägre pris än verkligheten. Ref. nypris bensin/diesel (SEK): Fabia fr. 210 000, Polo fr. 220 000, Ibiza fr. 210 000, Kamiq fr. 290 000, Golf fr. 320 000, Octavia fr. 340 000. Begagnad Fabia/Polo/Ibiza (3–5 år) ca 120 000–170 000 kr.
-                MOTORTYPER: Fabia/Polo/Ibiza använder 1.0 MPI eller 1.0/1.5 TSI (bensin) — det finns INGEN 1.0 TDI-variant för dessa modeller. Skriv ALDRIG motorvarianter du är osäker på.
+                NYPRIS PER GENERATION: Se "ICE-nypris"-tabellen nedan. Begagnad = nypris × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).
+                FABRICERA ALDRIG PRISER: Skriv aldrig ett lägre pris än verkligheten.
+                MOTORTYPER: Skriv ALDRIG motorbeteckning du inte är helt säker på existerar för just den bilen och årsmodellen.
                 VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt — prioritera dem över generell kunskap.
                 STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, lyft fram det i fitSummary med konkreta mm-tal.
                 BATTERIKEMI: LFP = ladda till 100% dagligen, tålig i kyla. NMC = ladda till 80% för livslängd, mer räckvidd per kWh. Nämn kemin om bilarna skiljer sig.
@@ -297,7 +301,7 @@ public class GroqService {
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin. Rekommendera aldrig bensin/diesel när användaren vill ha elbil.
                 VOLVO EV: EX30, EX40, EC40, EX60, EX90 — inga andra. Hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG modeller som inte säljs på svenska marknaden.
-                """;
+                """ + (icePrices.isBlank() ? "" : icePrices + "\n");
     }
 
     private String buildCompareSpecContext(String car1, com.caradvice.model.CargoSpecDto c1, com.caradvice.model.EvSpecDto ev1,
@@ -437,19 +441,23 @@ public class GroqService {
 
     private String buildChatSystemPrompt(String carContext, String expertContext) {
         String evPrices = "";
+        String icePrices = "";
         try { evPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception ignored) {}
+        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
         String base = ("""
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svarar på köp, jämförelser, driftkostnad, skatt, värdeminskning och tillförlitlighet. Prenumerant (%s).
                 Ej laddstationsnätverk/navigering. Ej övriga bilfrågor: "Det faller utanför mitt område."
                 Svara på svenska. Använd **fetstil** och - listor.
                 Expertinsikter: citera bara om direkt relevant för exakt den bil/ämne. Citera: "**[namn]:** [insikt]".
                 SKATT elbilar: befriade från fordonsskatt.
-                PRISER — Exakta siffror. Ref. bensin/diesel (SEK): Kamiq fr. 290 000, Golf fr. 320 000. Blocket-priser i kontexten prioriteras.
+                PRISER — Exakta siffror. Blocket-priser i kontexten prioriteras. Beräkna begagnatpris från rätt generations-nypris (se ICE-tabell) × deprecieringskoefficient.
+                MOTORTYPER: Ange ALDRIG motorbeteckning om du inte är helt säker. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Aldrig BYD Dolphin. Kamiq = bensinbil, aldrig elbil. Aldrig bensin/diesel när elbil efterfrågas.
                 VOLVO EV: EX30, EX40, EC40, EX60, EX90 — inga andra. Hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG modeller som inte säljs på svenska marknaden. Om osäker — säg det.
                 BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh.
                 """).formatted(SUBSCRIPTION_PRICE)
+                + (icePrices.isBlank() ? "" : icePrices + "\n")
                 + (evPrices.isBlank() ? "" : evPrices + "\n");
         if (carContext != null && !carContext.isBlank()) {
             base += "\n\nAktuella bilrekommendationer:\n" + carContext;
@@ -496,7 +504,9 @@ public class GroqService {
 
     private String buildSystemPrompt(String expertContext) {
         String evPrices = "";
+        String icePrices = "";
         try { evPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception ignored) {}
+        try { icePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception ignored) {}
         String base = """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
@@ -504,18 +514,14 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                BEGAGNADE MARKNADSREFERENSER Sverige 2025 (Blocket-snitt) — använd dessa som prisankare:
-                Fabia: 2015 (Gen3, nypris ~140k) ca 65–90 000, 2018 ca 85–110 000, 2021 (Gen4, nypris ~185k) ca 130–160 000, 2023 ca 170–205 000.
-                Sandero/Stepway: 2015 (nypris ~110k) ca 48–68 000, 2018 (nypris ~130k) ca 72–95 000, 2021 ca 105–130 000, 2022 ca 120–148 000.
-                Polo: 2015 (nypris ~185k) ca 70–95 000, 2018 ca 90–118 000, 2020 ca 118–145 000, 2022 ca 150–178 000.
-                Ibiza: 2015 ca 55–75 000, 2018 ca 88–113 000, 2020 ca 112–138 000.
-                Golf: 2018 ca 145–175 000, 2020 ca 168–205 000. Octavia: 2018 ca 132–162 000, 2021 ca 178–215 000.
-                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget med realistiska priser — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
-                MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker att den varianten existerar för just den bilen och årsmodellen. Fabia/Polo/Ibiza har INGEN 1.0 TDI. Om osäker — ange bara hk och 'manuell'/'automat'.
+                NYPRIS PER GENERATION: Se "ICE-nypris"-tabellen nedan. Beräkna begagnatpris = nypris (för bilens generation) × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).
+                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
+                MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker på att varianten existerar. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
-                """ + (evPrices.isBlank() ? "" : evPrices + "\n");
+                """ + (icePrices.isBlank() ? "" : icePrices + "\n")
+                  + (evPrices.isBlank() ? "" : evPrices + "\n");
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
         return base;
