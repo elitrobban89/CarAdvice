@@ -110,7 +110,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** chatbot använder `openai/gpt-oss-20b` (1 000 t/s, gratis tier), rekommendationer använder `llama-3.3-70b-versatile` (280 t/s) — stabil JSON-output med response_format
+- **Modellsplit:** chatbot och fallback använder `qwen/qwen3.6-27b`, rekommendationer och jämförelser använder `openai/gpt-oss-120b` — stabil JSON-output med response_format
 
 ### Produktionsstatus
 
@@ -217,7 +217,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | Del | Teknologi |
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
-| AI | Groq API (`llama-3.3-70b-versatile` rekommendationer, `openai/gpt-oss-20b` chatt) |
+| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `qwen/qwen3.6-27b` chatt/fallback) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
@@ -473,6 +473,7 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 | `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken, token-utgångsdatum |
 | `saved_search` | Sparade sökningar per användare: preferenser (JSON), rekommendationer (JSON), etikett, skapad-tid (max 20/användare) |
 | `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
+| `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~65 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning |
 
 ---
 
@@ -520,9 +521,11 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq: `llama-3.3-70b-versatile` (rekommendationer, 300K TPM) och `openai/gpt-oss-20b` (chatt, gratis tier). Varje sökning använder upp till **1 500 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 2-timmars cache utan tokenkostnad. Chattboten använder upp till **900 output-tokens** per meddelande.
+Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-27b` (chatt + 429-fallback). Varje sökning använder upp till **1 050 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 200 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
-**Groq 429-fallback:** om `llama-3.3-70b-versatile` svarar med 429 försöker `getRecommendation()` automatiskt en gång med `openai/gpt-oss-20b` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
+**Groq 429-fallback:** om `openai/gpt-oss-120b` svarar med 429 försöker `getRecommendation()` automatiskt en gång med `qwen/qwen3.6-27b` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
+
+**Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 
 ---
 
@@ -539,7 +542,7 @@ Groq: `llama-3.3-70b-versatile` (rekommendationer, 300K TPM) och `openai/gpt-oss
 | Prenumerationslängd på kontosidan | Kontosidan visar nu "Prenumerant i: X månader/år" (beräknas live i webbläsaren via ISO-datum från `/api/auth/me`), "Startade: X" och "Förnyas: X" |
 | Tidzon UTC→Stockholm | Render kör i UTC — datum formaterades i UTC vilket kunde ge fel dag. Nu konverteras alla prenumerationsdatum till `Europe/Stockholm` innan formatering; ISO-strängen får `Z`-suffix så att `new Date()` i webbläsaren räknar durationen korrekt |
 | Backfill subscriptionStartedAt | Befintliga aktiva prenumeranter saknade startdatum (kolumnen tillkom efter deras aktivering). Vid uppstart sätts `subscriptionStartedAt = createdAt` för alla aktiva användare där fältet är null |
-| Chattbot avskuren text | `max_tokens` för chat/chatStream höjt från 600→900 — längre svar klipptes mitt i meningen |
+| Chattbot avskuren text | `max_tokens` för chat/chatStream höjt från 600→900→1200 — längre svar klipptes mitt i meningen |
 | Sessionstoken 30 dagars utgångstid | `token_expires_at`-kolumn i `ca_user` — token ogiltigförklaras automatiskt efter 30 dagar; rensas vid logout |
 | Rate limiting på login/register | Max 10 inloggningsförsök per minut per IP — returnerar 429 vid överträdelse |
 | Avsluta prenumeration | Knapp på kontosidan med bekräftelsedialog — kallar Stripe med `cancelAtPeriodEnd=true`; texten ändras från "Förnyas:" till "Avslutas:" |
@@ -585,3 +588,6 @@ Groq: `llama-3.3-70b-versatile` (rekommendationer, 300K TPM) och `openai/gpt-oss
 | Gzip-komprimering aktiverad | `server.compression.enabled=true` i `application.properties` — JS/JSON komprimeras med ~70% (135 KB → ~35 KB); 1 dags browser-cache för statiska filer |
 | Volvo EV-hallucination förhindrad | Chatboten hittade på modeller som "C90" som inte existerar. Explicit Volvo EV-lista tillagd i alla tre systempromptarna: EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Generell regel: nämn aldrig modeller som inte officiellt säljs på svenska marknaden |
 | Škoda EV-referenspriser tillagda | Epiq (fr. 389 000 kr), Elroq (fr. 450 000 kr), Enyaq (fr. 599 500 kr) och Peaq (654 000 kr) tillagda i alla tre referensprislistorna — förbättrar AI:ns prisuppskattningar för Škoda-elbilar |
+| Groq-modeller bytta | `llama-3.3-70b-versatile` (deprecated 2026-06-29) → `openai/gpt-oss-120b`; fallback `llama-3.1-8b-instant` → `qwen/qwen3.6-27b` |
+| NewCarPriceService | Ny `new_car_price`-tabell med ~65 ICE-nyprisar per generation seedas vid uppstart; injiceras i alla AI-systempromptars pris-kontext |
+| Groq-anropsoptimering | ICE/EV-priskontextar cachas 1h (tidigare DB-query per anrop); compare-resultat cachas 4h; fallback max_tokens 4000→1050; chatthistorik begränsad till senaste 8 meddelanden |
