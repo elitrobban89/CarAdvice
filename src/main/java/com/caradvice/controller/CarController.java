@@ -10,6 +10,7 @@ import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.GroqService;
+import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
 import com.caradvice.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
