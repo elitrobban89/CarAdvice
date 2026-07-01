@@ -146,16 +146,16 @@ public class GroqService {
         String prompt = buildPrompt(prefs);
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
-        String systemPrompt = buildSystemPrompt(expertContext);
+        String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 2000, "temperature", 0.3,
+                "model", model, "max_tokens", 1500, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 2000, "temperature", 0.3,
+                "model", chatModel, "max_tokens", 1500, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -231,13 +231,13 @@ public class GroqService {
         String compareSystemPrompt = buildCompareSystemPrompt();
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 2000, "temperature", 0.2,
+                "model", model, "max_tokens", 1500, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 2000, "temperature", 0.2,
+                "model", chatModel, "max_tokens", 1500, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
@@ -505,9 +505,18 @@ public class GroqService {
                 .toList();
     }
 
-    private String buildSystemPrompt(String expertContext) {
-        String icePrices = getIcePrices();
-        String evPrices = getEvPrices();
+    private String buildSystemPrompt(String expertContext, String fuelType) {
+        boolean wantsEv = fuelType != null &&
+                (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev"));
+        boolean wantsIce = fuelType == null || fuelType.isBlank() ||
+                fuelType.contains("bensin") || fuelType.contains("diesel") ||
+                fuelType.equals("spelar ingen roll");
+        String icePrices = (wantsIce && !wantsEv) || wantsIce ? getIcePrices() : "";
+        String evPrices  = wantsEv || (!wantsIce) ? getEvPrices() : "";
+        // Filter: pure EV/PHEV → no ICE table; pure ICE → no EV table
+        if (wantsEv && !wantsIce) icePrices = "";
+        if (!wantsEv && wantsIce)  evPrices  = "";
+
         String base = """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
@@ -523,7 +532,7 @@ public class GroqService {
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
                 """ + (icePrices.isBlank() ? "" : icePrices + "\n")
-                    + (evPrices.isBlank() ? "" : evPrices + "\n");
+                    + (evPrices.isBlank()  ? "" : evPrices  + "\n");
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
         return base;

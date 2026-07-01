@@ -25,7 +25,7 @@ public class ExpertInsightService {
                 : prefs.fuelType();
 
         List<ExpertInsight> insights = repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType)
-                .stream().limit(5).toList();
+                .stream().limit(2).toList();
 
         if (insights.isEmpty()) return "";
         return formatInsights(insights, "Expertinsikter (använd som extra underlag i din analys):\n");
