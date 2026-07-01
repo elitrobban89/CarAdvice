@@ -473,7 +473,7 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 | `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken, token-utgångsdatum |
 | `saved_search` | Sparade sökningar per användare: preferenser (JSON), rekommendationer (JSON), etikett, skapad-tid (max 20/användare) |
 | `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
-| `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~65 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning |
+| `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart med ON CONFLICT DO NOTHING |
 
 ---
 
@@ -595,5 +595,10 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-2
 | Admin-endpoints konsekvent | Alla 7 admin-endpoints: `required=false`, gemensam `isAdminUnauthorized`-helper, konsekvent 403 JSON (tidigare: blandade 401/403, en del kastade 400 om header saknades) |
 | CSV-filer i .gitignore | `*.csv` tillagd — `bilprovningen_insights.csv`, `tv_insights.csv`, `vb_insights.csv` visas inte längre som untracked i git |
 | Blocket-sökning för specifika motorvarianter | `stripYear()` → `extractSearchQuery()` strippar nu motorvariant och batterikapacitet ur söktermen: "Škoda Kamiq 1.0 TSI" → "Škoda Kamiq", "Tesla Model Y Long Range" → "Tesla Model Y", "Citroën ë-C3 26 kWh" → "Citroën ë-C3" — Blocket hittade inga priser för dessa tidigare |
-| Blocket: årsfilter ±2 år | `extractYear()` hämtar årtalet ur AI-titeln (t.ex. "(2017)") och lägger till `year_min`/`year_max` i Blocket-API-anropet — "Dacia Sandero (2017)" söker nu år 2015–2018 istf alla årsmodeller; cache-nyckeln inkluderar år |
+| Blocket: årsfilter ±1 år | `extractYear()` hämtar årtalet ur AI-titeln (t.ex. "(2021)") och lägger till `year_min`/`year_max` (±1 år) i Blocket-API-anropet — tätare urval ger mer relevanta priser; cache-nyckeln inkluderar år; Blocket-länken i JS använder samma ±1 år-filter |
+| Blocket P20–P80 + 60 annonser | Hämtar nu 60 annonser (upp från 20) och visar P20–P80 istf absolut min/max — klipper havererade/extremt utrustade outliers mer aggressivt |
 | Prisetikett "Nypris" → "Pris" | Kortet och jämförelsetabellen visade alltid "Nypris" även vid begagnad-sökning — ändrat till neutralt "Pris" som är korrekt i båda fallen |
+| Max ålder-filter | Nytt `#ca-maxage`-fält i formuläret (Max 3/5/8/10/15 år) visas när "Begagnad" väljs — skickas som `maxAgeYears` till backend, injiceras i AI-prompten som explicit ÅLDERSKRAV med förbjudna årsmodeller |
+| new_car_price alltid backfill | `seedDefaults()` körs nu vid varje uppstart (ON CONFLICT DO NOTHING) — nya bilar läggs till utan att tabellen behöver tömas; lade till ~12 modeller: Peugeot 3008, Ford Kuga, Citroën C3/ë-C3, Volvo S60/V90, Kia Picanto/Rio, Hyundai i10, Audi A4, BMW 3-serie, Mercedes C-klass |
+| Fabricerade priser förhindras | AI-prompten skärpt med konkret Octavia-räkneexempel: nypris × ålderskoefficient visas — AI ska välja annan bil om budget inte räcker, aldrig sänka priset för att passa budget |
+| Dubblat prisvärdhet-chip | `caFuelChips()` lade till `valueLabel`-chippen dubbelt (duplicerad kodrad) — en av raderna borttagen |
