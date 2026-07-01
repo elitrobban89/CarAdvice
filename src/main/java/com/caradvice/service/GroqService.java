@@ -150,14 +150,12 @@ public class GroqService {
 
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.3,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -173,7 +171,7 @@ public class GroqService {
         }
         if (response.statusCode() != 200) {
             log.error("Groq {} för getRecommendation: {}", response.statusCode(), response.body());
-            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
+            throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
         JsonNode json = mapper.readTree(response.body());
@@ -234,14 +232,12 @@ public class GroqService {
 
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.2,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
-                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
@@ -251,7 +247,7 @@ public class GroqService {
         if (response.statusCode() == 429)
             throw new RuntimeException(buildRateLimitError(response.body()));
         if (response.statusCode() != 200)
-            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
+            throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
@@ -398,6 +394,16 @@ public class GroqService {
             }
         } catch (Exception ignored) {}
         return "AI-tjänsten är tillfälligt överbelastad. Vänta " + parseRetryTime(body) + " och försök igen.";
+    }
+
+    private String buildGroqErrorMessage(int status, String body) {
+        try {
+            JsonNode err = mapper.readTree(body);
+            String code = err.at("/error/code").asText("");
+            if ("json_validate_failed".equals(code))
+                return "AI-svaret blev ofullständigt. Försök igen.";
+        } catch (Exception ignored) {}
+        return "AI-tjänsten svarade med fel " + status + ". Försök igen om en stund.";
     }
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
