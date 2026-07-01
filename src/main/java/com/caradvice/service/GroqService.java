@@ -317,7 +317,8 @@ public class GroqService {
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
                (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
                (prefs.transmission() != null ? prefs.transmission() : "") + "|" +
-               (prefs.budgetType() != null ? prefs.budgetType() : "köp");
+               (prefs.budgetType() != null ? prefs.budgetType() : "köp") + "|" +
+               (prefs.maxAgeYears() != null ? prefs.maxAgeYears() : "");
     }
 
     private String parseRetryTime(String body) {
@@ -495,12 +496,15 @@ public class GroqService {
         String transmissionLine = (prefs.transmission() != null && !prefs.transmission().isBlank()
                 && !"spelar ingen roll".equals(prefs.transmission()))
                 ? " Växellåda: " + prefs.transmission() + " – rekommendera endast bilar med denna växellåda." : "";
+        String maxAgeLine = (!prefs.newCar() && prefs.maxAgeYears() != null)
+                ? " Max ålder: " + prefs.maxAgeYears() + " år (årsmodell " +
+                  (java.time.Year.now().getValue() - prefs.maxAgeYears()) + " eller nyare)." : "";
 
         return """
-                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s
+                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
-                km, milprofil, prefs.usage(), prefs.passengers(), fuelLine, transmissionLine
+                km, milprofil, prefs.usage(), prefs.passengers(), fuelLine, transmissionLine, maxAgeLine
         );
     }
 }

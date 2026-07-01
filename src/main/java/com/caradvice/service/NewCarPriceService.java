@@ -27,11 +27,7 @@ public class NewCarPriceService {
             )
             """);
 
-        int existing = jdbc.queryForObject("SELECT COUNT(*) FROM new_car_price", Integer.class);
-        if (existing == 0) {
-            seedDefaults();
-            log.info("Seeded new_car_price table with default prices");
-        }
+        seedDefaults();
     }
 
     private void seedDefaults() {
@@ -105,14 +101,32 @@ public class NewCarPriceService {
             { "Mazda CX-5 2017+",               390_000 },
             { "Nissan Micra 2017-2022",         195_000 },
             { "Nissan Qashqai 2021+",           380_000 },
+            // Peugeot (extra)
+            { "Peugeot 3008 2021+",             400_000 },
+            // Ford (extra)
+            { "Ford Kuga 2020+",                380_000 },
+            // Citroën
+            { "Citroën C3 2017-2024",           215_000 },
+            { "Citroën ë-C3 2024+",             240_000 },
+            { "Citroën C3 Aircross 2018+",      260_000 },
             // Volvo (ICE/mild-hybrid)
             { "Volvo XC40 2018+",               420_000 },
             { "Volvo XC60 2018+",               560_000 },
             { "Volvo V60 2019+",                490_000 },
+            { "Volvo S60 2019+",                470_000 },
+            { "Volvo V90 2017+",                600_000 },
+            // Kia (extra)
+            { "Kia Picanto 2017+",              160_000 },
+            { "Kia Rio 2017+",                  195_000 },
+            // Hyundai (extra)
+            { "Hyundai i10 2020+",              175_000 },
             // Audi / BMW / Mercedes (ICE)
             { "Audi A3 2021+",                  420_000 },
+            { "Audi A4 2020+",                  530_000 },
             { "BMW 1-serie 2020+",              430_000 },
+            { "BMW 3-serie 2019+",              530_000 },
             { "Mercedes A-klass 2019+",         370_000 },
+            { "Mercedes C-klass 2022+",         560_000 },
         };
 
         for (Object[] row : data) {

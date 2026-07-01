@@ -10,5 +10,6 @@ public record CarPreferences(
         boolean newCar,
         String fuelType,
         String transmission,
-        String budgetType
+        String budgetType,
+        Integer maxAgeYears
 ) {}
