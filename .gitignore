@@ -31,3 +31,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Project data files (not committed) ###
+*.csv

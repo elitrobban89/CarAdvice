@@ -118,7 +118,7 @@ public class CarController {
 
     @PostMapping("/admin/sync-ev-specs")
     public ResponseEntity<?> syncEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         Thread.ofVirtual().start(() -> {
             try { evScraper.syncFromEvDatabase(); }
             catch (Exception e) { /* logged inside scraper */ }
@@ -128,7 +128,7 @@ public class CarController {
 
     @PostMapping("/admin/sync-cargo-specs")
     public ResponseEntity<?> syncCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         Thread.ofVirtual().start(() -> {
             try { cargoSpecSyncService.syncCarNames(); }
             catch (Exception e) { /* logged inside service */ }
@@ -137,9 +137,9 @@ public class CarController {
     }
 
     @PostMapping("/admin/import/cargospecs")
-    public ResponseEntity<?> importCargoSpecs(@RequestHeader("X-Admin-Key") String key,
+    public ResponseEntity<?> importCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                               @RequestBody String csv) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         try {
             int count = cargoSpecService.importCsv(csv);
             return ResponseEntity.ok(Map.of("imported", count, "table", "cargo_spec"));
@@ -149,9 +149,9 @@ public class CarController {
     }
 
     @PostMapping("/admin/upsert/cargospecs")
-    public ResponseEntity<?> upsertCargoSpecs(@RequestHeader("X-Admin-Key") String key,
+    public ResponseEntity<?> upsertCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                               @RequestBody String csv) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         try {
             int count = cargoSpecService.upsertCsv(csv);
             return ResponseEntity.ok(Map.of("upserted", count, "table", "cargo_spec"));
@@ -345,9 +345,9 @@ public class CarController {
     }
 
     @DeleteMapping("/admin/insights")
-    public ResponseEntity<?> deleteInsightsByExpert(@RequestHeader("X-Admin-Key") String key,
+    public ResponseEntity<?> deleteInsightsByExpert(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                                     @RequestParam String expert) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         long before = expertInsightService.countByExpert(expert);
         expertInsightService.deleteByExpert(expert);
         return ResponseEntity.ok(Map.of("deleted", before, "expert", expert));
@@ -356,10 +356,10 @@ public class CarController {
     // Admin: import expert insights from CSV (car_make,car_model,fuel_type,category,insight,rating)
     // Optional query param: ?expert=Peter+Esse  (default: Bilexpert)
     @PostMapping("/admin/import/insights")
-    public ResponseEntity<?> importInsights(@RequestHeader("X-Admin-Key") String key,
+    public ResponseEntity<?> importInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                             @RequestParam(defaultValue = "Bilexpert") String expert,
                                             @RequestBody String csv) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         try {
             int count = expertInsightService.importCsv(csv, expert);
             return ResponseEntity.ok(Map.of("imported", count, "table", "expert_insight", "expert", expert));
@@ -370,15 +370,19 @@ public class CarController {
 
     // Admin: import Euro NCAP safety ratings from CSV (car_make,car_model,test_year,stars,adult_pct,child_pct,pedestrian_pct,safety_assist_pct)
     @PostMapping("/admin/import/safety")
-    public ResponseEntity<?> importSafety(@RequestHeader("X-Admin-Key") String key,
+    public ResponseEntity<?> importSafety(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                           @RequestBody String csv) {
-        if (!adminKey.equals(key)) return ResponseEntity.status(403).body("Unauthorized");
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         try {
             int count = safetyRatingService.importCsv(csv);
             return ResponseEntity.ok(Map.of("imported", count, "table", "safety_rating"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private boolean isAdminUnauthorized(String key) {
+        return key == null || !adminKey.equals(key);
     }
 
     private String getClientIp(HttpServletRequest request) {

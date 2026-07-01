@@ -28,6 +28,8 @@ public class GroqService {
 
     private static final Logger log = LoggerFactory.getLogger(GroqService.class);
     private static final String SUBSCRIPTION_PRICE = "49 kr/mån";
+    private static final String DEPRECIATION_RULE =
+            "NYPRIS PER GENERATION: Se \"ICE-nypris\"-tabellen nedan. Begagnatpris = nypris (för bilens generation) × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).";
 
     public record Result(List<CarRecommendation> recommendations, boolean fromCache, long cacheAgeSeconds) {}
 
@@ -78,89 +80,28 @@ public class GroqService {
         return apiKey != null && !apiKey.isBlank();
     }
 
-    public Result getRecommendation(CarPreferences prefs) throws Exception {
-        String key = buildCacheKey(prefs);
-        CacheEntry cached = cache.get(key);
-        if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS) {
-            long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
-            return new Result(cached.result(), true, ageSeconds);
-        }
-
-        String prompt = buildPrompt(prefs);
-        String expertContext = "";
-        try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
-
-        Map<String, Object> requestBody = Map.of(
-                "model", model,
-                "max_tokens", 1050,
-                "temperature", 0.3,
-                "response_format", Map.of("type", "json_object"),
-                "messages", List.of(
-                        Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
-                        Map.of("role", "user", "content", prompt)
-                )
-        );
-
-        HttpRequest request = HttpRequest.newBuilder()
+    private HttpRequest buildRequest(Object body) throws Exception {
+        return HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_URL))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
                 .build();
+    }
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    private HttpResponse<String> callGroqWithFallback(Object primaryBody, Object fallbackBody) throws Exception {
+        HttpResponse<String> resp = httpClient.send(buildRequest(primaryBody), HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 429) return resp;
+        return httpClient.send(buildRequest(fallbackBody), HttpResponse.BodyHandlers.ofString());
+    }
 
-        if (response.statusCode() == 429) {
-            Map<String, Object> fallbackBody = Map.of(
-                    "model", chatModel,
-                    "max_tokens", 1050,
-                    "temperature", 0.3,
-                    "messages", List.of(
-                            Map.of("role", "system", "content", buildSystemPrompt(expertContext)),
-                            Map.of("role", "user", "content", prompt)
-                    )
-            );
-            HttpRequest fallbackRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(GROQ_URL))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(fallbackBody)))
-                    .build();
-            response = httpClient.send(fallbackRequest, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 429) {
-                if (cached != null) {
-                    long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
-                    return new Result(cached.result(), true, ageSeconds);
-                }
-                throw new RuntimeException(buildRateLimitError(response.body()));
-            }
-            if (response.statusCode() != 200) {
-                throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
-            }
-        }
-        if (response.statusCode() != 200) {
-            log.error("Groq {} för getRecommendation: {}", response.statusCode(), response.body());
-            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
-        }
-
-        JsonNode json = mapper.readTree(response.body());
-        String content = json.at("/choices/0/message/content").asText();
-        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
-        List<CarRecommendation> parsed = mapper.convertValue(
-                recsNode,
-                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
-        );
-        if (parsed == null) throw new RuntimeException("AI svarade utan recommendations-nyckel. Råsvar: " + content);
-
-        // Fetch Blocket prices in parallel while the rest enriches sequentially
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
         List<CompletableFuture<String>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
                         BlocketPriceService.PriceRange pr = blocketPriceService.fetchPriceRange(r.title());
                         return pr != null ? pr.formatted() : null;
-                    } catch (Exception e) {
-                        return null;
-                    }
+                    } catch (Exception e) { return null; }
                 }))
                 .toList();
 
@@ -172,14 +113,65 @@ public class GroqService {
             com.caradvice.model.CargoSpecDto cargo = null;
             String blocketPrice = null;
             try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
-            try { evSpec = evSpecService.formatForTitle(r.title(), prefs.kmPerYear()); } catch (Exception ignored) {}
+            try { evSpec = evSpecService.formatForTitle(r.title(), kmPerYear); } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
         }
+        return result;
+    }
 
+    public Result getRecommendation(CarPreferences prefs) throws Exception {
+        String key = buildCacheKey(prefs);
+        CacheEntry cached = cache.get(key);
+        if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS) {
+            long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
+            return new Result(cached.result(), true, ageSeconds);
+        }
+
+        String prompt = buildPrompt(prefs);
+        String expertContext = "";
+        try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
+        String systemPrompt = buildSystemPrompt(expertContext);
+
+        Map<String, Object> primaryBody = Map.of(
+                "model", model, "max_tokens", 1050, "temperature", 0.3,
+                "response_format", Map.of("type", "json_object"),
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", prompt)));
+
+        Map<String, Object> fallbackBody = Map.of(
+                "model", chatModel, "max_tokens", 1050, "temperature", 0.3,
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", prompt)));
+
+        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
+
+        if (response.statusCode() == 429) {
+            if (cached != null) {
+                long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
+                return new Result(cached.result(), true, ageSeconds);
+            }
+            throw new RuntimeException(buildRateLimitError(response.body()));
+        }
+        if (response.statusCode() != 200) {
+            log.error("Groq {} för getRecommendation: {}", response.statusCode(), response.body());
+            throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ": " + response.body());
+        }
+
+        JsonNode json = mapper.readTree(response.body());
+        String content = json.at("/choices/0/message/content").asText();
+        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
+        List<CarRecommendation> parsed = mapper.convertValue(
+                recsNode,
+                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+        if (parsed == null) throw new RuntimeException("AI svarade utan recommendations-nyckel. Råsvar: " + content);
+
+        List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear());
         evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
         return new Result(result, false, 0);
@@ -222,49 +214,25 @@ public class GroqService {
         String specContext = buildCompareSpecContext(car1, prefCargo1, prefEv1, car2, prefCargo2, prefEv2);
         String userPrompt = "Jämför dessa exakt 2 bilar: 1. " + car1 + "  2. " + car2;
         if (!specContext.isBlank()) userPrompt += "\n\nVerifierade specifikationer från databas:\n" + specContext;
+        String compareSystemPrompt = buildCompareSystemPrompt();
 
-        Map<String, Object> requestBody = Map.of(
-                "model", model,
-                "max_tokens", 1200,
-                "temperature", 0.2,
+        Map<String, Object> primaryBody = Map.of(
+                "model", model, "max_tokens", 1200, "temperature", 0.2,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
-                        Map.of("role", "system", "content", buildCompareSystemPrompt()),
-                        Map.of("role", "user", "content", userPrompt)
-                )
-        );
+                        Map.of("role", "system", "content", compareSystemPrompt),
+                        Map.of("role", "user", "content", userPrompt)));
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GROQ_URL))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
-                .build();
+        Map<String, Object> fallbackBody = Map.of(
+                "model", chatModel, "max_tokens", 1200, "temperature", 0.2,
+                "messages", List.of(
+                        Map.of("role", "system", "content", compareSystemPrompt),
+                        Map.of("role", "user", "content", userPrompt)));
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
-        if (response.statusCode() == 429) {
-            Map<String, Object> fallbackBody = Map.of(
-                    "model", chatModel,
-                    "max_tokens", 1200,
-                    "temperature", 0.2,
-                    "messages", List.of(
-                            Map.of("role", "system", "content", buildCompareSystemPrompt()),
-                            Map.of("role", "user", "content", userPrompt)
-                    )
-            );
-            HttpRequest fallbackRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(GROQ_URL))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(fallbackBody)))
-                    .build();
-            response = httpClient.send(fallbackRequest, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 429)
-                throw new RuntimeException(buildRateLimitError(response.body()));
-            if (response.statusCode() != 200)
-                throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
-        }
+        if (response.statusCode() == 429)
+            throw new RuntimeException(buildRateLimitError(response.body()));
         if (response.statusCode() != 200)
             throw new RuntimeException("AI-tjänsten svarade med fel " + response.statusCode() + ". Försök igen om en stund.");
 
@@ -273,33 +241,9 @@ public class GroqService {
         JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
         List<CarRecommendation> parsed = mapper.convertValue(
                 recsNode,
-                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class)
-        );
+                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
 
-        List<CompletableFuture<String>> blocketFutures = parsed.stream()
-                .map(r -> CompletableFuture.supplyAsync(() -> {
-                    try {
-                        BlocketPriceService.PriceRange pr = blocketPriceService.fetchPriceRange(r.title());
-                        return pr != null ? pr.formatted() : null;
-                    } catch (Exception e) { return null; }
-                }))
-                .toList();
-
-        List<CarRecommendation> result = new ArrayList<>();
-        for (int i = 0; i < parsed.size(); i++) {
-            CarRecommendation r = parsed.get(i);
-            String safety = null;
-            com.caradvice.model.EvSpecDto evSpec = null;
-            com.caradvice.model.CargoSpecDto cargo = null;
-            String blocketPrice = null;
-            try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
-            try { evSpec = evSpecService.formatForTitle(r.title(), 15000); } catch (Exception ignored) {}
-            try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
-            try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
-            result.add(new CarRecommendation(
-                    r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
-        }
+        List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
         evictIfNeeded();
         cache.put(compareCacheKey, new CacheEntry(result, System.currentTimeMillis()));
         return result;
@@ -313,17 +257,18 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"typ (turbo/ej)","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar.
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                NYPRIS PER GENERATION: Se "ICE-nypris"-tabellen nedan. Begagnad = nypris × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).
+                %s
                 FABRICERA ALDRIG PRISER: Skriv aldrig ett lägre pris än verkligheten.
                 MOTORTYPER: Skriv ALDRIG motorbeteckning du inte är helt säker på existerar för just den bilen och årsmodellen.
                 VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt — prioritera dem över generell kunskap.
                 STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, lyft fram det i fitSummary med konkreta mm-tal.
-                BATTERIKEMI: LFP = ladda till 100% dagligen, tålig i kyla. NMC = ladda till 80% för livslängd, mer räckvidd per kWh. Nämn kemin om bilarna skiljer sig.
+                BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh. Nämn kemin om bilarna skiljer sig.
                 SNABBLADDNING (DC): ≥150 kW = snabb, <100 kW = långsammare längs väg.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin. Rekommendera aldrig bensin/diesel när användaren vill ha elbil.
                 VOLVO EV: EX30, EX40, EC40, EX60, EX90 — inga andra. Hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG modeller som inte säljs på svenska marknaden.
-                """ + (icePrices.isBlank() ? "" : icePrices + "\n");
+                """.formatted(DEPRECIATION_RULE)
+                + (icePrices.isBlank() ? "" : icePrices + "\n");
     }
 
     private String buildCompareSpecContext(String car1, com.caradvice.model.CargoSpecDto c1, com.caradvice.model.EvSpecDto ev1,
@@ -414,22 +359,13 @@ public class GroqService {
         msgs.add(Map.of("role", "system", "content", systemPrompt));
         msgs.addAll(history);
 
-        Map<String, Object> requestBody = Map.of(
-                "model", chatModel,
-                "max_tokens", 1800,
-                "temperature", 0.5,
-                "messages", msgs
-        );
+        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5, "messages", msgs);
+        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5, "messages", msgs);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GROQ_URL))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
-                .build();
+        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
+        if (response.statusCode() == 429)
+            throw new RuntimeException("AI-tjänsten är tillfälligt överbelastad. Försök igen om en stund.");
         if (response.statusCode() != 200)
             throw new RuntimeException("Groq svarade " + response.statusCode());
 
@@ -448,17 +384,13 @@ public class GroqService {
         msgs.add(Map.of("role", "system", "content", systemPrompt));
         msgs.addAll(history);
 
-        Map<String, Object> requestBody = Map.of(
-                "model", chatModel, "max_tokens", 1800, "temperature", 0.5, "stream", true, "messages", msgs);
+        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5, "stream", true, "messages", msgs);
+        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5, "stream", true, "messages", msgs);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GROQ_URL))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
-                .build();
+        HttpResponse<InputStream> response = httpClient.send(buildRequest(primaryBody), HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() == 429)
+            response = httpClient.send(buildRequest(fallbackBody), HttpResponse.BodyHandlers.ofInputStream());
 
-        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if (response.statusCode() == 401) throw new RuntimeException("AI-tjänsten är inte korrekt konfigurerad.");
         if (response.statusCode() == 429) throw new RuntimeException("För många frågor — vänta en minut och försök igen.");
         if (response.statusCode() != 200) throw new RuntimeException("Groq svarade " + response.statusCode());
@@ -494,7 +426,6 @@ public class GroqService {
         return base;
     }
 
-    // Parsar bilnamn ur context-strängen och slår upp benutrymme + batterikemi
     private String buildChatSpecFacts(String carContext) {
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(
                 "^\\d+\\.\\s+(.+?)\\s*—", java.util.regex.Pattern.MULTILINE);
@@ -536,14 +467,14 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
-                NYPRIS PER GENERATION: Se "ICE-nypris"-tabellen nedan. Beräkna begagnatpris = nypris (för bilens generation) × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).
+                """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker på att varianten existerar. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
                 """ + (icePrices.isBlank() ? "" : icePrices + "\n")
-                  + (evPrices.isBlank() ? "" : evPrices + "\n");
+                    + (evPrices.isBlank() ? "" : evPrices + "\n");
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
         return base;
