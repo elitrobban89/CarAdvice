@@ -201,6 +201,7 @@ public class DataLoader implements CommandLineRunner {
         add.accept("BMW|i4",                  new SafetyRating("BMW",        "i4",                2022, 5, 91, 87, 74, 94));
         add.accept("BMW|iX",                  new SafetyRating("BMW",        "iX",                2021, 5, 90, 87, 80, 97));
         add.accept("BMW|iX3",                 new SafetyRating("BMW",        "iX3",               2021, 5, 87, 83, 71, 90));
+        add.accept("Kia|EV3",                 new SafetyRating("Kia",        "EV3",               2024, 5, 88, 83, 78, 84));
         add.accept("Kia|EV9",                 new SafetyRating("Kia",        "EV9",               2023, 5, 90, 84, 81, 85));
         add.accept("Kia|Niro",               new SafetyRating("Kia",        "Niro",              2022, 5, 88, 87, 71, 83));
         add.accept("Tesla|Model S",           new SafetyRating("Tesla",      "Model S",           2021, 5, 96, 91, 74, 99));
