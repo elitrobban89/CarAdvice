@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class BlocketPriceService {
@@ -40,14 +42,17 @@ public class BlocketPriceService {
     public PriceRange fetchPriceRange(String carTitle) {
         String query = extractSearchQuery(carTitle);
         if (query == null || query.isBlank()) return null;
+        Integer year = extractYear(carTitle);
 
-        CacheEntry cached = cache.get(query);
+        String cacheKey = year != null ? query + "|" + year : query;
+        CacheEntry cached = cache.get(cacheKey);
         if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS)
             return cached.result();
 
         try {
             String encodedQ = URLEncoder.encode(query, StandardCharsets.UTF_8);
             String url = SEARCH_URL + "?q=" + encodedQ + "&page=0&lim=" + FETCH_LIMIT;
+            if (year != null) url += "&year_min=" + (year - 2) + "&year_max=" + (year + 1);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -72,16 +77,22 @@ public class BlocketPriceService {
             Collections.sort(prices);
             int min = prices.get(0);
             int max = prices.get(prices.size() - 1);
-            String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)
-                    + " kr (" + prices.size() + " annonser)";
+            String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)
+                    + " kr (" + prices.size() + " annonser)";
 
             PriceRange result = new PriceRange(min, max, prices.size(), formatted);
-            cache.put(query, new CacheEntry(result, System.currentTimeMillis()));
+            cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));
             return result;
 
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Integer extractYear(String title) {
+        if (title == null) return null;
+        Matcher m = Pattern.compile("\\((\\d{4})\\)\\s*$").matcher(title.trim());
+        return m.find() ? Integer.parseInt(m.group(1)) : null;
     }
 
     private String extractSearchQuery(String title) {
