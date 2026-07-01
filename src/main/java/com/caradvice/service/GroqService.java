@@ -36,7 +36,7 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:llama-3.3-70b-versatile}")
+    @Value("${groq.model:openai/gpt-oss-120b}")
     private String model;
 
     @Value("${groq.chat.model:qwen/qwen3.6-27b}")
@@ -149,8 +149,7 @@ public class GroqService {
         String systemPrompt = buildSystemPrompt(expertContext);
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 1050, "temperature", 0.3,
-                "response_format", Map.of("type", "json_object"),
+                "model", model, "max_tokens", 2000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -230,8 +229,7 @@ public class GroqService {
         String compareSystemPrompt = buildCompareSystemPrompt();
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 1200, "temperature", 0.2,
-                "response_format", Map.of("type", "json_object"),
+                "model", model, "max_tokens", 2000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
