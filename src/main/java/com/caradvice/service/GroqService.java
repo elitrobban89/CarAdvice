@@ -156,10 +156,10 @@ public class GroqService {
                         Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 1050, "temperature", 0.3,
+                "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", prompt)));
+                        Map.of("role", "user", "content", "/no_think\n" + prompt)));
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
@@ -177,6 +177,11 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
+        if (content.isBlank()) {
+            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            log.warn("Groq returned empty content for getRecommendation, finish_reason={}", finishReason);
+            throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
+        }
         List<CarRecommendation> parsed = parseRecommendations(content);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear());
@@ -232,10 +237,10 @@ public class GroqService {
                         Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 1200, "temperature", 0.2,
+                "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", userPrompt)));
+                        Map.of("role", "user", "content", "/no_think\n" + userPrompt)));
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
@@ -246,6 +251,11 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
+        if (content.isBlank()) {
+            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            log.warn("Groq returned empty content for compareSpecific, finish_reason={}", finishReason);
+            throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
+        }
         List<CarRecommendation> parsed = parseRecommendations(content);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
