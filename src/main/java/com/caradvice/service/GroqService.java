@@ -36,7 +36,7 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:openai/gpt-oss-20b}")
+    @Value("${groq.model:qwen/qwen3.6-27b}")
     private String model;
 
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
@@ -148,11 +148,13 @@ public class GroqService {
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
         String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
 
+        String noThinkPrompt = "/no_think " + prompt;
+
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", prompt)));
+                        Map.of("role", "user", "content", noThinkPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
@@ -234,7 +236,7 @@ public class GroqService {
                 "model", model, "max_tokens", 3000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", userPrompt)));
+                        Map.of("role", "user", "content", "/no_think " + userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
