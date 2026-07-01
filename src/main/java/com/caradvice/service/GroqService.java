@@ -113,7 +113,19 @@ public class GroqService {
             com.caradvice.model.CargoSpecDto cargo = null;
             String blocketPrice = null;
             try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
-            try { evSpec = evSpecService.formatForTitle(r.title(), kmPerYear); } catch (Exception ignored) {}
+            try {
+                evSpec = evSpecService.formatForTitle(r.title(), kmPerYear);
+                // Drop EV/PHEV match if the title year predates the technology
+                if (evSpec != null) {
+                    Matcher ym = Pattern.compile("\\((\\d{4})\\)").matcher(r.title());
+                    if (ym.find()) {
+                        int titleYear = Integer.parseInt(ym.group(1));
+                        boolean isPhev = "PHEV".equals(evSpec.carType());
+                        if (isPhev && titleYear < 2014) evSpec = null;       // PHEVs before 2014 don't exist
+                        else if (!isPhev && titleYear < 2011) evSpec = null; // consumer EVs before 2011 don't exist
+                    }
+                }
+            } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             result.add(new CarRecommendation(
@@ -472,6 +484,7 @@ public class GroqService {
                 FABRICERA ALDRIG PRISER: Priset i "price"-fältet = nypris × ålderskoefficient (se NYPRIS-regel). Kontrollera alltid mot nypristabellen. Exempel: Octavia 2021+ nypris 340 000 kr, 3 år gammal → 340 000×0.65=221 000 kr – kan ALDRIG säljas för 100 000 kr. Om budget inte räcker: välj en ANNAN BIL (billigare modell, äldre generation, eller lägre segment) – sänk ALDRIG priset på en bil för att passa budgeten. Skriv i fitSummary om budget är knapp.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker på att varianten existerar. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
+                PHEV/LADDHYBRID: Laddhybrider (PHEV) existerade inte i stor skala före 2014. Golf GTE (laddhybrid) lanserades 2014 — rekommendera ALDRIG Golf (2013) eller äldre som laddhybrid. Outlander PHEV: 2013+. Passat GTE: 2015+. C-MAX Energi: 2013. Rekommendera ALDRIG en modell som laddhybrid om årsmodellen är äldre än modellens faktiska PHEV-lansering.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
                 """ + (icePrices.isBlank() ? "" : icePrices + "\n")
