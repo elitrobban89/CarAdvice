@@ -36,10 +36,10 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:openai/gpt-oss-120b}")
+    @Value("${groq.model:qwen/qwen3.6-27b}")
     private String model;
 
-    @Value("${groq.chat.model:qwen/qwen3.6-27b}")
+    @Value("${groq.chat.model:openai/gpt-oss-20b}")
     private String chatModel;
 
     private final ExpertInsightService expertInsightService;
@@ -152,13 +152,13 @@ public class GroqService {
                 "model", model, "max_tokens", 2000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", prompt)));
+                        Map.of("role", "user", "content", "/no_think\n" + prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
+                "model", chatModel, "max_tokens", 2000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", "/no_think\n" + prompt)));
+                        Map.of("role", "user", "content", prompt)));
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
@@ -232,13 +232,13 @@ public class GroqService {
                 "model", model, "max_tokens", 2000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", userPrompt)));
+                        Map.of("role", "user", "content", "/no_think\n" + userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
+                "model", chatModel, "max_tokens", 2000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", "/no_think\n" + userPrompt)));
+                        Map.of("role", "user", "content", userPrompt)));
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
@@ -329,7 +329,13 @@ public class GroqService {
 
     private List<CarRecommendation> parseRecommendations(String content) throws Exception {
         String jsonStr = extractJson(content);
-        JsonNode root = mapper.readTree(jsonStr);
+        JsonNode root;
+        try {
+            root = mapper.readTree(jsonStr);
+        } catch (Exception e) {
+            log.warn("AI returned truncated/invalid JSON (len={}): {}", content.length(), e.getMessage());
+            throw new RuntimeException("AI-svaret blev ofullständigt. Försök igen.");
+        }
         // Try standard key first, then common fallbacks AI sometimes uses
         for (String key : new String[]{"recommendations", "cars", "bilar", "results", "items"}) {
             JsonNode node = root.get(key);
