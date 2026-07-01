@@ -110,7 +110,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** chatbot och fallback använder `qwen/qwen3.6-27b`, rekommendationer och jämförelser använder `openai/gpt-oss-120b` — stabil JSON-output med response_format
+- **Modellsplit:** rekommendationer och jämförelser använder `qwen/qwen3.6-27b` (versatile, `/no_think`), fallback `openai/gpt-oss-20b` (instant); chatboten använder `openai/gpt-oss-20b` primärt, `qwen/qwen3.6-27b` som fallback
 
 ### Produktionsstatus
 
@@ -217,7 +217,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | Del | Teknologi |
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
-| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `qwen/qwen3.6-27b` chatt/fallback) |
+| AI | Groq API (`qwen/qwen3.6-27b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
@@ -521,9 +521,11 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-27b` (chatt + 429-fallback). Varje sökning använder upp till **1 050 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
+Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `/no_think`) och `openai/gpt-oss-20b` (chatt + 429-fallback). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
 **Groq 429-fallback:** en gemensam `callGroqWithFallback(primary, fallback)`-metod används av alla tre flöden (rekommendation, jämförelse, chatt). Om primärmodellen svarar 429 görs ett nytt försök med fallback-modellen automatiskt — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
+
+**reasoning_content-fallback:** qwen3/gpt-oss reasoning-modeller kan returnera tomt `content`-fält och lägga svaret i `reasoning_content` — koden läser båda fälten och väljer det som har innehåll. Trunkerat JSON (truncation vid max_tokens) ger clean error "AI-svaret blev ofullständigt. Försök igen."
 
 **Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 
@@ -588,7 +590,8 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-2
 | Gzip-komprimering aktiverad | `server.compression.enabled=true` i `application.properties` — JS/JSON komprimeras med ~70% (135 KB → ~35 KB); 1 dags browser-cache för statiska filer |
 | Volvo EV-hallucination förhindrad | Chatboten hittade på modeller som "C90" som inte existerar. Explicit Volvo EV-lista tillagd i alla tre systempromptarna: EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Generell regel: nämn aldrig modeller som inte officiellt säljs på svenska marknaden |
 | Škoda EV-referenspriser tillagda | Epiq (fr. 389 000 kr), Elroq (fr. 450 000 kr), Enyaq (fr. 599 500 kr) och Peaq (654 000 kr) tillagda i alla tre referensprislistorna — förbättrar AI:ns prisuppskattningar för Škoda-elbilar |
-| Groq-modeller bytta | `llama-3.3-70b-versatile` (deprecated 2026-06-29) → `openai/gpt-oss-120b`; fallback `llama-3.1-8b-instant` → `qwen/qwen3.6-27b` |
+| Groq-modeller bytta (omgång 1) | `llama-3.3-70b-versatile` (deprecated 2026-06-29) → `openai/gpt-oss-120b`; fallback `llama-3.1-8b-instant` → `qwen/qwen3.6-27b` |
+| Groq-modeller bytta (omgång 2) | `openai/gpt-oss-120b` visade sig vara reasoning-modell på Groq — returnerar tomt `content` eller trunkerat JSON. Primär bytt till `qwen/qwen3.6-27b` (versatile, `/no_think`); fallback till `gpt-oss-20b` (instant). `reasoning_content`-fallback tillagd; trunkerat JSON ger clean error. |
 | NewCarPriceService | Ny `new_car_price`-tabell med ~65 ICE-nyprisar per generation seedas vid uppstart; injiceras i alla AI-systempromptars pris-kontext |
 | Groq-anropsoptimering | ICE/EV-priskontextar cachas 1h (tidigare DB-query per anrop); compare-resultat cachas 4h; fallback max_tokens 4000→1050; chatthistorik begränsad till senaste 8 meddelanden |
 | GroqService-refaktorering | `buildRequest`/`callGroqWithFallback`/`enrichRecommendations` extraherade — eliminerar ~80 rader duplikat HTTP- och enrichment-kod; `DEPRECIATION_RULE` som konstant; chat() och chatStream() får nu 429-fallback till primärmodellen |
