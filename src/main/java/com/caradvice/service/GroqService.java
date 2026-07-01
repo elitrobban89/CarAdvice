@@ -149,13 +149,13 @@ public class GroqService {
         String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 1500, "temperature", 0.3,
+                "model", model, "max_tokens", 3000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 1500, "temperature", 0.3,
+                "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -177,7 +177,7 @@ public class GroqService {
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
         if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning_content").asText();
+            content = json.at("/choices/0/message/reasoning").asText();
         if (content.isBlank()) {
             String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
             log.warn("Groq empty content getRecommendation finish_reason={} body={}", finishReason, response.body());
@@ -231,13 +231,13 @@ public class GroqService {
         String compareSystemPrompt = buildCompareSystemPrompt();
 
         Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 1500, "temperature", 0.2,
+                "model", model, "max_tokens", 3000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 1500, "temperature", 0.2,
+                "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
@@ -252,7 +252,7 @@ public class GroqService {
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
         if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning_content").asText();
+            content = json.at("/choices/0/message/reasoning").asText();
         if (content.isBlank()) {
             String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
             log.warn("Groq empty content compareSpecific finish_reason={} body={}", finishReason, response.body());
@@ -527,7 +527,7 @@ public class GroqService {
                 """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: Priset i "price"-fältet = nypris × ålderskoefficient (se NYPRIS-regel). Kontrollera alltid mot nypristabellen. Exempel: Octavia 2021+ nypris 340 000 kr, 3 år gammal → 340 000×0.65=221 000 kr – kan ALDRIG säljas för 100 000 kr. Om budget inte räcker: välj en ANNAN BIL (billigare modell, äldre generation, eller lägre segment) – sänk ALDRIG priset på en bil för att passa budgeten. Skriv i fitSummary om budget är knapp.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker på att varianten existerar. Om osäker — ange bara hk och 'manuell'/'automat'.
-                VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
+                VIKTIGT: Rekommendera ALDRIG BYD Dolphin. Rekommendera ALDRIG Dongfeng, JAC, GWM, ORA, GAC, AION, Hyundai INSTER (ej i Sverige), eller andra kinesiska/okända märken som inte är etablerade i Sverige. Godkända märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai (utom INSTER), Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är en bensinbil, INTE elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 PHEV/LADDHYBRID: Laddhybrider (PHEV) existerade inte i stor skala före 2014. Golf GTE (laddhybrid) lanserades 2014 — rekommendera ALDRIG Golf (2013) eller äldre som laddhybrid. Outlander PHEV: 2013+. Passat GTE: 2015+. C-MAX Energi: 2013. Rekommendera ALDRIG en modell som laddhybrid om årsmodellen är äldre än modellens faktiska PHEV-lansering.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.

@@ -297,10 +297,17 @@ public class EvSpecService {
                 if (base.isBlank()) base = ev.getCarName();
                 minPrices.merge(base, ev.getPriceKr(), Math::min);
             });
+        // Only keep brands actually sold on the Swedish/European market
+        java.util.Set<String> knownBrands = java.util.Set.of(
+            "Audi","BMW","BYD","Citroën","Cupra","Dacia","Fiat","Ford","Honda","Hyundai",
+            "Kia","Leapmotor","MG","Mazda","Mercedes","Mini","Nissan","Opel","Peugeot",
+            "Renault","Seat","Škoda","Smart","Tesla","Toyota","Volkswagen","Volvo","Xpeng","Zeekr"
+        );
         if (minPrices.isEmpty()) return "";
         String prices = minPrices.entrySet().stream()
+            .filter(e -> knownBrands.stream().anyMatch(b -> e.getKey().startsWith(b)))
             .sorted(java.util.Map.Entry.comparingByValue())
-            .limit(40)
+            .limit(25)
             .map(e -> e.getKey() + " fr. " + formatSek(e.getValue()))
             .collect(java.util.stream.Collectors.joining(", "));
         return "EV-referenspriser (fr.pris från databas): " + prices;
