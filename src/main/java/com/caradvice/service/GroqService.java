@@ -177,11 +177,7 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
-        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
-        List<CarRecommendation> parsed = mapper.convertValue(
-                recsNode,
-                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
-        if (parsed == null) throw new RuntimeException("AI svarade utan recommendations-nyckel. Råsvar: " + content);
+        List<CarRecommendation> parsed = parseRecommendations(content);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear());
         evictIfNeeded();
@@ -250,10 +246,7 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
-        JsonNode recsNode = mapper.readTree(extractJson(content)).at("/recommendations");
-        List<CarRecommendation> parsed = mapper.convertValue(
-                recsNode,
-                mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+        List<CarRecommendation> parsed = parseRecommendations(content);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
         evictIfNeeded();
@@ -318,10 +311,34 @@ public class GroqService {
     }
 
     private String extractJson(String content) {
-        int start = content.indexOf('{');
-        int end = content.lastIndexOf('}');
-        if (start != -1 && end != -1 && end > start) return content.substring(start, end + 1);
-        return content;
+        // Strip <think>...</think> blocks produced by qwen reasoning models
+        String cleaned = content.replaceAll("(?s)<think>.*?</think>", "").trim();
+        int start = cleaned.indexOf('{');
+        int end = cleaned.lastIndexOf('}');
+        if (start != -1 && end != -1 && end > start) return cleaned.substring(start, end + 1);
+        return cleaned;
+    }
+
+    private List<CarRecommendation> parseRecommendations(String content) throws Exception {
+        String jsonStr = extractJson(content);
+        JsonNode root = mapper.readTree(jsonStr);
+        // Try standard key first, then common fallbacks AI sometimes uses
+        for (String key : new String[]{"recommendations", "cars", "bilar", "results", "items"}) {
+            JsonNode node = root.get(key);
+            if (node != null && node.isArray() && !node.isEmpty()) {
+                List<CarRecommendation> parsed = mapper.convertValue(
+                        node, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+                if (parsed != null && !parsed.isEmpty()) return parsed;
+            }
+        }
+        // Last resort: if root itself is an array
+        if (root.isArray() && !root.isEmpty()) {
+            List<CarRecommendation> parsed = mapper.convertValue(
+                    root, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+            if (parsed != null && !parsed.isEmpty()) return parsed;
+        }
+        log.warn("AI returned no parseable recommendations. Raw: {}", content);
+        throw new RuntimeException("AI:n returnerade ett oväntat svar. Försök igen.");
     }
 
     private String buildCacheKey(CarPreferences prefs) {
