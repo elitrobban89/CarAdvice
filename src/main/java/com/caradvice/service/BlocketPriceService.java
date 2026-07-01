@@ -52,7 +52,7 @@ public class BlocketPriceService {
         try {
             String encodedQ = URLEncoder.encode(query, StandardCharsets.UTF_8);
             String url = SEARCH_URL + "?q=" + encodedQ + "&page=0&lim=" + FETCH_LIMIT;
-            if (year != null) url += "&year_min=" + (year - 2) + "&year_max=" + (year + 1);
+            if (year != null) url += "&year_min=" + (year - 1) + "&year_max=" + (year + 1);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -76,8 +76,8 @@ public class BlocketPriceService {
 
             Collections.sort(prices);
             int n = prices.size();
-            int lo = Math.max(0, n / 10);
-            int hi = Math.min(n - 1, n - 1 - n / 10);
+            int lo = Math.max(0, n / 5);
+            int hi = Math.min(n - 1, n - 1 - n / 5);
             int min = prices.get(lo);
             int max = prices.get(hi);
             String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)

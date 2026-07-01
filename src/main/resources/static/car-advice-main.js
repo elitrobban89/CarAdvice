@@ -367,7 +367,7 @@ function caBlocketUrl(title) {
   var url = 'https://www.blocket.se/mobility/search/car?q=' + encodeURIComponent(q);
   if (yearMatch) {
     var y = parseInt(yearMatch[1]);
-    url += '&year_min=' + (y - 2) + '&year_max=' + (y + 1);
+    url += '&year_min=' + (y - 1) + '&year_max=' + (y + 1);
   }
   return url;
 }
