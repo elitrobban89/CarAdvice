@@ -526,7 +526,7 @@ public class GroqService {
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
                 OBLIGATORISKA fält — sätt ALDRIG null: horsepower (systemeffekt i hk som heltal), engineOptions (STRÄNG med kommaseparerade varianter; bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)').
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar i engineOptions.
-                Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
+                ALLTID EXAKT 3 bilar — aldrig 1, aldrig 2. Om budget är knapp: välj billigare segment, äldre årsmodell eller annan märke — returnera ALLTID exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: Priset i "price"-fältet = nypris × ålderskoefficient (se NYPRIS-regel). Kontrollera alltid mot nypristabellen. Exempel: Octavia 2021+ nypris 340 000 kr, 3 år gammal → 340 000×0.65=221 000 kr – kan ALDRIG säljas för 100 000 kr. Om budget inte räcker: välj en ANNAN BIL (billigare modell, äldre generation, eller lägre segment) – sänk ALDRIG priset på en bil för att passa budgeten. Skriv i fitSummary om budget är knapp.
@@ -534,8 +534,9 @@ public class GroqService {
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin. Rekommendera ALDRIG Dongfeng, JAC, GWM, ORA, GAC, AION, Hyundai INSTER (ej i Sverige), eller andra kinesiska/okända märken som inte är etablerade i Sverige. Godkända märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai (utom INSTER), Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är en bensinbil, INTE elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 PHEV/LADDHYBRID: Laddhybrider (PHEV) existerade inte i stor skala före 2014. Golf GTE (laddhybrid) lanserades 2014 — rekommendera ALDRIG Golf (2013) eller äldre som laddhybrid. Outlander PHEV: 2013+. Passat GTE: 2015+. C-MAX Energi: 2013. Rekommendera ALDRIG en modell som laddhybrid om årsmodellen är äldre än modellens faktiska PHEV-lansering.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
-                GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs på svenska marknaden. Om osäker på om en modell existerar, uteslut den.
-                """ + (icePrices.isBlank() ? "" : icePrices + "\n")
+                GENERELLT: Nämn ALDRIG bilmodeller som inte officiellt säljs i Sverige idag. Hitta ALDRIG på modellnamn, versioner eller specifikationer du inte är säker på existerar. Om osäker — uteslut bilen och rekommendera ett alternativ du är helt säker på finns.
+                """ + (wantsEv && !wantsIce ? "ELBIL OBLIGATORISKT: Returnera ENBART renodlade batterielbilar (BEV). Rekommendera ALDRIG PHEV, laddhybrid eller bensin/diesel när användaren valt 'elbil'.\n" : "")
+                    + (icePrices.isBlank() ? "" : icePrices + "\n")
                     + (evPrices.isBlank()  ? "" : evPrices  + "\n");
         if (expertContext != null && !expertContext.isBlank())
             return base + "\n" + expertContext;
