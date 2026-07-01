@@ -362,8 +362,8 @@ function caEsc(s) {
 }
 
 function caBlocketUrl(title) {
-  var yearMatch = title.match(/\((\d{4})\)\s*$/);
-  var q = title.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  var yearMatch = title.match(/\((\d{4})\+?\)\s*$/);
+  var q = title.replace(/\s*\(\d{4}\+?\)\s*$/, '').trim();
   var url = 'https://www.blocket.se/mobility/search/car?q=' + encodeURIComponent(q);
   if (yearMatch) {
     var y = parseInt(yearMatch[1]);
