@@ -38,7 +38,7 @@ public class BlocketPriceService {
     private final NumberFormat sekFmt = NumberFormat.getNumberInstance(new Locale("sv", "SE"));
 
     public PriceRange fetchPriceRange(String carTitle) {
-        String query = stripYear(carTitle);
+        String query = extractSearchQuery(carTitle);
         if (query == null || query.isBlank()) return null;
 
         CacheEntry cached = cache.get(query);
@@ -84,8 +84,15 @@ public class BlocketPriceService {
         }
     }
 
-    private String stripYear(String title) {
+    private String extractSearchQuery(String title) {
         if (title == null) return null;
-        return title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
+        String s = title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
+        // Strip engine displacement: "1.0 TSI", "1.5 T-GDI", "2.0 TDI", etc.
+        s = s.replaceAll("\\s+\\d+[.,]\\d+.*$", "").trim();
+        // Strip battery capacity: "26 kWh", "51 kWh", etc.
+        s = s.replaceAll("(?i)\\s+\\d+\\s*kwh.*$", "").trim();
+        // Strip EV range variants
+        s = s.replaceAll("(?i)\\s+(Long Range|Short Range|Extended Range|Standard Range|Single Motor|Dual Motor|Grande Autonomie).*$", "").trim();
+        return s;
     }
 }
