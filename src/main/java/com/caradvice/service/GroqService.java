@@ -176,9 +176,11 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
+        if (content.isBlank())
+            content = json.at("/choices/0/message/reasoning_content").asText();
         if (content.isBlank()) {
             String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
-            log.warn("Groq returned empty content for getRecommendation, finish_reason={}", finishReason);
+            log.warn("Groq empty content getRecommendation finish_reason={} body={}", finishReason, response.body());
             throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
         }
         List<CarRecommendation> parsed = parseRecommendations(content);
@@ -249,9 +251,11 @@ public class GroqService {
 
         JsonNode json = mapper.readTree(response.body());
         String content = json.at("/choices/0/message/content").asText();
+        if (content.isBlank())
+            content = json.at("/choices/0/message/reasoning_content").asText();
         if (content.isBlank()) {
             String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
-            log.warn("Groq returned empty content for compareSpecific, finish_reason={}", finishReason);
+            log.warn("Groq empty content compareSpecific finish_reason={} body={}", finishReason, response.body());
             throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
         }
         List<CarRecommendation> parsed = parseRecommendations(content);
