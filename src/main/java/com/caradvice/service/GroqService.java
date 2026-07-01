@@ -496,9 +496,11 @@ public class GroqService {
         String transmissionLine = (prefs.transmission() != null && !prefs.transmission().isBlank()
                 && !"spelar ingen roll".equals(prefs.transmission()))
                 ? " Växellåda: " + prefs.transmission() + " – rekommendera endast bilar med denna växellåda." : "";
+        int currentYear = java.time.Year.now().getValue();
         String maxAgeLine = (!prefs.newCar() && prefs.maxAgeYears() != null)
-                ? " Max ålder: " + prefs.maxAgeYears() + " år (årsmodell " +
-                  (java.time.Year.now().getValue() - prefs.maxAgeYears()) + " eller nyare)." : "";
+                ? " ÅLDERSKRAV: Max " + prefs.maxAgeYears() + " år — ENDAST årsmodell " +
+                  (currentYear - prefs.maxAgeYears()) + " eller nyare accepteras. En " +
+                  (currentYear - prefs.maxAgeYears() - 1) + " eller äldre bil är FELAKTIG och ska ALDRIG rekommenderas." : "";
 
         return """
                 Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s

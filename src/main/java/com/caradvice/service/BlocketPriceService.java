@@ -28,7 +28,7 @@ public class BlocketPriceService {
     private static final String USER_AGENT =
             "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
     private static final long CACHE_TTL_MS = 30 * 60 * 1_000L;
-    private static final int FETCH_LIMIT = 20;
+    private static final int FETCH_LIMIT = 60;
 
     public record PriceRange(int minKr, int maxKr, int count, String formatted) {}
 
