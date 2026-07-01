@@ -36,7 +36,7 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:openai/gpt-oss-120b}")
+    @Value("${groq.model:openai/gpt-oss-20b}")
     private String model;
 
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
