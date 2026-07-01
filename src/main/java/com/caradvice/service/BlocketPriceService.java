@@ -75,10 +75,13 @@ public class BlocketPriceService {
             if (prices.isEmpty()) return null;
 
             Collections.sort(prices);
-            int min = prices.get(0);
-            int max = prices.get(prices.size() - 1);
+            int n = prices.size();
+            int lo = Math.max(0, n / 10);
+            int hi = Math.min(n - 1, n - 1 - n / 10);
+            int min = prices.get(lo);
+            int max = prices.get(hi);
             String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)
-                    + " kr (" + prices.size() + " annonser)";
+                    + " kr (" + n + " annonser)";
 
             PriceRange result = new PriceRange(min, max, prices.size(), formatted);
             cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));

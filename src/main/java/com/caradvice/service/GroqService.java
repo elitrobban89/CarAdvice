@@ -469,7 +469,7 @@ public class GroqService {
                 Exakt 3 bilar. fitSummary konkret och personlig. Driftkostnad i pros vid hög körsträcka.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "85 000–100 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
-                FABRICERA ALDRIG PRISER: Om ingen bil ryms i budget — rekommendera ändå rätt pris och skriv i fitSummary att budgeten är knapp. Sänk ALDRIG priset för att passa budget.
+                FABRICERA ALDRIG PRISER: Priset i "price"-fältet = nypris × ålderskoefficient (se NYPRIS-regel). Kontrollera alltid mot nypristabellen. Exempel: Octavia 2021+ nypris 340 000 kr, 3 år gammal → 340 000×0.65=221 000 kr – kan ALDRIG säljas för 100 000 kr. Om budget inte räcker: välj en ANNAN BIL (billigare modell, äldre generation, eller lägre segment) – sänk ALDRIG priset på en bil för att passa budgeten. Skriv i fitSummary om budget är knapp.
                 MOTORTYPER: Ange ALDRIG motorbeteckning (TDI, TSI, MPI, volym) om du inte är helt säker på att varianten existerar. Om osäker — ange bara hk och 'manuell'/'automat'.
                 VIKTIGT: Rekommendera ALDRIG BYD Dolphin — den säljs inte på svenska marknaden än. Kamiq är en bensinbil, INTE elbil — rekommendera den aldrig som elbil. Rekommendera aldrig en bensin-/dieselbil när användaren efterfrågar elbil.
                 VOLVO EV-SORTIMENT (2024–2026): EX30, EX40 (f.d. XC40 Recharge), EC40 (f.d. C40 Recharge), EX60, EX90. Det finns INGEN Volvo C90, C70, eller andra Volvo EV-modeller utöver dessa — hitta ALDRIG på Volvo-modeller.
