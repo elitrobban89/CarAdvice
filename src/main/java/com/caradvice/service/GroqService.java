@@ -36,7 +36,7 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:openai/gpt-oss-20b}")
+    @Value("${groq.model:openai/gpt-oss-120b}")
     private String model;
 
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
@@ -150,12 +150,14 @@ public class GroqService {
 
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.3,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -232,12 +234,14 @@ public class GroqService {
 
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.2,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
