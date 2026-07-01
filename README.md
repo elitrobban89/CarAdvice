@@ -521,9 +521,9 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-27b` (chatt + 429-fallback). Varje sökning använder upp till **1 050 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 200 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
+Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-27b` (chatt + 429-fallback). Varje sökning använder upp till **1 050 output-tokens** plus ~600–800 input-tokens. Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
-**Groq 429-fallback:** om `openai/gpt-oss-120b` svarar med 429 försöker `getRecommendation()` automatiskt en gång med `qwen/qwen3.6-27b` — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar.
+**Groq 429-fallback:** en gemensam `callGroqWithFallback(primary, fallback)`-metod används av alla tre flöden (rekommendation, jämförelse, chatt). Om primärmodellen svarar 429 görs ett nytt försök med fallback-modellen automatiskt — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
 
 **Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 
@@ -591,3 +591,6 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser) och `qwen/qwen3.6-2
 | Groq-modeller bytta | `llama-3.3-70b-versatile` (deprecated 2026-06-29) → `openai/gpt-oss-120b`; fallback `llama-3.1-8b-instant` → `qwen/qwen3.6-27b` |
 | NewCarPriceService | Ny `new_car_price`-tabell med ~65 ICE-nyprisar per generation seedas vid uppstart; injiceras i alla AI-systempromptars pris-kontext |
 | Groq-anropsoptimering | ICE/EV-priskontextar cachas 1h (tidigare DB-query per anrop); compare-resultat cachas 4h; fallback max_tokens 4000→1050; chatthistorik begränsad till senaste 8 meddelanden |
+| GroqService-refaktorering | `buildRequest`/`callGroqWithFallback`/`enrichRecommendations` extraherade — eliminerar ~80 rader duplikat HTTP- och enrichment-kod; `DEPRECIATION_RULE` som konstant; chat() och chatStream() får nu 429-fallback till primärmodellen |
+| Admin-endpoints konsekvent | Alla 7 admin-endpoints: `required=false`, gemensam `isAdminUnauthorized`-helper, konsekvent 403 JSON (tidigare: blandade 401/403, en del kastade 400 om header saknades) |
+| CSV-filer i .gitignore | `*.csv` tillagd — `bilprovningen_insights.csv`, `tv_insights.csv`, `vb_insights.csv` visas inte längre som untracked i git |
