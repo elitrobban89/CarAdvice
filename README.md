@@ -110,7 +110,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** rekommendationer och jämförelser använder `qwen/qwen3.6-27b` (versatile, `/no_think`), fallback `openai/gpt-oss-20b` (instant); chatboten använder `openai/gpt-oss-20b` primärt, `qwen/qwen3.6-27b` som fallback
+- **Modellsplit:** rekommendationer och jämförelser använder `qwen/qwen3.6-27b` (`reasoning_effort: none`), fallback `openai/gpt-oss-20b` (`reasoning_effort: low`); chatboten använder `openai/gpt-oss-20b` primärt, `qwen/qwen3.6-27b` som fallback
 
 ### Produktionsstatus
 
@@ -523,7 +523,7 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `/no_think`) och `openai/gpt-oss-20b` (chatt + 429-fallback). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
+Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: none`) och `openai/gpt-oss-20b` (chatt + 429-fallback, `reasoning_effort: low`). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
 **Groq 429-fallback:** en gemensam `callGroqWithFallback(primary, fallback)`-metod används av alla tre flöden (rekommendation, jämförelse, chatt). Om primärmodellen svarar 429 görs ett nytt försök med fallback-modellen automatiskt — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
 
@@ -608,3 +608,4 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `/no_think`) och `open
 | Fabricerade priser förhindras | AI-prompten skärpt med konkret Octavia-räkneexempel: nypris × ålderskoefficient visas — AI ska välja annan bil om budget inte räcker, aldrig sänka priset för att passa budget |
 | Dubblat prisvärdhet-chip | `caFuelChips()` lade till `valueLabel`-chippen dubbelt (duplicerad kodrad) — en av raderna borttagen |
 | Modellbyten tog aldrig effekt — properties-override fixad | `application.properties` hade `groq.model=llama-3.3-70b-versatile` hårdkodat (kvar från gammal revert-commit) vilket alltid vinner över `@Value`-defaulten i `GroqService` — alla modellbyten via kod-defaults var verkningslösa och appen anropade den avvecklade llama-modellen. Nu `${GROQ_MODEL:qwen/qwen3.6-27b}` och `${GROQ_CHAT_MODEL:openai/gpt-oss-20b}` — modell kan bytas via Render-miljövariabel utan kodändring |
+| `/no_think` → `reasoning_effort` | `/no_think`-prefixet ignorerades av qwen3.6 på Groq — reasoning åt upp tokenbudgeten och JSON-svaret trunkerades ("AI-svaret blev ofullständigt"). Ersatt med Groqs riktiga parameter: `reasoning_effort: none` för qwen (stänger av reasoning helt), `reasoning_effort: low` för gpt-oss (som bara tar low/medium/high). Sätts nu per modell i alla fyra anrop (rekommendation, jämförelse, chat, chatStream) |

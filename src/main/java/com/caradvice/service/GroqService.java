@@ -80,6 +80,11 @@ public class GroqService {
         return apiKey != null && !apiKey.isBlank();
     }
 
+    /** qwen3.6 stöder "none" (stänger av reasoning helt); gpt-oss tar bara low/medium/high. */
+    private static String reasoningEffortFor(String modelName) {
+        return modelName.startsWith("openai/") ? "low" : "none";
+    }
+
     private HttpRequest buildRequest(Object body) throws Exception {
         return HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_URL))
@@ -148,16 +153,16 @@ public class GroqService {
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
         String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
 
-        String noThinkPrompt = "/no_think " + prompt;
-
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.3,
+                "reasoning_effort", reasoningEffortFor(model),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", noThinkPrompt)));
+                        Map.of("role", "user", "content", prompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
+                "reasoning_effort", reasoningEffortFor(chatModel),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", prompt)));
@@ -234,12 +239,14 @@ public class GroqService {
 
         Map<String, Object> primaryBody = Map.of(
                 "model", model, "max_tokens", 3000, "temperature", 0.2,
+                "reasoning_effort", reasoningEffortFor(model),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", "/no_think " + userPrompt)));
+                        Map.of("role", "user", "content", userPrompt)));
 
         Map<String, Object> fallbackBody = Map.of(
                 "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
+                "reasoning_effort", reasoningEffortFor(chatModel),
                 "messages", List.of(
                         Map.of("role", "system", "content", compareSystemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
@@ -419,8 +426,10 @@ public class GroqService {
         msgs.add(Map.of("role", "system", "content", systemPrompt));
         msgs.addAll(history);
 
-        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5, "messages", msgs);
-        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5, "messages", msgs);
+        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5,
+                "reasoning_effort", reasoningEffortFor(chatModel), "messages", msgs);
+        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5,
+                "reasoning_effort", reasoningEffortFor(model), "messages", msgs);
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
 
@@ -444,8 +453,10 @@ public class GroqService {
         msgs.add(Map.of("role", "system", "content", systemPrompt));
         msgs.addAll(history);
 
-        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5, "stream", true, "messages", msgs);
-        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5, "stream", true, "messages", msgs);
+        Map<String, Object> primaryBody = Map.of("model", chatModel, "max_tokens", 1800, "temperature", 0.5, "stream", true,
+                "reasoning_effort", reasoningEffortFor(chatModel), "messages", msgs);
+        Map<String, Object> fallbackBody = Map.of("model", model, "max_tokens", 1800, "temperature", 0.5, "stream", true,
+                "reasoning_effort", reasoningEffortFor(model), "messages", msgs);
 
         HttpResponse<InputStream> response = httpClient.send(buildRequest(primaryBody), HttpResponse.BodyHandlers.ofInputStream());
         if (response.statusCode() == 429)
