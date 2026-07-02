@@ -486,6 +486,8 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 | Variabel | Beskrivning |
 |---|---|
 | `GROQ_API_KEY` | API-nyckel från console.groq.com |
+| `GROQ_MODEL` | (valfri) Primärmodell för rekommendationer/jämförelser — default `qwen/qwen3.6-27b` |
+| `GROQ_CHAT_MODEL` | (valfri) Chatt- och fallbackmodell — default `openai/gpt-oss-20b` |
 | `DB_URL` | PostgreSQL JDBC-URL |
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
@@ -605,3 +607,4 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `/no_think`) och `open
 | new_car_price alltid backfill | `seedDefaults()` körs nu vid varje uppstart (ON CONFLICT DO NOTHING) — nya bilar läggs till utan att tabellen behöver tömas; lade till ~12 modeller: Peugeot 3008, Ford Kuga, Citroën C3/ë-C3, Volvo S60/V90, Kia Picanto/Rio, Hyundai i10, Audi A4, BMW 3-serie, Mercedes C-klass |
 | Fabricerade priser förhindras | AI-prompten skärpt med konkret Octavia-räkneexempel: nypris × ålderskoefficient visas — AI ska välja annan bil om budget inte räcker, aldrig sänka priset för att passa budget |
 | Dubblat prisvärdhet-chip | `caFuelChips()` lade till `valueLabel`-chippen dubbelt (duplicerad kodrad) — en av raderna borttagen |
+| Modellbyten tog aldrig effekt — properties-override fixad | `application.properties` hade `groq.model=llama-3.3-70b-versatile` hårdkodat (kvar från gammal revert-commit) vilket alltid vinner över `@Value`-defaulten i `GroqService` — alla modellbyten via kod-defaults var verkningslösa och appen anropade den avvecklade llama-modellen. Nu `${GROQ_MODEL:qwen/qwen3.6-27b}` och `${GROQ_CHAT_MODEL:openai/gpt-oss-20b}` — modell kan bytas via Render-miljövariabel utan kodändring |
