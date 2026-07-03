@@ -228,6 +228,25 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
 | Deploy | Render.com (Docker) |
 | Monitorering | UptimeRobot |
+| Tester | JUnit 5, Mockito, AssertJ — körs i GitHub Actions på varje push |
+
+---
+
+## Tester & CI
+
+31 enhetstester täcker backendens rena logik, utan databas eller nätverk (repositories mockas med Mockito):
+
+| Testklass | Täcker |
+|-----------|--------|
+| `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
+| `ExpertInsightServiceTest` (12) | RAG-urval: max 2 insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
+| `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
+
+```bash
+mvn test          # kör alla tester lokalt (~1 s)
+```
+
+GitHub Actions ([maven.yml](.github/workflows/maven.yml)) bygger och kör testerna på varje push och pull request — badgen överst i denna README visar status.
 
 ---
 
