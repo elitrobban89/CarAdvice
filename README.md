@@ -1,5 +1,7 @@
 # CarAdvice – AI Bilrådgivning
 
+[![Build & Test](https://github.com/elitrobban89/CarAdvice/actions/workflows/maven.yml/badge.svg)](https://github.com/elitrobban89/CarAdvice/actions/workflows/maven.yml)
+
 En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren fyller i sina preferenser i ett WordPress-formulär och får tre skräddarsydda bilrekommendationer på sekunder.
 
 **Live:** [elitrobban.se/bilradgivning](https://elitrobban.se/bilradgivning/)
