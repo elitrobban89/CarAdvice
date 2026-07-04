@@ -325,6 +325,7 @@ CarAdvice/
 ```bash
 export GROQ_API_KEY=din_nyckel
 export ADMIN_KEY=valfri_lokal_nyckel
+export DDL_AUTO=update   # låter Hibernate skapa H2-schemat (prod-default är validate)
 ```
 
 **2. Starta:**
@@ -334,7 +335,7 @@ mvn spring-boot:run
 
 **3. Öppna:** `http://localhost:8080/test.html`
 
-> **Känd begränsning:** lokal start mot H2-fallbacken kraschar för närvarande vid uppstart — `NewCarPriceService.seedDefaults()` använder Postgres-syntaxen `ON CONFLICT ... DO NOTHING` som H2 inte stöder (inte ens i `MODE=PostgreSQL`). Kör mot en riktig PostgreSQL via `DB_URL`/`DB_USER`/`DB_PASS` tills seedningen skrivits om portabelt. Produktionen (Render + Postgres) påverkas inte.
+Utan `DB_URL` körs en H2 in-memory-databas som seedas automatiskt vid uppstart — ingen lokal Postgres behövs.
 
 ---
 
@@ -578,6 +579,7 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: non
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Lokal H2-boot lagad | `NewCarPriceService` använde Postgres-syntaxen `ON CONFLICT` som H2 inte stöder → lokal start kraschade i `DataLoader`. Ersatt med portabel `INSERT ... SELECT ... WHERE NOT EXISTS` (seed) och `UPDATE`-först-annars-`INSERT` (upsert); `spring.jpa.hibernate.ddl-auto` är nu `${DDL_AUTO:validate}` så H2-schemat kan skapas lokalt med `DDL_AUTO=update` |
 | Groq-modellhälsokoll | Ny `GET /api/health/groq` verifierar `groq.model` + `groq.chat.model` mot Groqs `/models`-lista (1h-cache) och svarar 503 `MODEL_MISSING` vid avveckling — UptimeRobot larmar. Transienta Groq-fel ger 200 `UNKNOWN` (inga falsklarm) och cachas inte |
 | Robustare AI-JSON-parsning | `extractJson` hanterar svar med bare root-array (behöll tidigare inte hakparenteserna → array-fallbacken triggades aldrig); `convertRecommendations` fångar schemafel och ger begripligt fel istället för 500; `@JsonIgnoreProperties(ignoreUnknown=true)` på `CarRecommendation` så AI:ns påhittade extrafält inte fäller parsningen |
 | `extract_insights.py` avvecklad modell | Scriptet körde `llama-3.3-70b-versatile` (avvecklad 2026-06-29) → `openai/gpt-oss-120b` med `reasoning_effort: low` och `GROQ_MODEL`-env-override |

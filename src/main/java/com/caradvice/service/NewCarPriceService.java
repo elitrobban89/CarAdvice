@@ -159,8 +159,11 @@ public class NewCarPriceService {
         };
 
         for (Object[] row : data) {
-            jdbc.update("INSERT INTO new_car_price(car_name, price_kr) VALUES (?,?) ON CONFLICT (car_name) DO NOTHING",
-                    row[0], row[1]);
+            // Portabel "insert if missing" — H2 (lokal fallback) stöder inte Postgres ON CONFLICT
+            jdbc.update("""
+                INSERT INTO new_car_price(car_name, price_kr)
+                SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM new_car_price WHERE car_name = ?)
+                """, row[0], row[1], row[0]);
         }
     }
 
@@ -176,9 +179,13 @@ public class NewCarPriceService {
     }
 
     public int upsert(String carName, int priceKr) {
-        return jdbc.update(
-                "INSERT INTO new_car_price(car_name, price_kr) VALUES (?,?) ON CONFLICT (car_name) DO UPDATE SET price_kr = EXCLUDED.price_kr",
-                carName, priceKr);
+        // Portabel upsert utan ON CONFLICT: uppdatera först, annars villkorad insert
+        int updated = jdbc.update("UPDATE new_car_price SET price_kr = ? WHERE car_name = ?", priceKr, carName);
+        if (updated > 0) return updated;
+        return jdbc.update("""
+                INSERT INTO new_car_price(car_name, price_kr)
+                SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM new_car_price WHERE car_name = ?)
+                """, carName, priceKr, carName);
     }
 
     public int delete(String carName) {
