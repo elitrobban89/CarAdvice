@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +44,11 @@ public class GroqService {
 
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
     private String chatModel;
+
+    // Extra modeller som hälsokollen bevakar utöver de egna — Tag/VaderKlader kör gpt-oss-120b
+    // men saknar egen /health/groq, så avveckling larmas härifrån
+    @Value("${groq.watched.models:openai/gpt-oss-120b}")
+    private String watchedModels;
 
     private final ExpertInsightService expertInsightService;
     private final SafetyRatingService safetyRatingService;
@@ -441,7 +447,15 @@ public class GroqService {
     private volatile ModelStatus cachedModelStatus;
 
     public List<String> configuredModels() {
-        return model.equals(chatModel) ? List.of(model) : List.of(model, chatModel);
+        Set<String> models = new LinkedHashSet<>();
+        models.add(model);
+        models.add(chatModel);
+        if (watchedModels != null) {
+            for (String m : watchedModels.split(",")) {
+                if (!m.isBlank()) models.add(m.trim());
+            }
+        }
+        return List.copyOf(models);
     }
 
     public ModelStatus checkModels() {

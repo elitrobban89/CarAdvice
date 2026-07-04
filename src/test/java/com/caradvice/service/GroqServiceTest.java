@@ -257,9 +257,14 @@ class GroqServiceTest {
     // --- missingModels / configuredModels (hälsokoll mot Groqs /models-lista) ---
 
     private GroqService serviceMedModeller(String model, String chatModel) {
+        return serviceMedModeller(model, chatModel, "");
+    }
+
+    private GroqService serviceMedModeller(String model, String chatModel, String watchedModels) {
         GroqService s = service();
         ReflectionTestUtils.setField(s, "model", model);
         ReflectionTestUtils.setField(s, "chatModel", chatModel);
+        ReflectionTestUtils.setField(s, "watchedModels", watchedModels);
         return s;
     }
 
@@ -291,6 +296,18 @@ class GroqServiceTest {
     void sammaModellIBadaRollernaListasBaraEnGang() {
         GroqService s = serviceMedModeller("openai/gpt-oss-20b", "openai/gpt-oss-20b");
         assertThat(s.configuredModels()).containsExactly("openai/gpt-oss-20b");
+    }
+
+    @Test
+    void bevakadeExtramodellerIngarIHalsokollen() throws Exception {
+        // gpt-oss-120b används av Tag/VaderKlader som saknar egen hälsokoll — bevakas härifrån
+        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b",
+                "openai/gpt-oss-120b, openai/gpt-oss-20b");
+        assertThat(s.configuredModels())
+                .containsExactly("qwen/qwen3.6-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b");
+        String utan120b = """
+                {"data":[{"id":"qwen/qwen3.6-27b"},{"id":"openai/gpt-oss-20b"}]}""";
+        assertThat(s.missingModels(utan120b)).containsExactly("openai/gpt-oss-120b");
     }
 
     // --- buildRateLimitError / buildGroqErrorMessage ---
