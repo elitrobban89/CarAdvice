@@ -34,7 +34,8 @@ EXPERT_NAME  = "Bilexpert"
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 ADMIN_KEY    = os.environ.get("ADMIN_KEY", "")
 API_URL      = os.environ.get("API_URL", "https://caradvice.onrender.com")
-GROQ_MODEL   = "llama-3.3-70b-versatile"
+# llama-3.3-70b avvecklades på Groq 2026-06-29; gpt-oss-120b är production-tier
+GROQ_MODEL   = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 OUTPUT_CSV   = "peter_esse_insights.csv"
 PROGRESS_FILE = "peter_esse_progress.json"
 DELAY_SECONDS = 5        # Sekunder mellan varje video (respekterar API-ratelimit)
@@ -115,7 +116,9 @@ def extract_insights_groq(transcript, video_id, language):
             {"role": "user", "content": f"Transkript (språk: {language}):\n\n{trimmed}"}
         ],
         "max_tokens": 1000,
-        "temperature": 0.2
+        "temperature": 0.2,
+        # gpt-oss är en reasoning-modell — utan low kan hela tokenbudgeten gå åt till reasoning
+        "reasoning_effort": "low"
     }
     for attempt in range(3):
         try:
