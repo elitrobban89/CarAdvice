@@ -130,7 +130,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
 - Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
-- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript och laddar upp via admin-endpoint)
+- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript via Groq `openai/gpt-oss-120b` och laddar upp via admin-endpoint; modellen kan bytas med `GROQ_MODEL`-miljövariabeln)
 - **138 insikter inladdade** från fyra expertkällor:
   - **Bilexpert** (37): manuellt skrivna för vanliga bilar på svenska marknaden
   - **Bilexpert** (16): extraherade från YouTube-transkript via `extract_insights.py`
@@ -321,9 +321,10 @@ CarAdvice/
 
 ## Köra lokalt
 
-**1. Sätt API-nyckel:**
+**1. Sätt miljövariabler:**
 ```bash
 export GROQ_API_KEY=din_nyckel
+export ADMIN_KEY=valfri_lokal_nyckel
 ```
 
 **2. Starta:**
@@ -332,6 +333,8 @@ mvn spring-boot:run
 ```
 
 **3. Öppna:** `http://localhost:8080/test.html`
+
+> **Känd begränsning:** lokal start mot H2-fallbacken kraschar för närvarande vid uppstart — `NewCarPriceService.seedDefaults()` använder Postgres-syntaxen `ON CONFLICT ... DO NOTHING` som H2 inte stöder (inte ens i `MODE=PostgreSQL`). Kör mot en riktig PostgreSQL via `DB_URL`/`DB_USER`/`DB_PASS` tills seedningen skrivits om portabelt. Produktionen (Render + Postgres) påverkas inte.
 
 ---
 
@@ -543,8 +546,11 @@ EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — 
 |---|---|---|
 | WordPress-sida | `https://elitrobban.se/bilradgivning/` | 5 min |
 | Backend | `https://caradvice.onrender.com/api/recommend/test` | 5 min |
+| Groq-modeller | `https://caradvice.onrender.com/api/health/groq` | 5 min |
 
 Backend-monitorn håller Render-instansen varm och eliminerar cold starts.
+
+Groq-modellmonitorn larmar (503) den dag Groq avvecklar en konfigurerad modell — uptime-pingarna missade llama-3.3-70b-avvecklingen 2026-06-29 eftersom appen var uppe medan alla AI-anrop föll. Pingarna kostar inga tokens: `/models`-anropet är ometerat och svaret cachas 1 timme, så Groq ser max ~24 anrop/dygn oavsett pingintervall. Notera att kollen täcker `qwen/qwen3.6-27b` och `openai/gpt-oss-20b` — `openai/gpt-oss-120b` (Tag/VaderKlader) övervakas inte härifrån.
 
 ---
 
@@ -572,6 +578,10 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: non
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Groq-modellhälsokoll | Ny `GET /api/health/groq` verifierar `groq.model` + `groq.chat.model` mot Groqs `/models`-lista (1h-cache) och svarar 503 `MODEL_MISSING` vid avveckling — UptimeRobot larmar. Transienta Groq-fel ger 200 `UNKNOWN` (inga falsklarm) och cachas inte |
+| Robustare AI-JSON-parsning | `extractJson` hanterar svar med bare root-array (behöll tidigare inte hakparenteserna → array-fallbacken triggades aldrig); `convertRecommendations` fångar schemafel och ger begripligt fel istället för 500; `@JsonIgnoreProperties(ignoreUnknown=true)` på `CarRecommendation` så AI:ns påhittade extrafält inte fäller parsningen |
+| `extract_insights.py` avvecklad modell | Scriptet körde `llama-3.3-70b-versatile` (avvecklad 2026-06-29) → `openai/gpt-oss-120b` med `reasoning_effort: low` och `GROQ_MODEL`-env-override |
+| Mockito på Java 25 | Spring Boot 3.2 pinnar Mockito 5.7/Byte Buddy 1.14 som inte kan mocka klasser på Java 25 — versions-overrides i `pom.xml` till Mockito 5.23/Byte Buddy 1.17.7 |
 | TCO leasing-kalkyl | `caParseLeaseMonthly` läste köppriser (t.ex. "330 000 kr") som månadskostnad → TCO visades som ~18 miljoner. Fixat: parsar nu bara som månadsbelopp om strängen innehåller "mån"; faller tillbaka på användarens budget-slider som leasingkostnad |
 | Elbilar: "obligatorisk årsavgift" | Chatbotten påstod att BYD/MG4 m.fl. har en obligatorisk årsavgift på 1 800 kr — det finns ingen sådan generell avgift i svensk lag. System-prompt korrigerad med faktaanvisning |
 | Elbilar: "turbo/ej turbo" i fördelar | AI annoterade elbilars batterivarianter med "(turbo)" / "(ej turbo)". Fixat: turbo-terminologi förbjuds för elbil/laddhybrid i systempromptarna |
@@ -607,7 +617,7 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: non
 | `FuelSpecDto` null-säkerhet | Primitiva `double`/`int` → boxade `Double`/`Integer` så att `null`-fält från AI inte kraschar deserialisering |
 | `isRateLimited` map-lookup | `compute()` följt av extra `map.get()` — använder nu returvärdet från `compute()` direkt |
 | Lösenordsvalidering (skärpt) | Min 6 → min 8 tecken; max 128 tecken; email valideras med regex `^[^@\s]+@[^@\s]+\.[^@\s]+$` istf bara `contains("@")` |
-| Groq 429-fallback | `getRecommendation()` retryar automatiskt med `llama-3.1-8b-instant` om 70b svarar 429 — kastar bara fel om båda modellerna nekar |
+| Groq 429-fallback | `getRecommendation()` retryar automatiskt med fallback-modellen (numera `openai/gpt-oss-20b`) om primärmodellen svarar 429 — kastar bara fel om båda modellerna nekar |
 | TCO-stapeldiagram | `caTcoBarChart()` ritar horisontella staplad-bar-chart under jämförelsetabellen med fem färgkodade segment per bil |
 | Bilbilder på korten | Wikipedia REST API (CORS-öppen) lazy-loadar thumbnail per bilkort efter render; försöker engelska Wikipedia → svenska Wikipedia; döljs tyst om ingen bild hittas |
 | Sparade sökningar | Inloggade användare kan spara sökningar till DB via "Spara sökning"-knapp; hämtas från server vid inloggning och visas som chips ovanför historiken; DELETE tar bort enskild post |
