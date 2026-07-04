@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Year;
 import java.util.List;
@@ -251,6 +252,45 @@ class GroqServiceTest {
     void nullFaltIPreferensernaKraschaInteCachenyckeln() {
         String key = service().buildCacheKey(prefs(300_000, "suv", true, 15_000, false, null, null, null, null));
         assertThat(key).contains("köp"); // budgetType null faller tillbaka på "köp"
+    }
+
+    // --- missingModels / configuredModels (hälsokoll mot Groqs /models-lista) ---
+
+    private GroqService serviceMedModeller(String model, String chatModel) {
+        GroqService s = service();
+        ReflectionTestUtils.setField(s, "model", model);
+        ReflectionTestUtils.setField(s, "chatModel", chatModel);
+        return s;
+    }
+
+    @Test
+    void ingaModellerSaknasNarBadaFinnsIListan() throws Exception {
+        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+        String body = """
+                {"data":[{"id":"qwen/qwen3.6-27b"},{"id":"openai/gpt-oss-20b"},{"id":"openai/gpt-oss-120b"}]}""";
+        assertThat(s.missingModels(body)).isEmpty();
+    }
+
+    @Test
+    void avveckladModellRapporterasSomSaknad() throws Exception {
+        // Scenariot från llama-3.3-70b-avvecklingen: modellen försvinner ur /models-listan
+        GroqService s = serviceMedModeller("llama-3.3-70b-versatile", "openai/gpt-oss-20b");
+        String body = """
+                {"data":[{"id":"openai/gpt-oss-20b"}]}""";
+        assertThat(s.missingModels(body)).containsExactly("llama-3.3-70b-versatile");
+    }
+
+    @Test
+    void tomModellistaGerBadaModellernaSomSaknade() throws Exception {
+        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+        assertThat(s.missingModels("{\"data\":[]}"))
+                .containsExactly("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+    }
+
+    @Test
+    void sammaModellIBadaRollernaListasBaraEnGang() {
+        GroqService s = serviceMedModeller("openai/gpt-oss-20b", "openai/gpt-oss-20b");
+        assertThat(s.configuredModels()).containsExactly("openai/gpt-oss-20b");
     }
 
     // --- buildRateLimitError / buildGroqErrorMessage ---

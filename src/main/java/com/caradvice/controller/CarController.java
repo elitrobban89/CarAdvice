@@ -334,6 +334,20 @@ public class CarController {
         return ResponseEntity.ok(Map.of("status", "OK"));
     }
 
+    // Övervakas av UptimeRobot: 503 när en konfigurerad Groq-modell avvecklats.
+    // Transienta fel mot Groq ger 200 + UNKNOWN för att slippa falsklarm.
+    @GetMapping("/health/groq")
+    public ResponseEntity<?> groqHealth() {
+        if (!groqService.isConfigured())
+            return ResponseEntity.status(503).body(Map.of("status", "UNCONFIGURED"));
+        GroqService.ModelStatus st = groqService.checkModels();
+        if (st.error() != null)
+            return ResponseEntity.ok(Map.of("status", "UNKNOWN", "error", st.error()));
+        if (!st.missing().isEmpty())
+            return ResponseEntity.status(503).body(Map.of("status", "MODEL_MISSING", "missing", st.missing()));
+        return ResponseEntity.ok(Map.of("status", "OK", "models", groqService.configuredModels()));
+    }
+
     @GetMapping("/recommend/test")
     public ResponseEntity<?> recommendTest() {
         boolean configured = groqService.isConfigured();

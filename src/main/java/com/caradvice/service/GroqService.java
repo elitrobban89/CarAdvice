@@ -15,8 +15,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +63,7 @@ public class GroqService {
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+    private static final String GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
     private static final long PRICES_TTL_MS = 60 * 60 * 1000;
@@ -427,6 +430,52 @@ public class GroqService {
                 return "AI-svaret blev ofullständigt. Försök igen.";
         } catch (Exception ignored) {}
         return "AI-tjänsten svarade med fel " + status + ". Försök igen om en stund.";
+    }
+
+    // --- Modellhälsokoll: avvecklade modeller (som llama-3.3-70b) försvinner ur Groqs /models-lista ---
+
+    public record ModelStatus(List<String> missing, String error, long checkedAtMs) {}
+
+    // UptimeRobot pingar var 5:e minut — fråga Groq max en gång i timmen
+    private static final long MODEL_STATUS_TTL_MS = 60 * 60 * 1000;
+    private volatile ModelStatus cachedModelStatus;
+
+    public List<String> configuredModels() {
+        return model.equals(chatModel) ? List.of(model) : List.of(model, chatModel);
+    }
+
+    public ModelStatus checkModels() {
+        ModelStatus cached = cachedModelStatus;
+        if (cached != null && System.currentTimeMillis() - cached.checkedAtMs() < MODEL_STATUS_TTL_MS) return cached;
+        ModelStatus fresh = fetchModelStatus();
+        // Fel (nätverk, 5xx) cachas inte — nästa ping försöker igen direkt
+        if (fresh.error() == null) cachedModelStatus = fresh;
+        return fresh;
+    }
+
+    private ModelStatus fetchModelStatus() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GROQ_MODELS_URL))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .GET().build();
+            HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200)
+                return new ModelStatus(List.of(), "Groq /models svarade " + resp.statusCode(), System.currentTimeMillis());
+            List<String> missing = missingModels(resp.body());
+            if (!missing.isEmpty()) log.error("Groq-modeller saknas i /models-listan: {}", missing);
+            return new ModelStatus(missing, null, System.currentTimeMillis());
+        } catch (Exception e) {
+            return new ModelStatus(List.of(), "Kunde inte nå Groq: " + e.getMessage(), System.currentTimeMillis());
+        }
+    }
+
+    /** Vilka av de konfigurerade modellerna som saknas i ett /models-svar ({"data":[{"id":...},...]}). */
+    List<String> missingModels(String modelsResponseBody) throws Exception {
+        JsonNode data = mapper.readTree(modelsResponseBody).get("data");
+        Set<String> available = new HashSet<>();
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asText()));
+        return configuredModels().stream().filter(m -> !available.contains(m)).toList();
     }
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {

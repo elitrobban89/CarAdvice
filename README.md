@@ -234,11 +234,11 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-61 enhetstester täcker backendens rena logik, utan databas eller nätverk (beroenden mockas med Mockito):
+65 enhetstester täcker backendens rena logik, utan databas eller nätverk (beroenden mockas med Mockito):
 
 | Testklass | Täcker |
 |-----------|--------|
-| `GroqServiceTest` (30) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden |
+| `GroqServiceTest` (34) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, modellhälsokollen (`missingModels`) |
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
 | `ExpertInsightServiceTest` (12) | RAG-urval: max 2 insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
@@ -465,6 +465,19 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 ```json
 { "status": "OK" }
 ```
+
+### `GET /api/health/groq`
+
+Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/models`-lista (avvecklade modeller — som `llama-3.3-70b-versatile` 2026-06-29 — försvinner ur listan medan appen i övrigt ser frisk ut). Svaret cachas i 1 timme, så UptimeRobot kan pinga var 5:e minut utan att belasta Groq.
+
+| Läge | HTTP | Body |
+|---|---|---|
+| Alla modeller finns | 200 | `{ "status": "OK", "models": ["qwen/qwen3.6-27b", "openai/gpt-oss-20b"] }` |
+| Modell avvecklad | **503** | `{ "status": "MODEL_MISSING", "missing": ["..."] }` |
+| Groq onåbart (transient) | 200 | `{ "status": "UNKNOWN", "error": "..." }` — inget falsklarm, fel cachas inte |
+| `GROQ_API_KEY` saknas | **503** | `{ "status": "UNCONFIGURED" }` |
+
+**UptimeRobot:** lägg till en HTTP-monitor mot `https://caradvice.onrender.com/api/health/groq` — 503 larmar automatiskt.
 
 ### Auth-endpoints
 
