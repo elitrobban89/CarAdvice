@@ -9,6 +9,7 @@ import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
+import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
@@ -57,6 +58,7 @@ public class CarController {
     private final RateLimitLogRepository rateLimitLogRepo;
     private final CargoSpecRepository cargoSpecRepo;
     private final EvSpecRepository evSpecRepo;
+    private final FeedbackService feedbackService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -67,6 +69,9 @@ public class CarController {
     private static final long CHAT_WINDOW_MS = 60_000L;
     private final ConcurrentHashMap<String, Deque<Long>> chatTimestamps = new ConcurrentHashMap<>();
 
+    private static final int FEEDBACK_RATE_LIMIT = 10;
+    private final ConcurrentHashMap<String, Deque<Long>> feedbackTimestamps = new ConcurrentHashMap<>();
+
     @Value("${admin.key}")
     private String adminKey;
 
@@ -74,7 +79,8 @@ public class CarController {
                          SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
                          CargoSpecSyncService cargoSpecSyncService, CargoSpecService cargoSpecService,
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
-                         CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo) {
+                         CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
+                         FeedbackService feedbackService) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -85,6 +91,7 @@ public class CarController {
         this.rateLimitLogRepo = rateLimitLogRepo;
         this.cargoSpecRepo = cargoSpecRepo;
         this.evSpecRepo = evSpecRepo;
+        this.feedbackService = feedbackService;
     }
 
     @PostConstruct
@@ -332,6 +339,29 @@ public class CarController {
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of("status", "OK"));
+    }
+
+    // Tumme upp/ner på en rekommenderad bil — anonym, max 10 röster/min per IP
+    @PostMapping("/feedback")
+    public ResponseEntity<?> feedback(@RequestBody Map<String, String> req, HttpServletRequest httpReq) {
+        String ip = getClientIp(httpReq);
+        long now = System.currentTimeMillis();
+        Deque<Long> times = feedbackTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
+        synchronized (times) {
+            while (!times.isEmpty() && now - times.peekFirst() > CHAT_WINDOW_MS) times.pollFirst();
+            if (times.size() >= FEEDBACK_RATE_LIMIT)
+                return ResponseEntity.status(429).body(Map.of("error", "För många röster. Vänta en stund."));
+            times.addLast(now);
+        }
+        boolean saved = feedbackService.save(req.get("carTitle"), req.get("vote"));
+        if (!saved) return ResponseEntity.badRequest().body(Map.of("error", "Ogiltig feedback"));
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    @GetMapping("/admin/feedback")
+    public ResponseEntity<?> feedbackSummary(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(feedbackService.summary());
     }
 
     // Övervakas av UptimeRobot: 503 när en konfigurerad Groq-modell avvecklats.

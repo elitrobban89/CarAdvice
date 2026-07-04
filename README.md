@@ -234,7 +234,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-66 enhetstester täcker backendens rena logik, utan databas eller nätverk (beroenden mockas med Mockito):
+70 enhetstester täcker backendens rena logik (beroenden mockas med Mockito; `FeedbackServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -242,6 +242,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
 | `ExpertInsightServiceTest` (12) | RAG-urval: max 2 insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
+| `FeedbackServiceTest` (4) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, idempotent tabellskapande — mot riktig H2 |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -465,6 +466,22 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 ["Audi A3", "Audi Q4 e-tron", "BMW i4", "Dacia Spring", "MG4", "Tesla Model Y Long Range", "Volvo EX30", ...]
 ```
 
+### `POST /api/feedback`
+
+Anonym tumme upp/ner på ett rekommenderat bilkort (knappar under varje kort; en röst per bil sparas i webbläsarens `localStorage`). Max 10 röster/min per IP.
+
+```json
+{ "carTitle": "Volvo EX30 (2024)", "vote": "up" }   →  { "status": "ok" }
+```
+
+### `GET /api/admin/feedback`
+
+Summering per bil (kräver `X-Admin-Key`), flest röster först:
+
+```json
+[ { "car_title": "Volvo EX30 (2024)", "upvotes": 2, "downvotes": 0, "total": 2 } ]
+```
+
 ### `GET /api/health`
 ```json
 { "status": "OK" }
@@ -512,7 +529,8 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken, token-utgångsdatum |
 | `saved_search` | Sparade sökningar per användare: preferenser (JSON), rekommendationer (JSON), etikett, skapad-tid (max 20/användare) |
 | `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
-| `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart med ON CONFLICT DO NOTHING |
+| `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
+| `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
 
 ---
 

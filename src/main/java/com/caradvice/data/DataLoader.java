@@ -8,6 +8,7 @@ import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
+import com.caradvice.service.FeedbackService;
 import com.caradvice.service.NewCarPriceService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -22,20 +23,23 @@ public class DataLoader implements CommandLineRunner {
     private final EvSpecRepository evSpecRepo;
     private final CargoSpecRepository cargoRepo;
     private final NewCarPriceService newCarPriceService;
+    private final FeedbackService feedbackService;
 
     public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
                       EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo,
-                      NewCarPriceService newCarPriceService) {
+                      NewCarPriceService newCarPriceService, FeedbackService feedbackService) {
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
         this.evSpecRepo = evSpecRepo;
         this.cargoRepo = cargoRepo;
         this.newCarPriceService = newCarPriceService;
+        this.feedbackService = feedbackService;
     }
 
     @Override
     public void run(String... args) {
         newCarPriceService.ensureTableAndSeed();
+        feedbackService.ensureTable();
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();

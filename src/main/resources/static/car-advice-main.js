@@ -513,11 +513,17 @@ function caRenderCards(recommendations) {
             '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket &#x2192;</a>' +
             '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil &#x2192;</a>' +
           '</div>' +
+          '<div class="ca-fb" data-title="' + caEsc(r.title) + '" style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.45)">' +
+            '<span>Bra f\xf6rslag?</span>' +
+            '<button class="ca-fb-btn" data-vote="up" title="Bra f\xf6rslag" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.9rem;line-height:1.3">&#x1F44D;</button>' +
+            '<button class="ca-fb-btn" data-vote="down" title="D\xe5ligt f\xf6rslag" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.9rem;line-height:1.3">&#x1F44E;</button>' +
+          '</div>' +
         '</div>' +
         '</div>';
     }).join('');
     caFetchCarImages(recommendations);
     caRenderCompare(recommendations);
+    caWireFeedback(container);
     container.querySelectorAll('.ca-ask-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var title = btn.dataset.title;
@@ -534,6 +540,32 @@ function caRenderCards(recommendations) {
       });
     });
   }, 250);
+}
+
+// Tumme upp/ner per bilkort — en röst per bil sparas i localStorage så samma bil inte röstas om
+function caWireFeedback(container) {
+  container.querySelectorAll('.ca-fb').forEach(function(box) {
+    var title = box.dataset.title;
+    function markVoted(v) {
+      box.innerHTML = '<span style="color:rgba(255,255,255,.45)">' +
+        (v === 'up' ? '&#x1F44D;' : '&#x1F44E;') + ' Tack f\xf6r din feedback!</span>';
+    }
+    var voted = null;
+    try { voted = localStorage.getItem('ca_fb_' + title); } catch (e) {}
+    if (voted) { markVoted(voted); return; }
+    box.querySelectorAll('.ca-fb-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var vote = btn.dataset.vote;
+        fetch(CA_API_BASE + '/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ carTitle: title, vote: vote })
+        }).catch(function() {});
+        try { localStorage.setItem('ca_fb_' + title, vote); } catch (e) {}
+        markVoted(vote);
+      });
+    });
+  });
 }
 
 function caRenderCompare(recs, targetEl) {
