@@ -81,7 +81,7 @@ public class GroqService {
     }
 
     /** qwen3.6 stöder "none" (stänger av reasoning helt); gpt-oss tar bara low/medium/high. */
-    private static String reasoningEffortFor(String modelName) {
+    static String reasoningEffortFor(String modelName) {
         return modelName.startsWith("openai/") ? "low" : "none";
     }
 
@@ -331,16 +331,22 @@ public class GroqService {
         sb.append("\n");
     }
 
-    private String extractJson(String content) {
+    String extractJson(String content) {
         // Strip <think>...</think> blocks produced by qwen reasoning models
         String cleaned = content.replaceAll("(?s)<think>.*?</think>", "").trim();
-        int start = cleaned.indexOf('{');
-        int end = cleaned.lastIndexOf('}');
-        if (start != -1 && end != -1 && end > start) return cleaned.substring(start, end + 1);
+        int objStart = cleaned.indexOf('{');
+        int arrStart = cleaned.indexOf('[');
+        // Bare root array: keep the brackets, otherwise the array fallback in parseRecommendations never fires
+        if (arrStart != -1 && (objStart == -1 || arrStart < objStart)) {
+            int arrEnd = cleaned.lastIndexOf(']');
+            if (arrEnd > arrStart) return cleaned.substring(arrStart, arrEnd + 1);
+        }
+        int objEnd = cleaned.lastIndexOf('}');
+        if (objStart != -1 && objEnd > objStart) return cleaned.substring(objStart, objEnd + 1);
         return cleaned;
     }
 
-    private List<CarRecommendation> parseRecommendations(String content) throws Exception {
+    List<CarRecommendation> parseRecommendations(String content) throws Exception {
         String jsonStr = extractJson(content);
         JsonNode root;
         try {
@@ -353,22 +359,30 @@ public class GroqService {
         for (String key : new String[]{"recommendations", "cars", "bilar", "results", "items"}) {
             JsonNode node = root.get(key);
             if (node != null && node.isArray() && !node.isEmpty()) {
-                List<CarRecommendation> parsed = mapper.convertValue(
-                        node, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+                List<CarRecommendation> parsed = convertRecommendations(node);
                 if (parsed != null && !parsed.isEmpty()) return parsed;
             }
         }
         // Last resort: if root itself is an array
         if (root.isArray() && !root.isEmpty()) {
-            List<CarRecommendation> parsed = mapper.convertValue(
-                    root, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+            List<CarRecommendation> parsed = convertRecommendations(root);
             if (parsed != null && !parsed.isEmpty()) return parsed;
         }
         log.warn("AI returned no parseable recommendations. Raw: {}", content);
         throw new RuntimeException("AI:n returnerade ett oväntat svar. Försök igen.");
     }
 
-    private String buildCacheKey(CarPreferences prefs) {
+    private List<CarRecommendation> convertRecommendations(JsonNode node) {
+        try {
+            return mapper.convertValue(
+                    node, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+        } catch (IllegalArgumentException e) {
+            log.warn("AI recommendations did not match expected schema: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    String buildCacheKey(CarPreferences prefs) {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
                (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
@@ -393,7 +407,7 @@ public class GroqService {
         }
     }
 
-    private String buildRateLimitError(String body) {
+    String buildRateLimitError(String body) {
         try {
             JsonNode err = mapper.readTree(body);
             String msg = err.at("/error/message").asText("");
@@ -405,7 +419,7 @@ public class GroqService {
         return "AI-tjänsten är tillfälligt överbelastad. Vänta " + parseRetryTime(body) + " och försök igen.";
     }
 
-    private String buildGroqErrorMessage(int status, String body) {
+    String buildGroqErrorMessage(int status, String body) {
         try {
             JsonNode err = mapper.readTree(body);
             String code = err.at("/error/code").asText("");
@@ -528,7 +542,7 @@ public class GroqService {
                 .toList();
     }
 
-    private String buildSystemPrompt(String expertContext, String fuelType) {
+    String buildSystemPrompt(String expertContext, String fuelType) {
         boolean wantsEv = fuelType != null &&
                 (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev"));
         boolean wantsIce = fuelType == null || fuelType.isBlank() ||
@@ -562,7 +576,7 @@ public class GroqService {
         return base;
     }
 
-    private String buildPrompt(CarPreferences prefs) {
+    String buildPrompt(CarPreferences prefs) {
         String laddning = prefs.hasCharger() ? "ja" : "nej – undvik renodlad elbil";
         String bilTyp = prefs.newCar() ? "ny" : "begagnad";
         int km = prefs.kmPerYear();

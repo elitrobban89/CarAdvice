@@ -17,6 +17,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Spring Boot 3.2 pinnar Mockito 5.7/Byte Buddy 1.14 som inte kan mocka klasser på Java 25 -->
+        <mockito.version>5.23.0</mockito.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
     </properties>
 
     <dependencies>

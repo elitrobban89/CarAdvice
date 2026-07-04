@@ -1,8 +1,11 @@
 package com.caradvice.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
+// AI:n lägger ibland till egna fält i JSON-svaret — de får inte fälla hela parsningen
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record CarRecommendation(
         @JsonProperty("title")           String title,
         @JsonProperty("price")           String price,

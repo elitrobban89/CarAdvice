@@ -234,10 +234,11 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-31 enhetstester täcker backendens rena logik, utan databas eller nätverk (repositories mockas med Mockito):
+61 enhetstester täcker backendens rena logik, utan databas eller nätverk (beroenden mockas med Mockito):
 
 | Testklass | Täcker |
 |-----------|--------|
+| `GroqServiceTest` (30) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden |
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
 | `ExpertInsightServiceTest` (12) | RAG-urval: max 2 insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
