@@ -62,11 +62,12 @@ public class GroqService {
     private final BlocketPriceService blocketPriceService;
     private final NewCarPriceService newCarPriceService;
     private final FeedbackService feedbackService;
+    private final IceConsumptionService iceConsumptionService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
                        BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
-                       FeedbackService feedbackService) {
+                       FeedbackService feedbackService, IceConsumptionService iceConsumptionService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
@@ -74,6 +75,7 @@ public class GroqService {
         this.blocketPriceService = blocketPriceService;
         this.newCarPriceService = newCarPriceService;
         this.feedbackService = feedbackService;
+        this.iceConsumptionService = iceConsumptionService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -159,6 +161,10 @@ public class GroqService {
     }
 
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
+        return enrichRecommendations(parsed, kmPerYear, null);
+    }
+
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear, String fuelPref) {
         List<CompletableFuture<String>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -191,9 +197,21 @@ public class GroqService {
             } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+
+            // Ersätt AI:ns gissade l/mil med verifierad siffra från ice_consumption om matchning finns
+            com.caradvice.model.FuelSpecDto fuelSpec = r.fuelSpec();
+            if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
+                try {
+                    Integer hp = fuelSpec.horsepower() != null ? fuelSpec.horsepower() : r.horsepower();
+                    IceConsumptionService.Variant v = iceConsumptionService.consumptionForTitle(r.title(), hp, fuelPref);
+                    if (v != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
+                            v.literPerMil(), fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
+                } catch (Exception ignored) {}
+            }
+
             result.add(new CarRecommendation(
                     r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, r.fuelSpec(), blocketPrice, r.horsepower(), r.engineOptions()));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), r.engineOptions()));
         }
         return result;
     }
@@ -233,7 +251,7 @@ public class GroqService {
 
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation");
 
-        List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear());
+        List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType());
         evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
         return new Result(result, false, 0);
@@ -355,7 +373,16 @@ public class GroqService {
         StringBuilder sb = new StringBuilder();
         appendCarSpec(sb, car1, c1, ev1, legroom1, chem1);
         appendCarSpec(sb, car2, c2, ev2, legroom2, chem2);
+        appendConsumption(sb, car1);
+        appendConsumption(sb, car2);
         return sb.toString().trim();
+    }
+
+    private void appendConsumption(StringBuilder sb, String carName) {
+        try {
+            String summary = iceConsumptionService.consumptionSummaryForTitle(carName);
+            if (summary != null) sb.append(carName).append(": ").append(summary).append("\n");
+        } catch (Exception ignored) {}
     }
 
     private void appendCarSpec(StringBuilder sb, String carName,

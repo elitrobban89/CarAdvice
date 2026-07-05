@@ -10,6 +10,7 @@ import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.FeedbackService;
+import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.NewCarPriceService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -26,11 +27,12 @@ public class DataLoader implements CommandLineRunner {
     private final NewCarPriceService newCarPriceService;
     private final FeedbackService feedbackService;
     private final WebInsightScraperService webInsightScraper;
+    private final IceConsumptionService iceConsumptionService;
 
     public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
                       EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo,
                       NewCarPriceService newCarPriceService, FeedbackService feedbackService,
-                      WebInsightScraperService webInsightScraper) {
+                      WebInsightScraperService webInsightScraper, IceConsumptionService iceConsumptionService) {
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
         this.evSpecRepo = evSpecRepo;
@@ -38,6 +40,7 @@ public class DataLoader implements CommandLineRunner {
         this.newCarPriceService = newCarPriceService;
         this.feedbackService = feedbackService;
         this.webInsightScraper = webInsightScraper;
+        this.iceConsumptionService = iceConsumptionService;
     }
 
     @Override
@@ -45,6 +48,7 @@ public class DataLoader implements CommandLineRunner {
         newCarPriceService.ensureTableAndSeed();
         feedbackService.ensureTable();
         webInsightScraper.ensureTable();
+        iceConsumptionService.ensureTableAndSeed();
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();

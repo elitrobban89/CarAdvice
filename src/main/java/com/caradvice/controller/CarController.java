@@ -12,6 +12,7 @@ import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
+import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
 import com.caradvice.service.UserService;
@@ -61,6 +62,7 @@ public class CarController {
     private final EvSpecRepository evSpecRepo;
     private final FeedbackService feedbackService;
     private final WebInsightScraperService webInsightScraper;
+    private final IceConsumptionService iceConsumptionService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -82,7 +84,8 @@ public class CarController {
                          CargoSpecSyncService cargoSpecSyncService, CargoSpecService cargoSpecService,
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
-                         FeedbackService feedbackService, WebInsightScraperService webInsightScraper) {
+                         FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
+                         IceConsumptionService iceConsumptionService) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -95,6 +98,7 @@ public class CarController {
         this.evSpecRepo = evSpecRepo;
         this.feedbackService = feedbackService;
         this.webInsightScraper = webInsightScraper;
+        this.iceConsumptionService = iceConsumptionService;
     }
 
     @PostConstruct
@@ -363,6 +367,13 @@ public class CarController {
             })
             .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(result);
+    }
+
+    // Publikt: verifierade bensin/diesel/hybrid-förbrukningssiffror (l/mil) — konsumeras av
+    // Bilresas bränslekostnadskalkylator, samma mönster som /ev-consumption
+    @GetMapping("/ice-consumption")
+    public ResponseEntity<List<Map<String, Object>>> getIceConsumption() {
+        return ResponseEntity.ok(iceConsumptionService.listForApi());
     }
 
     @GetMapping("/health")

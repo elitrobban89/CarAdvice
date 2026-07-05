@@ -485,6 +485,14 @@ curl https://caradvice.onrender.com/api/admin/scrape-status \
  "newInsights":23,"perSource":"Teknikens Värld: 4, Vi Bilägare: 3, M Sverige: 6, Bytbil: 5, M3: 1, Bilägare (car.info): 3, Folksam: 1"}
 ```
 
+### `GET /api/ice-consumption` (publik)
+
+Verifierade förbrukningssiffror för ~950 bensin/diesel/hybrid/laddhybrid-varianter ur `ice_consumption`-tabellen — motsvarigheten till `GET /api/ev-consumption` för förbränningsbilar. Konsumeras av Bilresas bränslekostnadskalkylator.
+
+```json
+[{"carName":"Volkswagen Golf 1.5 TSI 150 hk","fuel":"bensin","literPerMil":0.65}, ...]
+```
+
 ### `POST /api/admin/import/seen-keys`
 
 Seedar dedup-tabellen `web_insight_seen` med redan processade nycklar (artikel-URL:er eller omdömes-refs) så att scrapern hoppar över dem. Text-body, en nyckel per rad. Svar: `{"added": N, "table": "web_insight_seen"}`.
@@ -582,6 +590,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
 | `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare (RSS), M Sverige, Bytbil och M3 (RSS) + ägaromdömen från car.info och Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
 | `web_scrape_status` | Senaste insiktsscrape-körningens status (job, started_at, finished_at, new_insights, detail per källa) — en rad, skrivs om vid varje körning; läses av `GET /api/admin/scrape-status` |
+| `ice_consumption` | Verifierade förbrukningssiffror (l/mil) för ~950 bensin/diesel/hybrid/laddhybrid-motorvarianter — seedas från `ice-consumption.csv` (extraherad ur Bilresa-projektets fordonsdatabas). Används av publika `GET /api/ice-consumption` (Bilresas kalkylator) och för att ersätta AI:ns gissade `consumptionLiterPerMil` med verifierade värden i rekommendationer (hk-närmaste variant, drivmedelsfiltrerad) samt injiceras som förbrukningsrader i jämförelseprompten |
 
 ---
 
