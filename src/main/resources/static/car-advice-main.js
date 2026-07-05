@@ -12,6 +12,28 @@ window._ca = function(action, arg) {
 
 var CA_API_BASE = 'https://caradvice.onrender.com';
 
+// Dagsaktuella bränslepriser från Bilresa-backenden (6 h localStorage-cache) —
+// används i ägandekostnadskalkylen; värdena nedan är fallback om API:et inte svarar
+var CA_FUEL_PRICES = { bensin: 18, diesel: 17.5 };
+(function caLoadFuelPrices() {
+  try {
+    var c = localStorage.getItem('ca_fuel_prices');
+    if (c) {
+      var o = JSON.parse(c);
+      if (Date.now() - o.ts < 6 * 60 * 60 * 1000) { CA_FUEL_PRICES = o.p; return; }
+    }
+  } catch(e) {}
+  fetch('https://bilresa.onrender.com/api/fuel-price')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.bensin95 > 0) {
+        CA_FUEL_PRICES = { bensin: d.bensin95, diesel: (d.diesel > 0 ? d.diesel : 17.5) };
+        try { localStorage.setItem('ca_fuel_prices', JSON.stringify({ ts: Date.now(), p: CA_FUEL_PRICES })); } catch(e) {}
+      }
+    })
+    .catch(function() { /* fallback-priserna räcker */ });
+})();
+
 var caHasSearched = false;
 var caInitialValues = {};
 var caCurrentRecs = null;
@@ -1031,14 +1053,14 @@ function caTcoCalc(r, kmPerYear) {
     fuelCost = kwhPerKm * km * years * 1.5;
   } else if (isPhev) {
     // el: 0.20 kWh/km × km × 0.5 × years × 1.50 kr/kWh
-    // bensin: ~4.5 l/100km × (km×0.5/100) × years × 18 kr/l
-    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * 18);
+    // bensin: ~4.5 l/100km × (km×0.5/100) × years × dagsaktuellt bensinpris
+    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * CA_FUEL_PRICES.bensin);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
-    // AI returnerar l/100km trots fältnamnet "PerMil"
-    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18;
+    // AI returnerar l/100km trots fältnamnet "PerMil"; >7 l/100km ≈ dieselbil
+    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
     fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fuelPrice;
   } else {
-    fuelCost = 6.5 * (km / 100) * years * 18; // schablonbensin 6.5 l/100km
+    fuelCost = 6.5 * (km / 100) * years * CA_FUEL_PRICES.bensin; // schablonbensin 6.5 l/100km
   }
 
   // Servicekostnad
@@ -1086,12 +1108,12 @@ function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {
   if (isEv && r.evSpec.batteryKwh > 0 && r.evSpec.wltpKm > 0) {
     fuelCost = (r.evSpec.batteryKwh / r.evSpec.wltpKm) * km * years * 1.5;
   } else if (isPhev) {
-    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * 18);
+    fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * CA_FUEL_PRICES.bensin);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
-    var fp = r.fuelSpec.consumptionLiterPerMil > 7 ? 17 : 18;
+    var fp = r.fuelSpec.consumptionLiterPerMil > 7 ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
     fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fp;
   } else {
-    fuelCost = 6.5 * (km / 100) * years * 18;
+    fuelCost = 6.5 * (km / 100) * years * CA_FUEL_PRICES.bensin;
   }
 
   var leaseCost = monthly * 12 * years;

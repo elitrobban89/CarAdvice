@@ -23,6 +23,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - **Verifierad bränsleförbrukning:** AI:ns gissade l/mil ersätts med verifierad siffra ur `ice_consumption`-tabellen (957 motorvarianter) — närmaste hästkraftstal väljer variant, användarens drivmedelsval filtrerar
 - **Feedback-loop:** bilar med övervägande tummen ner injiceras som undvik-signal i AI-prompten (uppdateras varje timme)
+- **Dagsaktuella bränslepriser:** bensin/dieselpris hämtas från Bilresa-backendens `/api/fuel-price` (globalpetrolprices.com) och injiceras i alla AI-promptar (`FuelPriceService`, 6 h cache) — chatt och rekommendationer räknar bränslekostnad på verkligt pris; ägandekostnadskalkylen i frontend använder samma källa (6 h localStorage-cache, fallback 18/17,50 kr) i stället för hårdkodade priser
 - Skeleton-loading: tre kortskelelett med shimmer-animation visas direkt när sökningen startar
 - Roterande laddmeddelanden med tips under skeleton-laddningen
 - Delade länkar auto-söker direkt när sidan öppnas (URL-parametrar triggar sökning automatiskt)
