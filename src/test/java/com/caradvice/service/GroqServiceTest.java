@@ -81,9 +81,19 @@ class GroqServiceTest {
     }
 
     @Test
-    void utanLaddboxAvraddsRenodladElbil() {
+    void utanLaddboxAvraddsBadeBevOchPhev() {
         String p = service().buildPrompt(prefs(300_000, "suv", false, 15_000, false, "el", null, "köp", null));
-        assertThat(p).contains("Laddbox: nej – undvik renodlad elbil");
+        assertThat(p)
+                .contains("Laddbox: nej – undvik renodlad elbil (BEV) och laddhybrid (PHEV)")
+                .contains("elhybrid (HEV) som laddar sig själv");
+    }
+
+    @Test
+    void uttryckligtLaddhybridvalVinnerOverLaddboxregeln() {
+        String p = service().buildPrompt(prefs(300_000, "laddhybrid", false, 15_000, false, "hybrid", null, "köp", null));
+        assertThat(p)
+                .contains("Laddbox: nej – undvik renodlad elbil")
+                .doesNotContain("laddhybrid (PHEV)");
     }
 
     @Test

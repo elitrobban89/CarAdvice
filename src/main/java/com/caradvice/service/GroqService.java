@@ -640,7 +640,10 @@ public class GroqService {
     }
 
     String buildPrompt(CarPreferences prefs) {
-        String laddning = prefs.hasCharger() ? "ja" : "nej – undvik renodlad elbil";
+        String laddning = prefs.hasCharger() ? "ja"
+                : "laddhybrid".equals(prefs.carCategory())
+                    ? "nej – undvik renodlad elbil"
+                    : "nej – undvik renodlad elbil (BEV) och laddhybrid (PHEV). Om hybrid passar profilen: föreslå ENDAST elhybrid (HEV) som laddar sig själv under körning, t.ex. Toyota/Lexus/Honda/Kia HEV.";
         String bilTyp = prefs.newCar() ? "ny" : "begagnad";
         int km = prefs.kmPerYear();
         String milprofil = km < 10000 ? "lågmilare" : km < 20000 ? "normalmilare" : "högmilare";
