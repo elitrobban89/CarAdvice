@@ -41,6 +41,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - **Bilbilder** — varje kort hämtar automatiskt en thumbnail från Wikipedias öppna REST API; trefallsordning: direktträff (engelska) → suffixvarianter (`_EV`, `_electric`) → Wikipedia opensearch (fuzzy titelmatchning, upp till 3 kandidater); svenska Wikipedia som sista fallback; döljs tyst om ingen bild hittas
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
+- **Trustpilot-handlartips** under korten — länk till Trustpilots kategori för bilfirmor så användaren kan kolla handlarens omdömen innan köp
 
 ### Bränslespecifikationer (bensin/diesel)
 - **⛽ Bensin/Diesel**-sektion per bilkort för fossildrivna bilar
@@ -126,19 +127,29 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 
 ---
 
-### Bilexpert-samarbete (RAG)
+### Expertinsikter (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
-- Nuvarande exempeldata är AI-genererad och märkt **"Bilexpert"** — attributionen ersätts med expertens riktiga namn när samarbete är bekräftat
-- Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; chatboten avslutar svaret med källnamnet
-- **Kontakt tagen med Peter Esse** om att mata databasen med verklig expertdata — infrastrukturen är klar och redo att ta emot nya insikter (Python-script `extract_insights.py` extraherar insikter från YouTube-transkript via Groq `openai/gpt-oss-120b` och laddar upp via admin-endpoint; modellen kan bytas med `GROQ_MODEL`-miljövariabeln)
-- **138 insikter inladdade** från fyra expertkällor:
-  - **Bilexpert** (37): manuellt skrivna för vanliga bilar på svenska marknaden
-  - **Bilexpert** (16): extraherade från YouTube-transkript via `extract_insights.py`
-  - **Bilprovningen** (30): `scrape_bilprovningen.py` genererar modellspecifika besiktningsråd baserade på officiell 2025-komponentstatistik (belysning 8,8%, bromsar 5,1%, spindelled 2,6% m.fl.)
-  - **Teknikens Värld** (20): kuraterade testresultat — `tv_vb_insights.py` (10) + `more_insights.py` (10, täcker XC40 Recharge, Corolla, Kia Niro, VW ID.3, Audi Q4, Ford Puma, Cupra Born, Mazda CX-5, Mégane E-Tech, m.fl.)
-  - **Vi Bilägare** (20): kuraterade testresultat och rekommendationer — `tv_vb_insights.py` (10) + `more_insights.py` (10, täcker Seat Leon, Ford Kuga, Subaru Forester, Hyundai Kona EV, VW Passat, BMW 3-serie, T-Roc, Toyota bZ4X, Opel Astra, m.fl.)
-- Ny insikt läggs till med: `python more_insights.py --upload --admin-key KEY` eller direkt mot admin-endpoint
-- Fler kan läggas till via admin-endpoint med `expert`-parametern
+- Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; källnamnet visas i AI:ns svar (t.ex. "Teknikens Värld: bäst i test")
+- **~290 insikter** från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, bilägare på car.info, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter
+- Fylls på **automatiskt varje natt** av insiktsscrapern (se nedan); manuell import via `POST /api/admin/import/insights?expert=Namn`
+
+### Insiktsscraper (7 motorsajter, nattlig)
+- **`WebInsightScraperService`** körs kl **04:00 Stockholm-tid** på Render — efter EV-synken (02:00) och CargoSpec-synken (03:00)
+- Källor och upptäcktsmetod:
+  - **Teknikens Värld** — WordPress-sitemap (deras `/feed/` svarar 406)
+  - **Vi Bilägare** — RSS (`rss.xml`)
+  - **M Sverige** — artikellistan `allt-om-bilen/motor-testar/bilar/`
+  - **Bytbil** — artikellistan `nybil.bytbil.com/posts`
+  - **M3** — RSS (icke-bilartiklar ger tom insiktslista och filtreras bort automatiskt)
+  - **car.info** — ägaromdömen direkt på sidan (dedup per recensent + datum)
+  - **Folksam** — krocksäkerhetsstudien "Hur säker är bilen" (dedup per bilmodell)
+- Artikeltexten extraheras med Jsoup, skickas till Groq (`groq.insight.model`, default `openai/gpt-oss-120b`, `reasoning_effort: low`) som returnerar strukturerade insikter (märke, modell, drivmedel, kategori, insikt, betyg)
+- **Inkrementell**: processade artikel-URL:er och sedda omdömen lagras i `web_insight_seen` — inga dubbletter, oavsett hur ofta synken körs
+- Max 12 artiklar per källa och körning — backlog betas av gradvis över flera nätter
+- 1,5 s fördröjning mellan sidhämtningar, 5 s mellan Groq-anrop (respekterar TPM-gränsen)
+- **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg, blocket.se/bilguiden
+- Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
+- `extract_web_insights.py` är samma pipeline som fristående Python-verktyg för manuella körningar
 
 ### CargoSpec-skrapare (Bilweb.se)
 - Daglig schemalagd sync kl **03:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
@@ -295,7 +306,9 @@ CarAdvice/
     │   │   ├── CargoSpecSyncService.java      ← Jsoup-skrapare mot Bilweb.se
     │   │   ├── CargoSpecSyncScheduler.java    ← @Scheduled cron 03:00 Stockholm-tid
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
-    │   │   └── EvSpecSyncScheduler.java       ← @Scheduled cron 02:00 Stockholm-tid
+    │   │   ├── EvSpecSyncScheduler.java       ← @Scheduled cron 02:00 Stockholm-tid
+    │   │   ├── WebInsightScraperService.java  ← Insikter från 7 motorsajter via Groq-extraktion
+    │   │   └── WebInsightSyncScheduler.java   ← @Scheduled cron 04:00 Stockholm-tid
     │   └── service/
     │       ├── CargoSpecService.java   ← Fuzzy-matchning på bilnamn → bagagevolym
     │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
@@ -447,6 +460,26 @@ curl -X POST https://caradvice.onrender.com/api/admin/upsert/cargospecs \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
   -H "Content-Type: text/plain" \
   --data-binary @cargo.csv
+```
+
+### `POST /api/admin/sync-web-insights`
+
+Kör insiktsscrapern manuellt (samma jobb som nattens 04:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight").
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/sync-web-insights \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
+### `POST /api/admin/import/seen-keys`
+
+Seedar dedup-tabellen `web_insight_seen` med redan processade nycklar (artikel-URL:er eller omdömes-refs) så att scrapern hoppar över dem. Text-body, en nyckel per rad. Svar: `{"added": N, "table": "web_insight_seen"}`.
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/import/seen-keys \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
+  -H "Content-Type: text/plain" \
+  --data-binary @processed_urls.txt
 ```
 
 ### `DELETE /api/admin/insights?expert=Name`
