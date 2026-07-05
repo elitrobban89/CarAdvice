@@ -7,10 +7,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
 public class ExpertInsightService {
+
+    /** Max insikter i rekommendationsprompten — 5 st ≈ 300 tokens, ryms i TPM-budgeten */
+    static final int MAX_RECOMMEND_INSIGHTS = 5;
 
     private final ExpertInsightRepository repo;
 
@@ -24,10 +28,15 @@ public class ExpertInsightService {
                 ? category
                 : prefs.fuelType();
 
-        List<ExpertInsight> insights = repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType)
-                .stream().limit(2).toList();
+        List<ExpertInsight> matched = repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType);
+        if (matched.isEmpty()) return "";
 
-        if (insights.isEmpty()) return "";
+        // Slumpat urval så hela insiktspoolen roterar in i prompten över tid — med fast
+        // databasordning användes alltid samma äldsta rader och nattens nya insikter nådde aldrig AI:n
+        List<ExpertInsight> pool = new ArrayList<>(matched);
+        Collections.shuffle(pool);
+        List<ExpertInsight> insights = pool.subList(0, Math.min(MAX_RECOMMEND_INSIGHTS, pool.size()));
+
         return formatInsights(insights, "Expertinsikter (använd som extra underlag i din analys):\n");
     }
 

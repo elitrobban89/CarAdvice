@@ -29,10 +29,11 @@ class GroqServiceTest {
     @Mock private CargoSpecService cargoSpecService;
     @Mock private BlocketPriceService blocketPriceService;
     @Mock private NewCarPriceService newCarPriceService;
+    @Mock private FeedbackService feedbackService;
 
     private GroqService service() {
         return new GroqService(expertInsightService, safetyRatingService,
-                evSpecService, cargoSpecService, blocketPriceService, newCarPriceService);
+                evSpecService, cargoSpecService, blocketPriceService, newCarPriceService, feedbackService);
     }
 
     /** Stubbar pristabellerna som buildSystemPrompt hämtar via prisreferens-cachen. */
@@ -47,6 +48,22 @@ class GroqServiceTest {
                                         String budgetType, Integer maxAgeYears) {
         return new CarPreferences(budget, category, hasCharger, kmPerYear, "pendling",
                 4, newCar, fuelType, transmission, budgetType, maxAgeYears);
+    }
+
+    // --- buildFeedbackContext (tummen ner-signal i systemprompten) ---
+
+    @Test
+    void tomFeedbackGerTomStrang() {
+        assertThat(GroqService.buildFeedbackContext(List.of())).isEmpty();
+    }
+
+    @Test
+    void ogilladeBilarListasSomUndvikSignal() {
+        String ctx = GroqService.buildFeedbackContext(List.of("Renault Zoe (2021)", "Fiat 500e (2020)"));
+        assertThat(ctx)
+                .contains("ANVÄNDARFEEDBACK")
+                .contains("Renault Zoe (2021), Fiat 500e (2020)")
+                .contains("BARA om inget likvärdigt alternativ");
     }
 
     // --- reasoningEffortFor ---

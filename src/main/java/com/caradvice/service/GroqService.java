@@ -61,16 +61,19 @@ public class GroqService {
     private final CargoSpecService cargoSpecService;
     private final BlocketPriceService blocketPriceService;
     private final NewCarPriceService newCarPriceService;
+    private final FeedbackService feedbackService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
-                       BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService) {
+                       BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
+                       FeedbackService feedbackService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
         this.cargoSpecService = cargoSpecService;
         this.blocketPriceService = blocketPriceService;
         this.newCarPriceService = newCarPriceService;
+        this.feedbackService = feedbackService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -207,6 +210,8 @@ public class GroqService {
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
         String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
+        String feedbackContext = getFeedbackContext();
+        if (!feedbackContext.isBlank()) systemPrompt = systemPrompt + "\n" + feedbackContext;
 
         Map<String, Object> primaryBody = jsonCallBody(model, 0.3, systemPrompt, prompt);
         Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.3, systemPrompt, prompt);
@@ -243,6 +248,31 @@ public class GroqService {
 
     private String getIcePrices() { refreshPricesIfNeeded(); return cachedIcePrices; }
     private String getEvPrices()  { refreshPricesIfNeeded(); return cachedEvPrices; }
+
+    // ── Feedback-loop: tummen ner-bilar injiceras som negativ signal i prompten ──
+
+    private volatile String cachedFeedbackContext = "";
+    private volatile long feedbackCachedAt = 0L;
+
+    /** Netto minst 2 tummar ner ⇒ med på undvik-listan; max 10 bilar; uppdateras en gång/timme. */
+    private String getFeedbackContext() {
+        if (System.currentTimeMillis() - feedbackCachedAt >= PRICES_TTL_MS) {
+            try {
+                cachedFeedbackContext = buildFeedbackContext(feedbackService.dislikedCars(2, 10));
+            } catch (Exception e) {
+                cachedFeedbackContext = "";
+            }
+            feedbackCachedAt = System.currentTimeMillis();
+        }
+        return cachedFeedbackContext;
+    }
+
+    static String buildFeedbackContext(List<String> dislikedCars) {
+        if (dislikedCars.isEmpty()) return "";
+        return "ANVÄNDARFEEDBACK: Dessa bilar har fått övervägande tummen ner av användarna — "
+                + "rekommendera dem BARA om inget likvärdigt alternativ finns: "
+                + String.join(", ", dislikedCars);
+    }
 
     private void evictIfNeeded() {
         if (cache.size() < MAX_CACHE_SIZE) return;

@@ -517,6 +517,8 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 
 Anonym tumme upp/ner på ett rekommenderat bilkort (knappar under varje kort; en röst per bil sparas i webbläsarens `localStorage`). Max 10 röster/min per IP.
 
+**Feedback-loopen:** bilar med netto ≥ 2 tummar ner (max 10 st, uppdateras en gång/timme) injiceras i rekommendations-systemprompten som "ANVÄNDARFEEDBACK: ... rekommendera dem BARA om inget likvärdigt alternativ finns" (`FeedbackService.dislikedCars` + `GroqService.buildFeedbackContext`).
+
 ```json
 { "carTitle": "Volvo EX30 (2024)", "vote": "up" }   →  { "status": "ok" }
 ```
@@ -648,6 +650,7 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: non
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Insiktsrotation + feedback-loop | `buildExpertContext` tog alltid samma 2 första insikterna i databasordning — nattens nya insikter nådde aldrig prompten. Nu slumpas 5 ur hela den matchande poolen per sökning. Dessutom: bilar med netto ≥ 2 tummar ner injiceras som undvik-signal i systemprompten (cachas 1h) |
 | "AI-svaret blev ofullständigt" vid flera sökningar i rad | Snabba sökningar i följd fick 429 på qwen och föll tillbaka på gpt-oss-20b vars reasoning åt upp tokenbudgeten → trunkerat JSON → fel till användaren. Nu: (1) trestegskedja qwen → gpt-oss-20b → gpt-oss-120b vid 429 (egen TPM-pott per modell hos Groq), (2) automatiskt omförsök med gpt-oss-120b när svaret kom tillbaka trunkerat/tomt, för både rekommendationer och jämförelser |
 | Lokal H2-boot lagad | `NewCarPriceService` använde Postgres-syntaxen `ON CONFLICT` som H2 inte stöder → lokal start kraschade i `DataLoader`. Ersatt med portabel `INSERT ... SELECT ... WHERE NOT EXISTS` (seed) och `UPDATE`-först-annars-`INSERT` (upsert); `spring.jpa.hibernate.ddl-auto` är nu `${DDL_AUTO:validate}` så H2-schemat kan skapas lokalt med `DDL_AUTO=update` |
 | Groq-modellhälsokoll | Ny `GET /api/health/groq` verifierar `groq.model` + `groq.chat.model` mot Groqs `/models`-lista (1h-cache) och svarar 503 `MODEL_MISSING` vid avveckling — UptimeRobot larmar. Transienta Groq-fel ger 200 `UNKNOWN` (inga falsklarm) och cachas inte |

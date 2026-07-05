@@ -52,6 +52,17 @@ public class FeedbackService {
         return 0;
     }
 
+    /** Bilar med tydligt negativ nettofeedback (netto ≤ -minNet), värst först. */
+    public List<String> dislikedCars(int minNet, int maxCars) {
+        return jdbc.queryForList("""
+            SELECT car_title FROM recommendation_feedback
+            GROUP BY car_title
+            HAVING SUM(vote) <= ?
+            ORDER BY SUM(vote) ASC, car_title
+            """, String.class, -minNet)
+            .stream().limit(maxCars).toList();
+    }
+
     public List<Map<String, Object>> summary() {
         return jdbc.queryForList("""
             SELECT car_title,

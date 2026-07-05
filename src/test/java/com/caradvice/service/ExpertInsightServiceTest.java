@@ -49,14 +49,30 @@ class ExpertInsightServiceTest {
     }
 
     @Test
-    void begransasTillTvaInsikter() {
+    void begransasTillMaxFemSlumpadeInsikter() {
+        // 7 insikter i poolen → exakt MAX_RECOMMEND_INSIGHTS (5) hamnar i prompten; urvalet är slumpat
         when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
                 insikt("Vi Bilägare", "Volvo", "XC40", "Insikt 1", 7),
                 insikt("Vi Bilägare", "Kia", "EV6", "Insikt 2", 8),
-                insikt("Vi Bilägare", "Tesla", "Model Y", "Insikt 3", 9)));
+                insikt("Vi Bilägare", "Tesla", "Model Y", "Insikt 3", 9),
+                insikt("M Sverige", "Skoda", "Enyaq", "Insikt 4", 8),
+                insikt("Teknikens Värld", "VW", "ID.4", "Insikt 5", 7),
+                insikt("Folksam", "Nissan", "Ariya", "Insikt 6", null),
+                insikt("Bytbil", "BMW", "iX1", "Insikt 7", 9)));
 
         String ctx = service().buildExpertContext(prefs("suv", "el"));
-        assertThat(ctx).contains("Insikt 1").contains("Insikt 2").doesNotContain("Insikt 3");
+        assertThat(ctx.lines().filter(l -> l.startsWith("- ")).count())
+                .isEqualTo(ExpertInsightService.MAX_RECOMMEND_INSIGHTS);
+    }
+
+    @Test
+    void farreInsikterAnMaxTasMedAllihop() {
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+                insikt("Vi Bilägare", "Volvo", "XC40", "Insikt 1", 7),
+                insikt("Vi Bilägare", "Kia", "EV6", "Insikt 2", 8)));
+
+        String ctx = service().buildExpertContext(prefs("suv", "el"));
+        assertThat(ctx).contains("Insikt 1").contains("Insikt 2");
     }
 
     @Test
