@@ -37,3 +37,8 @@ bin/
 
 ### Python ###
 __pycache__/
+
+### Nattlig insiktskörning (lokala arbetsfiler) ###
+insights_nightly.log
+web_insights_progress.json
+peter_esse_progress.json

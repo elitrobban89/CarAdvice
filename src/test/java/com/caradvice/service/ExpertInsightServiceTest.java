@@ -69,12 +69,21 @@ class ExpertInsightServiceTest {
     }
 
     @Test
-    void okandExpertMaskerasSomBilexpert() {
+    void namngivenExpertVisasMedSittNamn() {
         when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
-                insikt("Hemlig Källa AB", "Volvo", "XC40", "Insikt", null)));
+                insikt("M Sverige", "Volvo", "XC40", "Insikt", null)));
 
         String ctx = service().buildExpertContext(prefs("suv", "el"));
-        assertThat(ctx).contains("(Bilexpert)").doesNotContain("Hemlig Källa");
+        assertThat(ctx).contains("(M Sverige)");
+    }
+
+    @Test
+    void saknatExpertnamnBlirBilexpert() {
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+                insikt(null, "Volvo", "XC40", "Insikt", null)));
+
+        String ctx = service().buildExpertContext(prefs("suv", "el"));
+        assertThat(ctx).contains("(Bilexpert)");
     }
 
     @Test

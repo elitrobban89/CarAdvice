@@ -520,7 +520,12 @@ function caRenderCards(recommendations) {
           '</div>' +
         '</div>' +
         '</div>';
-    }).join('');
+    }).join('') +
+      '<div class="ca-dealer-tip" style="grid-column:1/-1;margin-top:14px;padding:10px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;font-size:.8rem;color:rgba(255,255,255,.55);line-height:1.5">' +
+        '&#x1F4A1; <strong style="color:rgba(255,255,255,.75)">Tips vid k\xf6p fr\xe5n bilhandlare:</strong> kolla firmans omd\xf6men p\xe5 ' +
+        '<a href="https://se.trustpilot.com/categories/cars_trucks" target="_blank" rel="noopener" style="color:#7ec8ff;text-decoration:underline">Trustpilot</a>' +
+        ' innan du sl\xe5r till &mdash; d\xe4r betygs\xe4tter riktiga kunder svenska bilfirmor.' +
+      '</div>';
     caFetchCarImages(recommendations);
     caRenderCompare(recommendations);
     caWireFeedback(container);

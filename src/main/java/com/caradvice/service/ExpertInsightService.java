@@ -107,10 +107,6 @@ public class ExpertInsightService {
     }
 
     private String resolveExpertName(String name) {
-        if (name == null) return "Bilexpert";
-        return switch (name) {
-            case "Bilprovningen", "Teknikens Värld", "Vi Bilägare" -> name;
-            default -> "Bilexpert";
-        };
+        return (name == null || name.isBlank()) ? "Bilexpert" : name;
     }
 }
