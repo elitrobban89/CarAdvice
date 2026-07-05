@@ -33,4 +33,7 @@ bin/
 .DS_Store
 
 ### Project data files (not committed) ###
-*.csv__pycache__/
+*.csv
+
+### Python ###
+__pycache__/
