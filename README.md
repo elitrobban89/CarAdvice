@@ -21,6 +21,8 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
   - Köp/Leasing-knappen sitter inline i budget-etiketten; separata värden sparas per läge
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
+- **Verifierad bränsleförbrukning:** AI:ns gissade l/mil ersätts med verifierad siffra ur `ice_consumption`-tabellen (957 motorvarianter) — närmaste hästkraftstal väljer variant, användarens drivmedelsval filtrerar
+- **Feedback-loop:** bilar med övervägande tummen ner injiceras som undvik-signal i AI-prompten (uppdateras varje timme)
 - Skeleton-loading: tre kortskelelett med shimmer-animation visas direkt när sökningen startar
 - Roterande laddmeddelanden med tips under skeleton-laddningen
 - Delade länkar auto-söker direkt när sidan öppnas (URL-parametrar triggar sökning automatiskt)
@@ -245,15 +247,17 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-70 enhetstester täcker backendens rena logik (beroenden mockas med Mockito; `FeedbackServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+86 enhetstester täcker backendens rena logik (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
-| `GroqServiceTest` (35) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, modellhälsokollen (`missingModels`) |
+| `GroqServiceTest` (38) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
-| `ExpertInsightServiceTest` (12) | RAG-urval: max 2 insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
+| `ExpertInsightServiceTest` (14) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
+| `IceConsumptionServiceTest` (8) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning — mot riktig H2 |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
 | `FeedbackServiceTest` (4) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, idempotent tabellskapande — mot riktig H2 |
+| `WebInsightScraperServiceTest` (3) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
