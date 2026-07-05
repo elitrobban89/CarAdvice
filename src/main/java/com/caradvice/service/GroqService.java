@@ -45,6 +45,11 @@ public class GroqService {
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
     private String chatModel;
 
+    // Reservmodell för rekommendationer/jämförelser: tredje 429-utväg (egen TPM-pott hos Groq)
+    // och omförsöksmodell när svaret kom tillbaka trunkerat/tomt
+    @Value("${groq.reserve.model:openai/gpt-oss-120b}")
+    private String reserveModel;
+
     // Extra modeller som hälsokollen bevakar utöver de egna — Tag/VaderKlader kör gpt-oss-120b
     // men saknar egen /health/groq, så avveckling larmas härifrån
     @Value("${groq.watched.models:openai/gpt-oss-120b}")
@@ -103,10 +108,51 @@ public class GroqService {
                 .build();
     }
 
-    private HttpResponse<String> callGroqWithFallback(Object primaryBody, Object fallbackBody) throws Exception {
-        HttpResponse<String> resp = httpClient.send(buildRequest(primaryBody), HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 429) return resp;
-        return httpClient.send(buildRequest(fallbackBody), HttpResponse.BodyHandlers.ofString());
+    private HttpResponse<String> callGroqWithFallback(Object... bodies) throws Exception {
+        HttpResponse<String> resp = null;
+        for (Object body : bodies) {
+            resp = httpClient.send(buildRequest(body), HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 429) return resp;
+        }
+        return resp;
+    }
+
+    private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt, String userPrompt) {
+        return Map.of(
+                "model", modelName, "max_tokens", 3000, "temperature", temperature,
+                "reasoning_effort", reasoningEffortFor(modelName),
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userPrompt)));
+    }
+
+    private List<CarRecommendation> extractAndParse(HttpResponse<String> response, String label) throws Exception {
+        JsonNode json = mapper.readTree(response.body());
+        String content = json.at("/choices/0/message/content").asText();
+        if (content.isBlank())
+            content = json.at("/choices/0/message/reasoning").asText();
+        if (content.isBlank()) {
+            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            log.warn("Groq empty content {} finish_reason={} body={}", label, finishReason, response.body());
+            throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
+        }
+        return parseRecommendations(content);
+    }
+
+    /** Tolkar svaret; vid tomt/trunkerat svar görs ETT omförsök med reservmodellen innan felet släpps ut. */
+    private List<CarRecommendation> parseWithRetry(HttpResponse<String> response, Object reserveBody, String label) throws Exception {
+        try {
+            return extractAndParse(response, label);
+        } catch (RuntimeException first) {
+            log.warn("{}: ofullständigt/tomt svar — omförsök med {}", label, reserveModel);
+            HttpResponse<String> retry = httpClient.send(buildRequest(reserveBody), HttpResponse.BodyHandlers.ofString());
+            if (retry.statusCode() != 200) throw first;
+            try {
+                return extractAndParse(retry, label + " (omförsök)");
+            } catch (RuntimeException second) {
+                throw first;
+            }
+        }
     }
 
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
@@ -162,21 +208,11 @@ public class GroqService {
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
         String systemPrompt = buildSystemPrompt(expertContext, prefs.fuelType());
 
-        Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 3000, "temperature", 0.3,
-                "reasoning_effort", reasoningEffortFor(model),
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", prompt)));
+        Map<String, Object> primaryBody = jsonCallBody(model, 0.3, systemPrompt, prompt);
+        Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.3, systemPrompt, prompt);
+        Map<String, Object> reserveBody = jsonCallBody(reserveModel, 0.3, systemPrompt, prompt);
 
-        Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 3000, "temperature", 0.3,
-                "reasoning_effort", reasoningEffortFor(chatModel),
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", prompt)));
-
-        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
+        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody, reserveBody);
 
         if (response.statusCode() == 429) {
             if (cached != null) {
@@ -190,16 +226,7 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
-        JsonNode json = mapper.readTree(response.body());
-        String content = json.at("/choices/0/message/content").asText();
-        if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning").asText();
-        if (content.isBlank()) {
-            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
-            log.warn("Groq empty content getRecommendation finish_reason={} body={}", finishReason, response.body());
-            throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
-        }
-        List<CarRecommendation> parsed = parseRecommendations(content);
+        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation");
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear());
         evictIfNeeded();
@@ -246,37 +273,18 @@ public class GroqService {
         if (!specContext.isBlank()) userPrompt += "\n\nVerifierade specifikationer från databas:\n" + specContext;
         String compareSystemPrompt = buildCompareSystemPrompt();
 
-        Map<String, Object> primaryBody = Map.of(
-                "model", model, "max_tokens", 3000, "temperature", 0.2,
-                "reasoning_effort", reasoningEffortFor(model),
-                "messages", List.of(
-                        Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", userPrompt)));
+        Map<String, Object> primaryBody = jsonCallBody(model, 0.2, compareSystemPrompt, userPrompt);
+        Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.2, compareSystemPrompt, userPrompt);
+        Map<String, Object> reserveBody = jsonCallBody(reserveModel, 0.2, compareSystemPrompt, userPrompt);
 
-        Map<String, Object> fallbackBody = Map.of(
-                "model", chatModel, "max_tokens", 3000, "temperature", 0.2,
-                "reasoning_effort", reasoningEffortFor(chatModel),
-                "messages", List.of(
-                        Map.of("role", "system", "content", compareSystemPrompt),
-                        Map.of("role", "user", "content", userPrompt)));
-
-        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody);
+        HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody, reserveBody);
 
         if (response.statusCode() == 429)
             throw new RuntimeException(buildRateLimitError(response.body()));
         if (response.statusCode() != 200)
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
 
-        JsonNode json = mapper.readTree(response.body());
-        String content = json.at("/choices/0/message/content").asText();
-        if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning").asText();
-        if (content.isBlank()) {
-            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
-            log.warn("Groq empty content compareSpecific finish_reason={} body={}", finishReason, response.body());
-            throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
-        }
-        List<CarRecommendation> parsed = parseRecommendations(content);
+        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "compareSpecific");
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
         evictIfNeeded();

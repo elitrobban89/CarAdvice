@@ -619,9 +619,11 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: none`) och `openai/gpt-oss-20b` (chatt + 429-fallback, `reasoning_effort: low`). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
-**Groq 429-fallback:** en gemensam `callGroqWithFallback(primary, fallback)`-metod används av alla tre flöden (rekommendation, jämförelse, chatt). Om primärmodellen svarar 429 görs ett nytt försök med fallback-modellen automatiskt — användaren märker inte bytet. Kastar bara fel om båda modellerna nekar. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
+**Groq 429-fallback:** en gemensam `callGroqWithFallback(...)`-metod (varargs-kedja) används av alla flöden. Rekommendationer och jämförelser har en trestegskedja: `qwen/qwen3.6-27b` → `openai/gpt-oss-20b` → `openai/gpt-oss-120b` (reservmodell, `groq.reserve.model`). Varje modell har egen TPM-pott hos Groq, så flera sökningar i rad går igenom även när primärmodellen är strypt. Chatten använder tvåstegskedjan som förut. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
 
-**reasoning_content-fallback:** qwen3/gpt-oss reasoning-modeller kan returnera tomt `content`-fält och lägga svaret i `reasoning_content` — koden läser båda fälten och väljer det som har innehåll. Trunkerat JSON (truncation vid max_tokens) ger clean error "AI-svaret blev ofullständigt. Försök igen."
+**reasoning_content-fallback:** qwen3/gpt-oss reasoning-modeller kan returnera tomt `content`-fält och lägga svaret i `reasoning_content` — koden läser båda fälten och väljer det som har innehåll.
+
+**Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen `gpt-oss-120b` innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
 
 **Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 
@@ -631,6 +633,7 @@ Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: non
 
 | Fix | Beskrivning |
 |-----|-------------|
+| "AI-svaret blev ofullständigt" vid flera sökningar i rad | Snabba sökningar i följd fick 429 på qwen och föll tillbaka på gpt-oss-20b vars reasoning åt upp tokenbudgeten → trunkerat JSON → fel till användaren. Nu: (1) trestegskedja qwen → gpt-oss-20b → gpt-oss-120b vid 429 (egen TPM-pott per modell hos Groq), (2) automatiskt omförsök med gpt-oss-120b när svaret kom tillbaka trunkerat/tomt, för både rekommendationer och jämförelser |
 | Lokal H2-boot lagad | `NewCarPriceService` använde Postgres-syntaxen `ON CONFLICT` som H2 inte stöder → lokal start kraschade i `DataLoader`. Ersatt med portabel `INSERT ... SELECT ... WHERE NOT EXISTS` (seed) och `UPDATE`-först-annars-`INSERT` (upsert); `spring.jpa.hibernate.ddl-auto` är nu `${DDL_AUTO:validate}` så H2-schemat kan skapas lokalt med `DDL_AUTO=update` |
 | Groq-modellhälsokoll | Ny `GET /api/health/groq` verifierar `groq.model` + `groq.chat.model` mot Groqs `/models`-lista (1h-cache) och svarar 503 `MODEL_MISSING` vid avveckling — UptimeRobot larmar. Transienta Groq-fel ger 200 `UNKNOWN` (inga falsklarm) och cachas inte |
 | Robustare AI-JSON-parsning | `extractJson` hanterar svar med bare root-array (behöll tidigare inte hakparenteserna → array-fallbacken triggades aldrig); `convertRecommendations` fångar schemafel och ger begripligt fel istället för 500; `@JsonIgnoreProperties(ignoreUnknown=true)` på `CarRecommendation` så AI:ns påhittade extrafält inte fäller parsningen |
