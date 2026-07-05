@@ -158,6 +158,7 @@ public class IceConsumptionService {
         }
         if (candidates.isEmpty()) return null;
 
+        // l/100km i prompten — AI:n svarar i den enheten i consumptionLiterPerMil (frontend-konventionen)
         StringBuilder sb = new StringBuilder();
         for (String fuel : new String[]{"bensin", "diesel", "hybrid", "laddhybrid"}) {
             List<Double> values = candidates.stream()
@@ -166,7 +167,7 @@ public class IceConsumptionService {
             if (values.isEmpty()) continue;
             double median = values.get(values.size() / 2);
             if (sb.length() > 0) sb.append(", ");
-            sb.append(String.format(Locale.forLanguageTag("sv"), "%.2f l/mil (%s)", median, fuel));
+            sb.append(String.format(Locale.forLanguageTag("sv"), "%.1f l/100km (%s)", median * 10, fuel));
         }
         return sb.isEmpty() ? null : "förbrukning ca " + sb;
     }

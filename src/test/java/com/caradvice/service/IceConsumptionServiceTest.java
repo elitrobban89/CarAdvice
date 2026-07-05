@@ -74,9 +74,10 @@ class IceConsumptionServiceTest {
     }
 
     @Test
-    void jamforelsesammanfattningInnehallerDrivmedel() {
+    void jamforelsesammanfattningArILiterPer100km() {
+        // Prompten ska tala AI:ns enhet (l/100km) — inte tabellens l/mil
         String s = service.consumptionSummaryForTitle("Audi A4 (2020)");
-        assertThat(s).startsWith("förbrukning ca").contains("(bensin)").contains("(diesel)").contains("l/mil");
+        assertThat(s).startsWith("förbrukning ca").contains("(bensin)").contains("(diesel)").contains("l/100km");
     }
 
     @Test

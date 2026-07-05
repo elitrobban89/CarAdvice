@@ -198,15 +198,24 @@ public class GroqService {
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
 
-            // Ersätt AI:ns gissade l/mil med verifierad siffra från ice_consumption om matchning finns
+            // Ersätt AI:ns gissade förbrukning med verifierad siffra från ice_consumption om matchning finns.
+            // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
+            // och räknar ägandekostnad på l/100km) — ice_consumption lagrar l/mil, därav ×10 här.
             com.caradvice.model.FuelSpecDto fuelSpec = r.fuelSpec();
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
+                Double consumption = null;
                 try {
                     Integer hp = fuelSpec.horsepower() != null ? fuelSpec.horsepower() : r.horsepower();
                     IceConsumptionService.Variant v = iceConsumptionService.consumptionForTitle(r.title(), hp, fuelPref);
-                    if (v != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
-                            v.literPerMil(), fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
+                    if (v != null) consumption = v.literPerMil() * 10;
                 } catch (Exception ignored) {}
+                // Ingen verifierad match men AI:n svarade i l/mil-skala (< 3 kan inte vara l/100km) — normalisera
+                if (consumption == null && fuelSpec.consumptionLiterPerMil() > 0
+                        && fuelSpec.consumptionLiterPerMil() < 3) {
+                    consumption = fuelSpec.consumptionLiterPerMil() * 10;
+                }
+                if (consumption != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
+                        consumption, fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
             }
 
             result.add(new CarRecommendation(
