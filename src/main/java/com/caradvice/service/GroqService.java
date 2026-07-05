@@ -637,6 +637,7 @@ public class GroqService {
                 VOLVO EV: EX30, EX40, EC40, EX60, EX90 — inga andra. Hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG modeller som inte säljs på svenska marknaden. Om osäker — säg det.
                 BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh.
+                ENHETER: 1 svensk mil = 10 km (1500 mil/år = 15 000 km/år). Förbrukning anges i l/100km eller l/mil — håll isär dem i beräkningar.
                 """).formatted(SUBSCRIPTION_PRICE)
                 + (icePrices.isBlank() ? "" : icePrices + "\n")
                 + (evPrices.isBlank() ? "" : evPrices + "\n");
