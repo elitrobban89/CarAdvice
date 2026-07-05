@@ -34,6 +34,8 @@ bin/
 
 ### Project data files (not committed) ###
 *.csv
+# ...men seed-datat för ice_consumption MÅSTE med i bygget (läses från classpath vid boot)
+!src/main/resources/ice-consumption.csv
 
 ### Python ###
 __pycache__/

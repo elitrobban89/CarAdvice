@@ -1,0 +1,958 @@
+brand;variant;fuel;liter_per_mil
+Abarth;500 1.4 T-Jet 135 hk;bensin;0.72
+Abarth;595 1.4 T-Jet 160 hk;bensin;0.75
+Abarth;595 Competizione 1.4 T-Jet 180 hk;bensin;0.85
+Abarth;695 1.4 T-Jet 180 hk;bensin;0.88
+Abarth;695 Biposto 1.4 T-Jet 190 hk;bensin;0.95
+Alfa Romeo;Giulia 2.0 T 200 hk;bensin;0.75
+Alfa Romeo;Giulia 2.0 T 280 hk;bensin;0.82
+Alfa Romeo;Giulia Quadrifoglio 2.9 V6 510 hk;bensin;1.15
+Alfa Romeo;Giulia 2.2 Diesel 160 hk;diesel;0.56
+Alfa Romeo;Giulia 2.2 Diesel 210 hk;diesel;0.6
+Alfa Romeo;Stelvio 2.0 T 200 hk;bensin;0.88
+Alfa Romeo;Stelvio 2.0 T 280 hk;bensin;0.95
+Alfa Romeo;Stelvio Quadrifoglio 2.9 V6 510 hk;bensin;1.25
+Alfa Romeo;Stelvio 2.2 Diesel 160 hk;diesel;0.62
+Alfa Romeo;Stelvio 2.2 Diesel 210 hk;diesel;0.68
+Alfa Romeo;Tonale 1.5 MHEV 160 hk;bensin;0.78
+Alfa Romeo;Tonale Plug-in Hybrid 280 hk;laddhybrid;0.45
+Alfa Romeo;147 1.6;bensin;0.72
+Alfa Romeo;147 2.0;bensin;0.82
+Alfa Romeo;147 GTA 3.2;bensin;1.05
+Alfa Romeo;156 1.8;bensin;0.78
+Alfa Romeo;156 2.5 V6;bensin;1
+Alfa Romeo;159 1.9 TDI;diesel;0.6
+Alpine;A110 1.8 T 252 hk;bensin;0.82
+Alpine;A110 S 1.8 T 292 hk;bensin;0.9
+Alpine;A110 GT 1.8 T 300 hk;bensin;0.9
+Alpine;A110 R 300 hk;bensin;0.95
+Audi;A1 25 TFSI 95 hk;bensin;0.58
+Audi;A1 30 TFSI 116 hk;bensin;0.62
+Audi;A1 35 TFSI 150 hk;bensin;0.68
+Audi;A1 40 TFSI 200 hk;bensin;0.78
+Audi;A3 30 TFSI 110 hk;bensin;0.62
+Audi;A3 35 TFSI 150 hk;bensin;0.68
+Audi;A3 40 TFSI 204 hk;bensin;0.75
+Audi;A3 35 TDI 150 hk;diesel;0.52
+Audi;A3 40 TDI 200 hk;diesel;0.56
+Audi;A3 45 TFSI e PHEV 245 hk;laddhybrid;0.48
+Audi;S3 2.0 TFSI 310 hk;bensin;0.9
+Audi;RS3 2.5 TFSI 400 hk;bensin;1.1
+Audi;A4 35 TFSI 150 hk;bensin;0.72
+Audi;A4 40 TFSI 204 hk;bensin;0.78
+Audi;A4 45 TFSI 265 hk;bensin;0.88
+Audi;A4 35 TDI 163 hk;diesel;0.55
+Audi;A4 40 TDI 204 hk;diesel;0.58
+Audi;A4 50 TDI 286 hk;diesel;0.62
+Audi;A4 55 TFSI e PHEV 265 hk;laddhybrid;0.52
+Audi;S4 3.0 TFSI 341 hk;bensin;1
+Audi;RS4 2.9 TFSI 450 hk;bensin;1.18
+Audi;A5 35 TFSI 150 hk;bensin;0.74
+Audi;A5 40 TFSI 204 hk;bensin;0.8
+Audi;A5 45 TFSI 265 hk;bensin;0.9
+Audi;A5 35 TDI 163 hk;diesel;0.56
+Audi;A5 40 TDI 204 hk;diesel;0.6
+Audi;S5 3.0 TFSI 341 hk;bensin;1.02
+Audi;RS5 2.9 TFSI 450 hk;bensin;1.2
+Audi;A6 40 TFSI 204 hk;bensin;0.82
+Audi;A6 45 TFSI 265 hk;bensin;0.9
+Audi;A6 55 TFSI 340 hk;bensin;1
+Audi;A6 35 TDI 163 hk;diesel;0.58
+Audi;A6 40 TDI 204 hk;diesel;0.62
+Audi;A6 50 TDI 286 hk;diesel;0.68
+Audi;A6 55 TFSI e PHEV 367 hk;laddhybrid;0.55
+Audi;S6 2.9 TFSI 450 hk;bensin;1.08
+Audi;RS6 4.0 TFSI 630 hk;bensin;1.3
+Audi;A7 45 TFSI 265 hk;bensin;0.88
+Audi;A7 55 TFSI 340 hk;bensin;0.98
+Audi;A7 40 TDI 204 hk;diesel;0.64
+Audi;A7 50 TDI 286 hk;diesel;0.7
+Audi;S7 2.9 TFSI 450 hk;bensin;1.1
+Audi;RS7 4.0 TFSI 630 hk;bensin;1.32
+Audi;A8 55 TFSI 340 hk;bensin;1.08
+Audi;A8 60 TFSI e PHEV 449 hk;laddhybrid;0.7
+Audi;A8 50 TDI 286 hk;diesel;0.75
+Audi;S8 4.0 TFSI 571 hk;bensin;1.3
+Audi;Q2 35 TFSI 150 hk;bensin;0.68
+Audi;Q2 35 TDI 150 hk;diesel;0.54
+Audi;Q3 35 TFSI 150 hk;bensin;0.72
+Audi;Q3 45 TFSI 230 hk;bensin;0.82
+Audi;Q3 35 TDI 150 hk;diesel;0.56
+Audi;Q3 40 TDI 200 hk;diesel;0.6
+Audi;RS Q3 2.5 TFSI 400 hk;bensin;1.02
+Audi;Q5 40 TFSI 204 hk;bensin;0.88
+Audi;Q5 45 TFSI 265 hk;bensin;0.95
+Audi;Q5 40 TDI 204 hk;diesel;0.65
+Audi;Q5 50 TDI 286 hk;diesel;0.7
+Audi;Q5 55 TFSI e PHEV 367 hk;laddhybrid;0.58
+Audi;SQ5 3.0 TFSI 341 hk;bensin;1.05
+Audi;Q7 45 TFSI 340 hk;bensin;1.08
+Audi;Q7 45 TDI 231 hk;diesel;0.78
+Audi;Q7 50 TDI 286 hk;diesel;0.82
+Audi;Q7 60 TFSI e PHEV 462 hk;laddhybrid;0.68
+Audi;SQ7 4.0 TFSI 507 hk;bensin;1.28
+Audi;Q8 55 TFSI 340 hk;bensin;1.15
+Audi;Q8 50 TDI 286 hk;diesel;0.8
+Audi;SQ8 4.0 TFSI 507 hk;bensin;1.3
+Audi;RS Q8 4.0 TFSI 600 hk;bensin;1.42
+Audi;TT 45 TFSI 245 hk;bensin;0.8
+Audi;TTS 2.0 TFSI 320 hk;bensin;0.9
+Audi;TT RS 2.5 TFSI 400 hk;bensin;1.05
+BMW;116i 1.5 T 109 hk;bensin;0.58
+BMW;118i 1.5 T 136 hk;bensin;0.62
+BMW;120i 2.0 T 178 hk;bensin;0.68
+BMW;128ti 2.0 T 265 hk;bensin;0.8
+BMW;M135i xDrive 306 hk;bensin;0.88
+BMW;116d 2.0 D 116 hk;diesel;0.48
+BMW;118d 2.0 D 150 hk;diesel;0.52
+BMW;120d 2.0 D 190 hk;diesel;0.55
+BMW;218i Active Tourer 136 hk;bensin;0.68
+BMW;220i 2.0 T 170 hk;bensin;0.72
+BMW;230i 2.0 T 245 hk;bensin;0.8
+BMW;M240i xDrive 374 hk;bensin;0.98
+BMW;218d Active Tourer 150 hk;diesel;0.52
+BMW;220d Active Tourer 190 hk;diesel;0.56
+BMW;225e Active Tourer PHEV;laddhybrid;0.45
+BMW;318i 2.0 T 156 hk;bensin;0.62
+BMW;320i 2.0 T 184 hk;bensin;0.68
+BMW;330i 2.0 T 258 hk;bensin;0.78
+BMW;340i xDrive 3.0 T 374 hk;bensin;0.95
+BMW;316d 2.0 D 116 hk;diesel;0.48
+BMW;318d 2.0 D 150 hk;diesel;0.52
+BMW;320d 2.0 D 190 hk;diesel;0.55
+BMW;330d 3.0 D 286 hk;diesel;0.62
+BMW;330e PHEV 292 hk;laddhybrid;0.45
+BMW;M3 3.0 T 480 hk;bensin;1.08
+BMW;M3 Competition 510 hk;bensin;1.15
+BMW;420i 2.0 T 184 hk;bensin;0.72
+BMW;430i 2.0 T 245 hk;bensin;0.82
+BMW;M440i xDrive 374 hk;bensin;0.98
+BMW;420d 2.0 D 190 hk;diesel;0.58
+BMW;430d 3.0 D 286 hk;diesel;0.65
+BMW;430e PHEV 292 hk;laddhybrid;0.48
+BMW;M4 3.0 T 480 hk;bensin;1.1
+BMW;M4 Competition 510 hk;bensin;1.18
+BMW;520i 2.0 T 184 hk;bensin;0.75
+BMW;530i 2.0 T 252 hk;bensin;0.85
+BMW;540i 3.0 T 340 hk;bensin;0.98
+BMW;518d 2.0 D 150 hk;diesel;0.55
+BMW;520d 2.0 D 190 hk;diesel;0.6
+BMW;530d 3.0 D 286 hk;diesel;0.65
+BMW;540d 3.0 D 340 hk;diesel;0.72
+BMW;530e PHEV 292 hk;laddhybrid;0.5
+BMW;545e xDrive PHEV 394 hk;laddhybrid;0.58
+BMW;M5 4.4 V8 600 hk;bensin;1.28
+BMW;M5 Competition 625 hk;bensin;1.35
+BMW;730i 2.0 T 265 hk;bensin;0.92
+BMW;740i 3.0 T 340 hk;bensin;1.05
+BMW;750i xDrive 4.4 V8 530 hk;bensin;1.25
+BMW;730d 3.0 D 286 hk;diesel;0.72
+BMW;740d 3.0 D 340 hk;diesel;0.8
+BMW;745e PHEV 394 hk;laddhybrid;0.68
+BMW;M760i xDrive 6.6 V12 585 hk;bensin;1.45
+BMW;X1 sDrive18i 140 hk;bensin;0.7
+BMW;X1 xDrive20i 192 hk;bensin;0.78
+BMW;X1 xDrive25i 231 hk;bensin;0.85
+BMW;X1 sDrive18d 150 hk;diesel;0.55
+BMW;X1 xDrive18d 150 hk;diesel;0.58
+BMW;X1 xDrive25d 231 hk;diesel;0.64
+BMW;X1 xDrive25e PHEV;laddhybrid;0.5
+BMW;X2 sDrive18i 140 hk;bensin;0.72
+BMW;X2 xDrive25i 192 hk;bensin;0.82
+BMW;X2 M35i xDrive 306 hk;bensin;0.95
+BMW;X2 sDrive18d 150 hk;diesel;0.55
+BMW;X2 xDrive18d 150 hk;diesel;0.58
+BMW;X3 xDrive20i 184 hk;bensin;0.82
+BMW;X3 xDrive30i 252 hk;bensin;0.9
+BMW;X3 M40i 360 hk;bensin;1.05
+BMW;X3 xDrive20d 190 hk;diesel;0.64
+BMW;X3 xDrive30d 286 hk;diesel;0.7
+BMW;X3 M40d 326 hk;diesel;0.78
+BMW;X3 xDrive30e PHEV;laddhybrid;0.55
+BMW;X3 M 3.0 T 510 hk;bensin;1.3
+BMW;X4 xDrive20i 184 hk;bensin;0.85
+BMW;X4 xDrive30i 252 hk;bensin;0.92
+BMW;X4 M40i 360 hk;bensin;1.08
+BMW;X4 xDrive20d 190 hk;diesel;0.66
+BMW;X4 xDrive30d 286 hk;diesel;0.72
+BMW;X4 M 3.0 T 510 hk;bensin;1.32
+BMW;X5 xDrive40i 340 hk;bensin;1.02
+BMW;X5 xDrive50i 4.4 V8 462 hk;bensin;1.2
+BMW;X5 xDrive30d 286 hk;diesel;0.76
+BMW;X5 xDrive40d 340 hk;diesel;0.82
+BMW;X5 M50d 400 hk;diesel;0.92
+BMW;X5 xDrive45e PHEV 394 hk;laddhybrid;0.65
+BMW;X5 M 4.4 V8 600 hk;bensin;1.4
+BMW;X5 M Competition 625 hk;bensin;1.48
+BMW;X6 xDrive40i 340 hk;bensin;1.08
+BMW;X6 xDrive30d 286 hk;diesel;0.8
+BMW;X6 xDrive40d 340 hk;diesel;0.88
+BMW;X6 M 4.4 V8 600 hk;bensin;1.45
+BMW;X7 xDrive40i 340 hk;bensin;1.12
+BMW;X7 xDrive30d 286 hk;diesel;0.85
+BMW;X7 xDrive40d 340 hk;diesel;0.92
+BMW;X7 M60i 4.4 V8 585 hk;bensin;1.42
+Cadillac;CT5 2.0 Turbo 237 hk;bensin;0.98
+Cadillac;CT5-V 3.0 TT 360 hk;bensin;1.12
+Cadillac;CT5-V Blackwing 6.2 V8 668 hk;bensin;1.55
+Cadillac;Escalade 6.2 V8 426 hk;bensin;1.55
+Citroën;C1 1.0 VTi 68 hk;bensin;0.48
+Citroën;C1 1.2 VTi 82 hk;bensin;0.52
+Citroën;C3 1.2 PureTech 83 hk;bensin;0.55
+Citroën;C3 1.2 PureTech 110 hk;bensin;0.6
+Citroën;C3 1.2 PureTech 110 hk EAT6;bensin;0.63
+Citroën;C3 Aircross 1.2 PureTech 110 hk;bensin;0.68
+Citroën;C3 Aircross 1.2 PureTech 130 hk;bensin;0.72
+Citroën;C4 1.2 PureTech 130 hk;bensin;0.65
+Citroën;C4 1.2 PureTech 130 hk EAT8;bensin;0.68
+Citroën;C4 1.5 BlueHDi 130 hk;diesel;0.52
+Citroën;C5 Aircross 1.2 PureTech 130 hk;bensin;0.78
+Citroën;C5 Aircross 1.2 PureTech 130 hk EAT8;bensin;0.81
+Citroën;C5 Aircross 1.5 BlueHDi 130 hk;diesel;0.6
+Citroën;C5 Aircross 1.5 BlueHDi 130 hk EAT8;diesel;0.63
+Citroën;C5 Aircross PHEV 225 hk;laddhybrid;0.48
+Citroën;Berlingo 1.2 PureTech 110 hk;bensin;0.72
+Citroën;Berlingo 1.2 PureTech 110 hk EAT8;bensin;0.75
+Citroën;Berlingo 1.5 BlueHDi 130 hk;diesel;0.58
+Cupra;Formentor 1.5 TSI 150 hk;bensin;0.78
+Cupra;Formentor 2.0 TSI 190 hk;bensin;0.85
+Cupra;Formentor 2.0 TSI 300 hk;bensin;0.95
+Cupra;Formentor VZ 2.5 TFSI 390 hk;bensin;1.12
+Cupra;Formentor 1.4 e-Hybrid 204 hk;hybrid;0.48
+Cupra;Formentor 1.4 e-Hybrid 245 hk;hybrid;0.5
+Cupra;Leon 1.5 TSI 150 hk;bensin;0.65
+Cupra;Leon 2.0 TSI 190 hk;bensin;0.75
+Cupra;Leon VZ 2.0 TSI 300 hk;bensin;0.92
+Cupra;Ateca 1.5 TSI 150 hk;bensin;0.75
+Cupra;Ateca 2.0 TSI 190 hk;bensin;0.85
+Cupra;Ateca 2.0 TSI 300 hk;bensin;0.98
+Dacia;Sandero 1.0 SCe 65 hk;bensin;0.55
+Dacia;Sandero 1.0 TCe 90 hk;bensin;0.58
+Dacia;Sandero 1.0 TCe 90 hk CVT;bensin;0.61
+Dacia;Sandero Stepway 1.0 TCe 90 hk;bensin;0.62
+Dacia;Sandero Stepway 1.0 TCe 90 hk CVT;bensin;0.65
+Dacia;Sandero Stepway 1.0 TCe 110 hk;bensin;0.65
+Dacia;Sandero Stepway 1.0 TCe 110 hk CVT;bensin;0.68
+Dacia;Duster 1.0 TCe 90 hk;bensin;0.72
+Dacia;Duster 1.3 TCe 130 hk;bensin;0.78
+Dacia;Duster 1.3 TCe 130 hk EDC;bensin;0.82
+Dacia;Duster 1.3 TCe 150 hk 4x4 EDC;bensin;0.88
+Dacia;Duster 1.5 dCi 115 hk;diesel;0.58
+Dacia;Logan 1.0 SCe 75 hk;bensin;0.6
+Dacia;Jogger 1.0 TCe 110 hk;bensin;0.72
+Dacia;Jogger 1.0 TCe 110 hk CVT;bensin;0.75
+Dacia;Jogger 1.6 Hybrid 140 hk;hybrid;0.68
+Dacia;Bigster 1.2 TCe 140 hk;bensin;0.78
+Dacia;Bigster 1.2 TCe 140 hk EDC;bensin;0.81
+DS;DS 3 1.2 PureTech 130 hk;bensin;0.68
+DS;DS 3 1.5 BlueHDi 130 hk;diesel;0.54
+DS;DS 4 1.2 PureTech 130 hk;bensin;0.72
+DS;DS 4 1.5 BlueHDi 130 hk;diesel;0.56
+DS;DS 4 PHEV 225 hk;laddhybrid;0.48
+DS;DS 7 1.6 PureTech 225 hk;bensin;0.82
+DS;DS 7 BlueHDi 180 hk;diesel;0.64
+DS;DS 7 E-Tense 300 hk PHEV;laddhybrid;0.5
+DS;DS 9 1.6 PureTech 225 hk;bensin;0.88
+DS;DS 9 E-Tense PHEV 360 hk;laddhybrid;0.55
+Fiat;500 1.0 MHEV 70 hk;bensin;0.52
+Fiat;500 1.4 100 hk;bensin;0.6
+Fiat;500 Abarth 1.4 T-Jet 135 hk;bensin;0.72
+Fiat;Punto 1.2 69 hk;bensin;0.58
+Fiat;Tipo 1.4 95 hk;bensin;0.65
+Fiat;Tipo 1.6 MultiJet 120 hk;diesel;0.52
+Fiat;500X 1.0 120 hk;bensin;0.7
+Fiat;Panda 1.0 MHEV 70 hk;bensin;0.48
+Ford;Fiesta 1.0 EcoBoost 95 hk;bensin;0.55
+Ford;Fiesta 1.0 EcoBoost 125 hk;bensin;0.58
+Ford;Fiesta 1.0 EcoBoost 125 hk Auto;bensin;0.61
+Ford;Fiesta ST 1.5 EcoBoost 200 hk;bensin;0.82
+Ford;Focus 1.0 EcoBoost 125 hk;bensin;0.62
+Ford;Focus 1.0 EcoBoost 125 hk Auto;bensin;0.65
+Ford;Focus 1.0 EcoBoost 155 hk;bensin;0.65
+Ford;Focus 1.5 EcoBoost 182 hk;bensin;0.7
+Ford;Focus ST 2.0 EcoBoost 280 hk;bensin;0.92
+Ford;Focus 1.5 EcoBlue 95 hk;diesel;0.5
+Ford;Focus 1.5 EcoBlue 120 hk;diesel;0.52
+Ford;Focus 1.5 EcoBlue 120 hk Auto;diesel;0.55
+Ford;Mondeo 1.5 EcoBoost 165 hk;bensin;0.78
+Ford;Mondeo 2.0 EcoBoost 240 hk;bensin;0.88
+Ford;Mondeo Hybrid 187 hk;hybrid;0.62
+Ford;Mondeo 2.0 EcoBlue 150 hk;diesel;0.58
+Ford;Mondeo 2.0 EcoBlue 180 hk;diesel;0.62
+Ford;Mustang 2.3 EcoBoost 290 hk;bensin;1.05
+Ford;Mustang 5.0 V8 449 hk;bensin;1.4
+Ford;Kuga 1.5 EcoBoost 150 hk;bensin;0.82
+Ford;Kuga 1.5 EcoBoost 150 hk Auto;bensin;0.85
+Ford;Kuga 2.5 FHEV 190 hk Hybrid;hybrid;0.68
+Ford;Kuga PHEV 225 hk;laddhybrid;0.52
+Ford;Kuga 2.0 EcoBlue 150 hk;diesel;0.63
+Ford;Explorer 2.3 EcoBoost 249 hk;bensin;1.15
+Ford;Explorer PHEV 457 hk;laddhybrid;0.75
+Ford;Puma 1.0 EcoBoost 125 hk;bensin;0.6
+Ford;Puma 1.0 EcoBoost 125 hk Auto;bensin;0.63
+Ford;Puma 1.0 EcoBoost 155 hk;bensin;0.62
+Ford;Puma ST 1.5 EcoBoost 200 hk;bensin;0.85
+Ford;EcoSport 1.0 EcoBoost 125 hk;bensin;0.68
+Genesis;G70 2.0 T 252 hk;bensin;0.8
+Genesis;G70 3.3 Twin Turbo 370 hk;bensin;1.08
+Genesis;G70 2.2 D 202 hk;diesel;0.6
+Genesis;G80 2.5 T 304 hk;bensin;0.88
+Genesis;G80 3.5 T 380 hk;bensin;1.05
+Genesis;G80 2.2 D 202 hk;diesel;0.68
+Genesis;GV70 2.5 T 304 hk;bensin;0.92
+Genesis;GV70 3.5 T 380 hk;bensin;1.1
+Genesis;GV70 2.2 D 202 hk;diesel;0.72
+Genesis;GV80 2.5 T 300 hk;bensin;1.02
+Genesis;GV80 3.5 T 380 hk;bensin;1.18
+Genesis;GV80 2.2 D 202 hk;diesel;0.8
+Honda;Jazz 1.5 e:HEV Hybrid 109 hk;hybrid;0.5
+Honda;Civic 1.0 VTEC Turbo 126 hk;bensin;0.62
+Honda;Civic 1.5 VTEC Turbo 182 hk;bensin;0.68
+Honda;Civic e:HEV 2.0 Hybrid 184 hk;hybrid;0.52
+Honda;Civic Type R 2.0 VTEC Turbo 329 hk;bensin;1.02
+Honda;Accord 2.0 e:HEV Hybrid 215 hk;hybrid;0.65
+Honda;CR-V 1.5 VTEC Turbo 193 hk;bensin;0.8
+Honda;CR-V 2.0 e:HEV Hybrid 184 hk;hybrid;0.68
+Honda;CR-V e:PHEV 184 hk;laddhybrid;0.5
+Honda;HR-V 1.5 e:HEV Hybrid 131 hk;hybrid;0.65
+Honda;ZR-V 2.0 e:HEV Hybrid 184 hk;hybrid;0.72
+Hyundai;i10 1.0 67 hk;bensin;0.5
+Hyundai;i10 1.0 T-GDI 100 hk;bensin;0.55
+Hyundai;i10 1.0 T-GDI 100 hk AMT;bensin;0.57
+Hyundai;i20 1.0 T-GDI 100 hk;bensin;0.56
+Hyundai;i20 1.0 T-GDI 100 hk DCT;bensin;0.59
+Hyundai;i20 1.0 T-GDI 120 hk;bensin;0.6
+Hyundai;i20 1.0 T-GDI 120 hk DCT;bensin;0.63
+Hyundai;i20 N Line 1.0 T-GDI 120 hk;bensin;0.62
+Hyundai;i20 N 1.6 T-GDI 204 hk;bensin;0.88
+Hyundai;i30 1.0 T-GDI 120 hk;bensin;0.62
+Hyundai;i30 1.0 T-GDI 120 hk DCT;bensin;0.65
+Hyundai;i30 1.5 T-GDI 160 hk;bensin;0.68
+Hyundai;i30 1.5 T-GDI 160 hk DCT;bensin;0.71
+Hyundai;i30 2.0 T-GDI 275 hk N;bensin;0.98
+Hyundai;i30 N 2.0 T-GDI 280 hk;bensin;0.98
+Hyundai;Tucson 1.6 T-GDI 150 hk;bensin;0.8
+Hyundai;Tucson 1.6 T-GDI 150 hk DCT;bensin;0.83
+Hyundai;Tucson 1.6 T-GDI Hybrid 230 hk;hybrid;0.7
+Hyundai;Tucson 1.6 T-GDI Hybrid 230 hk 4x4;hybrid;0.75
+Hyundai;Tucson 2.0 T-GDI 265 hk 4x4;bensin;0.95
+Hyundai;Tucson PHEV 265 hk;laddhybrid;0.55
+Hyundai;Tucson 1.6 CRDi 115 hk;diesel;0.62
+Hyundai;Tucson 2.0 CRDi 185 hk;diesel;0.68
+Hyundai;Santa Fe 2.5 T-GDI 277 hk;bensin;0.98
+Hyundai;Santa Fe 1.6 T-GDI Hybrid 230 hk;hybrid;0.82
+Hyundai;Santa Fe PHEV 291 hk;laddhybrid;0.6
+Hyundai;Santa Fe 2.2 CRDi 202 hk;diesel;0.72
+Hyundai;Kona 1.0 T-GDI 120 hk;bensin;0.68
+Hyundai;Kona 1.0 T-GDI 120 hk DCT;bensin;0.71
+Hyundai;Kona 1.6 T-GDI 198 hk;bensin;0.8
+Hyundai;Kona N 2.0 T-GDI 280 hk;bensin;1
+Jaguar;XE 2.0 P250 250 hk;bensin;0.8
+Jaguar;XE 2.0 D165 165 hk;diesel;0.6
+Jaguar;XE 2.0 D204 204 hk;diesel;0.62
+Jaguar;XF 2.0 P250 250 hk;bensin;0.85
+Jaguar;XF 2.0 P300 300 hk;bensin;0.92
+Jaguar;XF 2.0 D204 204 hk;diesel;0.65
+Jaguar;XF 3.0 D300 300 hk;diesel;0.7
+Jaguar;F-Pace 2.0 P300 300 hk;bensin;0.98
+Jaguar;F-Pace SVR 5.0 V8 550 hk;bensin;1.42
+Jaguar;F-Pace 2.0 D204 204 hk;diesel;0.72
+Jaguar;F-Pace 3.0 D300 300 hk;diesel;0.78
+Jaguar;E-Pace 1.5 P160 160 hk;bensin;0.82
+Jaguar;F-Type 2.0 P300 300 hk;bensin;1.05
+Jaguar;F-Type R 5.0 V8 575 hk;bensin;1.45
+Jeep;Renegade 1.3 T4 150 hk;bensin;0.8
+Jeep;Renegade 4xe PHEV 240 hk;laddhybrid;0.5
+Jeep;Compass 1.3 T4 150 hk;bensin;0.8
+Jeep;Compass 4xe PHEV 240 hk;laddhybrid;0.5
+Jeep;Grand Cherokee 2.0 T 272 hk;bensin;1.1
+Jeep;Grand Cherokee 3.6 V6 293 hk;bensin;1.25
+Jeep;Grand Cherokee 4xe PHEV 380 hk;laddhybrid;0.68
+Jeep;Wrangler 2.0 T 272 hk;bensin;1.2
+Jeep;Wrangler 4xe PHEV 380 hk;laddhybrid;0.72
+Jeep;Avenger 1.2 T 100 hk;bensin;0.72
+Kia;Picanto 1.0 67 hk;bensin;0.5
+Kia;Picanto 1.0 T-GDI 100 hk;bensin;0.55
+Kia;Picanto 1.2 84 hk;bensin;0.52
+Kia;Rio 1.0 T-GDI 100 hk;bensin;0.58
+Kia;Rio 1.0 T-GDI 100 hk DCT;bensin;0.61
+Kia;Rio 1.0 T-GDI 120 hk;bensin;0.62
+Kia;Rio 1.0 T-GDI 120 hk DCT;bensin;0.65
+Kia;Ceed 1.0 T-GDI 120 hk;bensin;0.62
+Kia;Ceed 1.0 T-GDI 120 hk DCT;bensin;0.65
+Kia;Ceed 1.5 T-GDI 160 hk;bensin;0.68
+Kia;Ceed 1.5 T-GDI 160 hk DCT;bensin;0.71
+Kia;ProCeed 1.5 T-GDI 160 hk;bensin;0.7
+Kia;ProCeed 1.5 T-GDI 160 hk DCT;bensin;0.73
+Kia;Ceed GT 1.6 T-GDI 204 hk;bensin;0.88
+Kia;XCeed 1.0 T-GDI 120 hk;bensin;0.7
+Kia;XCeed 1.5 T-GDI 160 hk DCT;bensin;0.75
+Kia;Stinger 2.0 T-GDI 255 hk;bensin;0.95
+Kia;Stinger 3.3 T-GDI 370 hk;bensin;1.12
+Kia;Sportage 1.6 T-GDI 150 hk;bensin;0.8
+Kia;Sportage 1.6 T-GDI 150 hk DCT;bensin;0.83
+Kia;Sportage 1.6 T-GDI HEV 230 hk;hybrid;0.68
+Kia;Sportage 1.6 T-GDI HEV 230 hk 4x4;hybrid;0.73
+Kia;Sportage 1.6 T-GDI 230 hk 4x4;bensin;0.92
+Kia;Sportage PHEV 265 hk;laddhybrid;0.55
+Kia;Sportage 1.6 CRDi 136 hk;diesel;0.62
+Kia;Sportage 2.0 CRDi 185 hk;diesel;0.68
+Kia;Sorento 1.6 T-GDI HEV 230 hk;hybrid;0.78
+Kia;Sorento 2.5 T-GDI 281 hk;bensin;1
+Kia;Sorento PHEV 291 hk;laddhybrid;0.6
+Kia;Sorento 2.2 CRDi 202 hk;diesel;0.78
+Kia;Niro 1.6 GDI HEV 141 hk;hybrid;0.62
+Kia;Niro PHEV 183 hk;laddhybrid;0.48
+Lancia;Ypsilon 1.0 Hybrid 70 hk;hybrid;0.55
+Land Rover;Defender 90 2.0 P300 300 hk;bensin;1.1
+Land Rover;Defender 90 3.0 P400 400 hk;bensin;1.2
+Land Rover;Defender 90 5.0 V8 525 hk;bensin;1.55
+Land Rover;Defender 90 2.0 D200 200 hk;diesel;0.82
+Land Rover;Defender 90 3.0 D300 300 hk;diesel;0.88
+Land Rover;Defender 110 2.0 P300 300 hk;bensin;1.15
+Land Rover;Defender 110 3.0 P400 400 hk;bensin;1.25
+Land Rover;Defender 110 2.0 D200 200 hk;diesel;0.85
+Land Rover;Defender 110 3.0 D300 300 hk;diesel;0.92
+Land Rover;Discovery 2.0 P300 300 hk;bensin;1.12
+Land Rover;Discovery 3.0 D300 300 hk;diesel;0.88
+Land Rover;Discovery Sport 2.0 P250 249 hk;bensin;0.95
+Land Rover;Discovery Sport PHEV 309 hk;laddhybrid;0.58
+Land Rover;Discovery Sport 2.0 D150 150 hk;diesel;0.7
+Land Rover;Discovery Sport 2.0 D200 200 hk;diesel;0.75
+Land Rover;Range Rover Evoque 2.0 P300 300 hk;bensin;0.98
+Land Rover;Range Rover Evoque PHEV 309 hk;laddhybrid;0.55
+Land Rover;Range Rover Evoque 2.0 D150 150 hk;diesel;0.68
+Land Rover;Range Rover Evoque 2.0 D200 200 hk;diesel;0.72
+Land Rover;Range Rover Sport 3.0 P360 360 hk;bensin;1.12
+Land Rover;Range Rover Sport 4.4 P530 530 hk;bensin;1.35
+Land Rover;Range Rover Sport SVR 5.0 V8 575 hk;bensin;1.55
+Land Rover;Range Rover Sport PHEV 440 hk;laddhybrid;0.68
+Land Rover;Range Rover Sport 3.0 D300 300 hk;diesel;0.85
+Land Rover;Range Rover 3.0 P360 360 hk;bensin;1.18
+Land Rover;Range Rover 4.4 P530 530 hk;bensin;1.42
+Land Rover;Range Rover PHEV 510 hk;laddhybrid;0.75
+Land Rover;Range Rover 3.0 D300 300 hk;diesel;0.9
+Lexus;IS 300h 2.5 Hybrid 223 hk;hybrid;0.65
+Lexus;IS 500 5.0 V8 472 hk;bensin;1.2
+Lexus;ES 300h 2.5 Hybrid 218 hk;hybrid;0.6
+Lexus;NX 250h 2.5 Hybrid 207 hk;hybrid;0.68
+Lexus;NX 350h 2.5 Hybrid 244 hk;hybrid;0.72
+Lexus;NX 450h+ PHEV 309 hk;laddhybrid;0.45
+Lexus;UX 250h 2.0 Hybrid 184 hk;hybrid;0.55
+Lexus;RX 350h 2.5 Hybrid 250 hk;hybrid;0.78
+Lexus;RX 450h+ PHEV 309 hk;laddhybrid;0.5
+Lexus;RX 500h 2.4 T Hybrid 371 hk;hybrid;0.85
+Lexus;LC 500 5.0 V8 477 hk;bensin;1.1
+Lexus;LC 500h 3.5 Hybrid 359 hk;hybrid;0.9
+Lotus;Emira 2.0 T AMG 360 hk;bensin;1.02
+Lotus;Emira V6 3.5 400 hk;bensin;1.1
+Maserati;Ghibli 2.0 Mild Hybrid 330 hk;hybrid;1
+Maserati;Ghibli 3.0 V6 350 hk;bensin;1.1
+Maserati;Ghibli 3.0 V6 Diesel;diesel;0.78
+Maserati;Ghibli Trofeo 3.8 V8 580 hk;bensin;1.42
+Maserati;Levante 2.0 Mild Hybrid 330 hk;hybrid;1.12
+Maserati;Levante 3.0 V6 350 hk;bensin;1.18
+Maserati;Levante 3.0 V6 275 hk;diesel;0.88
+Maserati;Levante Trofeo 3.8 V8 580 hk;bensin;1.55
+Maserati;GranTurismo 3.0 Nettuno V6 490 hk;bensin;1.3
+Maserati;Grecale 2.0 MHEV 300 hk;bensin;1
+Maserati;Grecale Trofeo 3.0 V6 530 hk;bensin;1.28
+Mazda;Mazda 2 1.5 90 hk;bensin;0.52
+Mazda;Mazda 2 Hybrid 116 hk;hybrid;0.48
+Mazda;Mazda 3 2.0 Skyactiv-G 122 hk;bensin;0.65
+Mazda;Mazda 3 2.0 Skyactiv-G 122 hk Automat;bensin;0.68
+Mazda;Mazda 3 2.0 Skyactiv-G 150 hk;bensin;0.68
+Mazda;Mazda 3 2.0 Skyactiv-G 150 hk Automat;bensin;0.71
+Mazda;Mazda 3 2.0 Skyactiv-X 186 hk;bensin;0.68
+Mazda;Mazda 3 Turbo 2.5 265 hk;bensin;0.88
+Mazda;Mazda 3 1.8 Skyactiv-D 116 hk;diesel;0.52
+Mazda;Mazda 3 2.2 Skyactiv-D 184 hk;diesel;0.58
+Mazda;Mazda 6 2.0 Skyactiv-G 165 hk;bensin;0.75
+Mazda;Mazda 6 2.5 Skyactiv-G 194 hk;bensin;0.82
+Mazda;Mazda 6 2.0 Skyactiv-D 145 hk;diesel;0.58
+Mazda;Mazda 6 2.2 Skyactiv-D 175 hk;diesel;0.62
+Mazda;CX-30 2.0 Skyactiv-G 122 hk;bensin;0.68
+Mazda;CX-30 2.0 Skyactiv-G 150 hk;bensin;0.72
+Mazda;CX-30 2.0 Skyactiv-G 150 hk Automat;bensin;0.75
+Mazda;CX-30 2.0 Skyactiv-X 186 hk;bensin;0.75
+Mazda;CX-30 2.0 e-Skyactiv G 150 hk;bensin;0.72
+Mazda;CX-5 2.0 Skyactiv-G 165 hk;bensin;0.8
+Mazda;CX-5 2.0 Skyactiv-G 165 hk Automat;bensin;0.83
+Mazda;CX-5 2.5 Skyactiv-G 194 hk;bensin;0.88
+Mazda;CX-5 2.5 Skyactiv-G 194 hk Automat;bensin;0.91
+Mazda;CX-5 2.5 Turbo 230 hk;bensin;0.95
+Mazda;CX-5 2.2 Skyactiv-D 150 hk;diesel;0.62
+Mazda;CX-5 2.2 Skyactiv-D 184 hk;diesel;0.65
+Mazda;CX-60 2.5 PHEV 327 hk;laddhybrid;0.5
+Mazda;CX-60 e-Skyactiv D 254 hk;diesel;0.65
+Mazda;CX-60 3.3 e-Skyactiv D 280 hk;diesel;0.68
+Mazda;CX-90 3.3 Turbo 254 hk;bensin;0.98
+Mazda;CX-90 PHEV 323 hk;laddhybrid;0.62
+Mazda;MX-5 1.5 132 hk;bensin;0.68
+Mazda;MX-5 2.0 184 hk;bensin;0.72
+Mercedes-Benz;A 180 1.3 136 hk;bensin;0.65
+Mercedes-Benz;A 200 1.3 163 hk;bensin;0.68
+Mercedes-Benz;A 250 2.0 224 hk;bensin;0.78
+Mercedes-Benz;A 180 d 1.5 116 hk;diesel;0.52
+Mercedes-Benz;A 200 d 2.0 150 hk;diesel;0.55
+Mercedes-Benz;A 220 d 2.0 190 hk;diesel;0.58
+Mercedes-Benz;A 250 e PHEV 218 hk;laddhybrid;0.45
+Mercedes-Benz;A 45 S AMG 2.0 421 hk;bensin;1.05
+Mercedes-Benz;B 180 1.3 136 hk;bensin;0.68
+Mercedes-Benz;B 200 1.3 163 hk;bensin;0.72
+Mercedes-Benz;B 250 e PHEV 218 hk;laddhybrid;0.48
+Mercedes-Benz;C 180 1.5 170 hk;bensin;0.7
+Mercedes-Benz;C 200 1.5 204 hk;bensin;0.75
+Mercedes-Benz;C 300 2.0 258 hk;bensin;0.85
+Mercedes-Benz;C 180 d 2.0 122 hk;diesel;0.55
+Mercedes-Benz;C 200 d 2.0 163 hk;diesel;0.58
+Mercedes-Benz;C 220 d 2.0 200 hk;diesel;0.6
+Mercedes-Benz;C 300 d 2.0 265 hk;diesel;0.65
+Mercedes-Benz;C 300 e PHEV 313 hk;laddhybrid;0.5
+Mercedes-Benz;C 43 AMG 3.0 T 408 hk;bensin;1
+Mercedes-Benz;E 200 2.0 204 hk;bensin;0.82
+Mercedes-Benz;E 300 2.0 258 hk;bensin;0.9
+Mercedes-Benz;E 450 3.0 367 hk;bensin;1.05
+Mercedes-Benz;E 200 d 2.0 163 hk;diesel;0.62
+Mercedes-Benz;E 220 d 2.0 200 hk;diesel;0.64
+Mercedes-Benz;E 300 d 2.0 265 hk;diesel;0.68
+Mercedes-Benz;E 300 e PHEV 313 hk;laddhybrid;0.55
+Mercedes-Benz;E 53 AMG 3.0 T 435 hk;bensin;1.1
+Mercedes-Benz;E 63 AMG S 4.0 V8 612 hk;bensin;1.4
+Mercedes-Benz;S 450 3.0 367 hk;bensin;1.1
+Mercedes-Benz;S 500 3.0 449 hk;bensin;1.2
+Mercedes-Benz;S 580 4.0 V8 503 hk;bensin;1.35
+Mercedes-Benz;S 350 d 3.0 286 hk;diesel;0.8
+Mercedes-Benz;S 400 d 3.0 330 hk;diesel;0.82
+Mercedes-Benz;S 500 e PHEV 510 hk;laddhybrid;0.72
+Mercedes-Benz;S 63 AMG 4.0 V8 612 hk;bensin;1.48
+Mercedes-Benz;CLA 180 1.3 136 hk;bensin;0.68
+Mercedes-Benz;CLA 250 2.0 224 hk;bensin;0.82
+Mercedes-Benz;CLA 45 S AMG 2.0 421 hk;bensin;1.08
+Mercedes-Benz;GLA 200 1.3 163 hk;bensin;0.75
+Mercedes-Benz;GLA 250 2.0 224 hk;bensin;0.85
+Mercedes-Benz;GLA 200 d 2.0 150 hk;diesel;0.6
+Mercedes-Benz;GLA 250 e PHEV 218 hk;laddhybrid;0.5
+Mercedes-Benz;GLA 45 S AMG 421 hk;bensin;1.1
+Mercedes-Benz;GLB 200 1.3 163 hk;bensin;0.8
+Mercedes-Benz;GLB 250 2.0 224 hk;bensin;0.88
+Mercedes-Benz;GLB 200 d 2.0 150 hk;diesel;0.62
+Mercedes-Benz;GLB 250 e PHEV 218 hk;laddhybrid;0.52
+Mercedes-Benz;GLC 200 2.0 204 hk;bensin;0.88
+Mercedes-Benz;GLC 300 2.0 258 hk;bensin;0.95
+Mercedes-Benz;GLC 300 e PHEV 313 hk;laddhybrid;0.58
+Mercedes-Benz;GLC 43 AMG 3.0 T 421 hk;bensin;1.1
+Mercedes-Benz;GLC 200 d 2.0 163 hk;diesel;0.68
+Mercedes-Benz;GLC 220 d 2.0 197 hk;diesel;0.7
+Mercedes-Benz;GLC 300 d 2.0 265 hk;diesel;0.72
+Mercedes-Benz;GLE 450 3.0 367 hk;bensin;1.08
+Mercedes-Benz;GLE 53 AMG 3.0 T 449 hk;bensin;1.2
+Mercedes-Benz;GLE 63 AMG S 4.0 V8 612 hk;bensin;1.5
+Mercedes-Benz;GLE 300 d 2.0 265 hk;diesel;0.8
+Mercedes-Benz;GLE 400 d 3.0 330 hk;diesel;0.85
+Mercedes-Benz;GLS 450 3.0 367 hk;bensin;1.18
+Mercedes-Benz;GLS 400 d 3.0 330 hk;diesel;0.9
+Mercedes-Benz;G 500 4.0 V8 422 hk;bensin;1.65
+Mercedes-Benz;G 63 AMG 4.0 V8 585 hk;bensin;1.9
+MG;MG3 1.5 106 hk;bensin;0.65
+MG;MG ZS 1.5 106 hk;bensin;0.7
+MG;MG HS 1.5 T 162 hk;bensin;0.8
+MG;MG HS PHEV 258 hk;laddhybrid;0.5
+Mini;Cooper 1.5 136 hk;bensin;0.65
+Mini;Cooper S 2.0 178 hk;bensin;0.75
+Mini;Cooper S 2.0 204 hk;bensin;0.78
+Mini;John Cooper Works 2.0 231 hk;bensin;0.92
+Mini;Clubman Cooper S 2.0 192 hk;bensin;0.75
+Mini;Countryman Cooper S 2.0 192 hk;bensin;0.78
+Mini;Countryman Cooper SE ALL4 PHEV 224 hk;laddhybrid;0.5
+Mini;Countryman JCW 2.0 306 hk;bensin;1
+Mitsubishi;Colt 1.0 T 90 hk;bensin;0.58
+Mitsubishi;Colt 1.3 T 143 hk;bensin;0.65
+Mitsubishi;Lancer 1.5 109 hk;bensin;0.7
+Mitsubishi;Lancer EVO X 2.0 Turbo 295 hk;bensin;1.15
+Mitsubishi;Eclipse Cross 1.5 T 163 hk;bensin;0.82
+Mitsubishi;Eclipse Cross PHEV 188 hk;laddhybrid;0.52
+Mitsubishi;Outlander 2.5 165 hk;bensin;0.92
+Mitsubishi;Outlander PHEV 301 hk;laddhybrid;0.55
+Mitsubishi;ASX 1.0 T 101 hk;bensin;0.68
+Mitsubishi;ASX 1.3 T 158 hk;bensin;0.75
+Mitsubishi;L200 2.2 D 150 hk;diesel;0.9
+Mitsubishi;L200 2.2 D 180 hk;diesel;0.95
+Nissan;Micra 1.0 IG-T 100 hk;bensin;0.55
+Nissan;Juke 1.0 DIG-T 117 hk;bensin;0.68
+Nissan;Juke 1.6 Hybrid 143 hk;hybrid;0.62
+Nissan;Qashqai 1.3 DIG-T 140 hk;bensin;0.75
+Nissan;Qashqai 1.3 DIG-T 158 hk;bensin;0.78
+Nissan;Qashqai e-POWER 190 hk;bensin;0.65
+Nissan;Qashqai 1.5 dCi 115 hk;diesel;0.58
+Nissan;X-Trail 1.5 T 163 hk;bensin;0.85
+Nissan;X-Trail e-POWER 213 hk;bensin;0.72
+Nissan;X-Trail 2.0 dCi 177 hk;diesel;0.68
+Nissan;GT-R 3.8 V6 570 hk;bensin;1.55
+Opel;Corsa 1.2 75 hk;bensin;0.55
+Opel;Corsa 1.2 T 100 hk;bensin;0.58
+Opel;Corsa 1.2 T 100 hk AT8;bensin;0.61
+Opel;Corsa 1.2 T 130 hk;bensin;0.62
+Opel;Corsa 1.2 T 130 hk AT8;bensin;0.65
+Opel;Corsa 1.5 D 102 hk;diesel;0.5
+Opel;Astra 1.2 T 110 hk;bensin;0.62
+Opel;Astra 1.2 T 130 hk;bensin;0.65
+Opel;Astra 1.2 T 130 hk AT8;bensin;0.68
+Opel;Astra PHEV 180 hk;laddhybrid;0.48
+Opel;Astra 1.5 D 130 hk;diesel;0.52
+Opel;Insignia 1.5 T 140 hk;bensin;0.75
+Opel;Insignia 2.0 T 200 hk;bensin;0.82
+Opel;Insignia 2.0 D 170 hk;diesel;0.6
+Opel;Mokka 1.2 T 100 hk;bensin;0.68
+Opel;Mokka 1.2 T 130 hk;bensin;0.72
+Opel;Mokka 1.2 T 130 hk AT8;bensin;0.75
+Opel;Mokka 1.5 D 110 hk;diesel;0.55
+Opel;Grandland 1.2 T 130 hk;bensin;0.82
+Opel;Grandland 1.2 T 130 hk AT8;bensin;0.85
+Opel;Grandland X 1.2 T 130 hk;bensin;0.82
+Opel;Grandland X PHEV 225 hk;laddhybrid;0.5
+Opel;Grandland X 1.5 D 130 hk;diesel;0.62
+Opel;Grandland X 1.5 D 130 hk AT8;diesel;0.65
+Opel;Crossland 1.2 T 110 hk;bensin;0.68
+Opel;Crossland 1.5 D 102 hk;diesel;0.54
+Peugeot;108 1.0 VTi 72 hk;bensin;0.48
+Peugeot;208 1.2 PureTech 75 hk;bensin;0.55
+Peugeot;208 1.2 PureTech 100 hk;bensin;0.58
+Peugeot;208 1.2 PureTech 100 hk EAT8;bensin;0.61
+Peugeot;208 1.2 PureTech 130 hk;bensin;0.62
+Peugeot;208 1.2 PureTech 130 hk EAT8;bensin;0.65
+Peugeot;208 1.5 BlueHDi 100 hk;diesel;0.48
+Peugeot;308 1.2 PureTech 110 hk;bensin;0.62
+Peugeot;308 1.2 PureTech 110 hk EAT8;bensin;0.65
+Peugeot;308 1.2 PureTech 130 hk;bensin;0.65
+Peugeot;308 1.2 PureTech 130 hk EAT8;bensin;0.68
+Peugeot;308 1.6 PureTech 180 hk;bensin;0.78
+Peugeot;308 1.6 PureTech 180 hk EAT8;bensin;0.81
+Peugeot;308 1.5 BlueHDi 130 hk;diesel;0.52
+Peugeot;308 PHEV 225 hk;laddhybrid;0.48
+Peugeot;408 1.2 PureTech 130 hk;bensin;0.72
+Peugeot;408 1.2 PureTech 130 hk EAT8;bensin;0.75
+Peugeot;408 PHEV 225 hk;laddhybrid;0.5
+Peugeot;508 1.6 PureTech 180 hk;bensin;0.8
+Peugeot;508 1.6 PureTech 225 hk;bensin;0.85
+Peugeot;508 2.0 BlueHDi 160 hk;diesel;0.6
+Peugeot;508 PHEV 360 hk;laddhybrid;0.55
+Peugeot;2008 1.2 PureTech 100 hk;bensin;0.62
+Peugeot;2008 1.2 PureTech 100 hk EAT8;bensin;0.65
+Peugeot;2008 1.2 PureTech 130 hk;bensin;0.65
+Peugeot;2008 1.2 PureTech 130 hk EAT8;bensin;0.68
+Peugeot;2008 1.2 PureTech 155 hk EAT8;bensin;0.72
+Peugeot;2008 1.5 BlueHDi 110 hk;diesel;0.52
+Peugeot;2008 1.5 BlueHDi 130 hk;diesel;0.55
+Peugeot;3008 1.2 PureTech 130 hk;bensin;0.78
+Peugeot;3008 1.2 PureTech 130 hk EAT8;bensin;0.81
+Peugeot;3008 1.6 PureTech 180 hk EAT8;bensin;0.9
+Peugeot;3008 1.5 BlueHDi 130 hk;diesel;0.6
+Peugeot;3008 PHEV 225 hk;laddhybrid;0.5
+Peugeot;5008 1.2 PureTech 130 hk;bensin;0.85
+Peugeot;5008 1.2 PureTech 130 hk EAT8;bensin;0.88
+Peugeot;5008 1.5 BlueHDi 130 hk;diesel;0.65
+Peugeot;5008 1.5 BlueHDi 130 hk EAT8;diesel;0.68
+Peugeot;5008 2.0 BlueHDi 180 hk;diesel;0.72
+Porsche;718 Cayman 2.0 300 hk;bensin;0.88
+Porsche;718 Cayman S 2.5 350 hk;bensin;0.98
+Porsche;718 Cayman GTS 4.0 400 hk;bensin;1.05
+Porsche;718 Cayman GT4 RS 4.0 500 hk;bensin;1.2
+Porsche;718 Boxster 2.0 300 hk;bensin;0.88
+Porsche;718 Boxster S 2.5 350 hk;bensin;0.98
+Porsche;911 Carrera 3.0 385 hk;bensin;0.95
+Porsche;911 Carrera S 3.0 450 hk;bensin;1.02
+Porsche;911 Carrera 4S 3.0 450 hk;bensin;1.08
+Porsche;911 Turbo S 3.8 650 hk;bensin;1.3
+Porsche;911 GT3 4.0 510 hk;bensin;1.15
+Porsche;Macan 2.0 T 265 hk;bensin;0.92
+Porsche;Macan S 2.9 V6 380 hk;bensin;1.05
+Porsche;Macan GTS 2.9 V6 440 hk;bensin;1.12
+Porsche;Macan Turbo 2.9 V6 440 hk;bensin;1.15
+Porsche;Panamera 2.9 V6 330 hk;bensin;1
+Porsche;Panamera 4 E-Hybrid PHEV 462 hk;laddhybrid;0.68
+Porsche;Panamera GTS 4.0 V8 480 hk;bensin;1.22
+Porsche;Panamera Turbo S E-Hybrid PHEV 700 hk;laddhybrid;0.88
+Porsche;Cayenne 3.0 340 hk;bensin;1.1
+Porsche;Cayenne S 2.9 V6 440 hk;bensin;1.2
+Porsche;Cayenne GTS 4.0 V8 460 hk;bensin;1.3
+Porsche;Cayenne Turbo 4.0 V8 550 hk;bensin;1.45
+Porsche;Cayenne E-Hybrid PHEV 462 hk;laddhybrid;0.65
+Porsche;Cayenne 3.0 Diesel 262 hk;diesel;0.82
+Renault;Twingo 1.0 65 hk;bensin;0.5
+Renault;Clio 1.0 TCe 90 hk;bensin;0.55
+Renault;Clio 1.0 TCe 90 hk EDC;bensin;0.58
+Renault;Clio 1.0 TCe 100 hk;bensin;0.58
+Renault;Clio 1.0 TCe 100 hk EDC;bensin;0.61
+Renault;Clio 1.3 TCe 130 hk;bensin;0.62
+Renault;Clio 1.3 TCe 130 hk EDC;bensin;0.65
+Renault;Clio E-Tech Hybrid 145 hk;hybrid;0.52
+Renault;Clio RS 1.8 T 220 hk;bensin;0.9
+Renault;Clio 1.5 dCi 85 hk;diesel;0.5
+Renault;Megane 1.3 TCe 115 hk;bensin;0.62
+Renault;Megane 1.3 TCe 115 hk EDC;bensin;0.65
+Renault;Megane 1.3 TCe 140 hk;bensin;0.65
+Renault;Megane 1.3 TCe 140 hk EDC;bensin;0.68
+Renault;Megane E-Tech PHEV 160 hk;laddhybrid;0.48
+Renault;Megane RS 1.8 T 280 hk;bensin;0.98
+Renault;Megane 1.5 dCi 110 hk;diesel;0.52
+Renault;Captur 1.0 TCe 90 hk;bensin;0.65
+Renault;Captur 1.0 TCe 90 hk EDC;bensin;0.68
+Renault;Captur 1.3 TCe 140 hk;bensin;0.7
+Renault;Captur 1.3 TCe 140 hk EDC;bensin;0.73
+Renault;Captur E-Tech PHEV 160 hk;laddhybrid;0.48
+Renault;Arkana 1.3 TCe 140 hk;bensin;0.72
+Renault;Arkana E-Tech Hybrid 145 hk;hybrid;0.62
+Renault;Kadjar 1.3 TCe 140 hk;bensin;0.78
+Renault;Kadjar 1.5 dCi 115 hk;diesel;0.62
+Renault;Koleos 2.0 dCi 175 hk;diesel;0.88
+Renault;Talisman 1.3 TCe 140 hk;bensin;0.78
+Renault;Talisman E-Tech PHEV 225 hk;laddhybrid;0.52
+Renault;Austral E-Tech Hybrid 200 hk;hybrid;0.68
+Renault;Austral E-Tech PHEV 300 hk;laddhybrid;0.52
+Rolls-Royce;Ghost 6.75 V12 563 hk;bensin;2
+Rolls-Royce;Ghost Extended 6.75 V12 563 hk;bensin;2.1
+Rolls-Royce;Phantom 6.75 V12 571 hk;bensin;2.2
+Rolls-Royce;Phantom Extended 6.75 V12 571 hk;bensin;2.3
+Rolls-Royce;Wraith 6.6 V12 632 hk;bensin;2.1
+Rolls-Royce;Dawn 6.6 V12 571 hk;bensin;2.05
+Rolls-Royce;Cullinan 6.75 V12 571 hk;bensin;2.25
+Saab;9-3 1.8 122 hk;bensin;0.75
+Saab;9-3 2.0 T 175 hk;bensin;0.85
+Saab;9-3 2.0 T Aero 250 hk;bensin;1
+Saab;9-3 2.8 V6 T 280 hk;bensin;1.08
+Saab;9-3 1.9 TiD 120 hk;diesel;0.6
+Saab;9-3 1.9 TTiD 180 hk;diesel;0.65
+Saab;9-5 2.0 T 150 hk;bensin;0.9
+Saab;9-5 2.3 T Aero 260 hk;bensin;1.08
+Saab;9-5 2.8 V6 T 300 hk;bensin;1.15
+SEAT;Ibiza 1.0 MPI 80 hk;bensin;0.55
+SEAT;Ibiza 1.0 TSI 95 hk;bensin;0.58
+SEAT;Ibiza 1.0 TSI 95 hk DSG;bensin;0.61
+SEAT;Ibiza 1.0 TSI 110 hk;bensin;0.6
+SEAT;Ibiza 1.0 TSI 110 hk DSG;bensin;0.63
+SEAT;Ibiza FR 1.5 TSI 150 hk;bensin;0.68
+SEAT;Ibiza FR 1.5 TSI 150 hk DSG;bensin;0.71
+SEAT;Leon 1.0 TSI 90 hk;bensin;0.58
+SEAT;Leon 1.5 TSI 130 hk;bensin;0.65
+SEAT;Leon 1.5 TSI 130 hk DSG;bensin;0.68
+SEAT;Leon 1.5 TSI 150 hk;bensin;0.68
+SEAT;Leon 1.5 TSI 150 hk DSG;bensin;0.71
+SEAT;Leon 2.0 TSI 190 hk;bensin;0.8
+SEAT;Leon 2.0 TSI 190 hk DSG;bensin;0.83
+SEAT;Leon e-Hybrid PHEV 204 hk;laddhybrid;0.48
+SEAT;Leon 2.0 TDI 115 hk;diesel;0.5
+SEAT;Leon 2.0 TDI 150 hk;diesel;0.52
+SEAT;Ateca 1.5 TSI 150 hk;bensin;0.75
+SEAT;Ateca 1.5 TSI 150 hk DSG;bensin;0.78
+SEAT;Ateca 2.0 TSI 190 hk;bensin;0.85
+SEAT;Ateca 2.0 TSI 190 hk DSG;bensin;0.88
+SEAT;Ateca 2.0 TSI 300 hk 4x4;bensin;0.98
+SEAT;Ateca 2.0 TDI 150 hk;diesel;0.6
+SEAT;Tarraco 1.5 TSI 150 hk;bensin;0.88
+SEAT;Tarraco 1.5 TSI 150 hk DSG;bensin;0.91
+SEAT;Tarraco 2.0 TSI 190 hk 4x4;bensin;0.98
+SEAT;Tarraco 2.0 TSI 190 hk DSG 4x4;bensin;1.01
+SEAT;Tarraco 2.0 TDI 150 hk;diesel;0.68
+SEAT;Arona 1.0 TSI 110 hk;bensin;0.65
+SEAT;Arona 1.0 TSI 110 hk DSG;bensin;0.68
+Skoda;Fabia 1.0 MPI 65 hk;bensin;0.52
+Skoda;Fabia 1.0 TSI 95 hk;bensin;0.56
+Skoda;Fabia 1.0 TSI 95 hk DSG;bensin;0.59
+Skoda;Fabia 1.0 TSI 116 hk;bensin;0.6
+Skoda;Fabia 1.0 TSI 116 hk DSG;bensin;0.63
+Skoda;Fabia Monte Carlo 1.5 TSI 150 hk;bensin;0.7
+Skoda;Fabia Monte Carlo 1.5 TSI 150 hk DSG;bensin;0.73
+Skoda;Octavia 1.0 TSI 110 hk;bensin;0.65
+Skoda;Octavia 1.0 TSI 110 hk DSG;bensin;0.68
+Skoda;Octavia 1.5 TSI 150 hk;bensin;0.7
+Skoda;Octavia 1.5 TSI 150 hk DSG;bensin;0.73
+Skoda;Octavia 2.0 TSI 180 hk;bensin;0.8
+Skoda;Octavia 2.0 TSI 180 hk DSG;bensin;0.83
+Skoda;Octavia RS 2.0 TSI 245 hk;bensin;0.95
+Skoda;Octavia RS 2.0 TSI 245 hk DSG;bensin;0.98
+Skoda;Octavia 2.0 TDI 115 hk;diesel;0.52
+Skoda;Octavia 2.0 TDI 150 hk;diesel;0.55
+Skoda;Octavia 2.0 TDI 200 hk;diesel;0.58
+Skoda;Octavia iV PHEV 204 hk;laddhybrid;0.48
+Skoda;Superb 1.5 TSI 150 hk;bensin;0.78
+Skoda;Superb 1.5 TSI 150 hk DSG;bensin;0.81
+Skoda;Superb 2.0 TSI 200 hk;bensin;0.88
+Skoda;Superb 2.0 TSI 280 hk;bensin;0.98
+Skoda;Superb iV PHEV 218 hk;laddhybrid;0.52
+Skoda;Superb 2.0 TDI 150 hk;diesel;0.58
+Skoda;Superb 2.0 TDI 200 hk;diesel;0.62
+Skoda;Scala 1.0 TSI 95 hk;bensin;0.62
+Skoda;Scala 1.0 TSI 95 hk DSG;bensin;0.65
+Skoda;Scala 1.5 TSI 150 hk;bensin;0.68
+Skoda;Scala 1.5 TSI 150 hk DSG;bensin;0.71
+Skoda;Kamiq 1.0 TSI 95 hk;bensin;0.65
+Skoda;Kamiq 1.0 TSI 110 hk;bensin;0.67
+Skoda;Kamiq 1.0 TSI 110 hk DSG;bensin;0.69
+Skoda;Kamiq 1.5 TSI 150 hk;bensin;0.72
+Skoda;Kamiq 1.5 TSI 150 hk DSG;bensin;0.74
+Skoda;Kamiq 2.0 TDI 115 hk;diesel;0.54
+Skoda;Karoq 1.0 TSI 116 hk;bensin;0.75
+Skoda;Karoq 1.0 TSI 116 hk DSG;bensin;0.78
+Skoda;Karoq 1.5 TSI 150 hk;bensin;0.82
+Skoda;Karoq 1.5 TSI 150 hk DSG;bensin;0.85
+Skoda;Karoq 2.0 TSI 190 hk;bensin;0.9
+Skoda;Karoq 2.0 TDI 116 hk;diesel;0.6
+Skoda;Karoq 2.0 TDI 150 hk;diesel;0.62
+Skoda;Kodiaq 1.5 TSI 150 hk;bensin;0.88
+Skoda;Kodiaq 1.5 TSI 150 hk DSG;bensin;0.91
+Skoda;Kodiaq 2.0 TSI 190 hk;bensin;0.95
+Skoda;Kodiaq 2.0 TSI 190 hk DSG;bensin;0.98
+Skoda;Kodiaq RS 2.0 TSI 245 hk;bensin;1.05
+Skoda;Kodiaq 2.0 TDI 150 hk;diesel;0.68
+Skoda;Kodiaq 2.0 TDI 200 hk;diesel;0.72
+Subaru;Impreza 2.0 150 hk;bensin;0.78
+Subaru;Impreza WRX 2.5 T 268 hk;bensin;1.05
+Subaru;Impreza STI 2.5 T 301 hk;bensin;1.18
+Subaru;Legacy 2.5 173 hk;bensin;0.88
+Subaru;Outback 2.5 173 hk;bensin;0.95
+Subaru;Outback 2.0D 150 hk;diesel;0.72
+Subaru;Forester 2.0 e-BOXER Hybrid 150 hk;hybrid;0.8
+Subaru;Forester 2.5 184 hk;bensin;0.9
+Subaru;XV 2.0 e-BOXER Hybrid 150 hk;hybrid;0.75
+Subaru;BRZ 2.4 234 hk;bensin;0.85
+Subaru;WRX 2.4 T 268 hk;bensin;1.05
+Suzuki;Alto 1.0 66 hk;bensin;0.45
+Suzuki;Swift 1.0 Boosterjet 111 hk;bensin;0.55
+Suzuki;Swift 1.2 Hybrid MHEV 90 hk;bensin;0.5
+Suzuki;Swift Sport 1.4 Boosterjet 140 hk;bensin;0.75
+Suzuki;Baleno 1.2 Hybrid 90 hk;hybrid;0.55
+Suzuki;Vitara 1.4 Boosterjet 129 hk;bensin;0.7
+Suzuki;Vitara 1.5 MHEV 102 hk;bensin;0.65
+Suzuki;SX4 S-Cross 1.4 Boosterjet 129 hk;bensin;0.72
+Suzuki;Jimny 1.5 102 hk;bensin;0.78
+Suzuki;Ignis 1.2 MHEV 83 hk;bensin;0.55
+Suzuki;Swace 1.8 Hybrid 122 hk;hybrid;0.48
+Suzuki;Across PHEV 306 hk;laddhybrid;0.55
+Toyota;Aygo X 1.0 72 hk;bensin;0.48
+Toyota;Yaris 1.5 Hybrid 116 hk;hybrid;0.48
+Toyota;Yaris 1.5 125 hk;bensin;0.55
+Toyota;GR Yaris 1.6 Turbo 261 hk;bensin;0.82
+Toyota;GR Yaris 1.6 Turbo 300 hk Circuit;bensin;0.88
+Toyota;Yaris Cross 1.5 Hybrid 116 hk;hybrid;0.52
+Toyota;Corolla 1.8 Hybrid 122 hk;hybrid;0.55
+Toyota;Corolla 2.0 Hybrid 184 hk;hybrid;0.6
+Toyota;Corolla GR Sport 2.0 Hybrid 197 hk;hybrid;0.62
+Toyota;Camry 2.5 Hybrid 218 hk;hybrid;0.68
+Toyota;C-HR 1.8 Hybrid 122 hk;hybrid;0.62
+Toyota;C-HR 2.0 Hybrid 197 hk;hybrid;0.68
+Toyota;Prius 2.5 Hybrid 223 hk;hybrid;0.52
+Toyota;Prius 2.0 PHEV 223 hk;laddhybrid;0.48
+Toyota;RAV4 2.5 Hybrid 222 hk;hybrid;0.75
+Toyota;RAV4 2.5 AWD-i Hybrid 222 hk;hybrid;0.78
+Toyota;RAV4 PHEV 306 hk;laddhybrid;0.55
+Toyota;RAV4 2.0 175 hk;bensin;0.8
+Toyota;RAV4 2.5 D-4D 204 hk;diesel;0.65
+Toyota;Land Cruiser 2.8 D 204 hk;diesel;0.95
+Toyota;Land Cruiser 3.3 D 309 hk;diesel;0.98
+Toyota;Highlander 2.5 AWD Hybrid 248 hk;hybrid;0.88
+Toyota;Crown 2.5 PHEV 300 hk;laddhybrid;0.58
+Volkswagen;Polo 1.0 MPI 80 hk;bensin;0.55
+Volkswagen;Polo 1.0 TSI 95 hk;bensin;0.58
+Volkswagen;Polo 1.0 TSI 95 hk DSG;bensin;0.61
+Volkswagen;Polo 1.0 TSI 110 hk;bensin;0.62
+Volkswagen;Polo 1.0 TSI 110 hk DSG;bensin;0.65
+Volkswagen;Polo GTI 2.0 TSI 207 hk;bensin;0.88
+Volkswagen;Polo GTI 2.0 TSI 207 hk DSG;bensin;0.91
+Volkswagen;Golf 1.0 TSI 110 hk;bensin;0.62
+Volkswagen;Golf 1.0 TSI 110 hk DSG;bensin;0.65
+Volkswagen;Golf 1.0 eTSI 110 hk MHEV;bensin;0.6
+Volkswagen;Golf 1.5 TSI 130 hk;bensin;0.65
+Volkswagen;Golf 1.5 TSI 130 hk DSG;bensin;0.68
+Volkswagen;Golf 1.5 eTSI 150 hk MHEV;bensin;0.62
+Volkswagen;Golf GTI 2.0 TSI 245 hk;bensin;0.92
+Volkswagen;Golf GTI Clubsport 300 hk;bensin;1
+Volkswagen;Golf R 2.0 TSI 333 hk;bensin;1.08
+Volkswagen;Golf 2.0 TDI 115 hk;diesel;0.52
+Volkswagen;Golf 2.0 TDI 150 hk;diesel;0.55
+Volkswagen;Golf eHybrid PHEV 204 hk;laddhybrid;0.48
+Volkswagen;Golf GTE PHEV 245 hk;laddhybrid;0.52
+Volkswagen;Passat 1.5 TSI 150 hk;bensin;0.75
+Volkswagen;Passat 1.5 TSI 150 hk DSG;bensin;0.78
+Volkswagen;Passat 2.0 TSI 190 hk;bensin;0.85
+Volkswagen;Passat 2.0 TSI 190 hk DSG;bensin;0.88
+Volkswagen;Passat 1.5 eTSI MHEV 150 hk;bensin;0.72
+Volkswagen;Passat GTE PHEV 218 hk;laddhybrid;0.52
+Volkswagen;Passat 2.0 TDI 150 hk;diesel;0.58
+Volkswagen;Passat 2.0 TDI 200 hk;diesel;0.62
+Volkswagen;Arteon 2.0 TSI 190 hk;bensin;0.85
+Volkswagen;Arteon 2.0 TSI 280 hk;bensin;0.95
+Volkswagen;Arteon 2.0 TDI 150 hk;diesel;0.65
+Volkswagen;Tiguan 1.5 TSI 130 hk;bensin;0.78
+Volkswagen;Tiguan 1.5 TSI 130 hk DSG;bensin;0.81
+Volkswagen;Tiguan 1.5 eTSI MHEV 150 hk;bensin;0.75
+Volkswagen;Tiguan 2.0 TSI 190 hk;bensin;0.88
+Volkswagen;Tiguan 2.0 TSI 190 hk DSG;bensin;0.91
+Volkswagen;Tiguan R 2.0 TSI 320 hk;bensin;1.02
+Volkswagen;Tiguan eHybrid PHEV 245 hk;laddhybrid;0.55
+Volkswagen;Tiguan 2.0 TDI 150 hk;diesel;0.62
+Volkswagen;Tiguan 2.0 TDI 200 hk;diesel;0.65
+Volkswagen;T-Roc 1.0 TSI 110 hk;bensin;0.72
+Volkswagen;T-Roc 1.0 TSI 110 hk DSG;bensin;0.75
+Volkswagen;T-Roc 1.5 TSI 150 hk;bensin;0.78
+Volkswagen;T-Roc 1.5 TSI 150 hk DSG;bensin;0.81
+Volkswagen;T-Roc 2.0 TSI 190 hk;bensin;0.88
+Volkswagen;T-Roc R 2.0 TSI 300 hk;bensin;1.02
+Volkswagen;T-Roc 2.0 TDI 150 hk;diesel;0.62
+Volkswagen;T-Cross 1.0 TSI 95 hk;bensin;0.68
+Volkswagen;T-Cross 1.0 TSI 95 hk DSG;bensin;0.71
+Volkswagen;T-Cross 1.0 TSI 110 hk;bensin;0.72
+Volkswagen;T-Cross 1.0 TSI 110 hk DSG;bensin;0.75
+Volkswagen;Taigo 1.0 TSI 110 hk;bensin;0.7
+Volkswagen;Taigo 1.0 TSI 110 hk DSG;bensin;0.73
+Volkswagen;Touareg 3.0 V6 TSI 340 hk;bensin;1.05
+Volkswagen;Touareg eHybrid PHEV 462 hk;laddhybrid;0.68
+Volkswagen;Touareg 3.0 TDI 231 hk;diesel;0.78
+Volkswagen;Touareg 3.0 TDI 286 hk;diesel;0.82
+Volvo;S60 B3 163 hk;bensin;0.68
+Volvo;S60 B4 197 hk;bensin;0.75
+Volvo;S60 B5 AWD 250 hk;bensin;0.82
+Volvo;S60 T8 PHEV 455 hk;laddhybrid;0.55
+Volvo;V60 B3 163 hk;bensin;0.7
+Volvo;V60 B4 197 hk;bensin;0.78
+Volvo;V60 B5 AWD 250 hk;bensin;0.85
+Volvo;V60 T8 PHEV 455 hk;laddhybrid;0.55
+Volvo;V60 B4 D;diesel;0.55
+Volvo;V60 B5 D AWD;diesel;0.6
+Volvo;V60 Cross Country B4 197 hk;bensin;0.82
+Volvo;V60 Cross Country B5 AWD 250 hk;bensin;0.88
+Volvo;V70 2.0 T 203 hk;bensin;0.85
+Volvo;V70 2.4 D5 163 hk;diesel;0.65
+Volvo;V90 B4 197 hk;bensin;0.8
+Volvo;V90 B5 AWD 250 hk;bensin;0.88
+Volvo;V90 B6 AWD 300 hk;bensin;0.95
+Volvo;V90 T8 PHEV 455 hk;laddhybrid;0.58
+Volvo;V90 B4 D;diesel;0.58
+Volvo;V90 B5 D AWD;diesel;0.62
+Volvo;V90 Cross Country B5 AWD 250 hk;bensin;0.92
+Volvo;V90 Cross Country B5 D AWD;diesel;0.65
+Volvo;S90 B4 197 hk;bensin;0.82
+Volvo;S90 B5 AWD 250 hk;bensin;0.9
+Volvo;S90 B6 AWD 300 hk;bensin;0.98
+Volvo;S90 T8 PHEV 455 hk;laddhybrid;0.58
+Volvo;XC40 B3 163 hk;bensin;0.75
+Volvo;XC40 B4 197 hk;bensin;0.8
+Volvo;XC40 B5 AWD 247 hk;bensin;0.88
+Volvo;XC40 T5 PHEV 262 hk;laddhybrid;0.55
+Volvo;XC40 B4 D;diesel;0.6
+Volvo;XC60 B4 197 hk;bensin;0.85
+Volvo;XC60 B5 AWD 250 hk;bensin;0.92
+Volvo;XC60 B6 AWD 300 hk;bensin;1
+Volvo;XC60 T6 PHEV 340 hk;laddhybrid;0.58
+Volvo;XC60 T8 PHEV 455 hk;laddhybrid;0.6
+Volvo;XC60 D4 FWD 190 hk;diesel;0.62
+Volvo;XC60 D5 AWD 235 hk;diesel;0.68
+Volvo;XC70 2.0 T5 AWD 231 hk;bensin;0.98
+Volvo;XC70 D5 AWD 220 hk;diesel;0.75
+Volvo;XC90 B5 AWD 250 hk;bensin;1.02
+Volvo;XC90 B6 AWD 300 hk;bensin;1.1
+Volvo;XC90 T8 PHEV 455 hk;laddhybrid;0.65
+Volvo;XC90 D5 AWD 235 hk;diesel;0.75
+Volvo;C30 1.6 100 hk;bensin;0.62
+Volvo;C30 T5 230 hk;bensin;0.98
+Volvo;C70 2.0 180 hk;bensin;0.85
