@@ -522,7 +522,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 
 | Tabell | Innehåll |
 |--------|----------|
-| `expert_insight` | Bilexpertinsikter (RAG-kontext för AI-prompten) — märkta "Bilexpert" tills samarbete bekräftas |
+| `expert_insight` | Bilexpertinsikter (RAG-kontext för AI-prompten) från namngivna källor (Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, car.info, Folksam, Bilprovningen) — fylls på nattligen av insiktsscrapern |
 | `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
@@ -531,6 +531,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
 | `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
+| `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare (RSS), M Sverige, Bytbil och M3 (RSS) + ägaromdömen från car.info och Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
 
 ---
 

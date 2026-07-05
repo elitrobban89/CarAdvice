@@ -7,6 +7,7 @@ import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
@@ -59,6 +60,7 @@ public class CarController {
     private final CargoSpecRepository cargoSpecRepo;
     private final EvSpecRepository evSpecRepo;
     private final FeedbackService feedbackService;
+    private final WebInsightScraperService webInsightScraper;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -80,7 +82,7 @@ public class CarController {
                          CargoSpecSyncService cargoSpecSyncService, CargoSpecService cargoSpecService,
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
-                         FeedbackService feedbackService) {
+                         FeedbackService feedbackService, WebInsightScraperService webInsightScraper) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -92,6 +94,7 @@ public class CarController {
         this.cargoSpecRepo = cargoSpecRepo;
         this.evSpecRepo = evSpecRepo;
         this.feedbackService = feedbackService;
+        this.webInsightScraper = webInsightScraper;
     }
 
     @PostConstruct
@@ -141,6 +144,25 @@ public class CarController {
             catch (Exception e) { /* logged inside service */ }
         });
         return ResponseEntity.accepted().body(Map.of("status", "CargoSpec sync started — check server logs for result"));
+    }
+
+    @PostMapping("/admin/sync-web-insights")
+    public ResponseEntity<?> syncWebInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        Thread.ofVirtual().start(() -> {
+            try { webInsightScraper.syncAll(); }
+            catch (Exception e) { /* logged inside service */ }
+        });
+        return ResponseEntity.accepted().body(Map.of("status", "web insight sync started — check server logs for result"));
+    }
+
+    // Admin: seed already-processed keys (URL:er/omdömes-refs) so the scraper skips them — text body, one key per line
+    @PostMapping("/admin/import/seen-keys")
+    public ResponseEntity<?> importSeenKeys(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                            @RequestBody String body) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int added = webInsightScraper.seedSeen(List.of(body.split("\\R")));
+        return ResponseEntity.ok(Map.of("added", added, "table", "web_insight_seen"));
     }
 
     @PostMapping("/admin/import/cargospecs")
