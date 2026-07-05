@@ -156,6 +156,13 @@ public class CarController {
         return ResponseEntity.accepted().body(Map.of("status", "web insight sync started — check server logs for result"));
     }
 
+    // Admin: senaste insiktsscrape-körningens status (nattlig 04:00 eller manuell trigger)
+    @GetMapping("/admin/scrape-status")
+    public ResponseEntity<?> scrapeStatus(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(webInsightScraper.lastRunStatus());
+    }
+
     // Admin: seed already-processed keys (URL:er/omdömes-refs) so the scraper skips them — text body, one key per line
     @PostMapping("/admin/import/seen-keys")
     public ResponseEntity<?> importSeenKeys(@RequestHeader(value = "X-Admin-Key", required = false) String key,

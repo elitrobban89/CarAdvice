@@ -148,7 +148,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Max 12 artiklar per källa och körning — backlog betas av gradvis över flera nätter
 - 1,5 s fördröjning mellan sidhämtningar, 5 s mellan Groq-anrop (respekterar TPM-gränsen)
 - **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg, blocket.se/bilguiden
-- Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
+- Manuell trigger: `POST /api/admin/sync-web-insights`; körstatus: `GET /api/admin/scrape-status`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
 - `extract_web_insights.py` är samma pipeline som fristående Python-verktyg för manuella körningar
 
 ### CargoSpec-skrapare (Bilweb.se)
@@ -464,11 +464,25 @@ curl -X POST https://caradvice.onrender.com/api/admin/upsert/cargospecs \
 
 ### `POST /api/admin/sync-web-insights`
 
-Kör insiktsscrapern manuellt (samma jobb som nattens 04:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight").
+Kör insiktsscrapern manuellt (samma jobb som nattens 04:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight") eller via `GET /api/admin/scrape-status`.
 
 ```bash
 curl -X POST https://caradvice.onrender.com/api/admin/sync-web-insights \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
+### `GET /api/admin/scrape-status`
+
+Senaste insiktsscrape-körningens status (nattlig eller manuell) — persisterad i tabellen `web_scrape_status` så den överlever omstarter. `status` är `OK` (klar), `RUNNING` (pågår — eller avbruten av en omstart mitt i), eller `NEVER_RUN`. `perSource` visar antal nya insikter per källa, med `FEL (...)` för källor som misslyckades.
+
+```bash
+curl https://caradvice.onrender.com/api/admin/scrape-status \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
+```json
+{"status":"OK","startedAt":"2026-07-06 04:00:00","finishedAt":"2026-07-06 04:19:12",
+ "newInsights":23,"perSource":"Teknikens Värld: 4, Vi Bilägare: 3, M Sverige: 6, Bytbil: 5, M3: 1, Bilägare (car.info): 3, Folksam: 1"}
 ```
 
 ### `POST /api/admin/import/seen-keys`
@@ -565,6 +579,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
 | `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare (RSS), M Sverige, Bytbil och M3 (RSS) + ägaromdömen från car.info och Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
+| `web_scrape_status` | Senaste insiktsscrape-körningens status (job, started_at, finished_at, new_insights, detail per källa) — en rad, skrivs om vid varje körning; läses av `GET /api/admin/scrape-status` |
 
 ---
 
