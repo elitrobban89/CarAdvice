@@ -47,4 +47,22 @@ class WebInsightScraperServiceTest {
         assertThat(service().parseInsightJson("{}", "test")).isEmpty();
         assertThat(service().parseInsightJson(groqResponse("{\"insights\":\"inte en array\"}"), "test")).isEmpty();
     }
+
+    @Test
+    void parsarWpJsonLankar() throws Exception {
+        String json = """
+            [{"link":"https:\\/\\/elbilen.se\\/mazda-pressar-priset\\/"},
+             {"link":"https:\\/\\/elbilen.se\\/tesla-analys\\/"},
+             {"other":"fält utan link ignoreras"}]
+            """;
+        assertThat(service().parseWpJsonLinks(json)).containsExactly(
+                "https://elbilen.se/mazda-pressar-priset/",
+                "https://elbilen.se/tesla-analys/");
+    }
+
+    @Test
+    void tomWpJsonGerTomLankLista() throws Exception {
+        assertThat(service().parseWpJsonLinks("[]")).isEmpty();
+        assertThat(service().parseWpJsonLinks("{}")).isEmpty();
+    }
 }

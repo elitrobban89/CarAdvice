@@ -136,7 +136,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **~290 insikter** från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, bilägare på car.info, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter
 - Fylls på **automatiskt varje natt** av insiktsscrapern (se nedan); manuell import via `POST /api/admin/import/insights?expert=Namn`
 
-### Insiktsscraper (7 motorsajter, nattlig)
+### Insiktsscraper (10 motorsajter, nattlig)
 - **`WebInsightScraperService`** körs kl **04:00 Stockholm-tid** på Render — efter EV-synken (02:00) och CargoSpec-synken (03:00)
 - Källor och upptäcktsmetod:
   - **Teknikens Värld** — WordPress-sitemap (deras `/feed/` svarar 406)
@@ -144,13 +144,16 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   - **M Sverige** — artikellistan `allt-om-bilen/motor-testar/bilar/`
   - **Bytbil** — artikellistan `nybil.bytbil.com/posts`
   - **M3** — RSS (icke-bilartiklar ger tom insiktslista och filtreras bort automatiskt)
+  - **Auto Motor & Sport** — WordPress REST API (`wp-json`); F1/racing-artiklar filtreras bort som M3:s
+  - **Elbilen** — WordPress REST API (`wp-json`)
+  - **CarUp** — WordPress REST API (`wp-json`)
   - **car.info** — ägaromdömen direkt på sidan (dedup per recensent + datum)
   - **Folksam** — krocksäkerhetsstudien "Hur säker är bilen" (dedup per bilmodell)
 - Artikeltexten extraheras med Jsoup, skickas till Groq (`groq.insight.model`, default `openai/gpt-oss-120b`, `reasoning_effort: low`) som returnerar strukturerade insikter (märke, modell, drivmedel, kategori, insikt, betyg)
 - **Inkrementell**: processade artikel-URL:er och sedda omdömen lagras i `web_insight_seen` — inga dubbletter, oavsett hur ofta synken körs
 - Max 12 artiklar per källa och körning — backlog betas av gradvis över flera nätter
 - 1,5 s fördröjning mellan sidhämtningar, 5 s mellan Groq-anrop (respekterar TPM-gränsen)
-- **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg, blocket.se/bilguiden
+- **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg (själva ägarbetygen — artiklarna nås via wp-json), blocket.se/bilguiden
 - Manuell trigger: `POST /api/admin/sync-web-insights`; körstatus: `GET /api/admin/scrape-status`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
 - `extract_web_insights.py` är samma pipeline som fristående Python-verktyg för manuella körningar
 
@@ -248,7 +251,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-113 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+115 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -260,7 +263,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
 | `FeedbackServiceTest` (4) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
-| `WebInsightScraperServiceTest` (3) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista |
+| `WebInsightScraperServiceTest` (5) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor |
 | `CarControllerTest` (20) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash

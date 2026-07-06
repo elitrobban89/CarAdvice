@@ -81,7 +81,7 @@ public class WebInsightScraperService {
                   String base, String linkPattern, String kind, List<String> extraUrls) {}
 
     enum Mode { ARTICLES, PAGE }
-    enum Discover { SITEMAP, RSS, LISTING, NONE }
+    enum Discover { SITEMAP, RSS, LISTING, WPJSON, NONE }
 
     private static final List<Source> SOURCES = List.of(
             new Source("Teknikens Värld", Mode.ARTICLES, Discover.SITEMAP,
@@ -103,6 +103,18 @@ public class WebInsightScraperService {
                     // M3 är en teknikssajt — icke-bilartiklar ger tom insiktslista och filtreras bort
                     "test/artikel från teknikmagasinet M3",
                     List.of("https://www.m3.se/article/1860897/basta-elbil-test.html")),
+            // WordPress REST API (wp-json) — öppen på dessa sajter trots att delar av
+            // sidorna är JS-renderade. Icke-bilartiklar (t.ex. F1-nyheter) ger tom
+            // insiktslista från prompten och filtreras bort, precis som för M3.
+            new Source("Auto Motor & Sport", Mode.ARTICLES, Discover.WPJSON,
+                    "https://www.automotorsport.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
+                    "artikel/test från motortidningen Auto Motor & Sport", List.of()),
+            new Source("Elbilen", Mode.ARTICLES, Discover.WPJSON,
+                    "https://elbilen.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
+                    "artikel/test från elbilsmagasinet Elbilen", List.of()),
+            new Source("CarUp", Mode.ARTICLES, Discover.WPJSON,
+                    "https://www.carup.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
+                    "artikel/nyhet från bilsajten CarUp", List.of()),
             new Source("Bilägare (car.info)", Mode.PAGE, Discover.NONE,
                     "https://www.car.info/sv-se/user-reviews", null, null,
                     "ägaromdömen från verkliga bilägare på car.info", List.of()),
@@ -339,8 +351,19 @@ public class WebInsightScraperService {
             case SITEMAP -> discoverSitemap(source.url());
             case RSS -> discoverRss(source.url());
             case LISTING -> discoverListing(source);
+            case WPJSON -> parseWpJsonLinks(fetchRaw(source.url()));
             case NONE -> List.of();
         };
+    }
+
+    /** WordPress REST API: [{"link":"https://..."}, ...] — nyaste först. */
+    List<String> parseWpJsonLinks(String json) throws Exception {
+        List<String> links = new ArrayList<>();
+        for (JsonNode post : mapper.readTree(json)) {
+            String link = post.path("link").asText("");
+            if (!link.isBlank()) links.add(link);
+        }
+        return links;
     }
 
     /** WordPress-sitemapindex: ta senaste post-sitemapen och returnera dess nyaste URL:er. */
