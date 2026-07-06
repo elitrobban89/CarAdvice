@@ -828,11 +828,25 @@ function caFetchOneImage(title, wrapId, imgId) {
   }
   // Avvisa logotyper/emblem/vapen: för smala, extremt porträttformat, eller icke-foto
   var BAD_THUMB_KEYWORDS = ['logo', 'emblem', 'badge', 'gun', 'weapon', 'flag', 'coat_of_arms', 'icon'];
+  // Modellord (utan märket, diakritik/skiljetecken normaliserade) — används för att avvisa
+  // redirects till FEL bil: en-wiki redirectar t.ex. "Dacia Spring" → "Renault Kwid"
+  function caNormTokens(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ').trim().split(' ');
+  }
+  var modelTokens = caNormTokens(base).slice(1);
+  if (!modelTokens.length) modelTokens = caNormTokens(base);
   function fetchThumb(url) {
     return fetch(url).then(function(resp) {
       if (!resp.ok) throw new Error('not ok');
       return resp.json();
     }).then(function(data) {
+      var pageTitle = (data.titles && data.titles.normalized) || data.title || '';
+      if (pageTitle) {
+        var pageTokens = caNormTokens(pageTitle);
+        if (!modelTokens.some(function(t) { return pageTokens.indexOf(t) !== -1; }))
+          throw new Error('fel artikel (redirect till annan bil)');
+      }
       if (!data.thumbnail || !data.thumbnail.source) throw new Error('no thumb');
       var src = data.thumbnail.source;
       var srcLower = src.toLowerCase();
@@ -843,17 +857,26 @@ function caFetchOneImage(title, wrapId, imgId) {
       return src;
     });
   }
-  var urls = [
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ),
-    'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile'),
-    'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
-  ];
-  // EV-prefixet "ë-"/"e-" framför modellkoden saknar ofta egen Wikipedia-artikel —
-  // prova basmodellen också ("Citroën ë-C3" → "Citroën C3"). E-Tech/e-tron lämnas orörda.
-  var deEv = base.replace(/(^|\s)[eë]-(?=[A-Z]?\d)/gi, '$1');
-  if (deEv !== base) {
-    urls.push('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(deEv.replace(/\s+/g, '_')));
+  function summaryUrl(lang, title) {
+    return 'https://' + lang + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title.replace(/\s+/g, '_'));
   }
+  // Kandidattitlar utöver basnamnet:
+  // 1. EV-prefixet "ë-"/"e-" framför modellkoden saknar ofta egen artikel ("Citroën ë-C3" → "Citroën C3")
+  // 2. Trimnivå som sista ord ("... Urban") gör alla varianter till 404 — prova utan
+  var EV_PREFIX = /(^|\s)[eë]-(?=[A-Z]?\d)/gi;
+  var titles = [wikiQ, wikiQ + '_automobile'];
+  function addCandidate(t) { if (t && titles.indexOf(t) === -1) titles.push(t); }
+  addCandidate(base.replace(EV_PREFIX, '$1'));
+  var words = base.split(/\s+/);
+  if (words.length >= 3) {
+    var dropped = words.slice(0, -1).join(' ');
+    addCandidate(dropped);
+    addCandidate(dropped.replace(EV_PREFIX, '$1'));
+  }
+  // de-wiki har utmärkt biltäckning och egna artiklar där en-wiki bara har redirects (Dacia Spring)
+  var urls = [];
+  titles.forEach(function(t) { urls.push(summaryUrl('en', t)); });
+  titles.forEach(function(t) { urls.push(summaryUrl('sv', t)); urls.push(summaryUrl('de', t)); });
   Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
     fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
       .then(function(r) { return r.ok ? r.json() : null; })
