@@ -8,7 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ExpertInsightService {
@@ -58,6 +60,44 @@ public class ExpertInsightService {
         if (matched.isEmpty()) return "";
         List<ExpertInsight> selected = matched.stream().limit(3).toList();
         return formatInsights(selected, "Bilexpertinsikter (referera BARA till dessa om de direkt gäller den bil användaren frågar om just nu — inkludera dem INTE om de handlar om en annan bil):\n");
+    }
+
+    /** Max insikter som visas publikt per bilkort */
+    static final int MAX_CARD_INSIGHTS = 3;
+
+    /**
+     * Publika insikter för ett bilkort. Märket måste finnas i titeln; modellspecifika
+     * träffar prioriteras och insikter om en ANNAN modell av samma märke utesluts
+     * (en Model S-insikt ska inte visas på ett Model 3-kort). Slumpat urval inom
+     * grupperna så hela poolen roterar över tid.
+     */
+    public List<Map<String, Object>> findForCarTitle(String title) {
+        if (title == null || title.isBlank()) return List.of();
+        String t = title.toLowerCase();
+
+        List<ExpertInsight> makeAndModel = new ArrayList<>();
+        List<ExpertInsight> makeOnly = new ArrayList<>();
+        for (ExpertInsight i : repo.findAll()) {
+            if (i.getCarMake() == null || !t.contains(i.getCarMake().toLowerCase())) continue;
+            if (i.getCarModel() != null) {
+                if (t.contains(i.getCarModel().toLowerCase())) makeAndModel.add(i);
+            } else {
+                makeOnly.add(i);
+            }
+        }
+
+        Collections.shuffle(makeAndModel);
+        Collections.shuffle(makeOnly);
+        List<ExpertInsight> selected = new ArrayList<>(makeAndModel);
+        selected.addAll(makeOnly);
+
+        return selected.stream().limit(MAX_CARD_INSIGHTS).map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("expert", resolveExpertName(i.getExpertName()));
+            m.put("insight", i.getInsight());
+            if (i.getRating() != null) m.put("rating", i.getRating());
+            return m;
+        }).toList();
     }
 
     public ExpertInsight save(ExpertInsight insight) {

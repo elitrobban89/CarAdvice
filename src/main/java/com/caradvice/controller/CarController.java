@@ -376,6 +376,13 @@ public class CarController {
         return ResponseEntity.ok(iceConsumptionService.listForApi());
     }
 
+    // Publikt: expertinsikter för ett bilkort (märke + helst modell måste matcha titeln) —
+    // konsumeras av frontend efter att korten renderats, källan visas alltid
+    @GetMapping("/insights")
+    public ResponseEntity<?> insightsForCar(@RequestParam String car) {
+        return ResponseEntity.ok(expertInsightService.findForCarTitle(car));
+    }
+
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of("status", "OK"));

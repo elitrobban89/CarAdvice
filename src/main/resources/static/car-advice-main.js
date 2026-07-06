@@ -526,6 +526,7 @@ function caRenderCards(recommendations) {
           '<div class="ca-fit">' + caEsc(r.fitSummary) + '</div>' +
           (r.expertOpinion ? '<hr class="ca-divider"><div class="ca-expert"><span class="ca-expert-name">&#x1F3AF; Bilexpert</span><span class="ca-expert-text">'+caEsc(r.expertOpinion)+'</span></div>' : '') +
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
+          '<div id="ca-insights-'+i+'"></div>' +
           (r.evSpec ? caEvChips(r.evSpec, r.horsepower) : '') +
           (r.fuelSpec ? caFuelChips(r.fuelSpec, caParsePrice(r.price)) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
@@ -549,6 +550,7 @@ function caRenderCards(recommendations) {
         ' innan du sl\xe5r till &mdash; d\xe4r betygs\xe4tter riktiga kunder svenska bilfirmor.' +
       '</div>';
     caFetchCarImages(recommendations);
+    caFetchInsights(recommendations);
     caRenderCompare(recommendations);
     caWireFeedback(container);
     container.querySelectorAll('.ca-ask-btn').forEach(function(btn) {
@@ -567,6 +569,33 @@ function caRenderCards(recommendations) {
       });
     });
   }, 250);
+}
+
+// Hämtar DB-insikter (Teknikens Värld, Vi Bilägare, car.info-ägare, Folksam m.fl.) per bilkort
+// och visar dem med källhänvisning under expertblocket. Inline-styles (ingen CSS i WP-snippeten
+// behövs). Tomt svar = sektionen visas inte alls.
+function caFetchInsights(recommendations) {
+  recommendations.forEach(function(r, i) {
+    var box = document.getElementById('ca-insights-' + i);
+    if (!box || !r.title) return;
+    fetch(CA_API_BASE + '/api/insights?car=' + encodeURIComponent(r.title))
+      .then(function(res) { return res.ok ? res.json() : []; })
+      .then(function(list) {
+        if (!list || !list.length) return;
+        var items = list.map(function(ins) {
+          var rating = ins.rating ? ' <span style="color:#fbbf24;font-weight:600">' + ins.rating + '/10</span>' : '';
+          return '<div style="margin-bottom:7px;font-size:.8rem;line-height:1.55;color:rgba(255,255,255,.68)">' +
+                 '&#x201C;' + caEsc(ins.insight) + '&#x201D;' + rating +
+                 ' <span style="color:rgba(255,255,255,.4);font-style:italic;white-space:nowrap">&mdash; ' + caEsc(ins.expert) + '</span></div>';
+        }).join('');
+        box.innerHTML =
+          '<div style="background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.18);border-radius:10px;padding:11px 14px;margin-bottom:14px">' +
+            '<span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#fcd34d;display:block;margin-bottom:6px">&#x1F4F0; Vad experterna s\xe4ger</span>' +
+            items +
+          '</div>';
+      })
+      .catch(function() {});
+  });
 }
 
 // Tumme upp/ner per bilkort — en röst per bil sparas i localStorage så samma bil inte röstas om

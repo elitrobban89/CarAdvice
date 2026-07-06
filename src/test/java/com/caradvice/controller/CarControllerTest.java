@@ -187,6 +187,29 @@ class CarControllerTest {
            .andExpect(jsonPath("$.reply").value("Inga meddelanden."));
     }
 
+    // --- /api/insights ---
+
+    @Test
+    void insikterForBilkortReturnerasMedKalla() throws Exception {
+        when(expertInsightService.findForCarTitle("Tesla Model 3 (2021)"))
+                .thenReturn(List.of(Map.of("expert", "Teknikens Värld", "insight", "Toppbetyg.", "rating", 9)));
+
+        mvc.perform(get("/api/insights").param("car", "Tesla Model 3 (2021)"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].expert").value("Teknikens Värld"))
+           .andExpect(jsonPath("$[0].insight").value("Toppbetyg."))
+           .andExpect(jsonPath("$[0].rating").value(9));
+    }
+
+    @Test
+    void insikterUtanTraffGerTomLista() throws Exception {
+        when(expertInsightService.findForCarTitle(any())).thenReturn(List.of());
+
+        mvc.perform(get("/api/insights").param("car", "Okänd Bil"))
+           .andExpect(status().isOk())
+           .andExpect(content().json("[]"));
+    }
+
     // --- /api/feedback ---
 
     @Test
