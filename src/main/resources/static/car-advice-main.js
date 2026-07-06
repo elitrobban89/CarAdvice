@@ -885,18 +885,34 @@ function caFetchOneImage(title, wrapId, imgId) {
   var urls = [];
   titles.forEach(function(t) { urls.push(summaryUrl('en', t)); });
   titles.forEach(function(t) { urls.push(summaryUrl('sv', t)); urls.push(summaryUrl('de', t)); });
-  Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
-    fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(srData) {
-        if (!srData || !srData[1]) return;
-        return Promise.any(srData[1].map(function(t) {
-          return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')));
-        }));
-      })
-      .then(function(src) { if (src) setImg(src); })
-      .catch(function() {});
-  });
+  function runRace() {
+    Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
+      fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(srData) {
+          if (!srData || !srData[1]) return;
+          return Promise.any(srData[1].map(function(t) {
+            return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')));
+          }));
+        })
+        .then(function(src) { if (src) setImg(src); })
+        .catch(function() {});
+    });
+  }
+  // Generationsfällor: en-wikis huvudartikel visar NYASTE generationen. För äldre årsmodeller
+  // hämtas fotot från en källa med rätt generation FÖRST; nyare årsmodeller kör vanliga racet
+  // (en Leaf 2026 SKA visa nya generationen). beforeYear = nya generationens första årsmodell.
+  var GEN_TRAPS = {
+    'Nissan Leaf': { beforeYear: 2025, lang: 'sv', title: 'Nissan_Leaf' }
+  };
+  var yearMatch = title.match(/\((\d{4})\)/);
+  var carYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
+  var trap = GEN_TRAPS[base];
+  if (trap && carYear && carYear < trap.beforeYear) {
+    fetchThumb(summaryUrl(trap.lang, trap.title)).then(setImg).catch(runRace);
+  } else {
+    runRace();
+  }
 }
 window.caFetchOneImage = caFetchOneImage;
 
