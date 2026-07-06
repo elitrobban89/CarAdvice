@@ -831,11 +831,13 @@ function caFetchOneImage(title, wrapId, imgId) {
   var imgEl  = document.getElementById(imgId);
   if (!wrapEl || !imgEl) return;
   function setImg(src) {
+    imgEl.onerror = function() { wrapEl.style.display = 'none'; };
     imgEl.src = src;
     wrapEl.style.display = 'block';
   }
-  // Avvisa logotyper/emblem/vapen: för smala, extremt porträttformat, eller icke-foto
-  var BAD_THUMB_KEYWORDS = ['logo', 'emblem', 'badge', 'gun', 'weapon', 'flag', 'coat_of_arms', 'icon'];
+  // Avvisa logotyper/emblem/vapen/interiörer: för smala, extremt porträttformat, eller icke-foto
+  var BAD_THUMB_KEYWORDS = ['logo', 'emblem', 'badge', 'gun', 'weapon', 'flag', 'coat_of_arms', 'icon',
+                            '.svg', 'interior', 'cockpit', 'dashboard', 'seats'];
   // Modellord (utan märket, diakritik/skiljetecken normaliserade) — används för att avvisa
   // redirects till FEL bil: en-wiki redirectar t.ex. "Dacia Spring" → "Renault Kwid"
   function caNormTokens(s) {
@@ -862,7 +864,15 @@ function caFetchOneImage(title, wrapId, imgId) {
       var w = data.thumbnail.width  || 0;
       var h = data.thumbnail.height || 1;
       if (w < 120 || h > w * 1.8) throw new Error('bad aspect');
-      return src;
+      // Bild vars FILNAMN innehåller bilens namn prioriteras: "2018_Nissan_Leaf_Tekna.jpg"
+      // slår "Geneva_Motor_Show_1134.jpg" även när båda ligger i rätt artikel
+      var fileName = src.split('/').pop();
+      try { fileName = decodeURIComponent(fileName); } catch (e) {}
+      var fileTokens = caNormTokens(fileName);
+      var nameInFile = caNormTokens(base).some(function(t) {
+        return t.length >= 2 && fileTokens.indexOf(t) !== -1;
+      });
+      return { src: src, nameInFile: nameInFile };
     });
   }
   function summaryUrl(lang, title) {
@@ -885,8 +895,20 @@ function caFetchOneImage(title, wrapId, imgId) {
   var urls = [];
   titles.forEach(function(t) { urls.push(summaryUrl('en', t)); });
   titles.forEach(function(t) { urls.push(summaryUrl('sv', t)); urls.push(summaryUrl('de', t)); });
-  function runRace() {
-    Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
+  // Deterministisk prioritetsordning (inte race): alla kandidater hämtas parallellt men
+  // utvärderas i ordning — en-wiki före sv/de, och en bild med bilens namn i filnamnet
+  // vinner över en godkänd bild utan (samma bil får alltid samma bild).
+  function runOrdered() {
+    var pending = urls.map(function(u) { return fetchThumb(u).catch(function() { return null; }); });
+    Promise.all(pending).then(function(results) {
+      var named = null, first = null;
+      results.forEach(function(res) {
+        if (!res) return;
+        if (res.nameInFile && !named) named = res;
+        if (!first) first = res;
+      });
+      if (named || first) { setImg((named || first).src); return; }
+      // Sista utväg: fritextsökning — fetchThumbs vakter gäller även dessa träffar
       fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(srData) {
@@ -895,12 +917,12 @@ function caFetchOneImage(title, wrapId, imgId) {
             return fetchThumb('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')));
           }));
         })
-        .then(function(src) { if (src) setImg(src); })
+        .then(function(res) { if (res) setImg(res.src); })
         .catch(function() {});
     });
   }
   // Generationsfällor: en-wikis huvudartikel visar NYASTE generationen. För äldre årsmodeller
-  // hämtas fotot från en källa med rätt generation FÖRST; nyare årsmodeller kör vanliga racet
+  // hämtas fotot från en källa med rätt generation FÖRST; nyare årsmodeller kör vanliga flödet
   // (en Leaf 2026 SKA visa nya generationen). beforeYear = nya generationens första årsmodell.
   var GEN_TRAPS = {
     'Nissan Leaf': { beforeYear: 2025, lang: 'sv', title: 'Nissan_Leaf' }
@@ -909,9 +931,11 @@ function caFetchOneImage(title, wrapId, imgId) {
   var carYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
   var trap = GEN_TRAPS[base];
   if (trap && carYear && carYear < trap.beforeYear) {
-    fetchThumb(summaryUrl(trap.lang, trap.title)).then(setImg).catch(runRace);
+    fetchThumb(summaryUrl(trap.lang, trap.title))
+      .then(function(res) { setImg(res.src); })
+      .catch(runOrdered);
   } else {
-    runRace();
+    runOrdered();
   }
 }
 window.caFetchOneImage = caFetchOneImage;
