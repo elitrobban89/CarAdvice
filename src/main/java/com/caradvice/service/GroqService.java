@@ -446,16 +446,33 @@ public class GroqService {
             JsonNode node = root.get(key);
             if (node != null && node.isArray() && !node.isEmpty()) {
                 List<CarRecommendation> parsed = convertRecommendations(node);
-                if (parsed != null && !parsed.isEmpty()) return parsed;
+                if (parsed != null && !parsed.isEmpty()) return requireDistinctTitles(parsed);
             }
         }
         // Last resort: if root itself is an array
         if (root.isArray() && !root.isEmpty()) {
             List<CarRecommendation> parsed = convertRecommendations(root);
-            if (parsed != null && !parsed.isEmpty()) return parsed;
+            if (parsed != null && !parsed.isEmpty()) return requireDistinctTitles(parsed);
         }
         log.warn("AI returned no parseable recommendations. Raw: {}", content);
         throw new RuntimeException("AI:n returnerade ett oväntat svar. Försök igen.");
+    }
+
+    /**
+     * AI:n har föreslagit samma bil tre gånger i skarpt läge — identiska titlar triggar
+     * omförsöket med reservmodellen i parseWithRetry. Exakt titeljämförelse: "MG4 (2022)"
+     * vs "MG4 (2024)" är en giltig jämförelse och ska INTE avvisas.
+     */
+    private static List<CarRecommendation> requireDistinctTitles(List<CarRecommendation> parsed) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (CarRecommendation r : parsed) {
+            String t = r.title() == null ? "" : r.title().trim().toLowerCase();
+            if (!t.isEmpty() && !seen.add(t)) {
+                log.warn("AI föreslog samma bil flera gånger: {}", r.title());
+                throw new RuntimeException("AI:n föreslog samma bil flera gånger. Försök igen.");
+            }
+        }
+        return parsed;
     }
 
     private List<CarRecommendation> convertRecommendations(JsonNode node) {
@@ -710,7 +727,7 @@ public class GroqService {
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
-                ALLTID EXAKT 3 bilar — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
+                ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.

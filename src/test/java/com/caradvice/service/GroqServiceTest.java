@@ -179,7 +179,7 @@ class GroqServiceTest {
     void systempromptenKraverExaktTreBilarOchForbjuderFabriceradePriser() {
         String sp = serviceMedPristabeller().buildSystemPrompt("", "bensin");
         assertThat(sp)
-                .contains("ALLTID EXAKT 3 bilar")
+                .contains("ALLTID EXAKT 3 OLIKA bilar")
                 .contains("FABRICERA ALDRIG PRISER")
                 .contains("BYD Dolphin");
     }
@@ -257,6 +257,25 @@ class GroqServiceTest {
         assertThatThrownBy(() -> service().parseRecommendations("{\"message\":\"inga bilar hittades\"}"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("oväntat svar");
+    }
+
+    @Test
+    void sammaBilFleraGangerAvvisas() {
+        // Skarpt läge: AI:n returnerade "Dacia Spring Electric 70" tre gånger —
+        // ska trigga omförsöket med reservmodellen, inte visas för användaren
+        String content = "{\"recommendations\":[" + GILTIG_BIL + "," + GILTIG_BIL + "," + GILTIG_BIL + "]}";
+        assertThatThrownBy(() -> service().parseRecommendations(content))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("samma bil");
+    }
+
+    @Test
+    void sammaModellOlikaArGiltigJamforelse() throws Exception {
+        // "MG4 (2022)" vs "MG4 (2024)" är en legitim jämförelse — bara identiska titlar avvisas
+        String bil2024 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo EX30 (2025)");
+        List<CarRecommendation> r = service().parseRecommendations(
+                "{\"recommendations\":[" + GILTIG_BIL + "," + bil2024 + "]}");
+        assertThat(r).hasSize(2);
     }
 
     @Test
