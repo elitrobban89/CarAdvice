@@ -809,6 +809,9 @@ function caFetchOneImage(title, wrapId, imgId) {
   var WIKI_OVERRIDES = {
     'MG4':              'MG4_EV',
     'MG 4':             'MG4_EV',
+    // en-wikis "BMW i3" handlar numera om nya Neue Klasse-sedanen (2026) — gamla
+    // hatchbacken (2013–2022, den som rekommenderas begagnad) har egen artikel
+    'BMW i3':           'BMW_i3_(hatchback)',
     'MG ZS EV':         'MG_ZS_EV',
     'MG ZS':            'MG_ZS',
     'MG5':              'MG5_(car)',
@@ -821,10 +824,15 @@ function caFetchOneImage(title, wrapId, imgId) {
   var wikiQ = (WIKI_OVERRIDES[base] || base.replace(/\s+/g, '_'));
   var titleCaseQ = base.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join('_');
   var origQ = q.replace(/\s+/g, '_');
+  // Fånga elementen VID ANROPET — vid ny sökning ersätts korten (samma id:n) och en
+  // sen bildträff från förra sökningen skrev annars in FEL bils foto i det nya kortet.
+  // Frånkopplade element är ofarliga att skriva till.
+  var wrapEl = document.getElementById(wrapId);
+  var imgEl  = document.getElementById(imgId);
+  if (!wrapEl || !imgEl) return;
   function setImg(src) {
-    var wrap = document.getElementById(wrapId);
-    var img  = document.getElementById(imgId);
-    if (wrap && img) { img.src = src; wrap.style.display = 'block'; }
+    imgEl.src = src;
+    wrapEl.style.display = 'block';
   }
   // Avvisa logotyper/emblem/vapen: för smala, extremt porträttformat, eller icke-foto
   var BAD_THUMB_KEYWORDS = ['logo', 'emblem', 'badge', 'gun', 'weapon', 'flag', 'coat_of_arms', 'icon'];
