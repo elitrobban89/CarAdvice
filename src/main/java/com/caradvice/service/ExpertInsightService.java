@@ -8,9 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class ExpertInsightService {
@@ -91,7 +93,12 @@ public class ExpertInsightService {
         List<ExpertInsight> selected = new ArrayList<>(makeAndModel);
         selected.addAll(makeOnly);
 
-        return selected.stream().limit(MAX_CARD_INSIGHTS).map(i -> {
+        // DB:n innehåller enstaka dubblettrader (samma insikt sparad två gånger) —
+        // visa aldrig samma text två gånger på ett kort
+        Set<String> seenTexts = new HashSet<>();
+        return selected.stream()
+                .filter(i -> seenTexts.add(i.getInsight()))
+                .limit(MAX_CARD_INSIGHTS).map(i -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("expert", resolveExpertName(i.getExpertName()));
             m.put("insight", i.getInsight());

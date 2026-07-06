@@ -71,6 +71,15 @@ class ExpertInsightServiceCarLookupTest {
     }
 
     @Test
+    void dubblettradIDbVisasBaraEnGang() {
+        when(repo.findAll()).thenReturn(List.of(
+                insight("Bilprovningen", "Volvo", "XC60", "Avgassystemet har anmärkningar på 1,6%.", null),
+                insight("Bilprovningen", "Volvo", "XC60", "Avgassystemet har anmärkningar på 1,6%.", null)));
+
+        assertThat(service.findForCarTitle("Volvo XC60 (2019)")).hasSize(1);
+    }
+
+    @Test
     void tomEllerNullTitelGerTomLista() {
         assertThat(service.findForCarTitle(null)).isEmpty();
         assertThat(service.findForCarTitle("  ")).isEmpty();
