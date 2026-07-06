@@ -848,6 +848,12 @@ function caFetchOneImage(title, wrapId, imgId) {
     'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ + '_automobile'),
     'https://sv.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(wikiQ)
   ];
+  // EV-prefixet "ë-"/"e-" framför modellkoden saknar ofta egen Wikipedia-artikel —
+  // prova basmodellen också ("Citroën ë-C3" → "Citroën C3"). E-Tech/e-tron lämnas orörda.
+  var deEv = base.replace(/(^|\s)[eë]-(?=[A-Z]?\d)/gi, '$1');
+  if (deEv !== base) {
+    urls.push('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(deEv.replace(/\s+/g, '_')));
+  }
   Promise.any(urls.map(fetchThumb)).then(setImg).catch(function() {
     fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search=' + encodeURIComponent(base + ' electric car') + '&limit=3&format=json&origin=*')
       .then(function(r) { return r.ok ? r.json() : null; })

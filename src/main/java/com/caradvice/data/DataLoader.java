@@ -230,6 +230,11 @@ public class DataLoader implements CommandLineRunner {
         add.accept("Mazda|CX-5",              new SafetyRating("Mazda",      "CX-5",              2022, 5, 87, 82, 71, 78));
         add.accept("Volkswagen|Tiguan",       new SafetyRating("Volkswagen", "Tiguan",            2021, 5, 93, 89, 72, 87));
         add.accept("Volkswagen|Passat",       new SafetyRating("Volkswagen", "Passat",            2020, 5, 92, 89, 72, 86));
+        // Modellnamnet "MG4" resp. "5 E-Tech" (inte bara "4"/"5") — contains-matchningen
+        // får inte träffa andra titlar med samma siffra. OBS: Citroën ë-C3 är medvetet
+        // INTE med — Euro NCAP har aldrig krocktestat nya generationen (verifierat 2026-07-06)
+        add.accept("MG|MG4",                  new SafetyRating("MG",         "MG4",               2022, 5, 83, 80, 75, 78));
+        add.accept("Renault|5 E-Tech",        new SafetyRating("Renault",    "5 E-Tech",          2024, 4, 80, 80, 76, 68));
 
         if (!extras.isEmpty()) safetyRepo.saveAll(extras);
     }
