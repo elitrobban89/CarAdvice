@@ -276,6 +276,25 @@ class CarControllerTest {
     }
 
     @Test
+    void adminKategoribyteKraverNyckel() throws Exception {
+        mvc.perform(post("/api/admin/insights/rename-category")
+                .param("from", "småbil").param("to", "smaabil"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminKategoribyteReturnerarAntal() throws Exception {
+        when(expertInsightService.renameCategory("småbil", "smaabil")).thenReturn(12);
+
+        mvc.perform(post("/api/admin/insights/rename-category")
+                .header("X-Admin-Key", "test-admin")
+                .param("from", "småbil").param("to", "smaabil"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.updated").value(12))
+           .andExpect(jsonPath("$.to").value("smaabil"));
+    }
+
+    @Test
     void adminInsiktsraderingPaIdGer404NarIdSaknas() throws Exception {
         when(expertInsightService.deleteById(999L)).thenReturn(false);
 

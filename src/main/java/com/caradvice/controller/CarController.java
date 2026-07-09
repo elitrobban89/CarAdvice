@@ -453,6 +453,16 @@ public class CarController {
         return ResponseEntity.ok(expertInsightService.listRecent(expert, limit));
     }
 
+    // Admin: normalisera en kategoristavning i insiktstabellen ("småbil" → "smaabil") —
+    // buildExpertContext matchar exakt mot frontendens kategorivärden
+    @PostMapping("/admin/insights/rename-category")
+    public ResponseEntity<?> renameInsightCategory(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                                   @RequestParam String from, @RequestParam String to) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int updated = expertInsightService.renameCategory(from, to);
+        return ResponseEntity.ok(Map.of("updated", updated, "from", from, "to", to));
+    }
+
     // Admin: radera en enskild skräpinsikt på id (grovstädning per källa görs med ?expert=)
     @DeleteMapping("/admin/insights/{id}")
     public ResponseEntity<?> deleteInsightById(@RequestHeader(value = "X-Admin-Key", required = false) String key,

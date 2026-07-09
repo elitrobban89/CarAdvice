@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -188,5 +189,19 @@ class ExpertInsightServiceTest {
     void importHopparOverRaderMedForFaFalt() {
         int count = service().importCsv("Volvo,XC60,diesel", "Vi Bilägare");
         assertThat(count).isZero();
+    }
+
+    @Test
+    void kategoriByteDelegererTillRepo() {
+        when(repo.renameCategory("småbil", "smaabil")).thenReturn(12);
+        assertThat(service().renameCategory(" småbil ", " smaabil ")).isEqualTo(12);
+        verify(repo).renameCategory("småbil", "smaabil");
+    }
+
+    @Test
+    void kategoriByteMedBlankInputGorInget() {
+        assertThat(service().renameCategory(null, "smaabil")).isZero();
+        assertThat(service().renameCategory("småbil", " ")).isZero();
+        verify(repo, never()).renameCategory(any(), any());
     }
 }

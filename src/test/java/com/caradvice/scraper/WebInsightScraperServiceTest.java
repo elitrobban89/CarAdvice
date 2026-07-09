@@ -60,6 +60,18 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void mallEkoRaderIdentifieras() throws Exception {
+        // AI:n ekade fältmallen som riktiga rader ("car_make car_model" / "insight") — 6 st hittades i DB
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        assertThat(WebInsightScraperService.isTemplateEcho(
+                mapper.readTree("{\"car_make\":\"car_make\",\"insight\":\"insight\"}"))).isTrue();
+        assertThat(WebInsightScraperService.isTemplateEcho(
+                mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"insight\"}"))).isTrue();
+        assertThat(WebInsightScraperService.isTemplateEcho(
+                mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}"))).isFalse();
+    }
+
+    @Test
     void parsarWpJsonLankar() throws Exception {
         String json = """
             [{"link":"https:\\/\\/elbilen.se\\/mazda-pressar-priset\\/"},

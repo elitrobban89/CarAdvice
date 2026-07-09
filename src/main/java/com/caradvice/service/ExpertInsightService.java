@@ -139,6 +139,17 @@ public class ExpertInsightService {
         return true;
     }
 
+    /**
+     * Admin: byt kategoristavning på alla rader ("småbil" → "smaabil"). buildExpertContext
+     * matchar exakt mot frontendens kategorivärden, så en avvikande stavning gör att
+     * raderna aldrig når rekommendationsprompten. @return antal uppdaterade rader
+     */
+    @Transactional
+    public int renameCategory(String from, String to) {
+        if (from == null || from.isBlank() || to == null || to.isBlank()) return 0;
+        return repo.renameCategory(from.trim(), to.trim());
+    }
+
     @Transactional
     public void deleteByExpert(String expertName) {
         repo.deleteByExpertName(expertName);

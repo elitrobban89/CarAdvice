@@ -308,7 +308,7 @@ public class WebInsightScraperService {
         int saved = 0;
         for (JsonNode ins : insights) {
             String insightText = ins.path("insight").asText("");
-            if (insightText.isBlank()) continue;
+            if (insightText.isBlank() || isTemplateEcho(ins)) continue;
 
             if (dedupExpert != null) {
                 String ref = ins.path("source_ref").asText("").trim();
@@ -342,6 +342,12 @@ public class WebInsightScraperService {
             Set.of("ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil");
     private static final Set<String> VALID_FUEL_TYPES =
             Set.of("elbil", "bensin", "diesel", "hybrid", "laddhybrid");
+
+    /** AI:n ekar ibland fältmallen tillbaka som en rad ("car_make car_model" / "insight") — hittades 6 st i DB. */
+    static boolean isTemplateEcho(JsonNode ins) {
+        return "insight".equalsIgnoreCase(ins.path("insight").asText("").trim())
+                || "car_make".equalsIgnoreCase(ins.path("car_make").asText("").trim());
+    }
 
     static String validOrNull(String s, Set<String> allowed) {
         if (s == null) return null;
