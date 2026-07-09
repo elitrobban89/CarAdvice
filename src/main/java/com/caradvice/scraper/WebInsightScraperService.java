@@ -66,6 +66,10 @@ public class WebInsightScraperService {
 
             Regler:
             - Inkludera BARA konkreta påståenden om bilar (styrkor, svagheter, mätvärden, testresultat, kända fel)
+            - Insikten ska vara användbar för någon som ska KÖPA bil i Sverige — hoppa över prototyper,
+              entusiastombyggnader, veteran-/samlarbilar, motorsport samt fabriks- och företagsnyheter
+            - "category" ska stämma med bilens faktiska typ — en sportbil eller lyxbil är ALDRIG
+              "ekonomibil"/"smaabil"/"familjebil"; sätt "" om ingen kategori passar
             - Ignorera navigationstext, annonser, medlemserbjudanden och orelaterat innehåll
             - Varje insikt ska vara självbärande och kunna läsas utan artikelkontext
             - Max 5 insikter per artikel, max 10 för sidor med många ägaromdömen
@@ -318,8 +322,8 @@ public class WebInsightScraperService {
                     expert,
                     blankToNull(ins.path("car_make").asText("")),
                     blankToNull(ins.path("car_model").asText("")),
-                    blankToNull(ins.path("fuel_type").asText("")),
-                    blankToNull(ins.path("category").asText("")),
+                    validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES),
+                    validOrNull(ins.path("category").asText(""), VALID_CATEGORIES),
                     insightText,
                     parseRating(ins.path("rating"))));
             saved++;
@@ -329,6 +333,20 @@ public class WebInsightScraperService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    // category/fuel_type matchar användarens sökpreferenser i buildExpertContext — ett påhittat
+    // värde utanför listan gör ingen skada, men ett FELAKTIGT (Ferrari som "ekonomibil") förgiftar
+    // rekommendationsprompten. Whitelist + promptregeln ovan håller fälten ärliga.
+    private static final Set<String> VALID_CATEGORIES =
+            Set.of("ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil");
+    private static final Set<String> VALID_FUEL_TYPES =
+            Set.of("elbil", "bensin", "diesel", "hybrid", "laddhybrid");
+
+    static String validOrNull(String s, Set<String> allowed) {
+        if (s == null) return null;
+        String v = s.trim().toLowerCase();
+        return allowed.contains(v) ? v : null;
     }
 
     private static Integer parseRating(JsonNode node) {

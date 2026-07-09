@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -46,6 +47,16 @@ class WebInsightScraperServiceTest {
         assertThat(service().parseInsightJson(groqResponse("inte json alls"), "test")).isEmpty();
         assertThat(service().parseInsightJson("{}", "test")).isEmpty();
         assertThat(service().parseInsightJson(groqResponse("{\"insights\":\"inte en array\"}"), "test")).isEmpty();
+    }
+
+    @Test
+    void ogiltigKategoriOchDrivmedelBlirNull() {
+        // Ferrari som "ekonomibil" förgiftade rekommendationsprompten — värden utanför whitelisten kastas
+        assertThat(WebInsightScraperService.validOrNull("suv", Set.of("suv", "elbil"))).isEqualTo("suv");
+        assertThat(WebInsightScraperService.validOrNull("SUV ", Set.of("suv"))).isEqualTo("suv");
+        assertThat(WebInsightScraperService.validOrNull("sportbil", Set.of("suv", "elbil"))).isNull();
+        assertThat(WebInsightScraperService.validOrNull("", Set.of("suv"))).isNull();
+        assertThat(WebInsightScraperService.validOrNull(null, Set.of("suv"))).isNull();
     }
 
     @Test
