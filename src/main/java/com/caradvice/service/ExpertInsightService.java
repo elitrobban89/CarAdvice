@@ -3,6 +3,8 @@ package com.caradvice.service;
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.ExpertInsight;
 import com.caradvice.repository.ExpertInsightRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +111,32 @@ public class ExpertInsightService {
 
     public ExpertInsight save(ExpertInsight insight) {
         return repo.save(insight);
+    }
+
+    /** Admin: senaste insikterna (högsta id först — tabellen saknar created_at), valfritt filtrerat på expert/källa. */
+    public List<Map<String, Object>> listRecent(String expert, int limit) {
+        Pageable page = PageRequest.of(0, Math.max(1, Math.min(limit, 500)));
+        List<ExpertInsight> rows = (expert == null || expert.isBlank())
+                ? repo.findAllByOrderByIdDesc(page)
+                : repo.findByExpertNameIgnoreCaseOrderByIdDesc(expert, page);
+        return rows.stream().map(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.getId());
+            m.put("expert", resolveExpertName(i.getExpertName()));
+            m.put("carMake", i.getCarMake());
+            m.put("carModel", i.getCarModel());
+            m.put("category", i.getCategory());
+            m.put("insight", i.getInsight());
+            m.put("rating", i.getRating());
+            return m;
+        }).toList();
+    }
+
+    /** Admin: radera en enskild insikt (skräprad ur skrapningen). @return true om raden fanns */
+    public boolean deleteById(Long id) {
+        if (id == null || !repo.existsById(id)) return false;
+        repo.deleteById(id);
+        return true;
     }
 
     @Transactional

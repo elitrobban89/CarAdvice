@@ -348,6 +348,15 @@ class GroqServiceTest {
     }
 
     @Test
+    void reservmodellenIngarIHalsokollen() {
+        // qwen är preview-tier och numera reserv — en avveckling ska fortfarande larma
+        GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
+        ReflectionTestUtils.setField(s, "reserveModel", "qwen/qwen3.6-27b");
+        assertThat(s.configuredModels())
+                .containsExactly("openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b");
+    }
+
+    @Test
     void bevakadeExtramodellerIngarIHalsokollen() throws Exception {
         // gpt-oss-120b används av Tag/VaderKlader som saknar egen hälsokoll — bevakas härifrån
         GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b",

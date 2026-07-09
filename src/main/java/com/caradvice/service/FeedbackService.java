@@ -63,6 +63,12 @@ public class FeedbackService {
             .stream().limit(maxCars).toList();
     }
 
+    /** @return antal raderade röster för bilen (exakt titelmatchning) */
+    public int deleteByCarTitle(String carTitle) {
+        if (carTitle == null || carTitle.isBlank()) return 0;
+        return jdbc.update("DELETE FROM recommendation_feedback WHERE car_title = ?", carTitle.trim());
+    }
+
     public List<Map<String, Object>> summary() {
         return jdbc.queryForList("""
             SELECT car_title,

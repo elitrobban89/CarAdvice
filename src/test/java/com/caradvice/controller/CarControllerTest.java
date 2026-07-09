@@ -25,6 +25,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -253,6 +254,63 @@ class CarControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests());
+    }
+
+    // --- GET /api/admin/insights + DELETE /api/admin/insights/{id} ---
+
+    @Test
+    void adminInsiktslistanKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/insights"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminInsiktslistanReturnerarSenasteInsikter() throws Exception {
+        when(expertInsightService.listRecent(null, 50)).thenReturn(List.of(
+                Map.of("id", 42, "expert", "CarUp", "insight", "Bra bil.")));
+
+        mvc.perform(get("/api/admin/insights").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].id").value(42))
+           .andExpect(jsonPath("$[0].expert").value("CarUp"));
+    }
+
+    @Test
+    void adminInsiktsraderingPaIdGer404NarIdSaknas() throws Exception {
+        when(expertInsightService.deleteById(999L)).thenReturn(false);
+
+        mvc.perform(delete("/api/admin/insights/999").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminInsiktsraderingPaIdReturnerarRaderad() throws Exception {
+        when(expertInsightService.deleteById(42L)).thenReturn(true);
+
+        mvc.perform(delete("/api/admin/insights/42").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.deleted").value(1))
+           .andExpect(jsonPath("$.id").value(42));
+    }
+
+    // --- DELETE /api/admin/feedback ---
+
+    @Test
+    void adminFeedbackRaderingKraverNyckel() throws Exception {
+        mvc.perform(delete("/api/admin/feedback").param("car", "Tesla Model 3 (2021)"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminFeedbackRaderingReturnerarAntal() throws Exception {
+        when(feedbackService.deleteByCarTitle("TEST-VERIFIERING (raderas)")).thenReturn(2);
+
+        mvc.perform(delete("/api/admin/feedback")
+                .header("X-Admin-Key", "test-admin")
+                .param("car", "TEST-VERIFIERING (raderas)"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.deleted").value(2))
+           .andExpect(jsonPath("$.car").value("TEST-VERIFIERING (raderas)"));
     }
 
     // --- /api/health/groq (UptimeRobot-övervakad) ---

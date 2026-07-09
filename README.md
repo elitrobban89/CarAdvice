@@ -116,7 +116,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** rekommendationer och jämförelser använder `qwen/qwen3.6-27b` (`reasoning_effort: none`), fallback `openai/gpt-oss-20b` (`reasoning_effort: low`); chatboten använder `openai/gpt-oss-20b` primärt, `qwen/qwen3.6-27b` som fallback
+- **Modellsplit:** rekommendationer och jämförelser använder `openai/gpt-oss-120b` (`reasoning_effort: low`), fallback `openai/gpt-oss-20b`; chatboten använder `openai/gpt-oss-20b` primärt, `openai/gpt-oss-120b` som fallback. `qwen/qwen3.6-27b` (preview-tier hos Groq) är reservmodell — tredje 429-utväg och trunkeringsomförsök
 
 ### Produktionsstatus
 
@@ -236,7 +236,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | Del | Teknologi |
 |-----|-----------|
 | Backend | Java 21, Spring Boot 3.2 |
-| AI | Groq API (`qwen/qwen3.6-27b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback) |
+| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.6-27b` reserv) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
@@ -251,21 +251,21 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-121 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+129 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
-| `GroqServiceTest` (40) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
+| `GroqServiceTest` (41) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
 | `ExpertInsightServiceTest` (14) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import |
 | `ExpertInsightServiceCarLookupTest` (6) | Publika insiktslistan per bilkort (`/api/insights`): märkeskrav, annan modell utesluts, modellspecifika prioriteras, max 3, dubblettrader visas en gång |
 | `IceConsumptionServiceTest` (8) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning — mot riktig H2 |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
 | `SafetyRatingServiceMatchTest` (3) | Euro NCAP-radens titelmatchning: MG4/Renault 5 träffar rätt utan att spilla över på ZS/MG5/Zoe; otestade bilar (ë-C3) ger null |
-| `FeedbackServiceTest` (4) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, idempotent tabellskapande — mot riktig H2 |
+| `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
 | `WebInsightScraperServiceTest` (5) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor |
-| `CarControllerTest` (20) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `CarControllerTest` (26) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id, admin-feedbackradering, Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -516,6 +516,15 @@ curl -X POST https://caradvice.onrender.com/api/admin/import/seen-keys \
   --data-binary @processed_urls.txt
 ```
 
+### `GET /api/admin/insights?expert=Name&limit=50`
+
+Listar senaste insikterna (nyast först — högsta id, tabellen saknar tidsstämpel) för kvalitetsgranskning av nattens skrapning. `expert` är valfritt filter, `limit` default 50 (max 500). Kräver `X-Admin-Key`-header.
+
+```bash
+curl "https://caradvice.onrender.com/api/admin/insights?limit=80" \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
 ### `DELETE /api/admin/insights?expert=Name`
 
 Tar bort alla expertinsikter för ett givet expertnamn. Kräver `X-Admin-Key`-header.
@@ -524,6 +533,10 @@ Tar bort alla expertinsikter för ett givet expertnamn. Kräver `X-Admin-Key`-he
 curl -X DELETE "https://caradvice.onrender.com/api/admin/insights?expert=Bilprovningen" \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 ```
+
+### `DELETE /api/admin/insights/{id}`
+
+Tar bort en enskild insikt (skräprad ur skrapningen). Svar: `{"deleted": 1, "id": 42}` eller 404 om id saknas. Kräver `X-Admin-Key`-header.
 
 ### `GET /api/cars`
 
@@ -551,6 +564,10 @@ Summering per bil (kräver `X-Admin-Key`), flest röster först:
 [ { "car_title": "Volvo EX30 (2024)", "upvotes": 2, "downvotes": 0, "total": 2 } ]
 ```
 
+### `DELETE /api/admin/feedback?car=Titel`
+
+Tar bort alla röster för en bil (exakt titelmatchning) — städning av test-/skräpröster. Svar: `{"deleted": N, "car": "..."}`. Kräver `X-Admin-Key`-header.
+
 ### `GET /api/health`
 ```json
 { "status": "OK" }
@@ -562,7 +579,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 
 | Läge | HTTP | Body |
 |---|---|---|
-| Alla modeller finns | 200 | `{ "status": "OK", "models": ["qwen/qwen3.6-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"] }` |
+| Alla modeller finns | 200 | `{ "status": "OK", "models": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"] }` |
 | Modell avvecklad | **503** | `{ "status": "MODEL_MISSING", "missing": ["..."] }` |
 | Groq onåbart (transient) | 200 | `{ "status": "UNKNOWN", "error": "..." }` — inget falsklarm, fel cachas inte |
 | `GROQ_API_KEY` saknas | **503** | `{ "status": "UNCONFIGURED" }` |
@@ -615,8 +632,9 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | Variabel | Beskrivning |
 |---|---|
 | `GROQ_API_KEY` | API-nyckel från console.groq.com |
-| `GROQ_MODEL` | (valfri) Primärmodell för rekommendationer/jämförelser — default `qwen/qwen3.6-27b` |
+| `GROQ_MODEL` | (valfri) Primärmodell för rekommendationer/jämförelser — default `openai/gpt-oss-120b` |
 | `GROQ_CHAT_MODEL` | (valfri) Chatt- och fallbackmodell — default `openai/gpt-oss-20b` |
+| `GROQ_RESERVE_MODEL` | (valfri) Reservmodell (tredje 429-utväg + trunkeringsomförsök) — default `qwen/qwen3.6-27b` |
 | `DB_URL` | PostgreSQL JDBC-URL |
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
@@ -655,13 +673,13 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 ## Token-budget (Groq gratisplan)
 
-Groq: `qwen/qwen3.6-27b` (rekommendationer/jämförelser, `reasoning_effort: none`) och `openai/gpt-oss-20b` (chatt + 429-fallback, `reasoning_effort: low`). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
+Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: low`) och `openai/gpt-oss-20b` (chatt + 429-fallback, `reasoning_effort: low`). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
-**Groq 429-fallback:** en gemensam `callGroqWithFallback(...)`-metod (varargs-kedja) används av alla flöden. Rekommendationer och jämförelser har en trestegskedja: `qwen/qwen3.6-27b` → `openai/gpt-oss-20b` → `openai/gpt-oss-120b` (reservmodell, `groq.reserve.model`). Varje modell har egen TPM-pott hos Groq, så flera sökningar i rad går igenom även när primärmodellen är strypt. Chatten använder tvåstegskedjan som förut. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
+**Groq 429-fallback:** en gemensam `callGroqWithFallback(...)`-metod (varargs-kedja) används av alla flöden. Rekommendationer och jämförelser har en trestegskedja: `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → `qwen/qwen3.6-27b` (reservmodell, `groq.reserve.model` — preview-tier, därför inte primär; bevakas av hälsokollen). Varje modell har egen TPM-pott hos Groq, så flera sökningar i rad går igenom även när primärmodellen är strypt. Chatten använder tvåstegskedjan som förut. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
 
 **reasoning_content-fallback:** qwen3/gpt-oss reasoning-modeller kan returnera tomt `content`-fält och lägga svaret i `reasoning_content` — koden läser båda fälten och väljer det som har innehåll.
 
-**Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen `gpt-oss-120b` innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
+**Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen (`groq.reserve.model`, default `qwen/qwen3.6-27b` med `reasoning_effort: none`) innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
 
 **Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 

@@ -39,15 +39,17 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${groq.model:qwen/qwen3.6-27b}")
+    @Value("${groq.model:openai/gpt-oss-120b}")
     private String model;
 
     @Value("${groq.chat.model:openai/gpt-oss-20b}")
     private String chatModel;
 
     // Reservmodell för rekommendationer/jämförelser: tredje 429-utväg (egen TPM-pott hos Groq)
-    // och omförsöksmodell när svaret kom tillbaka trunkerat/tomt
-    @Value("${groq.reserve.model:openai/gpt-oss-120b}")
+    // och omförsöksmodell när svaret kom tillbaka trunkerat/tomt.
+    // qwen3.6-27b är preview-tier hos Groq ("evaluation only") — därför reserv, inte primär.
+    // Bevakas av hälsokollen så en avveckling larmar via UptimeRobot.
+    @Value("${groq.reserve.model:qwen/qwen3.6-27b}")
     private String reserveModel;
 
     // Extra modeller som hälsokollen bevakar utöver de egna — Tag/VaderKlader kör gpt-oss-120b
@@ -544,6 +546,7 @@ public class GroqService {
         Set<String> models = new LinkedHashSet<>();
         models.add(model);
         models.add(chatModel);
+        if (reserveModel != null && !reserveModel.isBlank()) models.add(reserveModel);
         if (watchedModels != null) {
             for (String m : watchedModels.split(",")) {
                 if (!m.isBlank()) models.add(m.trim());

@@ -61,6 +61,23 @@ class FeedbackServiceTest {
     }
 
     @Test
+    void raderingPerBiltitelTraffarBaraExaktMatchning() {
+        FeedbackService s = service();
+        s.save("TEST-VERIFIERING (raderas)", "up");
+        s.save("TEST-VERIFIERING (raderas)", "down");
+        s.save("Volvo EX30 (2024)", "up");
+
+        assertThat(s.deleteByCarTitle("TEST-VERIFIERING (raderas)")).isEqualTo(2);
+        assertThat(s.deleteByCarTitle("Finns Inte (2099)")).isZero();
+        assertThat(s.deleteByCarTitle(null)).isZero();
+        assertThat(s.deleteByCarTitle("  ")).isZero();
+
+        List<Map<String, Object>> summary = s.summary();
+        assertThat(summary).hasSize(1);
+        assertThat(summary.get(0).get("car_title")).isEqualTo("Volvo EX30 (2024)");
+    }
+
+    @Test
     void dubblettTabellskapandeArOfarligt() {
         FeedbackService s = service();
         s.ensureTable(); // CREATE TABLE IF NOT EXISTS ska vara idempotent

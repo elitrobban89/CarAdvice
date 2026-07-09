@@ -536,10 +536,12 @@ function caRenderCards(recommendations) {
             '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket &#x2192;</a>' +
             '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil &#x2192;</a>' +
           '</div>' +
-          '<div class="ca-fb" data-title="' + caEsc(r.title) + '" style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.45)">' +
-            '<span>Bra f\xf6rslag?</span>' +
-            '<button class="ca-fb-btn" data-vote="up" title="Bra f\xf6rslag" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.9rem;line-height:1.3">&#x1F44D;</button>' +
-            '<button class="ca-fb-btn" data-vote="down" title="D\xe5ligt f\xf6rslag" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.9rem;line-height:1.3">&#x1F44E;</button>' +
+          '<div class="ca-fb" data-title="' + caEsc(r.title) + '" style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
+            '<span style="font-size:.8rem;font-weight:600;color:rgba(255,255,255,.7)">Var f\xf6rslaget bra?</span>' +
+            '<div style="display:flex;gap:8px">' +
+              '<button class="ca-fb-btn" data-vote="up" title="Bra f\xf6rslag" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.35);border-radius:8px;padding:5px 14px;cursor:pointer;font-size:1rem;line-height:1.3;transition:transform .15s,background .15s">&#x1F44D;</button>' +
+              '<button class="ca-fb-btn" data-vote="down" title="D\xe5ligt f\xf6rslag" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:8px;padding:5px 14px;cursor:pointer;font-size:1rem;line-height:1.3;transition:transform .15s,background .15s">&#x1F44E;</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
         '</div>';
@@ -603,13 +605,16 @@ function caWireFeedback(container) {
   container.querySelectorAll('.ca-fb').forEach(function(box) {
     var title = box.dataset.title;
     function markVoted(v) {
-      box.innerHTML = '<span style="color:rgba(255,255,255,.45)">' +
+      box.innerHTML = '<span style="font-size:.8rem;color:' +
+        (v === 'up' ? '#6ee7b7' : 'rgba(255,255,255,.55)') + '">' +
         (v === 'up' ? '&#x1F44D;' : '&#x1F44E;') + ' Tack f\xf6r din feedback!</span>';
     }
     var voted = null;
     try { voted = localStorage.getItem('ca_fb_' + title); } catch (e) {}
     if (voted) { markVoted(voted); return; }
     box.querySelectorAll('.ca-fb-btn').forEach(function(btn) {
+      btn.addEventListener('mouseenter', function() { btn.style.transform = 'scale(1.12)'; });
+      btn.addEventListener('mouseleave', function() { btn.style.transform = 'scale(1)'; });
       btn.addEventListener('click', function() {
         var vote = btn.dataset.vote;
         fetch(CA_API_BASE + '/api/feedback', {

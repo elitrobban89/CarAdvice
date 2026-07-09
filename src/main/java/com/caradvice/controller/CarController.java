@@ -411,6 +411,15 @@ public class CarController {
         return ResponseEntity.ok(feedbackService.summary());
     }
 
+    // Admin: radera alla röster för en bil (exakt titel) — städning av test-/skräpröster
+    @DeleteMapping("/admin/feedback")
+    public ResponseEntity<?> deleteFeedback(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                            @RequestParam String car) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int deleted = feedbackService.deleteByCarTitle(car);
+        return ResponseEntity.ok(Map.of("deleted", deleted, "car", car));
+    }
+
     // Övervakas av UptimeRobot: 503 när en konfigurerad Groq-modell avvecklats.
     // Transienta fel mot Groq ger 200 + UNKNOWN för att slippa falsklarm.
     @GetMapping("/health/groq")
@@ -433,6 +442,25 @@ public class CarController {
                 "groq", configured ? "OK" : "WARN",
                 "rekommendation", configured
         ));
+    }
+
+    // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning
+    @GetMapping("/admin/insights")
+    public ResponseEntity<?> listInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                          @RequestParam(required = false) String expert,
+                                          @RequestParam(defaultValue = "50") int limit) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(expertInsightService.listRecent(expert, limit));
+    }
+
+    // Admin: radera en enskild skräpinsikt på id (grovstädning per källa görs med ?expert=)
+    @DeleteMapping("/admin/insights/{id}")
+    public ResponseEntity<?> deleteInsightById(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                               @PathVariable Long id) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        boolean deleted = expertInsightService.deleteById(id);
+        if (!deleted) return ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte"));
+        return ResponseEntity.ok(Map.of("deleted", 1, "id", id));
     }
 
     @DeleteMapping("/admin/insights")
