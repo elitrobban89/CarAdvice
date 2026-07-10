@@ -66,10 +66,23 @@ public class WebInsightScraperService {
 
             Regler:
             - Inkludera BARA konkreta påståenden om bilar (styrkor, svagheter, mätvärden, testresultat, kända fel)
-            - Insikten ska vara användbar för någon som ska KÖPA bil i Sverige — hoppa över prototyper,
-              entusiastombyggnader, veteran-/samlarbilar, motorsport samt fabriks- och företagsnyheter
-            - "category" ska stämma med bilens faktiska typ — en sportbil eller lyxbil är ALDRIG
-              "ekonomibil"/"smaabil"/"familjebil"; sätt "" om ingen kategori passar
+            - Insikten ska vara användbar för någon som ska KÖPA personbil i Sverige. Returnera INGA insikter alls om:
+              * superbilar/hypercars, racing-/motorsportbilar eller lyxbilar långt över vanliga konsumentpriser
+              * lastbilar, bussar och yrkesfordon; A-traktorer och mopedbilar
+              * prototyper, konceptbilar, entusiastombyggnader, veteran-/samlarbilar
+              * specialutgåvor/jubileumsmodeller där innehållet handlar om färger, fälgar och dekor
+              * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar)
+              * trafikregler, lagändringar, böter, körkorts-, besiktnings- och försäkringsregler
+            - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
+              eller gissa modellnamn; är du osäker: sätt ""
+            - En insikt ska handla om en specifik bilmodell eller bilkategori — aldrig om företag,
+              marknaden i stort eller branschen
+            - "category" ska stämma med bilens faktiska typ:
+              * "smaabil" = liten stadsbil (t.ex. Toyota Aygo, Renault Clio) — ALDRIG SUV:ar eller mellanklassbilar
+              * "suv" = SUV/crossover oavsett drivlina (t.ex. Volvo XC60, Kia EV5)
+              * "familjebil" = mellanstor/stor kombi, sedan eller halvkombi (t.ex. VW Passat, VW ID.7)
+              * en sportbil eller lyxbil är ALDRIG "ekonomibil"/"smaabil"/"familjebil"
+              * sätt "" om ingen kategori passar
             - Ignorera navigationstext, annonser, medlemserbjudanden och orelaterat innehåll
             - Varje insikt ska vara självbärande och kunna läsas utan artikelkontext
             - Max 5 insikter per artikel, max 10 för sidor med många ägaromdömen
