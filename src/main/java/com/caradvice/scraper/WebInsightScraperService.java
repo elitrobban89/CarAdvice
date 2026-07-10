@@ -21,6 +21,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -88,6 +89,22 @@ public class WebInsightScraperService {
             - Max 5 insikter per artikel, max 10 för sidor med många ägaromdömen
             - Om texten inte innehåller något konkret om bilar: returnera {"insights": []}
             - Svara ENDAST med valid JSON, inget annat
+            """;
+
+    // Parafraser fångas inte av textjämförelse — två artiklar om samma bil ger "32,2 kWh
+    // Blade-batteri" och "Blade-batteriet på 32,2 kWh" som skilda rader (BYD Shark fick
+    // två hela uppsättningar). Kandidater vars bil redan har insikter i DB får därför
+    // ett extra Groq-anrop som pekar ut faktaupprepningar.
+    private static final String DEDUP_PROMPT = """
+            Du jämför nya bilinsikter mot insikter som redan finns i en databas.
+
+            En ny kandidat är DUBBLETT om dess huvudsakliga fakta eller påstående om samma bil
+            redan täcks av en befintlig insikt — även när formuleringen är helt annorlunda
+            (t.ex. samma dragvikt, batteristorlek, räckvidd, testresultat eller omdöme).
+            En kandidat som tillför ny eller kompletterande information är INTE en dubblett.
+
+            Svara ENDAST med valid JSON: {"duplicates": [indexen för de kandidater som är dubbletter]}
+            Om ingen är dubblett: {"duplicates": []}
             """;
 
     /**
@@ -319,7 +336,7 @@ public class WebInsightScraperService {
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */
     private int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
         int saved = 0;
-        for (JsonNode ins : insights) {
+        for (JsonNode ins : filterKnownDuplicates(insights)) {
             String insightText = ins.path("insight").asText("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
 
@@ -342,6 +359,110 @@ public class WebInsightScraperService {
             saved++;
         }
         return saved;
+    }
+
+    // ── Dubblettfiltrering mot befintliga insikter ────────────────────────────
+
+    /**
+     * Släpper bara igenom insikter som inte redan finns i DB för samma bil:
+     * först normaliserad textjämförelse (gratis), sedan ett Groq-anrop för
+     * parafraser. Insikter utan märke+modell och alla fel-lägen släpps igenom
+     * ofiltrerade — hellre en dubblett än en tappad insikt.
+     */
+    List<JsonNode> filterKnownDuplicates(List<JsonNode> insights) {
+        List<JsonNode> kept = new ArrayList<>();
+        List<JsonNode> candidates = new ArrayList<>();
+        Map<String, List<String>> existingByCar = new LinkedHashMap<>();
+        for (JsonNode ins : insights) {
+            String text = ins.path("insight").asText("");
+            String make = ins.path("car_make").asText("").trim();
+            String model = ins.path("car_model").asText("").trim();
+            if (text.isBlank() || make.isBlank() || model.isBlank()) {
+                kept.add(ins);
+                continue;
+            }
+            List<String> existing = existingByCar.computeIfAbsent(make + " " + model, k ->
+                    insightRepo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(make, model)
+                            .stream().map(ExpertInsight::getInsight).filter(t -> t != null && !t.isBlank()).toList());
+            if (existing.isEmpty()) {
+                kept.add(ins);
+                continue;
+            }
+            String norm = normalizeForCompare(text);
+            if (existing.stream().anyMatch(e -> normalizeForCompare(e).equals(norm))) {
+                log.info("Web insights: hoppar över exakt dubblett för {} {}", make, model);
+                continue;
+            }
+            candidates.add(ins);
+        }
+        if (!candidates.isEmpty()) {
+            Set<Integer> dups = paraphraseDuplicates(candidates, existingByCar);
+            for (int i = 0; i < candidates.size(); i++) {
+                JsonNode c = candidates.get(i);
+                if (dups.contains(i)) {
+                    log.info("Web insights: hoppar över parafras-dubblett för {} {}: {}",
+                            c.path("car_make").asText(), c.path("car_model").asText(),
+                            truncate(c.path("insight").asText(""), 80));
+                } else {
+                    kept.add(c);
+                }
+            }
+        }
+        return kept;
+    }
+
+    /** Gemener + all interpunktion/whitespace bort — fångar omimporter och triviala varianter. */
+    static String normalizeForCompare(String s) {
+        return s.toLowerCase().replaceAll("[^\\p{L}\\p{N}]+", "");
+    }
+
+    private Set<Integer> paraphraseDuplicates(List<JsonNode> candidates, Map<String, List<String>> existingByCar) {
+        if (apiKey == null || apiKey.isBlank()) return Set.of();
+        try {
+            String body = postGroq(DEDUP_PROMPT, buildDedupUserContent(candidates, existingByCar), 500, "parafras-dedup");
+            return body == null ? Set.of() : parseDuplicateIndexes(body);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Set.of();
+        } catch (Exception e) {
+            log.warn("Web insights: parafras-dedup misslyckades — sparar utan filtrering: {}", e.getMessage());
+            return Set.of();
+        }
+    }
+
+    static String buildDedupUserContent(List<JsonNode> candidates, Map<String, List<String>> existingByCar) {
+        Set<String> cars = new LinkedHashSet<>();
+        for (JsonNode c : candidates) {
+            cars.add(c.path("car_make").asText("").trim() + " " + c.path("car_model").asText("").trim());
+        }
+        StringBuilder sb = new StringBuilder("BEFINTLIGA INSIKTER:\n");
+        for (String car : cars) {
+            sb.append("\n").append(car).append(":\n");
+            for (String t : existingByCar.getOrDefault(car, List.of())) {
+                sb.append("- ").append(t).append("\n");
+            }
+        }
+        sb.append("\nNYA KANDIDATER:\n");
+        for (int i = 0; i < candidates.size(); i++) {
+            JsonNode c = candidates.get(i);
+            sb.append(i).append(" (").append(c.path("car_make").asText("").trim()).append(" ")
+                    .append(c.path("car_model").asText("").trim()).append("): ")
+                    .append(c.path("insight").asText("")).append("\n");
+        }
+        return sb.toString();
+    }
+
+    Set<Integer> parseDuplicateIndexes(String responseBody) {
+        try {
+            JsonNode dups = mapper.readTree(contentOf(responseBody)).path("duplicates");
+            if (!dups.isArray()) return Set.of();
+            Set<Integer> out = new HashSet<>();
+            dups.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt()); });
+            return out;
+        } catch (Exception e) {
+            log.warn("Web insights: kunde inte parsa dedup-svar: {}", e.getMessage());
+            return Set.of();
+        }
     }
 
     private static String blankToNull(String s) {
@@ -471,12 +592,18 @@ public class WebInsightScraperService {
 
     List<JsonNode> extractInsights(String text, String kind, String label) throws Exception {
         String trimmed = text.length() > MAX_TEXT_CHARS ? text.substring(0, MAX_TEXT_CHARS) : text;
+        String body = postGroq(SYSTEM_PROMPT, "Källa: " + kind + "\n\nText:\n\n" + trimmed, 1500, label);
+        return body == null ? List.of() : parseInsightJson(body, label);
+    }
+
+    /** Skickar en chat completion till Groq. Returnerar svarskroppen, eller null vid fel/kvarstående 429. */
+    private String postGroq(String systemPrompt, String userContent, int maxTokens, String label) throws Exception {
         Map<String, Object> body = Map.of(
                 "model", insightModel,
                 "messages", List.of(
-                        Map.of("role", "system", "content", SYSTEM_PROMPT),
-                        Map.of("role", "user", "content", "Källa: " + kind + "\n\nText:\n\n" + trimmed)),
-                "max_tokens", 1500,
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userContent)),
+                "max_tokens", maxTokens,
                 "temperature", 0.2,
                 // gpt-oss är en reasoning-modell — utan low kan hela tokenbudgeten gå åt till reasoning
                 "reasoning_effort", "low");
@@ -498,22 +625,26 @@ public class WebInsightScraperService {
             }
             if (resp.statusCode() != 200) {
                 log.warn("Web insights: Groq {} för {}: {}", resp.statusCode(), label, truncate(resp.body(), 200));
-                return List.of();
+                return null;
             }
-            return parseInsightJson(resp.body(), label);
+            return resp.body();
         }
         log.warn("Web insights: rate limit kvarstår efter 3 försök — hoppar över {}", label);
-        return List.of();
+        return null;
+    }
+
+    private String contentOf(String responseBody) throws Exception {
+        String content = mapper.readTree(responseBody)
+                .path("choices").path(0).path("message").path("content").asText("").trim();
+        if (content.startsWith("```")) {
+            content = content.replaceAll("(?s)^```(?:json)?\\s*", "").replaceAll("(?s)```\\s*$", "");
+        }
+        return content;
     }
 
     List<JsonNode> parseInsightJson(String responseBody, String label) {
         try {
-            String content = mapper.readTree(responseBody)
-                    .path("choices").path(0).path("message").path("content").asText("").trim();
-            if (content.startsWith("```")) {
-                content = content.replaceAll("(?s)^```(?:json)?\\s*", "").replaceAll("(?s)```\\s*$", "");
-            }
-            JsonNode insights = mapper.readTree(content).path("insights");
+            JsonNode insights = mapper.readTree(contentOf(responseBody)).path("insights");
             if (!insights.isArray()) return List.of();
             List<JsonNode> result = new ArrayList<>();
             insights.forEach(result::add);

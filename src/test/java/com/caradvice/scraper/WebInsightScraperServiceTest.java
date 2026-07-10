@@ -72,6 +72,67 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void normaliseringIgnorerarSkiftlageOchInterpunktion() {
+        assertThat(WebInsightScraperService.normalizeForCompare("Bra bil, 2 500 kg dragvikt!"))
+                .isEqualTo(WebInsightScraperService.normalizeForCompare("bra bil 2500 kg dragvikt"));
+        assertThat(WebInsightScraperService.normalizeForCompare("Räckvidd 63 mil."))
+                .isNotEqualTo(WebInsightScraperService.normalizeForCompare("Räckvidd 53 mil."));
+    }
+
+    @Test
+    void parsarDubblettIndex() {
+        assertThat(service().parseDuplicateIndexes(groqResponse("{\"duplicates\":[0,2]}")))
+                .containsExactlyInAnyOrder(0, 2);
+        assertThat(service().parseDuplicateIndexes(groqResponse("```json\n{\"duplicates\":[]}\n```"))).isEmpty();
+    }
+
+    @Test
+    void trasigtDedupSvarGerTomMangd() {
+        // fail open — vid oparsbart svar sparas allt hellre än att insikter tappas
+        assertThat(service().parseDuplicateIndexes(groqResponse("inte json"))).isEmpty();
+        assertThat(service().parseDuplicateIndexes(groqResponse("{\"duplicates\":\"inte en array\"}"))).isEmpty();
+        assertThat(service().parseDuplicateIndexes("{}")).isEmpty();
+    }
+
+    @Test
+    void exaktDubblettFiltrerasMotBefintliga() throws Exception {
+        var repo = mock(ExpertInsightRepository.class);
+        org.mockito.Mockito.when(repo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc("BYD", "Shark"))
+                .thenReturn(List.of(new com.caradvice.model.ExpertInsight(
+                        "CarUp", "BYD", "Shark", null, null, "Bilen har en maximal dragvikt på 2 500 kg.", null)));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode dubblett = mapper.readTree(
+                "{\"car_make\":\"BYD\",\"car_model\":\"Shark\",\"insight\":\"Bilen har en maximal dragvikt på 2500 kg!\"}");
+        assertThat(service.filterKnownDuplicates(List.of(dubblett))).isEmpty();
+    }
+
+    @Test
+    void insiktUtanModellEllerUtanBefintligaBehalls() throws Exception {
+        var repo = mock(ExpertInsightRepository.class);
+        org.mockito.Mockito.when(repo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(List.of());
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode utanModell = mapper.readTree("{\"car_make\":\"\",\"car_model\":\"\",\"insight\":\"Generell insikt.\"}");
+        JsonNode nyBil = mapper.readTree("{\"car_make\":\"Kia\",\"car_model\":\"EV3\",\"insight\":\"Ny insikt.\"}");
+        assertThat(service.filterKnownDuplicates(List.of(utanModell, nyBil))).hasSize(2);
+    }
+
+    @Test
+    void dedupPromptListarBefintligaOchIndexeradeKandidater() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode kandidat = mapper.readTree(
+                "{\"car_make\":\"BYD\",\"car_model\":\"Shark\",\"insight\":\"Blade-batteriet är på 32,2 kWh.\"}");
+        String user = WebInsightScraperService.buildDedupUserContent(
+                List.of(kandidat), java.util.Map.of("BYD Shark", List.of("Batteriet på 32,2 kWh är stort.")));
+        assertThat(user).contains("BYD Shark:")
+                .contains("- Batteriet på 32,2 kWh är stort.")
+                .contains("0 (BYD Shark): Blade-batteriet är på 32,2 kWh.");
+    }
+
+    @Test
     void parsarWpJsonLankar() throws Exception {
         String json = """
             [{"link":"https:\\/\\/elbilen.se\\/mazda-pressar-priset\\/"},

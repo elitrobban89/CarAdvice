@@ -14,6 +14,7 @@ public interface ExpertInsightRepository extends JpaRepository<ExpertInsight, Lo
     void deleteByExpertName(String expertName);
     long countByExpertName(String expertName);
     List<ExpertInsight> findAllByOrderByIdDesc(Pageable pageable);
+    List<ExpertInsight> findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(String carMake, String carModel);
     List<ExpertInsight> findByExpertNameIgnoreCaseOrderByIdDesc(String expertName, Pageable pageable);
 
     @Modifying
