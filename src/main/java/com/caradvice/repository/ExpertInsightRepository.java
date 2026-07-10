@@ -14,7 +14,15 @@ public interface ExpertInsightRepository extends JpaRepository<ExpertInsight, Lo
     void deleteByExpertName(String expertName);
     long countByExpertName(String expertName);
     List<ExpertInsight> findAllByOrderByIdDesc(Pageable pageable);
-    List<ExpertInsight> findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(String carMake, String carModel);
+
+    // Prefix-match åt båda hållen fångar märkesvarianter ("Mercedes" ↔ "Mercedes-Benz"/"Mercedes-AMG")
+    @Query("""
+        SELECT i FROM ExpertInsight i
+        WHERE lower(i.carMake) LIKE lower(concat(:make, '%'))
+           OR lower(:make) LIKE lower(concat(i.carMake, '%'))
+        ORDER BY i.id DESC
+        """)
+    List<ExpertInsight> findByMakePrefix(@Param("make") String make, Pageable pageable);
     List<ExpertInsight> findByExpertNameIgnoreCaseOrderByIdDesc(String expertName, Pageable pageable);
 
     @Modifying

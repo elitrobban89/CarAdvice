@@ -251,7 +251,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-141 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+144 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -264,7 +264,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `SafetyRatingServiceMatchTest` (3) | Euro NCAP-radens titelmatchning: MG4/Renault 5 träffar rätt utan att spilla över på ZS/MG5/Zoe; otestade bilar (ë-C3) ger null |
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
-| `WebInsightScraperServiceTest` (13) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, dubblettfiltrering mot DB (normaliserad textjämförelse, parafras-promptbygge, dedup-svarsparsning med fail open) |
+| `WebInsightScraperServiceTest` (16) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open) |
 | `CarControllerTest` (28) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id, admin-feedbackradering, Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash

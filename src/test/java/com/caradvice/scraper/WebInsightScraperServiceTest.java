@@ -94,13 +94,18 @@ class WebInsightScraperServiceTest {
         assertThat(service().parseDuplicateIndexes("{}")).isEmpty();
     }
 
+    private static WebInsightScraperService serviceWithExisting(com.caradvice.model.ExpertInsight... existing) {
+        var repo = mock(ExpertInsightRepository.class);
+        org.mockito.Mockito.when(repo.findByMakePrefix(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(existing));
+        return new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+    }
+
     @Test
     void exaktDubblettFiltrerasMotBefintliga() throws Exception {
-        var repo = mock(ExpertInsightRepository.class);
-        org.mockito.Mockito.when(repo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc("BYD", "Shark"))
-                .thenReturn(List.of(new com.caradvice.model.ExpertInsight(
-                        "CarUp", "BYD", "Shark", null, null, "Bilen har en maximal dragvikt på 2 500 kg.", null)));
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var service = serviceWithExisting(new com.caradvice.model.ExpertInsight(
+                "CarUp", "BYD", "Shark", null, null, "Bilen har en maximal dragvikt på 2 500 kg.", null));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode dubblett = mapper.readTree(
                 "{\"car_make\":\"BYD\",\"car_model\":\"Shark\",\"insight\":\"Bilen har en maximal dragvikt på 2500 kg!\"}");
@@ -109,15 +114,43 @@ class WebInsightScraperServiceTest {
 
     @Test
     void insiktUtanModellEllerUtanBefintligaBehalls() throws Exception {
-        var repo = mock(ExpertInsightRepository.class);
-        org.mockito.Mockito.when(repo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(
-                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn(List.of());
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var service = serviceWithExisting();
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode utanModell = mapper.readTree("{\"car_make\":\"\",\"car_model\":\"\",\"insight\":\"Generell insikt.\"}");
         JsonNode nyBil = mapper.readTree("{\"car_make\":\"Kia\",\"car_model\":\"EV3\",\"insight\":\"Ny insikt.\"}");
         assertThat(service.filterKnownDuplicates(List.of(utanModell, nyBil))).hasSize(2);
+    }
+
+    @Test
+    void dubblettMedAnnanMarkesStavningFiltreras() throws Exception {
+        // AMG CLA 45 kom in dubbelt: "Mercedes-Benz CLA 45 4MATIC+" och "Mercedes AMG CLA 45 4Matic+"
+        var service = serviceWithExisting(new com.caradvice.model.ExpertInsight(
+                "TV", "Mercedes-Benz", "CLA 45 4MATIC+", null, null, "Bilen levererar 680 hk.", null));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode dubblett = mapper.readTree(
+                "{\"car_make\":\"Mercedes\",\"car_model\":\"AMG CLA 45 4Matic+\",\"insight\":\"Bilen levererar 680 hk!\"}");
+        assertThat(service.filterKnownDuplicates(List.of(dubblett))).isEmpty();
+    }
+
+    @Test
+    void exaktUpprepningInomSammaBatchFiltreras() throws Exception {
+        var service = serviceWithExisting();
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode forsta = mapper.readTree(
+                "{\"car_make\":\"Mini\",\"car_model\":\"Cooper Cabrio\",\"insight\":\"Billig som cabriolet.\"}");
+        JsonNode upprepning = mapper.readTree(
+                "{\"car_make\":\"Mini\",\"car_model\":\"Cooper Cabrio\",\"insight\":\"Billig, som cabriolet!\"}");
+        assertThat(service.filterKnownDuplicates(List.of(forsta, upprepning))).hasSize(1);
+    }
+
+    @Test
+    void sammaBilPaTokenDelmangd() {
+        assertThat(WebInsightScraperService.sameCar("CLA 45 4MATIC+", "AMG CLA 45 4Matic+")).isTrue();
+        assertThat(WebInsightScraperService.sameCar("EV4", "EV4 AWD")).isTrue();
+        assertThat(WebInsightScraperService.sameCar("Shark", "Shark")).isTrue();
+        assertThat(WebInsightScraperService.sameCar("XC40", "XC60")).isFalse();
+        assertThat(WebInsightScraperService.sameCar("", "Shark")).isFalse();
+        assertThat(WebInsightScraperService.sameCar("Shark", null)).isFalse();
     }
 
     @Test

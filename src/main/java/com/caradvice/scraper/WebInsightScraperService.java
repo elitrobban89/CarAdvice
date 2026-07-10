@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -76,6 +77,8 @@ public class WebInsightScraperService {
               * trafikregler, lagändringar, böter, körkorts-, besiktnings- och försäkringsregler
             - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
               eller gissa modellnamn; är du osäker: sätt ""
+            - "car_make" ska vara märkets vanliga kortform utan undermärken och tillägg
+              (skriv "Mercedes", aldrig "Mercedes-Benz" eller "Mercedes-AMG"; "VW" skrivs "Volkswagen")
             - En insikt ska handla om en specifik bilmodell eller bilkategori — aldrig om företag,
               marknaden i stort eller branschen
             - "category" ska stämma med bilens faktiska typ:
@@ -101,6 +104,8 @@ public class WebInsightScraperService {
             En ny kandidat är DUBBLETT om dess huvudsakliga fakta eller påstående om samma bil
             redan täcks av en befintlig insikt — även när formuleringen är helt annorlunda
             (t.ex. samma dragvikt, batteristorlek, räckvidd, testresultat eller omdöme).
+            En kandidat är också dubblett om den upprepar fakta från en kandidat med LÄGRE index
+            (den första behålls, den senare markeras).
             En kandidat som tillför ny eller kompletterande information är INTE en dubblett.
 
             Svara ENDAST med valid JSON: {"duplicates": [indexen för de kandidater som är dubbletter]}
@@ -381,16 +386,18 @@ public class WebInsightScraperService {
                 kept.add(ins);
                 continue;
             }
-            List<String> existing = existingByCar.computeIfAbsent(make + " " + model, k ->
-                    insightRepo.findTop15ByCarMakeIgnoreCaseAndCarModelIgnoreCaseOrderByIdDesc(make, model)
-                            .stream().map(ExpertInsight::getInsight).filter(t -> t != null && !t.isBlank()).toList());
-            if (existing.isEmpty()) {
-                kept.add(ins);
-                continue;
-            }
+            List<String> existing = existingByCar.computeIfAbsent(make + " " + model,
+                    k -> existingTexts(make, model));
             String norm = normalizeForCompare(text);
             if (existing.stream().anyMatch(e -> normalizeForCompare(e).equals(norm))) {
                 log.info("Web insights: hoppar över exakt dubblett för {} {}", make, model);
+                continue;
+            }
+            if (existing.isEmpty()) {
+                // först i batchen för en ny bil — sparas, och senare rader i samma
+                // batch jämförs mot den (fångar AI:ns egna upprepningar i en artikel)
+                kept.add(ins);
+                existing.add(text);
                 continue;
             }
             candidates.add(ins);
@@ -409,6 +416,38 @@ public class WebInsightScraperService {
             }
         }
         return kept;
+    }
+
+    /**
+     * Befintliga insiktstexter för samma bil. Märket matchas med prefix åt båda hållen
+     * och modellen på token-delmängd — AI:n stavar samma bil olika mellan artiklar
+     * ("Mercedes-Benz CLA 45 4MATIC+" / "Mercedes AMG CLA 45 4Matic+"), och exakt
+     * matchning släppte igenom hela dubblettuppsättningar.
+     */
+    private List<String> existingTexts(String make, String model) {
+        return insightRepo.findByMakePrefix(make, PageRequest.of(0, 200)).stream()
+                .filter(e -> sameCar(model, e.getCarModel()))
+                .limit(15)
+                .map(ExpertInsight::getInsight)
+                .filter(t -> t != null && !t.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
+
+    /** Samma bil om den ena modellens tokens är en delmängd av den andras ("EV4" ⊆ "EV4 AWD"). */
+    static boolean sameCar(String a, String b) {
+        Set<String> ta = modelTokens(a);
+        Set<String> tb = modelTokens(b);
+        if (ta.isEmpty() || tb.isEmpty()) return false;
+        return ta.containsAll(tb) || tb.containsAll(ta);
+    }
+
+    private static Set<String> modelTokens(String s) {
+        if (s == null) return Set.of();
+        Set<String> tokens = new HashSet<>();
+        for (String t : s.toLowerCase().split("[^\\p{L}\\p{N}]+")) {
+            if (!t.isBlank()) tokens.add(t);
+        }
+        return tokens;
     }
 
     /** Gemener + all interpunktion/whitespace bort — fångar omimporter och triviala varianter. */
