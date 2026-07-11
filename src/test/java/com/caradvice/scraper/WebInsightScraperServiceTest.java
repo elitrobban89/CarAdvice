@@ -166,6 +166,33 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void parsarIrrelevantIndex() {
+        assertThat(service().parseIndexes(groqResponse("{\"irrelevant\":[1,3]}"), "irrelevant"))
+                .containsExactlyInAnyOrder(1, 3);
+        // fail open — trasigt svar får aldrig kasta bort hela batchen
+        assertThat(service().parseIndexes(groqResponse("inte json"), "irrelevant")).isEmpty();
+        assertThat(service().parseIndexes(groqResponse("{\"irrelevant\":\"nej\"}"), "irrelevant")).isEmpty();
+    }
+
+    @Test
+    void relevansPromptListarIndexeradeInsikter() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode ins = mapper.readTree(
+                "{\"car_make\":\"Nissan\",\"car_model\":\"Tekton\",\"insight\":\"Säljs enbart i Afrika och Mellanöstern.\"}");
+        String user = WebInsightScraperService.buildRelevanceUserContent(List.of(ins));
+        assertThat(user).contains("0 (Nissan Tekton): Säljs enbart i Afrika och Mellanöstern.");
+    }
+
+    @Test
+    void relevansvaktenSlapperIgenomAlltUtanApiNyckel() throws Exception {
+        // apiKey är null i testtjänsten — vakten ska då vara helt passiv (fail open)
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode ins = mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}");
+        assertThat(service().filterIrrelevant(List.of(ins))).hasSize(1);
+        assertThat(service().filterIrrelevant(List.of())).isEmpty();
+    }
+
+    @Test
     void parsarWpJsonLankar() throws Exception {
         String json = """
             [{"link":"https:\\/\\/elbilen.se\\/mazda-pressar-priset\\/"},

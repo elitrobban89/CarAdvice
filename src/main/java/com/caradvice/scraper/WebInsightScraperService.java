@@ -112,6 +112,29 @@ public class WebInsightScraperService {
             Om ingen är dubblett: {"duplicates": []}
             """;
 
+    // Exkluderingslistan i SYSTEM_PROMPT läcker under extraktionsarbetet (Nissan Tekton
+    // "säljs ej i Sverige", Lamborghini Temerario, Porsche-auktioner) — samma lärdom som
+    // med parafraserna: ett separat, smalt Groq-anrop dömer säkrare än regler inbakade
+    // i den stora prompten.
+    private static final String RELEVANCE_PROMPT = """
+            Du granskar bilinsikter innan de sparas i en databas vars enda syfte är att
+            hjälpa svenska privatpersoner att välja och köpa personbil.
+
+            En insikt är IRRELEVANT om den handlar om:
+            - en bil som inte säljs och inte kommer att säljas i Sverige
+            - superbilar/hypercars, racingbilar eller lyxbilar långt över vanliga konsumentpriser
+            - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
+            - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
+            - specialutgåvor där innehållet bara handlar om färger, fälgar och dekor
+            - auktioner, fabriks-, försäljnings- eller företagsnyheter, marknadsstatistik
+            - trafikregler, lagändringar, böter, skatter eller försäkringsregler
+            En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
+            värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
+
+            Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
+            Om alla är relevanta: {"irrelevant": []}
+            """;
+
     /**
      * mode ARTICLES: hämta artikellänkar (via sitemap/rss/listing), extrahera per artikel — dedup på URL.
      * mode PAGE: extrahera insikter direkt från sidan — dedup per ägaromdöme/bilmodell via source_ref.
@@ -341,7 +364,7 @@ public class WebInsightScraperService {
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */
     private int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
         int saved = 0;
-        for (JsonNode ins : filterKnownDuplicates(insights)) {
+        for (JsonNode ins : filterKnownDuplicates(filterIrrelevant(insights))) {
             String insightText = ins.path("insight").asText("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
 
@@ -364,6 +387,53 @@ public class WebInsightScraperService {
             saved++;
         }
         return saved;
+    }
+
+    // ── Relevansvakt ──────────────────────────────────────────────────────────
+
+    /**
+     * Slänger insikter utan köparrelevans (ej-Sverige-bilar, hypercars, auktioner m.m.)
+     * via ett separat Groq-anrop. Körs före dubblettfiltret så skräp aldrig kostar
+     * dedup-anrop. Alla fel-lägen släpper igenom allt — hellre en skräprad än en
+     * tappad insikt.
+     */
+    List<JsonNode> filterIrrelevant(List<JsonNode> insights) {
+        if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
+        Set<Integer> irrelevant;
+        try {
+            String body = postGroq(RELEVANCE_PROMPT, buildRelevanceUserContent(insights), 300, "relevansvakt");
+            if (body == null) return insights;
+            irrelevant = parseIndexes(body, "irrelevant");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return insights;
+        } catch (Exception e) {
+            log.warn("Web insights: relevansvakten misslyckades — sparar utan filtrering: {}", e.getMessage());
+            return insights;
+        }
+        List<JsonNode> kept = new ArrayList<>();
+        for (int i = 0; i < insights.size(); i++) {
+            JsonNode ins = insights.get(i);
+            if (irrelevant.contains(i)) {
+                log.info("Web insights: relevansvakten stoppar {} {}: {}",
+                        ins.path("car_make").asText(), ins.path("car_model").asText(),
+                        truncate(ins.path("insight").asText(""), 80));
+            } else {
+                kept.add(ins);
+            }
+        }
+        return kept;
+    }
+
+    static String buildRelevanceUserContent(List<JsonNode> insights) {
+        StringBuilder sb = new StringBuilder("INSIKTER:\n");
+        for (int i = 0; i < insights.size(); i++) {
+            JsonNode c = insights.get(i);
+            sb.append(i).append(" (").append(c.path("car_make").asText("").trim()).append(" ")
+                    .append(c.path("car_model").asText("").trim()).append("): ")
+                    .append(c.path("insight").asText("")).append("\n");
+        }
+        return sb.toString();
     }
 
     // ── Dubblettfiltrering mot befintliga insikter ────────────────────────────
@@ -492,14 +562,18 @@ public class WebInsightScraperService {
     }
 
     Set<Integer> parseDuplicateIndexes(String responseBody) {
+        return parseIndexes(responseBody, "duplicates");
+    }
+
+    Set<Integer> parseIndexes(String responseBody, String field) {
         try {
-            JsonNode dups = mapper.readTree(contentOf(responseBody)).path("duplicates");
-            if (!dups.isArray()) return Set.of();
+            JsonNode arr = mapper.readTree(contentOf(responseBody)).path(field);
+            if (!arr.isArray()) return Set.of();
             Set<Integer> out = new HashSet<>();
-            dups.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt()); });
+            arr.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt()); });
             return out;
         } catch (Exception e) {
-            log.warn("Web insights: kunde inte parsa dedup-svar: {}", e.getMessage());
+            log.warn("Web insights: kunde inte parsa {}-svar: {}", field, e.getMessage());
             return Set.of();
         }
     }
