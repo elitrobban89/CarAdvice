@@ -39,6 +39,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -383,9 +384,27 @@ public class CarController {
         return ResponseEntity.ok(expertInsightService.findForCarTitle(car));
     }
 
+    // Övervakas av UptimeRobot mot /api/health — nyckelordsövervakning på "OK" larmar
+    // även när databasen är tom/onåbar (status blir då DEGRADED trots HTTP 200)
     @GetMapping("/health")
     public ResponseEntity<?> health() {
-        return ResponseEntity.ok(Map.of("status", "OK"));
+        long evSpecs = 0;
+        try {
+            evSpecs = evSpecRepo.count();
+        } catch (Exception e) {
+            log.warn("Health: kunde inte räkna EV-specs: {}", e.getMessage());
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("status", evSpecs > 0 ? "OK" : "DEGRADED");
+        out.put("evSpecs", evSpecs);
+        try {
+            Map<String, Object> run = webInsightScraper.lastRunStatus();
+            out.put("lastScrape", run.get("status"));
+            out.put("lastScrapeFinishedAt", run.get("finishedAt"));
+        } catch (Exception e) {
+            out.put("lastScrape", "ERROR");
+        }
+        return ResponseEntity.ok(out);
     }
 
     // Tumme upp/ner på en rekommenderad bil — anonym, max 10 röster/min per IP

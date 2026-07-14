@@ -58,10 +58,37 @@ class CarControllerTest {
     // --- health ---
 
     @Test
-    void healthSvararOk() throws Exception {
+    void healthSvararOkMedSpecCountOchScrapeStatus() throws Exception {
+        when(evSpecRepo.count()).thenReturn(42L);
+        when(webInsightScraper.lastRunStatus()).thenReturn(
+            Map.of("status", "OK", "finishedAt", "2026-07-14T04:05:00"));
         mvc.perform(get("/api/health"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.status").value("OK"));
+           .andExpect(jsonPath("$.status").value("OK"))
+           .andExpect(jsonPath("$.evSpecs").value(42))
+           .andExpect(jsonPath("$.lastScrape").value("OK"))
+           .andExpect(jsonPath("$.lastScrapeFinishedAt").value("2026-07-14T04:05:00"));
+    }
+
+    @Test
+    void healthRapporterarDegradedVidTomDatabas() throws Exception {
+        when(evSpecRepo.count()).thenReturn(0L);
+        when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "NEVER_RUN"));
+        mvc.perform(get("/api/health"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.status").value("DEGRADED"))
+           .andExpect(jsonPath("$.evSpecs").value(0))
+           .andExpect(jsonPath("$.lastScrape").value("NEVER_RUN"));
+    }
+
+    @Test
+    void healthTalDatabasfelUtanAttKrascha() throws Exception {
+        when(evSpecRepo.count()).thenThrow(new RuntimeException("DB nere"));
+        when(webInsightScraper.lastRunStatus()).thenThrow(new RuntimeException("DB nere"));
+        mvc.perform(get("/api/health"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.status").value("DEGRADED"))
+           .andExpect(jsonPath("$.lastScrape").value("ERROR"));
     }
 
     // --- admin-nyckelskyddet ---
