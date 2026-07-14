@@ -251,7 +251,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-147 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+149 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -265,7 +265,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
 | `WebInsightScraperServiceTest` (19) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel) |
-| `CarControllerTest` (28) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id, admin-feedbackradering, Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `CarControllerTest` (30) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id, admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -573,9 +573,19 @@ Summering per bil (kräver `X-Admin-Key`), flest röster först:
 Tar bort alla röster för en bil (exakt titelmatchning) — städning av test-/skräpröster. Svar: `{"deleted": N, "car": "..."}`. Kräver `X-Admin-Key`-header.
 
 ### `GET /api/health`
+
+Hälsokontroll med datastatus — rapporterar antal EV-specs i databasen och senaste insiktsscrape-körningens status. `status` blir `DEGRADED` (fortfarande HTTP 200) om EV-spec-tabellen är tom eller databasen är onåbar, så UptimeRobot-nyckelordsövervakning på `"status":"OK"` larmar vid dataproblem — samma mönster som Bilresas `warm`-nyckelord.
+
 ```json
-{ "status": "OK" }
+{ "status": "OK", "evSpecs": 1243, "lastScrape": "OK", "lastScrapeFinishedAt": "2026-07-14 04:11:50" }
 ```
+
+| Fält | Betydelse |
+|---|---|
+| `status` | `OK` när EV-spec-tabellen har data; `DEGRADED` vid tom/onåbar databas |
+| `evSpecs` | Antal rader i `ev_spec`-tabellen |
+| `lastScrape` | Insiktsscraperns senaste körning: `OK` / `RUNNING` / `NEVER_RUN` / `ERROR` |
+| `lastScrapeFinishedAt` | När senaste körningen blev klar |
 
 ### `GET /api/health/groq`
 
@@ -659,9 +669,12 @@ EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — 
 |---|---|---|
 | WordPress-sida | `https://elitrobban.se/bilradgivning/` | 5 min |
 | Backend | `https://caradvice.onrender.com/api/recommend/test` | 5 min |
+| Backend-hälsa (keyword) | `https://caradvice.onrender.com/api/health` — nyckelord `"status":"OK"`, larm när det saknas | 5 min |
 | Groq-modeller | `https://caradvice.onrender.com/api/health/groq` | 5 min |
 
 Backend-monitorn håller Render-instansen varm och eliminerar cold starts.
+
+Hälsomonitorn är en keyword-monitor: den larmar både när tjänsten är nere och när servern svarar men datalagret är sjukt — tom/onåbar databas ger `"status":"DEGRADED"` och nyckelordet försvinner ur svaret (se `GET /api/health` ovan).
 
 Groq-modellmonitorn larmar (503) den dag Groq avvecklar en konfigurerad modell — uptime-pingarna missade llama-3.3-70b-avvecklingen 2026-06-29 eftersom appen var uppe medan alla AI-anrop föll. Pingarna kostar inga tokens: `/models`-anropet är ometerat och svaret cachas 1 timme, så Groq ser max ~24 anrop/dygn oavsett pingintervall. Kollen täcker de egna modellerna (`qwen/qwen3.6-27b`, `openai/gpt-oss-20b`) **plus bevakade extramodeller** via `GROQ_WATCHED_MODELS` (default `openai/gpt-oss-120b` — Tag/VaderKlader kör den men saknar egen hälsokoll, så avveckling larmas härifrån).
 
