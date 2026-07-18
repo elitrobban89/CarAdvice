@@ -58,7 +58,8 @@ public class WebInsightScraperService {
             Returnera ett JSON-objekt med fältet "insights" som en array.
 
             Varje insikt ska ha exakt dessa fält:
-            - "car_make": biltillverkare (t.ex. "Volvo", "Toyota") eller "" om generell insikt
+            - "car_make": biltillverkare (t.ex. "Volvo", "Toyota") — obligatoriskt; hoppa över
+              insikter som inte handlar om ett specifikt bilmärke
             - "car_model": modell (t.ex. "EX30", "RAV4") eller ""
             - "fuel_type": ett av: "elbil", "bensin", "diesel", "hybrid", "laddhybrid" — eller ""
             - "category": ett av: "ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil" — eller ""
@@ -126,8 +127,10 @@ public class WebInsightScraperService {
             - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
             - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
             - specialutgåvor där innehållet bara handlar om färger, fälgar och dekor
-            - auktioner, fabriks-, försäljnings- eller företagsnyheter, marknadsstatistik
+            - auktioner, fabriks-, försäljnings- eller företagsnyheter, produktions- och
+              lagersiffror, marknadsstatistik
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler
+            - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
 
@@ -362,11 +365,18 @@ public class WebInsightScraperService {
     }
 
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */
-    private int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
+    int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
         int saved = 0;
         for (JsonNode ins : filterKnownDuplicates(filterIrrelevant(insights))) {
             String insightText = ins.path("insight").asText("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
+
+            // Insikter utan märke visas aldrig (ExpertInsightService utesluter carMake == null
+            // överallt) — spara dem inte.
+            if (ins.path("car_make").asText("").isBlank()) {
+                log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, 80));
+                continue;
+            }
 
             if (dedupExpert != null) {
                 String ref = ins.path("source_ref").asText("").trim();

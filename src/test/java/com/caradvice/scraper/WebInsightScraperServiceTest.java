@@ -144,6 +144,20 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void insiktUtanMarkeSparasInte() throws Exception {
+        // Insikter utan carMake visas aldrig (ExpertInsightService utesluter dem) — SAE-studier
+        // och kändisnotiser utan bil kom ändå in i DB via scrapen
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode utanMarke = mapper.readTree("{\"car_make\":\"\",\"insight\":\"Studie om återcirkulation.\"}");
+        JsonNode medMarke = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
+        assertThat(service.saveInsights("TV", List.of(utanMarke, medMarke), null)).isEqualTo(1);
+        org.mockito.Mockito.verify(repo, org.mockito.Mockito.times(1))
+                .save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void sammaBilPaTokenDelmangd() {
         assertThat(WebInsightScraperService.sameCar("CLA 45 4MATIC+", "AMG CLA 45 4Matic+")).isTrue();
         assertThat(WebInsightScraperService.sameCar("EV4", "EV4 AWD")).isTrue();
