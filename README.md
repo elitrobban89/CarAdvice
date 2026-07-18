@@ -4,7 +4,7 @@
 
 En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren fyller i sina preferenser i ett WordPress-formulär och får tre skräddarsydda bilrekommendationer på sekunder.
 
-**Live:** [elitrobban.se/bilradgivning](https://elitrobban.se/bilradgivning/)
+**Live:** [elitrobban.se/bilradgivning](https://elitrobban.se/bilradgivning/) — tjänsten används av riktiga besökare: sajten elitrobban.se har hittills under 2026 haft ~1 700 besökare och 6 200+ sidvisningar (3,3 sidor per session)
 
 ---
 
