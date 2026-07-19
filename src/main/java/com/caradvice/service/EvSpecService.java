@@ -258,6 +258,7 @@ public class EvSpecService {
         Map.entry("MG4 Standard",                          "LFP"),
         Map.entry("MG4",                                   "LFP/NMC"),
         Map.entry("MG ZS EV",                              "NMC"),
+        Map.entry("MG Marvel R",                           "NMC"),
         // Smart (Geely/Mercedes JV)
         Map.entry("Smart 1",                               "NMC"),
         Map.entry("Smart 3",                               "NMC"),

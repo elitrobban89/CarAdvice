@@ -183,6 +183,7 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("MG4 Long Range",                    11.0, 150.0,  64.0, 450, 335_000),
             new EvSpec("MG4 Extended Range",                11.0, 150.0,  77.0, 520, 375_000),
             new EvSpec("MG5 Long Range",                    11.0,  87.0,  61.1, 400, 355_000),
+            new EvSpec("MG Marvel R",                       11.0,  92.0,  70.0, 402, 465_000),
             // Övrigt
             new EvSpec("Toyota bZ4X",                       11.0, 150.0,  71.4, 452, 480_000),
             new EvSpec("Cupra Born",                        11.0, 170.0,  77.0, 550, 380_000),
@@ -298,6 +299,10 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Kia EV4",                11.0, 101.0, 58.3, 410, 390_000));
         if (!existing.contains("Kia EV4 Long Range"))
             extras.add(new EvSpec("Kia EV4 Long Range",     11.0, 128.0, 81.4, 590, 435_000));
+
+        // MG Marvel R (2021–2023) — säljs begagnad men saknade specs
+        if (!existing.contains("MG Marvel R"))
+            extras.add(new EvSpec("MG Marvel R",            11.0,  92.0, 70.0, 402, 465_000));
 
         // PHEVs
         if (!existing.contains("Volvo XC60 PHEV"))
@@ -490,6 +495,7 @@ public class DataLoader implements CommandLineRunner {
             { "Ford Mustang Mach-E",     402,  1420 },
             { "MG ZS EV",               448,  1166 },
             { "MG5",                     578,  1456 },
+            { "MG Marvel R",             357,  1396 },
             { "Toyota bZ4X",             452,  1589 },
             { "Cupra Born",              385,  1267 },
             { "Renault Megane E-Tech",   440,  1332 },
