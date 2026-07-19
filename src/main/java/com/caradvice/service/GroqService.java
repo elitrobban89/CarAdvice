@@ -175,16 +175,50 @@ public class GroqService {
         }
     }
 
+    /**
+     * Skarpt läge: AI:n satte 200 000–210 000 kr på en Kia EV6 som på Blocket börjar vid 333 500 kr.
+     * Ligger AI:ns intervall helt under eller helt över Blockets årsfiltrerade annonsintervall
+     * ersätts det med Blocket-intervallet — verkligheten vinner över deprecieringskalkylen.
+     * Minst 3 annonser krävs så att enstaka fynd/felannonser inte skriver över rimliga priser.
+     */
+    static String correctedPrice(String aiPrice, BlocketPriceService.PriceRange blocket, String title) {
+        if (aiPrice == null || blocket == null || blocket.count() < 3) return aiPrice;
+        java.util.List<Long> nums = new ArrayList<>();
+        Matcher m = Pattern.compile("\\d[\\d\\s\\u00a0]*").matcher(aiPrice);
+        while (m.find()) {
+            try { nums.add(Long.parseLong(m.group().replaceAll("[\\s\\u00a0]", ""))); } catch (NumberFormatException ignored) {}
+        }
+        if (nums.isEmpty()) return aiPrice;
+        long aiMin = nums.get(0), aiMax = nums.get(nums.size() - 1);
+        if (aiMax < blocket.minKr() || aiMin > blocket.maxKr()) {
+            log.warn("AI-pris {} för {} utanför Blocket-intervallet {}–{} kr ({} annonser) — ersätter",
+                    aiPrice, title, blocket.minKr(), blocket.maxKr(), blocket.count());
+            return formatSekSpace(blocket.minKr()) + "–" + formatSekSpace(blocket.maxKr()) + " kr";
+        }
+        return aiPrice;
+    }
+
+    private static String formatSekSpace(int amount) {
+        String s = String.valueOf(amount);
+        StringBuilder sb = new StringBuilder();
+        int start = s.length() % 3;
+        if (start > 0) sb.append(s, 0, start);
+        for (int i = start; i < s.length(); i += 3) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(s, i, i + 3);
+        }
+        return sb.toString();
+    }
+
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
         return enrichRecommendations(parsed, kmPerYear, null);
     }
 
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear, String fuelPref) {
-        List<CompletableFuture<String>> blocketFutures = parsed.stream()
+        List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
-                        BlocketPriceService.PriceRange pr = blocketPriceService.fetchPriceRange(r.title());
-                        return pr != null ? pr.formatted() : null;
+                        return blocketPriceService.fetchPriceRange(r.title());
                     } catch (Exception e) { return null; }
                 }))
                 .toList();
@@ -195,7 +229,7 @@ public class GroqService {
             String safety = null;
             com.caradvice.model.EvSpecDto evSpec = null;
             com.caradvice.model.CargoSpecDto cargo = null;
-            String blocketPrice = null;
+            BlocketPriceService.PriceRange blocketRange = null;
             try { safety = safetyRatingService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try {
                 evSpec = evSpecService.formatForTitle(r.title(), kmPerYear);
@@ -211,7 +245,9 @@ public class GroqService {
                 }
             } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
-            try { blocketPrice = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+            try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+            String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
+            String price = correctedPrice(r.price(), blocketRange, r.title());
 
             // Ersätt AI:ns gissade förbrukning med verifierad siffra från ice_consumption om matchning finns.
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
@@ -234,7 +270,7 @@ public class GroqService {
             }
 
             result.add(new CarRecommendation(
-                    r.title(), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                    r.title(), price, r.whyRecommended(), r.pros(), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), r.engineOptions()));
         }
         return result;
@@ -365,8 +401,9 @@ public class GroqService {
         return result;
     }
 
-    private String buildCompareSystemPrompt() {
+    String buildCompareSystemPrompt() {
         String icePrices = getIcePrices();
+        String evPrices = getEvPrices();
         return """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Jämför EXAKT de 2 bilar användaren anger. Svara ENDAST med JSON (EXAKT 2 bilar):
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
@@ -384,7 +421,8 @@ public class GroqService {
                 VOLVO EV: EX30, EX40, EC40, EX60, EX90 — inga andra. Hitta ALDRIG på Volvo-modeller.
                 GENERELLT: Nämn ALDRIG modeller som inte säljs på svenska marknaden.
                 """.formatted(DEPRECIATION_RULE)
-                + (icePrices.isBlank() ? "" : icePrices + "\n");
+                + (icePrices.isBlank() ? "" : icePrices + "\n")
+                + (evPrices.isBlank() ? "" : evPrices + "\n");
     }
 
     private String buildCompareSpecContext(String car1, com.caradvice.model.CargoSpecDto c1, com.caradvice.model.EvSpecDto ev1,

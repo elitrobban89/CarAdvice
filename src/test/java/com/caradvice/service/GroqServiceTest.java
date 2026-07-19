@@ -378,6 +378,52 @@ class GroqServiceTest {
                 .hasMessageContaining("oväntat svar");
     }
 
+    // --- correctedPrice (Blocket-verkligheten vinner över AI:ns priskalkyl) ---
+
+    @Test
+    void aiPrisUnderBlocketIntervalletErsattsMedBlocketPriset() {
+        // Skarpt läge: Kia EV6 fick 200 000–210 000 kr, Blocket börjar på 333 500 kr
+        var blocket = new BlocketPriceService.PriceRange(333_500, 429_900, 50, "333 500 – 429 900 kr (50 annonser)");
+        assertThat(GroqService.correctedPrice("200 000–210 000 kr", blocket, "Kia EV6 (2022)"))
+                .isEqualTo("333 500–429 900 kr");
+    }
+
+    @Test
+    void aiPrisOverBlocketIntervalletErsattsOcksa() {
+        var blocket = new BlocketPriceService.PriceRange(150_000, 200_000, 30, "...");
+        assertThat(GroqService.correctedPrice("280 000–320 000 kr", blocket, "VW Golf (2020)"))
+                .isEqualTo("150 000–200 000 kr");
+    }
+
+    @Test
+    void aiPrisSomOverlapparBlocketBehalls() {
+        var blocket = new BlocketPriceService.PriceRange(300_000, 400_000, 20, "...");
+        assertThat(GroqService.correctedPrice("350 000–380 000 kr", blocket, "Kia EV6 (2022)"))
+                .isEqualTo("350 000–380 000 kr");
+    }
+
+    @Test
+    void faAnnonserSkriverInteOverAiPriset() {
+        // 2 annonser kan vara fynd/felannonser — då litar vi på kalkylen
+        var blocket = new BlocketPriceService.PriceRange(500_000, 550_000, 2, "...");
+        assertThat(GroqService.correctedPrice("200 000–210 000 kr", blocket, "Volvo V60 (2021)"))
+                .isEqualTo("200 000–210 000 kr");
+    }
+
+    @Test
+    void utanBlocketDataBehallsAiPriset() {
+        assertThat(GroqService.correctedPrice("200 000–210 000 kr", null, "Volvo V60 (2021)"))
+                .isEqualTo("200 000–210 000 kr");
+    }
+
+    @Test
+    void jamforelsepromptenInnehallerBadeIceOchEvNypriser() {
+        // EV6 vs ID.4 fick fantasipriser (200k) — EV-nypristabellen saknades i jämförelseprompten
+        assertThat(serviceMedPristabeller().buildCompareSystemPrompt())
+                .contains("ICE-NYPRISTABELL-MARKÖR")
+                .contains("EV-PRISTABELL-MARKÖR");
+    }
+
     // --- buildCacheKey ---
 
     @Test
