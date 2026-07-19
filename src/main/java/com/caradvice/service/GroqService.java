@@ -420,6 +420,7 @@ public class GroqService {
                 FABRICERA ALDRIG PRISER: Skriv aldrig ett lägre pris än verkligheten.
                 MOTORTYPER: Skriv ALDRIG motorbeteckning du inte är helt säker på existerar för just den bilen och årsmodellen.
                 VERIFIERADE SPECS: Om prompten innehåller verifierade specifikationer från databas, ANVÄND dessa siffror exakt — prioritera dem över generell kunskap.
+                DRIVLINA: en bil märkt "ren elbil (BEV)" i verifierade specs är ALDRIG hybrid/laddhybrid — nämn aldrig bränsleförbrukning, bensinmotor eller växellåda för den (ex: MG Marvel R är en ren elbil). "laddhybrid (PHEV)" = laddhybrid. Motsäg ALDRIG specsens drivlina.
                 STORLEKSKLASS: Om benutrymme bak skiljer mer än 60 mm, lyft fram det i fitSummary med konkreta mm-tal.
                 SIFFERLOGIK: orden "mer/mindre/större/snabbare än" MÅSTE stämma med de verifierade siffrorna — högre mm/L/kW/km = mer utrymme/volym/laddfart/räckvidd. Ex: 1006 mm vs 954 mm = bilen med 1006 mm har MER benutrymme; skriv ALDRIG tvärtom. Kontrollera varje jämförelseord i pros/con/fitSummary mot siffrorna innan du svarar.
                 BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh. Nämn kemin om bilarna skiljer sig.
@@ -467,6 +468,7 @@ public class GroqService {
             if (cargo.cargoMaxLiters() > 0) sb.append(" (max ").append(cargo.cargoMaxLiters()).append("L fällda säten)");
         }
         if (ev != null && ev.batteryKwh() > 0) {
+            sb.append(", ").append("PHEV".equals(ev.carType()) ? "laddhybrid (PHEV)" : "ren elbil (BEV)");
             sb.append(", batteri ").append(ev.batteryKwh()).append(" kWh");
             if (ev.wltpKm() > 0) sb.append(", räckvidd ").append(ev.wltpKm()).append(" km (WLTP)");
             if (ev.maxDcKw() > 0) sb.append(", snabbladdning (DC) max ").append(ev.maxDcKw()).append(" kW");

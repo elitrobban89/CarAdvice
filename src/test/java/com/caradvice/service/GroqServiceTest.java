@@ -425,6 +425,15 @@ class GroqServiceTest {
     }
 
     @Test
+    void jamforelsepromptenForbjuderFelDrivlina() {
+        // Skarpt läge: MG Marvel R (ren elbil) kallades "laddhybrid med hög bränsleförbrukning"
+        assertThat(serviceMedPristabeller().buildCompareSystemPrompt())
+                .contains("DRIVLINA")
+                .contains("ALDRIG hybrid/laddhybrid")
+                .contains("Marvel R");
+    }
+
+    @Test
     void jamforelsepromptenInnehallerBadeIceOchEvNypriser() {
         // EV6 vs ID.4 fick fantasipriser (200k) — EV-nypristabellen saknades i jämförelseprompten
         assertThat(serviceMedPristabeller().buildCompareSystemPrompt())
