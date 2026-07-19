@@ -78,6 +78,8 @@ public class WebInsightScraperService {
               * prototyper, konceptbilar, entusiastombyggnader, veteran-/samlarbilar
               * specialutgåvor/jubileumsmodeller där innehållet handlar om färger, fälgar och dekor
               * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar)
+                — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test",
+                topplacering i försäljningsstatistik) är RELEVANTA och ska inkluderas
               * trafikregler, lagändringar, böter, körkorts-, besiktnings- och försäkringsregler
             - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
               eller gissa modellnamn; är du osäker: sätt ""
@@ -136,6 +138,8 @@ public class WebInsightScraperService {
             - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
+            Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
+            "bäst i test", mest sålda bilen i sin klass) — de är köpsignaler, inte företagsnyheter.
 
             Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
             Om alla är relevanta: {"irrelevant": []}

@@ -156,6 +156,16 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg (själva ägarbetygen — artiklarna nås via wp-json), blocket.se/bilguiden
 - Manuell trigger: `POST /api/admin/sync-web-insights`; körstatus: `GET /api/admin/scrape-status`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
 - `extract_web_insights.py` är samma pipeline som fristående Python-verktyg för manuella körningar
+- **Utmärkelser är köpsignaler**: scrape- och relevansprompterna behåller uttryckligen utmärkelser
+  till specifika modeller (Årets Bil/Car of the Year, "bäst i test", topplaceringar i
+  försäljningsstatistik) trots att företags- och marknadsnyheter i övrigt filtreras bort
+
+### Kuraterade källor (CSV-seed via admin-importen)
+- **Årets Bil-juryn** — Car of the Year-resultat: Mercedes CLA vann 2026 (före Škoda Elroq
+  och Kia EV4), Renault 5 E-Tech vann 2025
+- **Mobility Sweden** — nyregistreringsstatistik helåret 2025: Volvo XC60 mest sålda bilen
+  (17 933), Volvo EX40 mest sålda elbilen (8 788), därefter VW ID.7 och Tesla Model Y
+- Uppdateras årligen (nya vinnare/årsstatistik) med `POST /api/admin/import/insights?expert=...`
 
 ### CargoSpec-skrapare (Bilweb.se)
 - Daglig schemalagd sync kl **03:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
