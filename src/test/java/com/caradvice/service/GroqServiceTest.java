@@ -150,9 +150,20 @@ class GroqServiceTest {
     }
 
     @Test
+    void kategorinFamiljebilFlaggasSomFamiljebilIPrompten() {
+        // Familjekriteriet sitter på bilkategorin — passagerare 3 så att bara kategorin triggar
+        CarPreferences familj = new CarPreferences(300_000, "familjebil", true, 15_000, "blandat",
+                3, false, "el", null, "köp", null);
+        assertThat(service().buildPrompt(familj))
+                .contains("FAMILJEBIL")
+                .contains("MG4/VW ID.4 eller större")
+                .contains("ALDRIG småbil");
+    }
+
+    @Test
     void familjeAnvandningFlaggasSomFamiljebilIPrompten() {
-        // Skarpt läge: "Renault Zoe (2023)" för familjekörning/300k — quizet skickar "familj",
-        // systemregeln triggade bara på ordet "FAMILJEBIL"
+        // Skarpt läge: "Renault Zoe (2023)" för familjekörning/300k — äldre inklistrade
+        // WordPress-snippets skickar fortfarande usage "familj" och ska täckas
         CarPreferences familj = new CarPreferences(300_000, "elbil", true, 15_000, "familj",
                 5, false, "el", null, "köp", null);
         assertThat(service().buildPrompt(familj))
@@ -182,7 +193,7 @@ class GroqServiceTest {
         // 300k-familjebilssökning gav Dacia Spring för 150k — storleks- och budgetregler krävs
         String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
         assertThat(sp)
-                .contains("FAMILJEBIL eller 4+ passagerare")
+                .contains("FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 4+ passagerare)")
                 .contains("Dacia Spring")
                 .contains("UTNYTTJA BUDGETEN");
     }

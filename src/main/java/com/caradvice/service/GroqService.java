@@ -494,9 +494,13 @@ public class GroqService {
             "ë-c3", "e-c3", "fiat 500", "500e", "panda", "corsa", "aygo",
             "id.3", "picanto", "i10", "e-up", "up!", "mii", "citigo");
 
-    /** Familjekörning eller 4+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln. */
+    /**
+     * Kategori familjebil eller 4+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln.
+     * Användning "familj" täcks också: äldre inklistrade WordPress-snippets skickar den fortfarande.
+     */
     static boolean requiresFamilySizedCar(CarPreferences prefs) {
-        return (prefs.usage() != null && prefs.usage().toLowerCase().contains("familj"))
+        return (prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("familj"))
+                || (prefs.usage() != null && prefs.usage().toLowerCase().contains("familj"))
                 || prefs.passengers() >= 4;
     }
 
@@ -770,7 +774,7 @@ public class GroqService {
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                Användning "familj"/"familjekörning" = FAMILJEBIL. FAMILJEBIL eller 4+ passagerare: rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, VW ID.3, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4.
+                FAMILJEBIL (kategori "familjebil", användning "familj" eller 4+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, VW ID.3, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4.
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
