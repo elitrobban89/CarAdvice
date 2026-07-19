@@ -158,6 +158,16 @@ class GroqServiceTest {
     }
 
     @Test
+    void promptenForbjuderSmabilarSomFamiljebilOchKraverBudgetutnyttjande() {
+        // 300k-familjebilssökning gav Dacia Spring för 150k — storleks- och budgetregler krävs
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp)
+                .contains("FAMILJEBIL eller 4+ passagerare")
+                .contains("Dacia Spring")
+                .contains("UTNYTTJA BUDGETEN");
+    }
+
+    @Test
     void renElbilsForfraganFarEvTabellMenInteIceTabell() {
         String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
         assertThat(sp)
