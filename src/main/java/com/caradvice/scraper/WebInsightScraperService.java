@@ -64,7 +64,10 @@ public class WebInsightScraperService {
             - "fuel_type": ett av: "elbil", "bensin", "diesel", "hybrid", "laddhybrid" — eller ""
             - "category": ett av: "ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil" — eller ""
             - "insight": 1-3 meningar på svenska med källans konkreta åsikt eller fakta, i tredje person
-            - "rating": heltal 1-10 om källan ger betyg, annars ""
+            - "rating": källans betyg omräknat till heltal på skalan 1-10, annars "". Räkna om
+              andra skalor proportionerligt: "4 av 5" eller 4 stjärnor → 8, "3 av 5" → 6,
+              "7 av 10" → 7, "8,5 av 10" → 9 (avrunda). Betyget måste stå uttryckligen i
+              texten (poäng, stjärnor eller "betyg X") — härled ALDRIG ett betyg ur tonläget
             - "source_ref": för ägaromdömen: recensentens namn + datum (t.ex. "Andreas Skoglund 2026-06-12"); för testresultat om en specifik bil: "märke modell" (t.ex. "Volvo V60"); annars ""
 
             Regler:

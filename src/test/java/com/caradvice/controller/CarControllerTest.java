@@ -22,11 +22,14 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -337,6 +340,54 @@ class CarControllerTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.deleted").value(1))
            .andExpect(jsonPath("$.id").value(42));
+    }
+
+    // --- PATCH /api/admin/insights/{id} ---
+
+    @Test
+    void adminInsiktspatchKraverNyckel() throws Exception {
+        mvc.perform(patch("/api/admin/insights/42")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"category\":\"suv\"}"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminInsiktspatchReturnerarUppdateradRad() throws Exception {
+        when(expertInsightService.updateInsight(eq(42L), any()))
+                .thenReturn(Optional.of(Map.of("id", 42, "category", "suv")));
+
+        mvc.perform(patch("/api/admin/insights/42")
+                .header("X-Admin-Key", "test-admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"category\":\"suv\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.id").value(42))
+           .andExpect(jsonPath("$.category").value("suv"));
+    }
+
+    @Test
+    void adminInsiktspatchGer404NarIdSaknas() throws Exception {
+        when(expertInsightService.updateInsight(eq(999L), any())).thenReturn(Optional.empty());
+
+        mvc.perform(patch("/api/admin/insights/999")
+                .header("X-Admin-Key", "test-admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"category\":\"suv\"}"))
+           .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminInsiktspatchGer400VidOgiltigtFalt() throws Exception {
+        when(expertInsightService.updateInsight(eq(42L), any()))
+                .thenThrow(new IllegalArgumentException("Okänt fält: categori"));
+
+        mvc.perform(patch("/api/admin/insights/42")
+                .header("X-Admin-Key", "test-admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categori\":\"suv\"}"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.error").value("Okänt fält: categori"));
     }
 
     // --- DELETE /api/admin/feedback ---

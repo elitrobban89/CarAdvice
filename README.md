@@ -149,7 +149,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   - **CarUp** — WordPress REST API (`wp-json`)
   - **car.info** — ägaromdömen direkt på sidan (dedup per recensent + datum)
   - **Folksam** — krocksäkerhetsstudien "Hur säker är bilen" (dedup per bilmodell)
-- Artikeltexten extraheras med Jsoup, skickas till Groq (`groq.insight.model`, default `openai/gpt-oss-120b`, `reasoning_effort: low`) som returnerar strukturerade insikter (märke, modell, drivmedel, kategori, insikt, betyg)
+- Artikeltexten extraheras med Jsoup, skickas till Groq (`groq.insight.model`, default `openai/gpt-oss-120b`, `reasoning_effort: low`) som returnerar strukturerade insikter (märke, modell, drivmedel, kategori, insikt, betyg — källans betyg räknas om proportionerligt till skalan 1–10, t.ex. "4 av 5" → 8; tonlägesgissningar är förbjudna)
 - **Inkrementell**: processade artikel-URL:er och sedda omdömen lagras i `web_insight_seen` — inga dubbletter, oavsett hur ofta synken körs
 - Max 12 artiklar per källa och körning — backlog betas av gradvis över flera nätter
 - 1,5 s fördröjning mellan sidhämtningar, 5 s mellan Groq-anrop (respekterar TPM-gränsen)
@@ -251,13 +251,13 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-150 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+161 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
 | `GroqServiceTest` (41) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
 | `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
-| `ExpertInsightServiceTest` (16) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import, kategoribyte |
+| `ExpertInsightServiceTest` (23) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import, kategoribyte, admin-PATCH (fältvalidering, normalisering, rating-gränser) |
 | `ExpertInsightServiceCarLookupTest` (6) | Publika insiktslistan per bilkort (`/api/insights`): märkeskrav, annan modell utesluts, modellspecifika prioriteras, max 3, dubblettrader visas en gång |
 | `IceConsumptionServiceTest` (8) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning — mot riktig H2 |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
@@ -265,7 +265,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
 | `WebInsightScraperServiceTest` (20) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel) |
-| `CarControllerTest` (30) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id, admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `CarControllerTest` (34) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -537,6 +537,17 @@ curl -X DELETE "https://caradvice.onrender.com/api/admin/insights?expert=Bilprov
 ### `DELETE /api/admin/insights/{id}`
 
 Tar bort en enskild insikt (skräprad ur skrapningen). Svar: `{"deleted": 1, "id": 42}` eller 404 om id saknas. Kräver `X-Admin-Key`-header.
+
+### `PATCH /api/admin/insights/{id}`
+
+Rättar enskilda fält på en insikt utan att radera den (t.ex. felkategorisering ur skrapningen). JSON-body med valfri delmängd av `carMake`, `carModel`, `fuelType`, `category`, `insight`, `rating` — bara skickade fält ändras. `null`/tom sträng tömmer fältet, utom `insight` och `carMake` som aldrig får bli tomma; `category`/`fuelType` normaliseras till gemener; `rating` valideras 1–10. Okänt fältnamn ger 400 med felmeddelande. Svar: den uppdaterade raden. Kräver `X-Admin-Key`-header.
+
+```bash
+curl -X PATCH "https://caradvice.onrender.com/api/admin/insights/942" \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL" \
+  -H "Content-Type: application/json" \
+  -d '{"category": "suv"}'
+```
 
 ### `POST /api/admin/insights/rename-category?from=småbil&to=smaabil`
 

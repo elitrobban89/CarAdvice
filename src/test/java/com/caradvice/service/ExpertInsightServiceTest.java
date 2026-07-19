@@ -10,8 +10,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -203,5 +206,82 @@ class ExpertInsightServiceTest {
         assertThat(service().renameCategory(null, "smaabil")).isZero();
         assertThat(service().renameCategory("småbil", " ")).isZero();
         verify(repo, never()).renameCategory(any(), any());
+    }
+
+    // --- updateInsight (admin-PATCH) ---
+
+    private ExpertInsight raddaMedId(Long id) {
+        ExpertInsight row = insikt("CarUp", "Kia", "EV3", "Rymlig och prisvärd", null);
+        when(repo.findById(id)).thenReturn(Optional.of(row));
+        return row;
+    }
+
+    private void savePasserarIgenom() {
+        when(repo.save(any(ExpertInsight.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @Test
+    void patchAndrarBaraSkickadeFaltOchNormaliserarKategori() {
+        ExpertInsight row = raddaMedId(42L);
+        savePasserarIgenom();
+
+        Map<String, Object> resultat = service().updateInsight(42L, Map.of("category", " SUV ")).orElseThrow();
+
+        assertThat(row.getCategory()).isEqualTo("suv");
+        assertThat(row.getCarMake()).isEqualTo("Kia");
+        assertThat(row.getInsight()).isEqualTo("Rymlig och prisvärd");
+        assertThat(resultat.get("category")).isEqualTo("suv");
+    }
+
+    @Test
+    void patchMedRatingSomStrangOchTomningAvCarModel() {
+        ExpertInsight row = raddaMedId(42L);
+        savePasserarIgenom();
+
+        Map<String, Object> falt = new java.util.HashMap<>();
+        falt.put("rating", "8");
+        falt.put("carModel", "");
+        service().updateInsight(42L, falt);
+
+        assertThat(row.getRating()).isEqualTo(8);
+        assertThat(row.getCarModel()).isNull();
+    }
+
+    @Test
+    void patchOkantFaltAvvisas() {
+        assertThatThrownBy(() -> service().updateInsight(42L, Map.of("categori", "suv")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Okänt fält: categori");
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void patchTomInsightTextAvvisas() {
+        raddaMedId(42L);
+        assertThatThrownBy(() -> service().updateInsight(42L, Map.of("insight", "  ")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("insight");
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void patchOgiltigRatingAvvisas() {
+        raddaMedId(42L);
+        assertThatThrownBy(() -> service().updateInsight(42L, Map.of("rating", 15)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1-10");
+    }
+
+    @Test
+    void patchSaknatIdGerTomOptional() {
+        when(repo.findById(999L)).thenReturn(Optional.empty());
+        assertThat(service().updateInsight(999L, Map.of("category", "suv"))).isEmpty();
+    }
+
+    @Test
+    void patchUtanFaltAvvisas() {
+        assertThatThrownBy(() -> service().updateInsight(42L, Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("minst ett fält");
     }
 }

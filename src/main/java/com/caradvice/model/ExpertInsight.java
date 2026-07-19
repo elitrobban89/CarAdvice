@@ -50,4 +50,11 @@ public class ExpertInsight {
     public String getCategory()     { return category; }
     public String getInsight()      { return insight; }
     public Integer getRating()      { return rating; }
+
+    public void setCarMake(String carMake)   { this.carMake = carMake; }
+    public void setCarModel(String carModel) { this.carModel = carModel; }
+    public void setFuelType(String fuelType) { this.fuelType = fuelType; }
+    public void setCategory(String category) { this.category = category; }
+    public void setInsight(String insight)   { this.insight = insight; }
+    public void setRating(Integer rating)    { this.rating = rating; }
 }

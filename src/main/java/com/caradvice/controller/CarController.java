@@ -492,6 +492,22 @@ public class CarController {
         return ResponseEntity.ok(Map.of("deleted", 1, "id", id));
     }
 
+    // Admin: rätta fält på en enskild insikt (kategori, modell, text, rating) —
+    // tidigare var DELETE enda alternativet vid t.ex. felkategorisering
+    @PatchMapping("/admin/insights/{id}")
+    public ResponseEntity<?> patchInsight(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                          @PathVariable Long id,
+                                          @RequestBody Map<String, Object> fields) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        try {
+            return expertInsightService.updateInsight(id, fields)
+                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte")));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/admin/insights")
     public ResponseEntity<?> deleteInsightsByExpert(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                                     @RequestParam String expert) {
