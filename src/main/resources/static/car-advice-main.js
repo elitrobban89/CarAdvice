@@ -662,9 +662,9 @@ function caRenderCompare(recs, targetEl) {
     return '<th '+th+'><span style="font-size:.65rem;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.08em">Bil '+(i+1)+'</span><br><span style="font-weight:700;color:#e2e8f0;font-size:.82rem">'+caEsc(short)+'</span></th>';
   }).join('');
   var rows = [
-    { label: '&#x1F3F7;&#xFE0F; Pris', fn: function(r){ return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>'; } },
+    // Prisraden (AI:ns kalkyl) borttagen — Blocket nu är sanningen; AI-priset visas bara som fallback
     { label: '&#x1F535; Blocket nu', fn: function(r){
-      if (!r.blocketPrice) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      if (!r.blocketPrice) return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>';
       return '<a href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener" style="color:#60a5fa;font-size:.8rem;font-weight:600;text-decoration:none">'+caEsc(r.blocketPrice)+'&#x2192;</a>';
     }},
     { label: '&#x2714; F\xf6rdelar', fn: function(r){
@@ -1665,9 +1665,9 @@ function caFcRenderResult(recs) {
       '</div>' +
       '<div style="font-size:.65rem;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Bil ' + (i + 1) + '</div>' +
       '<div style="font-weight:700;color:#e2e8f0;font-size:.85rem">' + caEsc(r.title) + '</div>' +
-      '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Pris</div>' +
-      '<div style="color:#a5f3fc;font-size:.8rem;font-weight:600">' + caEsc(r.price) + '</div>' +
-      (r.blocketPrice ? '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:5px">Blocket nu</div><div style="font-size:.8rem;color:#60a5fa;font-weight:600">🔵 ' + caEsc(r.blocketPrice) + '</div>' : '') +
+      (r.blocketPrice
+        ? '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:5px">Blocket nu</div><div style="font-size:.8rem;color:#60a5fa;font-weight:600">🔵 ' + caEsc(r.blocketPrice) + '</div>'
+        : '<div style="font-size:.62rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Pris</div><div style="color:#a5f3fc;font-size:.8rem;font-weight:600">' + caEsc(r.price) + '</div>') +
       '<a href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:.72rem;color:#60a5fa;text-decoration:none">S\xf6k p\xe5 Blocket →</a>' +
     '</div>';
   }).join('');
