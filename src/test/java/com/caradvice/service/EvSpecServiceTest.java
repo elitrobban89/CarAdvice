@@ -129,4 +129,40 @@ class EvSpecServiceTest {
     void okandModellGerIngenBatterikemi() {
         assertThat(service().getBatteryChemistry("Okänd Bil XYZ")).isNull();
     }
+
+    // --- buildValueRangeLine (prisvärd räckvidd per krona) ---
+
+    @Test
+    void prisvardRackviddRankarKmPerKronaOchFiltrerarKortRackvidd() {
+        // Kia EV3 605 km/370k slår EX30 480 km/370k; Zoe under 400 km ska inte med
+        EvSpec ev3  = new EvSpec("Kia EV3 Long Range", 11.0, 101.0, 81.4, 605, 370_000);
+        EvSpec ex30 = new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000);
+        EvSpec zoe  = new EvSpec("Renault Zoe", 22.0, 50.0, 50.0, 395, 270_000);
+        when(repo.findAll()).thenReturn(List.of(ex30, zoe, ev3));
+
+        String line = service().buildValueRangeLine();
+        assertThat(line)
+                .contains("PRISVÄRD RÄCKVIDD")
+                .contains("Kia EV3 (605 km")
+                .contains("Volvo EX30 (480 km")
+                .doesNotContain("Zoe");
+        assertThat(line.indexOf("Kia EV3")).isLessThan(line.indexOf("Volvo EX30"));
+    }
+
+    @Test
+    void okandaKinesiskaMarkenUteslutsUrPrisvardListan() {
+        // "europeiska bilar, inte kinesiska okända" — Zeekr/Xpeng/Leapmotor/BYD listas inte
+        EvSpec zeekr = new EvSpec("Zeekr 7X", 22.0, 360.0, 100.0, 615, 600_000);
+        when(repo.findAll()).thenReturn(List.of(zeekr));
+        assertThat(service().buildValueRangeLine()).isEmpty();
+    }
+
+    @Test
+    void prisreferensenInkluderarPrisvardRackvidd() {
+        EvSpec ev3 = new EvSpec("Kia EV3 Long Range", 11.0, 101.0, 81.4, 605, 370_000);
+        when(repo.findAll()).thenReturn(List.of(ev3));
+        assertThat(service().buildPriceReferenceContext())
+                .contains("EV-referenspriser")
+                .contains("PRISVÄRD RÄCKVIDD");
+    }
 }

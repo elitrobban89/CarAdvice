@@ -285,18 +285,19 @@ public class EvSpecService {
         "gt", "rs", "cross", "country"
     );
 
+    private static String baseModelName(String carName) {
+        String base = java.util.Arrays.stream(carName.split("\\s+"))
+            .filter(w -> !PRICE_STRIP_WORDS.contains(w.toLowerCase()))
+            .collect(java.util.stream.Collectors.joining(" "))
+            .trim();
+        return base.isBlank() ? carName : base;
+    }
+
     public String buildPriceReferenceContext() {
         java.util.Map<String, Integer> minPrices = new java.util.TreeMap<>();
         repo.findAll().stream()
             .filter(ev -> ev.getPriceKr() != null && ev.getPriceKr() > 50_000)
-            .forEach(ev -> {
-                String base = java.util.Arrays.stream(ev.getCarName().split("\\s+"))
-                    .filter(w -> !PRICE_STRIP_WORDS.contains(w.toLowerCase()))
-                    .collect(java.util.stream.Collectors.joining(" "))
-                    .trim();
-                if (base.isBlank()) base = ev.getCarName();
-                minPrices.merge(base, ev.getPriceKr(), Math::min);
-            });
+            .forEach(ev -> minPrices.merge(baseModelName(ev.getCarName()), ev.getPriceKr(), Math::min));
         // Only keep brands actually sold on the Swedish/European market
         java.util.Set<String> knownBrands = java.util.Set.of(
             "Audi","BMW","BYD","Citroën","Cupra","Dacia","Fiat","Ford","Honda","Hyundai",
@@ -310,7 +311,44 @@ public class EvSpecService {
             .limit(25)
             .map(e -> e.getKey() + " fr. " + formatSek(e.getValue()))
             .collect(java.util.stream.Collectors.joining(", "));
-        return "EV-referenspriser (fr.pris från databas): " + prices;
+        String valuePicks = buildValueRangeLine();
+        return "EV-referenspriser (fr.pris från databas): " + prices
+            + (valuePicks.isEmpty() ? "" : "\n" + valuePicks);
+    }
+
+    /** Etablerade märken för prisvärd räckvidd-listan — inga okända kinesiska utmanarmärken. */
+    private static final java.util.Set<String> VALUE_PICK_BRANDS = java.util.Set.of(
+        "Audi","BMW","Citroën","Cupra","Dacia","Fiat","Ford","Honda","Hyundai",
+        "Kia","MG","Mazda","Mercedes","Mini","Nissan","Opel","Peugeot",
+        "Renault","Seat","Škoda","Smart","Tesla","Toyota","Volkswagen","Volvo"
+    );
+
+    /**
+     * Rankar mest räckvidd per krona (nypris, minst 400 km WLTP) bland etablerade märken —
+     * statistiken som lyfter t.ex. Kia EV3 och Volvo EX30 som prisvärda förslag. 400 km-golvet
+     * hindrar billiga småbilar (Zoe, Spring) från att dominera listan.
+     */
+    String buildValueRangeLine() {
+        record Pick(String name, int rangeKm, int priceKr) {
+            double kmPerKrona() { return rangeKm / (double) priceKr; }
+        }
+        java.util.Map<String, Pick> best = new java.util.HashMap<>();
+        repo.findAll().stream()
+            .filter(ev -> ev.getPriceKr() != null && ev.getPriceKr() > 50_000
+                    && ev.getRangeKm() != null && ev.getRangeKm() >= 400)
+            .filter(ev -> VALUE_PICK_BRANDS.stream().anyMatch(b -> ev.getCarName().startsWith(b)))
+            .forEach(ev -> {
+                Pick p = new Pick(baseModelName(ev.getCarName()), ev.getRangeKm(), ev.getPriceKr());
+                best.merge(p.name(), p, (a, b) -> a.kmPerKrona() >= b.kmPerKrona() ? a : b);
+            });
+        if (best.isEmpty()) return "";
+        return "PRISVÄRD RÄCKVIDD (mest km räckvidd per krona i nypris, minst 400 km, etablerade märken): "
+            + best.values().stream()
+                .sorted(java.util.Comparator.comparingDouble(Pick::kmPerKrona).reversed())
+                .limit(8)
+                .map(p -> p.name() + " (" + p.rangeKm() + " km, fr. " + formatSek(p.priceKr()) + " kr)")
+                .collect(java.util.stream.Collectors.joining(", "))
+            + " — lyft gärna dessa som prisvärda förslag när de passar profilen.";
     }
 
     private static String formatSek(int amount) {

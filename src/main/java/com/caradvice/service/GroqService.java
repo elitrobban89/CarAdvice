@@ -151,14 +151,24 @@ public class GroqService {
 
     /** Tolkar svaret; vid tomt/trunkerat svar görs ETT omförsök med reservmodellen innan felet släpps ut. */
     private List<CarRecommendation> parseWithRetry(HttpResponse<String> response, Object reserveBody, String label) throws Exception {
+        return parseWithRetry(response, reserveBody, label, null);
+    }
+
+    /** Som ovan, men med extra regelvalidering (t.ex. familjestorlek) som också triggar omförsöket. */
+    private List<CarRecommendation> parseWithRetry(HttpResponse<String> response, Object reserveBody, String label,
+                                                   java.util.function.Consumer<List<CarRecommendation>> validator) throws Exception {
         try {
-            return extractAndParse(response, label);
+            List<CarRecommendation> parsed = extractAndParse(response, label);
+            if (validator != null) validator.accept(parsed);
+            return parsed;
         } catch (RuntimeException first) {
             log.warn("{}: ofullständigt/tomt svar — omförsök med {}", label, reserveModel);
             HttpResponse<String> retry = httpClient.send(buildRequest(reserveBody), HttpResponse.BodyHandlers.ofString());
             if (retry.statusCode() != 200) throw first;
             try {
-                return extractAndParse(retry, label + " (omförsök)");
+                List<CarRecommendation> parsed = extractAndParse(retry, label + " (omförsök)");
+                if (validator != null) validator.accept(parsed);
+                return parsed;
             } catch (RuntimeException second) {
                 throw first;
             }
@@ -263,7 +273,8 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
-        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation");
+        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation",
+                requiresFamilySizedCar(prefs) ? GroqService::requireFamilySizedCars : null);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType());
         evictIfNeeded();
@@ -475,6 +486,34 @@ public class GroqService {
             }
         }
         return parsed;
+    }
+
+    /** Småbilsmarkörer — spegel av FAMILJEBIL-regelns förbudslista i systemprompten. */
+    private static final List<String> SMALL_CAR_MARKERS = List.of(
+            "zoe", "renault 5", "clio", "twingo", "dacia spring", "spring electric",
+            "ë-c3", "e-c3", "fiat 500", "500e", "panda", "corsa", "aygo",
+            "id.3", "picanto", "i10", "e-up", "up!", "mii", "citigo");
+
+    /** Familjekörning eller 4+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln. */
+    static boolean requiresFamilySizedCar(CarPreferences prefs) {
+        return (prefs.usage() != null && prefs.usage().toLowerCase().contains("familj"))
+                || prefs.passengers() >= 4;
+    }
+
+    /**
+     * Skarpt läge: "Renault Zoe (2023)" föreslogs för familjekörning med 300k-budget trots
+     * promptregeln — ett regelbrott triggar omförsöket med reservmodellen i parseWithRetry.
+     */
+    static void requireFamilySizedCars(List<CarRecommendation> parsed) {
+        for (CarRecommendation r : parsed) {
+            String t = r.title() == null ? "" : r.title().toLowerCase();
+            for (String marker : SMALL_CAR_MARKERS) {
+                if (t.contains(marker)) {
+                    log.warn("AI föreslog småbil till familjeprofil: {}", r.title());
+                    throw new RuntimeException("AI:n föreslog en för liten bil för profilen. Försök igen.");
+                }
+            }
+        }
     }
 
     private List<CarRecommendation> convertRecommendations(JsonNode node) {
@@ -731,14 +770,16 @@ public class GroqService {
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                FAMILJEBIL eller 4+ passagerare: rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, VW ID.3, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan (t.ex. MG4, Polestar 2, VW ID.4, Škoda Enyaq/Octavia, Kia EV6/Niro/Ceed SW).
+                Användning "familj"/"familjekörning" = FAMILJEBIL. FAMILJEBIL eller 4+ passagerare: rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, VW ID.3, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4.
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.
                 Ange motorbeteckning (TDI/TSI/MPI/volym) bara om du är säker på att varianten finns — annars bara hk + 'manuell'/'automat'.
                 Rekommendera ALDRIG BYD Dolphin eller Hyundai INSTER. Håll dig till dessa märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai, Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är bensinbil, INTE elbil. Aldrig bensin/diesel när användaren efterfrågar elbil.
+                MÄRKESPRIORITET: föredra etablerade europeiska, koreanska och japanska märken (samt Tesla och MG). Leapmotor, Xpeng, Zeekr och BYD bara om inget etablerat märke matchar budget och behov — aldrig som förstaval. Bilar med bra räckvidd per krona (se PRISVÄRD RÄCKVIDD) är starka förslag när de passar profilen.
                 PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).
+                Rekommendera ALDRIG en årsmodell före modellens verkliga lansering — nyheter om en modell betyder inte att den finns begagnad. Ex: Kia EV2 lanseras 2026 (finns ALDRIG begagnad), Kia EV3 2024+, EV4/EV5 2025+, Renault 5 E-Tech 2024+, Citroën ë-C3 2024+, Volvo EX30 2023+.
                 Volvos enda EV-modeller: EX30, EX40, EC40, EX60, EX90 — det finns inga andra (ingen C90/C70).
                 Nämn ALDRIG modeller som inte officiellt säljs i Sverige. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är helt säker på finns.
                 """ + (wantsEv && !wantsIce ? "ELBIL OBLIGATORISKT: ENBART renodlade batterielbilar (BEV) — aldrig PHEV, laddhybrid eller bensin/diesel.\n" : "")
@@ -761,6 +802,9 @@ public class GroqService {
         String budgetInfo = isLeasing
                 ? String.format("%,d kr/mån (leasing, ca %,d kr i listpris)", prefs.budget(), prefs.budget() * 85)
                 : String.format("%,d kr (%s)", prefs.budget(), bilTyp);
+        String usageText = requiresFamilySizedCar(prefs)
+                ? prefs.usage() + " — FAMILJEBIL: endast rymliga bilar (kombi, SUV eller rymlig halvkombi/sedan i storleksklass MG4/VW ID.4 eller större), ALDRIG småbil/stadsbil"
+                : prefs.usage();
         String fuelLine = (prefs.fuelType() != null && !prefs.fuelType().isBlank()
                 && !"spelar ingen roll".equals(prefs.fuelType()))
                 ? " Drivmedel: " + prefs.fuelType() + "." : "";
@@ -778,7 +822,7 @@ public class GroqService {
                 Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
-                km, milprofil, prefs.usage(), prefs.passengers(), fuelLine, transmissionLine, maxAgeLine
+                km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine
         );
     }
 }

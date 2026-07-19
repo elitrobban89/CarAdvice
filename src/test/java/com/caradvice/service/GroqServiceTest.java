@@ -149,6 +149,26 @@ class GroqServiceTest {
         assertThat(p).doesNotContain("ÅLDERSKRAV");
     }
 
+    @Test
+    void familjeAnvandningFlaggasSomFamiljebilIPrompten() {
+        // Skarpt läge: "Renault Zoe (2023)" för familjekörning/300k — quizet skickar "familj",
+        // systemregeln triggade bara på ordet "FAMILJEBIL"
+        CarPreferences familj = new CarPreferences(300_000, "elbil", true, 15_000, "familj",
+                5, false, "el", null, "köp", null);
+        assertThat(service().buildPrompt(familj))
+                .contains("FAMILJEBIL")
+                .contains("MG4/VW ID.4 eller större")
+                .contains("ALDRIG småbil");
+    }
+
+    @Test
+    void tvaPassagerarePendlingArInteFamiljeprofil() {
+        CarPreferences pendlare = new CarPreferences(300_000, "elbil", true, 15_000, "pendling",
+                2, false, "el", null, "köp", null);
+        assertThat(GroqService.requiresFamilySizedCar(pendlare)).isFalse();
+        assertThat(service().buildPrompt(pendlare)).doesNotContain("FAMILJEBIL");
+    }
+
     // --- buildSystemPrompt ---
 
     @Test
@@ -165,6 +185,35 @@ class GroqServiceTest {
                 .contains("FAMILJEBIL eller 4+ passagerare")
                 .contains("Dacia Spring")
                 .contains("UTNYTTJA BUDGETEN");
+    }
+
+    @Test
+    void promptenListarBepravadeFamiljebilar() {
+        // Kuraterad lista: V60/V90, Octavia Combi, Ceed SW, Enyaq, Jogger — med säljargument
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "bensin");
+        assertThat(sp)
+                .contains("Volvo V60/V90")
+                .contains("Octavia Combi")
+                .contains("Ceed SW")
+                .contains("Dacia Jogger")
+                .contains("7 säten");
+    }
+
+    @Test
+    void promptenPrioriterarEtableradeMarkenForeOkandaKinesiska() {
+        // "europeiska bilar, inte kinesiska okända" — Zeekr/Xpeng/Leapmotor/BYD aldrig förstaval
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp)
+                .contains("MÄRKESPRIORITET")
+                .contains("aldrig som förstaval")
+                .contains("PRISVÄRD RÄCKVIDD");
+    }
+
+    @Test
+    void promptenSparrarArsmodellerForeLanseringen() {
+        // AI:n föreslog "Kia EV2 (2023)" — modellen lanseras 2026 och finns inte begagnad
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp).contains("före modellens verkliga lansering").contains("Kia EV2");
     }
 
     @Test
@@ -286,6 +335,27 @@ class GroqServiceTest {
         List<CarRecommendation> r = service().parseRecommendations(
                 "{\"recommendations\":[" + GILTIG_BIL + "," + bil2024 + "]}");
         assertThat(r).hasSize(2);
+    }
+
+    // --- requireFamilySizedCars (hård spärr mot småbil som familjebil) ---
+
+    @Test
+    void smabilTillFamiljeprofilAvvisasOchTriggarOmforsok() throws Exception {
+        String zoe = GILTIG_BIL.replace("Volvo EX30 (2024)", "Renault Zoe (2023)");
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":[" + zoe + "]}");
+        assertThatThrownBy(() -> GroqService.requireFamilySizedCars(parsed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("för liten");
+    }
+
+    @Test
+    void rymligaBilarPasserarFamiljesparren() throws Exception {
+        String id4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "VW ID.4 (2023)");
+        String mg4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "MG4 (2023)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + id4 + "," + mg4 + "]}");
+        GroqService.requireFamilySizedCars(parsed); // ska inte kasta
+        assertThat(parsed).hasSize(2);
     }
 
     @Test
