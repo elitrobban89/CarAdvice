@@ -284,4 +284,49 @@ class ExpertInsightServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("minst ett fält");
     }
+
+    // --- findForCarTitle: drivlinefilter på bilkortsinsikter ---
+
+    @Test
+    void hevInsiktVisasIntePaEvKort() {
+        // Skarpt läge: Vi Bilägares Niro HEV-test (4,8 l/100 km) visades på Kia Niro EV-kortet
+        ExpertInsight hevTest = insikt("Vi Bilägare", "Kia", "Niro",
+                "Vi Bilägare testar Kia Niro HEV och konstaterar 4,8 l/100 km. Self-charging hybrid utan laddningskrav.", 8);
+        when(repo.findAll()).thenReturn(List.of(hevTest));
+        assertThat(service().findForCarTitle("Kia Niro EV (2023)")).isEmpty();
+    }
+
+    @Test
+    void evInsiktVisasPaEvKort() {
+        ExpertInsight evTest = insikt("Vi Bilägare", "Kia", "Niro",
+                "Niro EV är en prisvärd elbil med bra räckvidd.", 8);
+        when(repo.findAll()).thenReturn(List.of(evTest));
+        assertThat(service().findForCarTitle("Kia Niro EV (2023)")).hasSize(1);
+    }
+
+    @Test
+    void insiktUtanDrivlinaVisasOavsettVariant() {
+        ExpertInsight allmaen = insikt("Vi Bilägare", "Kia", "Niro",
+                "Rymlig kupé och marknadens längsta garanti.", 8);
+        when(repo.findAll()).thenReturn(List.of(allmaen));
+        assertThat(service().findForCarTitle("Kia Niro EV (2023)")).hasSize(1);
+    }
+
+    @Test
+    void titelUtanDrivlinaFiltrerarInte() {
+        // "Kia EV6" har ingen HEV-variant och "ev6" är ett ord — inget drivlinefilter ska slå till
+        ExpertInsight hybridText = insikt("Vi Bilägare", "Volvo", "V60",
+                "V60 finns även som laddhybrid.", 7);
+        when(repo.findAll()).thenReturn(List.of(hybridText));
+        assertThat(service().findForCarTitle("Volvo V60 (2021)")).hasSize(1);
+    }
+
+    @Test
+    void drivetrainOfSkiljerPaVarianterna() {
+        assertThat(ExpertInsightService.drivetrainOf("Kia Niro PHEV laddhybrid")).isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("Niro HEV self-charging hybrid")).isEqualTo("hev");
+        assertThat(ExpertInsightService.drivetrainOf("Kia Niro EV (2023)")).isEqualTo("ev");
+        assertThat(ExpertInsightService.drivetrainOf("Kia EV6 (2022)")).isNull(); // "ev6" är ett ord
+        assertThat(ExpertInsightService.drivetrainOf("Kia Niro")).isNull();
+    }
 }

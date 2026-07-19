@@ -70,20 +70,47 @@ public class ExpertInsightService {
     /** Max insikter som visas publikt per bilkort */
     static final int MAX_CARD_INSIGHTS = 3;
 
+    // Drivlinemarkörer — mest specifika först: "PHEV" innehåller "HEV" som innehåller "EV",
+    // därav helordsmatchning och prövningsordningen phev → hev → ev
+    private static final java.util.regex.Pattern PHEV_MARKER =
+            java.util.regex.Pattern.compile("\\b(phev|laddhybrid|plug[- ]?in)\\b");
+    private static final java.util.regex.Pattern HEV_MARKER =
+            java.util.regex.Pattern.compile("\\b(hev|elhybrid|self[- ]?charging|hybrid)\\b");
+    private static final java.util.regex.Pattern EV_MARKER =
+            java.util.regex.Pattern.compile("\\b(ev|elbil|electric)\\b");
+
+    /** Drivlina ur en text: "phev", "hev" eller "ev" — null om ospecificerad. */
+    static String drivetrainOf(String s) {
+        if (s == null) return null;
+        String t = s.toLowerCase();
+        if (PHEV_MARKER.matcher(t).find()) return "phev";
+        if (HEV_MARKER.matcher(t).find()) return "hev";
+        if (EV_MARKER.matcher(t).find()) return "ev";
+        return null;
+    }
+
     /**
      * Publika insikter för ett bilkort. Märket måste finnas i titeln; modellspecifika
      * träffar prioriteras och insikter om en ANNAN modell av samma märke utesluts
-     * (en Model S-insikt ska inte visas på ett Model 3-kort). Slumpat urval inom
+     * (en Model S-insikt ska inte visas på ett Model 3-kort). Anger titeln en drivlina
+     * utesluts insikter om en annan drivlinevariant — Vi Bilägares Niro HEV-test
+     * (4,8 l/100 km) ska aldrig visas på ett Kia Niro EV-kort. Slumpat urval inom
      * grupperna så hela poolen roterar över tid.
      */
     public List<Map<String, Object>> findForCarTitle(String title) {
         if (title == null || title.isBlank()) return List.of();
         String t = title.toLowerCase();
+        String titleDrive = drivetrainOf(t);
 
         List<ExpertInsight> makeAndModel = new ArrayList<>();
         List<ExpertInsight> makeOnly = new ArrayList<>();
         for (ExpertInsight i : repo.findAll()) {
             if (i.getCarMake() == null || !t.contains(i.getCarMake().toLowerCase())) continue;
+            if (titleDrive != null) {
+                String insightDrive = drivetrainOf(i.getCarModel());
+                if (insightDrive == null) insightDrive = drivetrainOf(i.getInsight());
+                if (insightDrive != null && !titleDrive.equals(insightDrive)) continue;
+            }
             if (i.getCarModel() != null) {
                 if (t.contains(i.getCarModel().toLowerCase())) makeAndModel.add(i);
             } else {
