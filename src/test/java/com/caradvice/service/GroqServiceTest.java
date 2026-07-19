@@ -417,6 +417,14 @@ class GroqServiceTest {
     }
 
     @Test
+    void jamforelsepromptenKraverAttJamforelseordStammerMedSiffrorna() {
+        // Skarpt läge: EV6:s con sa "mindre benutrymme (1006 mm vs 954 mm)" — tvärtemot siffrorna
+        assertThat(serviceMedPristabeller().buildCompareSystemPrompt())
+                .contains("SIFFERLOGIK")
+                .contains("MER benutrymme");
+    }
+
+    @Test
     void jamforelsepromptenInnehallerBadeIceOchEvNypriser() {
         // EV6 vs ID.4 fick fantasipriser (200k) — EV-nypristabellen saknades i jämförelseprompten
         assertThat(serviceMedPristabeller().buildCompareSystemPrompt())

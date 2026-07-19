@@ -120,6 +120,7 @@ public class DataLoader implements CommandLineRunner {
             // Škoda
             new EvSpec("Škoda Elroq 85",                    11.0, 175.0,  82.0, 560, 500_000),
             new EvSpec("Škoda Enyaq iV 85",                 11.0, 175.0,  82.0, 550, 490_000),
+            new EvSpec("Škoda Enyaq iV 80",                 11.0, 135.0,  82.0, 530, 540_000),
             new EvSpec("Škoda Enyaq iV 60",                 11.0, 135.0,  58.0, 390, 420_000),
             // Volvo
             new EvSpec("Volvo EX30 Single Motor",                   11.0, 153.0,  51.0, 344, 320_000),
@@ -285,6 +286,10 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volvo XC40 Recharge",    11.0, 150.0, 75.0, 530, 465_000));
         if (!existing.contains("Volvo XC40 Recharge Twin"))
             extras.add(new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 424, 510_000));
+
+        // Enyaq iV 80 — vanligaste begagnatvarianten 2021–2023, saknades i seeden (bara 60/85 fanns)
+        if (!existing.contains("Škoda Enyaq iV 80"))
+            extras.add(new EvSpec("Škoda Enyaq iV 80",      11.0, 135.0, 82.0, 530, 540_000));
 
         // PHEVs
         if (!existing.contains("Volvo XC60 PHEV"))
