@@ -7,6 +7,7 @@ import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
@@ -64,6 +65,7 @@ public class CarController {
     private final FeedbackService feedbackService;
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
+    private final MobilityStatsSyncService mobilityStatsSyncService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -86,7 +88,8 @@ public class CarController {
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
                          FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
-                         IceConsumptionService iceConsumptionService) {
+                         IceConsumptionService iceConsumptionService,
+                         MobilityStatsSyncService mobilityStatsSyncService) {
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -100,6 +103,7 @@ public class CarController {
         this.feedbackService = feedbackService;
         this.webInsightScraper = webInsightScraper;
         this.iceConsumptionService = iceConsumptionService;
+        this.mobilityStatsSyncService = mobilityStatsSyncService;
     }
 
     @PostConstruct
@@ -159,6 +163,18 @@ public class CarController {
             catch (Exception e) { /* logged inside service */ }
         });
         return ResponseEntity.accepted().body(Map.of("status", "web insight sync started — check server logs for result"));
+    }
+
+    // Admin: hämta senaste Mobility Sweden-månadsrapporten (xlsx) och ersätt
+    // statistikinsikterna under källnamnet "Mobility Sweden månadsläget".
+    // Körs synkront (~5 s) så svaret visar resultatet direkt.
+    @PostMapping("/admin/sync-mobility-stats")
+    public ResponseEntity<?> syncMobilityStats(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        Map<String, Object> result = mobilityStatsSyncService.syncNow();
+        return "OK".equals(result.get("status"))
+                ? ResponseEntity.ok(result)
+                : ResponseEntity.status(502).body(result);
     }
 
     // Admin: senaste insiktsscrape-körningens status (nattlig 04:00 eller manuell trigger)

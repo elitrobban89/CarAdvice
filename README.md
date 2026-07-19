@@ -167,6 +167,20 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   (17 933), Volvo EX40 mest sålda elbilen (8 788), därefter VW ID.7 och Tesla Model Y
 - Uppdateras årligen (nya vinnare/årsstatistik) med `POST /api/admin/import/insights?expert=...`
 
+### Mobility Sweden-månadssynk (automatisk, den 4:e varje månad 05:00)
+- **`MobilityStatsSyncService`** hämtar senaste månadspressmeddelandet från mobilitysweden.se
+  (årssidan → senaste artikeln → xlsx-bilagan "Månadsrapport Nyregistreringar <månad> <år>.xlsx")
+- Xlsx:en parsas med Apache POI: arken **"PB - Rankinglista"** (alla personbilar) och
+  **"Elbil ranking"** — YTD-sorterade; modell i kolumn D, månadsantal i F, ackumulerat i M
+- Genererar 2–3 insikter under källnamnet **"Mobility Sweden månadsläget"** (ersätts varje
+  körning — de kuraterade årsraderna under "Mobility Sweden" rörs aldrig): mest registrerade
+  bilen i år, mest registrerade elbilen i år, samt månadens etta om den skiljer sig
+- Rapportens versala gruppnamn normaliseras till kortens modellnamn ("VOLVO EX/XC40" → Volvo
+  EX40, "VW ID.7/ID.7 TOURER" → Volkswagen ID.7)
+- Statistikdatabasen på mobilitysweden.se är en Power BI-embed och kan inte skrapas direkt —
+  xlsx-bilagan är samma data i maskinläsbar form
+- Manuell trigger (synkron, svarar med resultatet): `POST /api/admin/sync-mobility-stats`
+
 ### CargoSpec-skrapare (Bilweb.se)
 - Daglig schemalagd sync kl **03:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
 - Skrapar `bilweb.se/sok/bilar` för märkeslista, sedan per märkessida för modellnamn
@@ -261,7 +275,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-161 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+173 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -275,7 +289,8 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
 | `WebInsightScraperServiceTest` (20) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel) |
-| `CarControllerTest` (34) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
+| `CarControllerTest` (37) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)

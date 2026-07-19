@@ -5,6 +5,7 @@ import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.ExpertInsightService;
@@ -57,6 +58,7 @@ class CarControllerTest {
     @MockBean private FeedbackService feedbackService;
     @MockBean private WebInsightScraperService webInsightScraper;
     @MockBean private IceConsumptionService iceConsumptionService;
+    @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
 
     // --- health ---
 
@@ -340,6 +342,32 @@ class CarControllerTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.deleted").value(1))
            .andExpect(jsonPath("$.id").value(42));
+    }
+
+    // --- POST /api/admin/sync-mobility-stats ---
+
+    @Test
+    void mobilityStatsSyncKraverNyckel() throws Exception {
+        mvc.perform(post("/api/admin/sync-mobility-stats"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mobilityStatsSyncReturnerarResultatet() throws Exception {
+        when(mobilityStatsSyncService.syncNow()).thenReturn(Map.of("status", "OK", "imported", 3));
+
+        mvc.perform(post("/api/admin/sync-mobility-stats").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(3));
+    }
+
+    @Test
+    void mobilityStatsSyncGer502VidFel() throws Exception {
+        when(mobilityStatsSyncService.syncNow()).thenReturn(Map.of("status", "ERROR", "error", "Hittade ingen xlsx-rapport"));
+
+        mvc.perform(post("/api/admin/sync-mobility-stats").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isBadGateway())
+           .andExpect(jsonPath("$.error").value("Hittade ingen xlsx-rapport"));
     }
 
     // --- PATCH /api/admin/insights/{id} ---
