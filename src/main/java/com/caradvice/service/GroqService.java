@@ -211,14 +211,19 @@ public class GroqService {
     }
 
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
-        return enrichRecommendations(parsed, kmPerYear, null);
+        return enrichRecommendations(parsed, kmPerYear, null, false);
     }
 
-    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear, String fuelPref) {
+    /**
+     * skipBlocket=true i leasingläge: Blocket är begagnatmarknad och irrelevant för leasing —
+     * varken prisrad eller prissnapping ska baseras på den, och skrapanropen sparas in.
+     */
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
+                                                          String fuelPref, boolean skipBlocket) {
         List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
-                        return blocketPriceService.fetchPriceRange(r.title());
+                        return skipBlocket ? null : blocketPriceService.fetchPriceRange(r.title());
                     } catch (Exception e) { return null; }
                 }))
                 .toList();
@@ -312,7 +317,8 @@ public class GroqService {
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation",
                 requiresFamilySizedCar(prefs) ? GroqService::requireFamilySizedCars : null);
 
-        List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType());
+        List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
+                "leasing".equals(prefs.budgetType()));
         evictIfNeeded();
         cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
         return new Result(result, false, 0);

@@ -505,6 +505,18 @@ function caRenderCards(recommendations) {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
       var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
+      // Leasing: uppskattad månadskostnad, aldrig Blocket (begagnatmarknad).
+      // Köp: Blocket-priset är sanningen när det finns; AI-priset bara som fallback.
+      var priceRow;
+      if (caIsLeasing) {
+        var monthly = caLeaseMonthlyEstimate(r);
+        priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Leasing</span>' +
+          (monthly ? '~' + monthly.toLocaleString('sv-SE') + ' kr/m\xe5n' : caEsc(r.price)) + '</div>';
+      } else if (r.blocketPrice) {
+        priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Pris</span>🔵 ' + caEsc(r.blocketPrice) + '</div>';
+      } else {
+        priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Pris</span>' + caEsc(r.price) + '</div>';
+      }
       return '<div class="ca-card ca-card-'+(i+1)+'">' +
         '<div id="ca-img-wrap-'+i+'" style="width:100%;height:80px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.04);margin-bottom:0;display:none">' +
           '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:contain;object-position:center center;transition:opacity .4s">' +
@@ -512,8 +524,7 @@ function caRenderCards(recommendations) {
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
           '<h3>' + caEsc(r.title) + '</h3>' +
-          '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Pris</span>' + caEsc(r.price) + '</div>' +
-          (r.blocketPrice ? '<div class="ca-blocket-price">🔵 Blocket nu: ' + caEsc(r.blocketPrice) + '</div>' : '') +
+          priceRow +
         '</div>' +
         '<div class="ca-card-body">' +
           '<div class="ca-why">' + caEsc(r.whyRecommended) + '</div>' +
@@ -1207,8 +1218,16 @@ function caParseLeaseMonthly(priceStr) {
   return m ? parseInt(m[1]) : 0;
 }
 
+/** Månadskostnad för leasing: direkt ur "X kr/mån"-pris, annars listpris/85 (backendens leasingfaktor). */
+function caLeaseMonthlyEstimate(r) {
+  var direct = caParseLeaseMonthly(r.price);
+  if (direct) return Math.round(direct / 100) * 100;
+  var mid = caParsePrice(r.price);
+  return mid ? Math.round(mid / 85 / 100) * 100 : 0;
+}
+
 function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {
-  var monthly = caParseLeaseMonthly(r.price) || monthlyFallback || 0;
+  var monthly = caLeaseMonthlyEstimate(r) || monthlyFallback || 0;
   if (!monthly || monthly < 500) return null;
   var km = kmPerYear || 15000;
   var years = 5;

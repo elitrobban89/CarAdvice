@@ -170,6 +170,7 @@ public class EvSpecService {
         Map.entry("Kia EV3 Standard Range",                "LFP"),
         Map.entry("Kia EV3 Long Range",                    "NMC"),
         Map.entry("Kia EV3",                               "LFP/NMC"),
+        Map.entry("Kia EV4",                               "NMC"),
         Map.entry("Kia EV9",                               "NMC"),
         Map.entry("Kia Niro EV",                           "NMC"),
         Map.entry("Genesis GV60",                          "NMC"),

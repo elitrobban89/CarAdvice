@@ -159,6 +159,8 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Kia EV6",                           11.0, 233.0,  77.4, 528, 460_000),
             new EvSpec("Kia EV9",                           11.0, 240.0,  99.8, 563, 760_000),
             new EvSpec("Kia EV3 Long Range",                11.0, 101.0,  81.4, 605, 370_000),
+            new EvSpec("Kia EV4",                           11.0, 101.0,  58.3, 410, 390_000),
+            new EvSpec("Kia EV4 Long Range",                11.0, 128.0,  81.4, 590, 435_000),
             new EvSpec("Kia Niro EV",                       11.0,  80.0,  64.8, 463, 390_000),
             // Polestar
             new EvSpec("Polestar 2",                        11.0, 205.0,  82.0, 560, 510_000),
@@ -291,6 +293,12 @@ public class DataLoader implements CommandLineRunner {
         if (!existing.contains("Škoda Enyaq iV 80"))
             extras.add(new EvSpec("Škoda Enyaq iV 80",      11.0, 135.0, 82.0, 530, 540_000));
 
+        // Kia EV4 (2025+) — rekommenderades utan specs i databasen
+        if (!existing.contains("Kia EV4"))
+            extras.add(new EvSpec("Kia EV4",                11.0, 101.0, 58.3, 410, 390_000));
+        if (!existing.contains("Kia EV4 Long Range"))
+            extras.add(new EvSpec("Kia EV4 Long Range",     11.0, 128.0, 81.4, 590, 435_000));
+
         // PHEVs
         if (!existing.contains("Volvo XC60 PHEV"))
             extras.add(new EvSpec("Volvo XC60 PHEV",          7.4, 0.0, 18.8,  68, 670_000, "PHEV"));
@@ -386,6 +394,7 @@ public class DataLoader implements CommandLineRunner {
             { "Volvo EX60",              450,  1300 },
             { "Volvo EX90",              310,  1915 },
             { "Kia EV3",                 460,  1300 },
+            { "Kia EV4",                 435,  1415 },
             { "Kia EV6",                 490,  1300 },
             { "Kia EV9",                 333,  2318 },
             { "Hyundai IONIQ 5",         527,  1587 },
