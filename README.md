@@ -275,13 +275,13 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-174 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+198 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
-| `GroqServiceTest` (42) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser, småbilsförbud för familjebil + budgetutnyttjande), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
-| `EvSpecServiceTest` (13) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar |
-| `ExpertInsightServiceTest` (23) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import, kategoribyte, admin-PATCH (fältvalidering, normalisering, rating-gränser) |
+| `GroqServiceTest` (58) | Promptbygget (budget/leasing, milprofil, laddbox, växellåda, ÅLDERSKRAV, familjeprofil-flaggning), systemprompt-reglerna (EV/ICE-pristabellfiltrering, exakt 3 bilar, fabricerade priser, småbilsförbud + kuraterade familjebilar, budgetutnyttjande, märkesprioritet, årsmodeller före lansering, SIFFERLOGIK/DRIVLINA i jämförelseprompten), familjespärren (`requireFamilySizedCars`), Blocket-snappingen (`correctedPrice`), JSON-parsning av AI-svar (`<think>`-strippning, fallback-nycklar, root-array, okända fält, avhugget/feltypat JSON → begripliga fel), cachenyckel, 429/felmeddelanden, feedback-kontexten (undvik-signal), modellhälsokollen (`missingModels`) |
+| `EvSpecServiceTest` (16) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar, prisvärd räckvidd-rankningen (km/krona, 400 km-golv, etablerade märken) |
+| `ExpertInsightServiceTest` (28) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import, kategoribyte, admin-PATCH (fältvalidering, normalisering, rating-gränser), drivlinefiltret på bilkort (HEV-insikt aldrig på EV-kort, `drivetrainOf`-klassningen) |
 | `ExpertInsightServiceCarLookupTest` (6) | Publika insiktslistan per bilkort (`/api/insights`): märkeskrav, annan modell utesluts, modellspecifika prioriteras, max 3, dubblettrader visas en gång |
 | `IceConsumptionServiceTest` (8) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning — mot riktig H2 |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
