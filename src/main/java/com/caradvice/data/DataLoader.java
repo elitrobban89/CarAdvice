@@ -303,6 +303,12 @@ public class DataLoader implements CommandLineRunner {
         // MG Marvel R (2021–2023) — säljs begagnad men saknade specs
         if (!existing.contains("MG Marvel R"))
             extras.add(new EvSpec("MG Marvel R",            11.0,  92.0, 70.0, 402, 465_000));
+        // MG Marvel R Performance (AWD, dubbla motorer) — egen rad så AI:ns titel med
+        // "Performance" inte längre ärver Standard-variantens räckvidd/DC-effekt (verifierat
+        // ev-database.org 2026-07-20: 70 kWh, 94 kW DC, 370 km WLTP; pris uppskattat proportionellt
+        // mot Standard-radens pris utifrån samma DE-listpriskälla, €50 990 mot €46 990)
+        if (!existing.contains("MG Marvel R Performance"))
+            extras.add(new EvSpec("MG Marvel R Performance", 11.0,  94.0, 70.0, 370, 505_000));
 
         // PHEVs
         if (!existing.contains("Volvo XC60 PHEV"))
