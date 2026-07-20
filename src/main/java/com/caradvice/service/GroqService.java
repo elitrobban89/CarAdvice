@@ -94,6 +94,10 @@ public class GroqService {
     private volatile String cachedEvPrices = "";
     private volatile long pricesCachedAt = 0L;
 
+    // Modellhallucinationsvakt: ordmängder för varje känd bil ur cargo_spec/ev_spec/ice_consumption
+    // (~700+ modeller) — samma seed-data och uppdateringscykel som pris-cachen ovan.
+    private volatile List<Set<String>> knownModelTokenSets = List.of();
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -318,8 +322,9 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
-        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation",
-                requiresFamilySizedCar(prefs) ? GroqService::requireFamilySizedCars : null);
+        java.util.function.Consumer<List<CarRecommendation>> validator = this::requireKnownModels;
+        if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
+        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation", validator);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
                 "leasing".equals(prefs.budgetType()));
@@ -332,11 +337,39 @@ public class GroqService {
         if (System.currentTimeMillis() - pricesCachedAt < PRICES_TTL_MS) return;
         try { cachedIcePrices = newCarPriceService.buildPriceReferenceContext(); } catch (Exception e) { cachedIcePrices = ""; }
         try { cachedEvPrices = evSpecService.buildPriceReferenceContext(); } catch (Exception e) { cachedEvPrices = ""; }
+        try { knownModelTokenSets = buildKnownModelTokenSets(); } catch (Exception ignored) {}
         pricesCachedAt = System.currentTimeMillis();
     }
 
     private String getIcePrices() { refreshPricesIfNeeded(); return cachedIcePrices; }
     private String getEvPrices()  { refreshPricesIfNeeded(); return cachedEvPrices; }
+
+    /** Ordmängder för varje känt bilnamn ur cargo_spec + ev_spec + ice_consumption (~700+ modeller). */
+    private List<Set<String>> buildKnownModelTokenSets() {
+        Set<String> names = new LinkedHashSet<>();
+        try { names.addAll(cargoSpecService.findAllCarNames()); } catch (Exception ignored) {}
+        try { names.addAll(evSpecService.findAllCarNames()); } catch (Exception ignored) {}
+        try { names.addAll(iceConsumptionService.allModelNames()); } catch (Exception ignored) {}
+        List<Set<String>> tokenSets = new ArrayList<>();
+        for (String name : names) {
+            Set<String> tokens = modelTokens(name);
+            if (tokens.size() >= 2) tokenSets.add(tokens);
+        }
+        return tokenSets;
+    }
+
+    /** Gemener, diakritik bortnormaliserad, uppdelat på ord — samma mönster som WebInsightScraperService.modelTokens. */
+    private static Set<String> modelTokens(String s) {
+        if (s == null) return Set.of();
+        String norm = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+                .toLowerCase();
+        Set<String> tokens = new HashSet<>();
+        for (String t : norm.split("[^\\p{L}\\p{N}]+")) {
+            if (!t.isBlank()) tokens.add(t);
+        }
+        return tokens;
+    }
 
     // ── Feedback-loop: tummen ner-bilar injiceras som negativ signal i prompten ──
 
@@ -567,6 +600,31 @@ public class GroqService {
                     log.warn("AI föreslog småbil till familjeprofil: {}", r.title());
                     throw new RuntimeException("AI:n föreslog en för liten bil för profilen. Försök igen.");
                 }
+            }
+        }
+    }
+
+    /**
+     * Skarpt läge: kräver att varje rekommenderad titel matchar minst en känd modell ur
+     * cargo_spec/ev_spec/ice_consumption (~700+ modeller, byggda av buildKnownModelTokenSets).
+     * Matchning är ordmängd-delmängd i endera riktningen — samma mönster som
+     * WebInsightScraperService.sameCar — så trimvarianter som "Toyota Corolla Touring Sports"
+     * mot databasens "Toyota Corolla" godkänns, men rena påhitt som "Volvo C70" eller
+     * "Fiat Multiplina" fångas. Whitelisten är inte uttömmande (mycket ovanliga varianter kan
+     * saknas) så ett regelbrott triggar bara omförsöket i parseWithRetry, precis som de andra
+     * regelvakterna ovan — inte ett permanent avslag.
+     */
+    private void requireKnownModels(List<CarRecommendation> parsed) {
+        List<Set<String>> known = knownModelTokenSets;
+        if (known.isEmpty()) return; // whitelisten inte laddad än — släpp igenom hellre än att fälla korrekt
+        for (CarRecommendation r : parsed) {
+            String name = r.title() == null ? "" : r.title().replaceAll("\\s*\\(\\d{4}\\)\\s*$", "");
+            Set<String> titleTokens = modelTokens(name);
+            if (titleTokens.size() < 2) continue;
+            boolean matched = known.stream().anyMatch(k -> titleTokens.containsAll(k) || k.containsAll(titleTokens));
+            if (!matched) {
+                log.warn("AI föreslog en modell som inte kunde verifieras mot databasen: {}", r.title());
+                throw new RuntimeException("AI:n föreslog en bilmodell som inte kunde verifieras. Försök igen.");
             }
         }
     }

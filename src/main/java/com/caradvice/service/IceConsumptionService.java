@@ -98,6 +98,20 @@ public class IceConsumptionService {
         return all;
     }
 
+    /**
+     * Distinkta "märke modellord"-kombinationer (t.ex. "Volvo V60", "Škoda Octavia") ur
+     * ice_consumption — kompletterar cargo_spec/ev_spec-whitelisten med rena ICE-modeller
+     * för GroqServices modellhallucinationsvakt.
+     */
+    public java.util.Set<String> allModelNames() {
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        for (Variant v : findAll()) {
+            String modelWord = normalize(v.variant()).split("\\s+")[0];
+            names.add(v.brand() + " " + modelWord);
+        }
+        return names;
+    }
+
     /** Rader för GET /api/ice-consumption — carName = "märke variant" som i /api/ev-consumption. */
     public List<Map<String, Object>> listForApi() {
         return findAll().stream()

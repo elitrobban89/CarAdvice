@@ -369,6 +369,72 @@ class GroqServiceTest {
         assertThat(parsed).hasSize(2);
     }
 
+    // --- requireKnownModels (modellhallucinationsvakt mot cargo_spec/ev_spec/ice_consumption) ---
+
+    @SuppressWarnings("unchecked")
+    private void setKnownModels(GroqService s, java.util.Set<String>... tokenSets) {
+        ReflectionTestUtils.setField(s, "knownModelTokenSets", List.of(tokenSets));
+    }
+
+    @Test
+    void paahittatModellnamnAvvisasOchTriggarOmforsok() throws Exception {
+        GroqService s = service();
+        setKnownModels(s, java.util.Set.of("volvo", "v60"), java.util.Set.of("skoda", "octavia"));
+        String fake = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo C70 (2019)");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + fake + "]}");
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(s, "requireKnownModels", parsed))
+                .hasMessageContaining("inte kunde verifieras");
+    }
+
+    @Test
+    void trimvariantMedExtraOrdGodkannsMotBasmodell() throws Exception {
+        // Databasen har "Skoda Octavia" — AI:ns "Octavia Combi" ska godkännas (övermängd)
+        GroqService s = service();
+        setKnownModels(s, java.util.Set.of("skoda", "octavia"));
+        String combi = GILTIG_BIL.replace("Volvo EX30 (2024)", "Skoda Octavia Combi (2021)");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + combi + "]}");
+        ReflectionTestUtils.invokeMethod(s, "requireKnownModels", parsed); // ska inte kasta
+    }
+
+    @Test
+    void kortareTitelGodkannsMotDatabaspostMedExtraTrimord() throws Exception {
+        // Databasen har "Peugeot e-208 50 kWh" — AI:ns kortare "Peugeot e-208" ska godkännas (delmängd)
+        GroqService s = service();
+        setKnownModels(s, java.util.Set.of("peugeot", "e", "208", "50", "kwh"));
+        String p208 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Peugeot e-208 (2023)");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + p208 + "]}");
+        ReflectionTestUtils.invokeMethod(s, "requireKnownModels", parsed); // ska inte kasta
+    }
+
+    @Test
+    void tomWhitelistSlapperIgenomAllt() throws Exception {
+        // Cachen inte laddad än (t.ex. första anropet) — släpp igenom hellre än att fälla korrekt
+        GroqService s = service();
+        String fake = GILTIG_BIL.replace("Volvo EX30 (2024)", "Fiat Multiplina (2022)");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + fake + "]}");
+        ReflectionTestUtils.invokeMethod(s, "requireKnownModels", parsed); // ska inte kasta
+    }
+
+    @Test
+    void modelTokensNormaliserarDiakritik() {
+        java.util.Set<String> tokens = (java.util.Set<String>) ReflectionTestUtils.invokeMethod(
+                GroqService.class, "modelTokens", "Škoda Octavia");
+        assertThat(tokens).containsExactlyInAnyOrder("skoda", "octavia");
+    }
+
+    @Test
+    void buildKnownModelTokenSetsSlarIhopAllaKallorOchFiltrerarEnordsposter() {
+        GroqService s = service();
+        when(cargoSpecService.findAllCarNames()).thenReturn(List.of("Volvo V60", "Ogiltig"));
+        when(evSpecService.findAllCarNames()).thenReturn(List.of("Kia EV6"));
+        when(iceConsumptionService.allModelNames()).thenReturn(java.util.Set.of("Toyota Corolla"));
+        @SuppressWarnings("unchecked")
+        List<java.util.Set<String>> tokenSets = (List<java.util.Set<String>>)
+                ReflectionTestUtils.invokeMethod(s, "buildKnownModelTokenSets");
+        assertThat(tokenSets).containsExactlyInAnyOrder(
+                java.util.Set.of("volvo", "v60"), java.util.Set.of("kia", "ev6"), java.util.Set.of("toyota", "corolla"));
+    }
+
     @Test
     void feltypadeFaltGerBegripligtFelIstalletForKrasch() {
         // pros som sträng istället för array — schemafel ska ge användarvänligt fel, inte 500

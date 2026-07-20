@@ -18,6 +18,11 @@ public class EvSpecService {
         this.repo = repo;
     }
 
+    /** Alla kända bilnamn i ev_spec — används av GroqServices modellhallucinationsvakt. */
+    public List<String> findAllCarNames() {
+        return repo.findAllCarNames();
+    }
+
     public EvSpecDto formatForTitle(String title, int kmPerYear) {
         if (title == null) return null;
         String cleaned = normalize(title

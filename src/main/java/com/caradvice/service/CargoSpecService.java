@@ -20,6 +20,11 @@ public class CargoSpecService {
         this.repo = repo;
     }
 
+    /** Alla kända bilnamn i cargo_spec — används av GroqServices modellhallucinationsvakt. */
+    public List<String> findAllCarNames() {
+        return repo.findAllCarNames();
+    }
+
     public CargoSpecDto formatForTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
