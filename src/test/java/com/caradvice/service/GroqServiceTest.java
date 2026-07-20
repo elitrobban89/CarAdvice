@@ -2,6 +2,7 @@ package com.caradvice.service;
 
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
+import com.caradvice.model.EvSpecDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -13,6 +14,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -433,6 +436,37 @@ class GroqServiceTest {
                 ReflectionTestUtils.invokeMethod(s, "buildKnownModelTokenSets");
         assertThat(tokenSets).containsExactlyInAnyOrder(
                 java.util.Set.of("volvo", "v60"), java.util.Set.of("kia", "ev6"), java.util.Set.of("toyota", "corolla"));
+    }
+
+    // --- enrichRecommendations: verifierade kWh/räckvidd-varianter ersätter AI:ns engineOptions-fritext ---
+
+    @Test
+    void verifieradeMotoralternativErsatterAiFritext() throws Exception {
+        // Skarpt fall: AI:n gav EX30 fabricerade "58 kWh 150hk (420km), 77 kWh 200hk (540km)"
+        GroqService s = service();
+        EvSpecDto evSpec = new EvSpecDto(344, 292, 240, 1, "ladda varje dag", 51.0, 153, 11, 370_000, "", "EV", "LFP");
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(evSpec);
+        when(evSpecService.verifiedEngineOptions(anyString())).thenReturn("51 kWh (344 km), 65 kWh (480 km)");
+
+        String bil = GILTIG_BIL.replace("\"51 kWh 272hk (344km)\"", "\"58 kWh 150hk (420km), 77 kWh 200hk (540km)\"");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + bil + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+        assertThat(result.get(0).engineOptions()).isEqualTo("51 kWh (344 km), 65 kWh (480 km)");
+    }
+
+    @Test
+    void aiFritextBehallsUtanEvSpecTraff() throws Exception {
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + GILTIG_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+        assertThat(result.get(0).engineOptions()).isEqualTo("51 kWh 272hk (344km)");
     }
 
     @Test

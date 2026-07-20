@@ -165,4 +165,39 @@ class EvSpecServiceTest {
                 .contains("EV-referenspriser")
                 .contains("PRISVÄRD RÄCKVIDD");
     }
+
+    // --- verifiedEngineOptions (ersätter AI:ns fritext med riktiga kWh/räckvidd-varianter) ---
+
+    @Test
+    void ingenMatchGerNullForVerifieradeMotoralternativ() {
+        when(repo.findAll()).thenReturn(List.of(spec("Tesla Model 3")));
+        assertThat(service().verifiedEngineOptions("Renault Zoe")).isNull();
+    }
+
+    @Test
+    void allaVarianterListasSorteradeEfterBatteristorlek() {
+        // Skarpt fall: EX30 fick 58/77/44 kWh av AI:n — riktiga varianter är 51/65/65 kWh
+        EvSpec singleMotor = new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 370_000);
+        EvSpec extendedRange = new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 65.0, 480, 420_000);
+        EvSpec twinPerformance = new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 153.0, 65.0, 450, 460_000);
+        when(repo.findAll()).thenReturn(List.of(extendedRange, twinPerformance, singleMotor));
+
+        String result = service().verifiedEngineOptions("Volvo EX30 (2024)");
+        // Sorterad efter kWh, sen räckvidd — 65 kWh-varianterna (450/480 km) i stigande räckviddsordning
+        assertThat(result).isEqualTo("51 kWh (344 km), 65 kWh (450 km), 65 kWh (480 km)");
+    }
+
+    @Test
+    void duplicerandeDbRaderMedSammaVariantDedupas() {
+        // Samma modell kan finnas i flera identiska rader (skett i produktion) — ska bara visas en gång
+        EvSpec dup1 = new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 480, 420_000);
+        EvSpec dup2 = new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 480, 420_000);
+        when(repo.findAll()).thenReturn(List.of(dup1, dup2));
+        assertThat(service().verifiedEngineOptions("Volvo EX30")).isEqualTo("65 kWh (480 km)");
+    }
+
+    @Test
+    void nullTitelGerNullForVerifieradeMotoralternativ() {
+        assertThat(service().verifiedEngineOptions(null)).isNull();
+    }
 }

@@ -80,6 +80,50 @@ public class EvSpecService {
         return toDto(match, kmPerYear, chemistry);
     }
 
+    /**
+     * Verifierade motor-/batterivarianter för modellen, en post per variant ("51 kWh (344 km)"),
+     * byggda av ev_spec istället för AI:ns fritext i "engineOptions" — som annars kan hitta på
+     * kWh/räckvidd (skarpt fall: Volvo EX30 fick 58/77/44 kWh från AI:n trots att de riktiga
+     * varianterna är 51/65/65 kWh). Ingen hästkraft per variant (inte lagrat i DB) — bara kWh
+     * + räckvidd, hellre mindre information som stämmer än mer som delvis är påhittad.
+     * Samma matchning som pass 3 i formatForTitle (alla titelord som ord i lagrat namn) —
+     * hittar ALLA varianter av modellen, inte bara bästa träff. Returnerar null om inget
+     * hittas, så AI:ns egen text används som fallback.
+     */
+    public String verifiedEngineOptions(String title) {
+        if (title == null) return null;
+        String cleaned = normalize(title
+                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("(?i)\\bElectric\\b", "")
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
+                .trim());
+        String[] titleWords = cleaned.split("\\s+");
+
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        List<double[]> variants = new java.util.ArrayList<>();
+        for (EvSpec ev : repo.findAll()) {
+            java.util.Set<String> nameSet = new java.util.HashSet<>(
+                    java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
+            boolean matches = true;
+            for (String w : titleWords) if (!nameSet.contains(w)) { matches = false; break; }
+            if (!matches) continue;
+            if (ev.getBatteryKwh() == null || ev.getBatteryKwh() <= 0) continue;
+            int range = ev.getRangeKm() != null ? ev.getRangeKm() : 0;
+            String key = ev.getBatteryKwh() + "|" + range;
+            if (!seen.add(key)) continue;
+            variants.add(new double[]{ev.getBatteryKwh(), range});
+        }
+        if (variants.isEmpty()) return null;
+        variants.sort(java.util.Comparator.<double[]>comparingDouble(v -> v[0]).thenComparingDouble(v -> v[1]));
+        return variants.stream()
+                .map(v -> formatKwh(v[0]) + " kWh" + (v[1] > 0 ? " (" + (int) v[1] + " km)" : ""))
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    private static String formatKwh(double kwh) {
+        return kwh == Math.floor(kwh) ? String.valueOf((int) kwh) : String.valueOf(kwh);
+    }
+
     private EvSpecDto toDto(EvSpec spec, int kmPerYear, String chemistry) {
         int wltp   = spec.getRangeKm() != null ? spec.getRangeKm() : 0;
         int summer = (int) (wltp * 0.85);

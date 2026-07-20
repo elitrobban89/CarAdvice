@@ -284,9 +284,20 @@ public class GroqService {
                 log.info("Ingen verifierad specdata hittades för \"{}\" — bygger enbart på AI:ns friitext", r.title());
             }
 
+            // Ersätt AI:ns "Motor & batterialternativ"-fritext med verifierade kWh/räckvidd-varianter
+            // ur ev_spec om bilen har en träff — fångar t.ex. EX30 med fabricerade 58/77/44 kWh
+            // istället för de riktiga 51/65/65 kWh-varianterna.
+            String engineOptions = r.engineOptions();
+            if (evSpec != null) {
+                try {
+                    String verified = evSpecService.verifiedEngineOptions(r.title());
+                    if (verified != null) engineOptions = verified;
+                } catch (Exception ignored) {}
+            }
+
             result.add(new CarRecommendation(
                     r.title(), price, r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), r.engineOptions()));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), engineOptions));
         }
         return result;
     }
