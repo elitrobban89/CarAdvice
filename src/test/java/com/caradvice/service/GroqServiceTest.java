@@ -14,6 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -496,6 +497,53 @@ class GroqServiceTest {
         List<CarRecommendation> result = (List<CarRecommendation>)
                 ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
         assertThat(result.get(0).horsepower()).isEqualTo(272); // GILTIG_BIL:s AI-värde, oförändrat
+    }
+
+    // --- enrichRecommendations: verifierad hk/motorbeteckning ersätter AI:ns gissning för ICE-bilar ---
+
+    private static final String ICE_BIL = """
+            {"title":"Volkswagen Golf (2020)","price":"180 000–210 000 kr",
+             "whyRecommended":"Pålitlig familjebil","pros":["rymlig","billig i drift","bra andrahandsvärde"],
+             "con":"tråkig design","fitSummary":"passar pendlaren","expertOpinion":"Mjuk och tyst.",
+             "horsepower":999,"engineOptions":"1.4 TFSI 999hk manuell",
+             "fuelSpec":{"consumptionLiterPerMil":0.65,"gearbox":"Manuell","horsepower":999,"engineVolumeLiters":1.4}}""";
+
+    @Test
+    void verifieradHkOchMotorbeteckningErsatterAiGissningForIceBil() throws Exception {
+        // Skarpt fall: AI:n gissar fel hk (999) — ice_consumption-varianten bär riktig hk och beteckning
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Volkswagen", "Golf 1.5 TSI 150 hk", "bensin", 0.55));
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        CarRecommendation r = result.get(0);
+        assertThat(r.horsepower()).isEqualTo(150);
+        assertThat(r.fuelSpec().horsepower()).isEqualTo(150); // frontend visar egen chip för detta fält
+        assertThat(r.engineOptions()).isEqualTo("1.5 TSI 150 hk"); // modellordet ("Golf") strippat
+    }
+
+    @Test
+    void aiGissningBehallsForIceBilUtanVerifieradVariant() throws Exception {
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        CarRecommendation r = result.get(0);
+        assertThat(r.horsepower()).isEqualTo(999);
+        assertThat(r.fuelSpec().horsepower()).isEqualTo(999);
+        assertThat(r.engineOptions()).isEqualTo("1.4 TFSI 999hk manuell");
     }
 
     @Test

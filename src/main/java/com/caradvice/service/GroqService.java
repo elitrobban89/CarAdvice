@@ -264,13 +264,14 @@ public class GroqService {
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
             // och räknar ägandekostnad på l/100km) — ice_consumption lagrar l/mil, därav ×10 här.
             com.caradvice.model.FuelSpecDto fuelSpec = r.fuelSpec();
+            IceConsumptionService.Variant iceVariant = null;
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
-                Double consumption = null;
                 try {
                     Integer hp = fuelSpec.horsepower() != null ? fuelSpec.horsepower() : r.horsepower();
-                    IceConsumptionService.Variant v = iceConsumptionService.consumptionForTitle(r.title(), hp, fuelPref);
-                    if (v != null) consumption = v.literPerMil() * 10;
+                    iceVariant = iceConsumptionService.consumptionForTitle(r.title(), hp, fuelPref);
                 } catch (Exception ignored) {}
+
+                Double consumption = iceVariant != null ? iceVariant.literPerMil() * 10 : null;
                 // Ingen verifierad match men AI:n svarade i l/mil-skala (< 3 kan inte vara l/100km) — normalisera
                 if (consumption == null && fuelSpec.consumptionLiterPerMil() > 0
                         && fuelSpec.consumptionLiterPerMil() < 3) {
@@ -302,6 +303,24 @@ public class GroqService {
                 Integer verifiedHp = evSpecService.getSystemPowerHk(r.title());
                 if (verifiedHp != null) horsepower = verifiedHp;
             } catch (Exception ignored) {}
+
+            // Samma verifiering för bensin-/diesel-/hybridbilar: ice_consumption-varianten som redan
+            // hittades ovan (för förbrukningen) bär även riktig hk och motorbeteckning i sin variant-
+            // sträng ("Golf 1.5 TSI 150 hk") — ersätter AI:ns friitext för både topplevel-hk OCH
+            // fuelSpec.horsepower (frontend visar en egen chip för fuelSpec.horsepower — måste rättas
+            // tillsammans, annars uppstår samma "två olika hk-tal på samma kort"-motsägelse som
+            // Marvel R hade innan engineOptions verifierades där).
+            if (evSpec == null && iceVariant != null) {
+                Integer verifiedHp = IceConsumptionService.parseHp(iceVariant.variant());
+                if (verifiedHp != null) {
+                    horsepower = verifiedHp;
+                    if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
+                            fuelSpec.consumptionLiterPerMil(), fuelSpec.gearbox(), verifiedHp, fuelSpec.engineVolumeLiters());
+                }
+                String desc = iceVariant.variant();
+                int sp = desc.indexOf(' ');
+                engineOptions = sp > 0 ? desc.substring(sp + 1) : desc;
+            }
 
             result.add(new CarRecommendation(
                     r.title(), price, r.whyRecommended(), r.pros(), r.con(),
