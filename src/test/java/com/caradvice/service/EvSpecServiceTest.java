@@ -200,4 +200,28 @@ class EvSpecServiceTest {
     void nullTitelGerNullForVerifieradeMotoralternativ() {
         assertThat(service().verifiedEngineOptions(null)).isNull();
     }
+
+    // --- getSystemPowerHk (verifierad hk för modeller AI:n historiskt gissat fel på) ---
+
+    @Test
+    void marvelRStandardGerVerifieradHk() {
+        // AI:n gav "150hk" — riktig siffra för Standard/RWD-varianten är 180
+        assertThat(service().getSystemPowerHk("MG Marvel R (2022)")).isEqualTo(180);
+    }
+
+    @Test
+    void marvelRPerformanceGerMestSpecifikaTraffen() {
+        // "Performance" i titeln ska ge 288, inte råka matcha bas-nyckeln "MG Marvel R" (180)
+        assertThat(service().getSystemPowerHk("MG Marvel R Performance (2022)")).isEqualTo(288);
+    }
+
+    @Test
+    void okandModellGerIngenVerifieradHk() {
+        assertThat(service().getSystemPowerHk("Renault Zoe")).isNull();
+    }
+
+    @Test
+    void nullTitelGerNullForVerifieradHk() {
+        assertThat(service().getSystemPowerHk(null)).isNull();
+    }
 }

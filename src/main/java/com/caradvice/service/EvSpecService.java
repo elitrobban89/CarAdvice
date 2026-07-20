@@ -124,6 +124,40 @@ public class EvSpecService {
         return kwh == Math.floor(kwh) ? String.valueOf((int) kwh) : String.valueOf(kwh);
     }
 
+    /**
+     * Verifierad systemeffekt (hk) för modeller där AI:n historiskt gissat fel —
+     * skarpt fall: MG Marvel R fick "150hk" av AI:n, riktiga siffror är 180 (Standard)
+     * / 288 (Performance AWD), källa ev-database.org. Samma ordmatchning som
+     * getBatteryChemistry — mest specifika nyckeln (flest ord) vinner, så "MG Marvel R
+     * Performance" inte råkar matcha bara på "MG Marvel R"-nyckeln. Ingen ev_spec-kolumn
+     * (skulle kräva ALTER TABLE mot produktionens validate-schema för en handfull rader).
+     */
+    public Integer getSystemPowerHk(String title) {
+        if (title == null) return null;
+        String cleaned = normalize(title
+                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("(?i)\\bElectric\\b", "")
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
+                .trim());
+        java.util.Set<String> cleanedSet = new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
+
+        return SYSTEM_POWER_HK.entrySet().stream()
+                .filter(e -> {
+                    String[] keyWords = normalize(e.getKey()).split("\\s+");
+                    for (String w : keyWords) if (!cleanedSet.contains(w)) return false;
+                    return true;
+                })
+                .max(java.util.Comparator.comparingInt(
+                        (Map.Entry<String, Integer> e) -> normalize(e.getKey()).split("\\s+").length))
+                .map(Map.Entry::getValue)
+                .orElse(null);
+    }
+
+    private static final Map<String, Integer> SYSTEM_POWER_HK = Map.ofEntries(
+        Map.entry("MG Marvel R",             180),
+        Map.entry("MG Marvel R Performance", 288)
+    );
+
     private EvSpecDto toDto(EvSpec spec, int kmPerYear, String chemistry) {
         int wltp   = spec.getRangeKm() != null ? spec.getRangeKm() : 0;
         int summer = (int) (wltp * 0.85);

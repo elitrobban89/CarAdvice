@@ -295,9 +295,17 @@ public class GroqService {
                 } catch (Exception ignored) {}
             }
 
+            // Ersätt AI:ns gissade systemeffekt med verifierad hk för modeller där gissningen
+            // historiskt varit fel (t.ex. MG Marvel R "150hk" mot riktiga 180/288).
+            Integer horsepower = r.horsepower();
+            try {
+                Integer verifiedHp = evSpecService.getSystemPowerHk(r.title());
+                if (verifiedHp != null) horsepower = verifiedHp;
+            } catch (Exception ignored) {}
+
             result.add(new CarRecommendation(
                     r.title(), price, r.whyRecommended(), r.pros(), r.con(),
-                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), engineOptions));
+                    r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, horsepower, engineOptions));
         }
         return result;
     }

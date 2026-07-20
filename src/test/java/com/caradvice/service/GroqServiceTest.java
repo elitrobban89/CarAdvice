@@ -469,6 +469,35 @@ class GroqServiceTest {
         assertThat(result.get(0).engineOptions()).isEqualTo("51 kWh 272hk (344km)");
     }
 
+    // --- enrichRecommendations: verifierad systemeffekt ersätter AI:ns hk-gissning ---
+
+    @Test
+    void verifieradSystemeffektErsatterAiGissning() throws Exception {
+        // Skarpt fall: AI:n gav MG Marvel R "150hk" — riktig siffra (180) ska visas istället
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(180);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + GILTIG_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+        assertThat(result.get(0).horsepower()).isEqualTo(180);
+    }
+
+    @Test
+    void aiGissningBehallsUtanVerifieradSystemeffekt() throws Exception {
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + GILTIG_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+        assertThat(result.get(0).horsepower()).isEqualTo(272); // GILTIG_BIL:s AI-värde, oförändrat
+    }
+
     @Test
     void feltypadeFaltGerBegripligtFelIstalletForKrasch() {
         // pros som sträng istället för array — schemafel ska ge användarvänligt fel, inte 500
