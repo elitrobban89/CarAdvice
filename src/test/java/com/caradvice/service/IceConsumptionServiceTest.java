@@ -114,6 +114,23 @@ class IceConsumptionServiceTest {
     }
 
     @Test
+    void mazdaCx30MatcharInteMazda3sMotor() {
+        // "3" (modellordet for Mazda 3-raderna) ar en substrang av "cx-30" — utan ordgrans-
+        // matchning skulle en CX-30-titel kunna fa Mazda 3:ans motorvarianter
+        IceConsumptionService.Variant v = service.consumptionForTitle("Mazda CX-30 (2022)", null, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.variant()).startsWith("CX-30");
+    }
+
+    @Test
+    void mazdaCx60MatcharInteMazda6sMotor() {
+        // Samma fallgrop: "6" ar en substrang av "cx-60"
+        IceConsumptionService.Variant v = service.consumptionForTitle("Mazda CX-60 (2023)", null, "diesel");
+        assertThat(v).isNotNull();
+        assertThat(v.variant()).startsWith("CX-60");
+    }
+
+    @Test
     void modellnamnListanHopparOverMarkesupprepning() {
         // allModelNames() normaliserar (gemener) modellordet, precis som innan denna fix
         assertThat(service.allModelNames()).contains("Mazda 3", "Mazda cx-5", "DS 4");

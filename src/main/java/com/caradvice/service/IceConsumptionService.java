@@ -124,6 +124,16 @@ public class IceConsumptionService {
         return words[0];
     }
 
+    /**
+     * Titeln uppdelad i hela ord — modellordet måste matcha ETT av dessa exakt, inte bara
+     * förekomma nånstans i titelsträngen. Utan detta ger korta/numeriska modellord falska
+     * träffar: "3" (Mazda 3) är en substräng av "cx-30" (Mazda CX-30), "6" (Mazda 6) av
+     * "cx-60" — en CX-30-titel skulle annars kunna få Mazda 3:ans motor och tvärtom.
+     */
+    private static java.util.Set<String> titleTokens(String t) {
+        return new java.util.HashSet<>(java.util.Arrays.asList(t.split("\\s+")));
+    }
+
     /** Rader för GET /api/ice-consumption — carName = "märke variant" som i /api/ev-consumption. */
     public List<Map<String, Object>> listForApi() {
         return findAll().stream()
@@ -143,11 +153,12 @@ public class IceConsumptionService {
     public Variant consumptionForTitle(String title, Integer horsepower, String fuelPref) {
         if (title == null || title.isBlank()) return null;
         String t = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", ""));
+        java.util.Set<String> tokens = titleTokens(t);
 
         List<Variant> candidates = new ArrayList<>();
         for (Variant v : findAll()) {
             if (!t.contains(normalize(v.brand()))) continue;
-            if (t.contains(modelWord(v))) candidates.add(v);
+            if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
 
@@ -174,11 +185,12 @@ public class IceConsumptionService {
     public String consumptionSummaryForTitle(String title) {
         if (title == null || title.isBlank()) return null;
         String t = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", ""));
+        java.util.Set<String> tokens = titleTokens(t);
 
         List<Variant> candidates = new ArrayList<>();
         for (Variant v : findAll()) {
             if (!t.contains(normalize(v.brand()))) continue;
-            if (t.contains(modelWord(v))) candidates.add(v);
+            if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
 

@@ -278,7 +278,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-225 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+227 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -286,7 +286,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `EvSpecServiceTest` (24) | Fuzzy-matchning AI-titel → EV-spec: pass 1–3, normalisering av diakritiska tecken, strippning av årsmodell/`Electric`/`e-`-prefix, räckvidds- och prisvärdhetsberäkningar, prisvärd räckvidd-rankningen (km/krona, 400 km-golv, etablerade märken), verifierade motor-/batterivarianter (`verifiedEngineOptions`: alla varianter sorterade kWh→räckvidd, dubblettrader dedupas, ingen match ger null), verifierad systemeffekt (`getSystemPowerHk`: MG Marvel R Standard/Performance ger 180/288hk mot AI:ns tidigare felaktiga 150hk, mest specifika modellnamnet vinner, okänd modell ger null) |
 | `ExpertInsightServiceTest` (28) | RAG-urval: max 5 slumpade insikter i rekommendationer / 3 i chatt, märkesmatchning, källmaskering, CSV-import, kategoribyte, admin-PATCH (fältvalidering, normalisering, rating-gränser), drivlinefiltret på bilkort (HEV-insikt aldrig på EV-kort, `drivetrainOf`-klassningen) |
 | `ExpertInsightServiceCarLookupTest` (6) | Publika insiktslistan per bilkort (`/api/insights`): märkeskrav, annan modell utesluts, modellspecifika prioriteras, max 3, dubblettrader visas en gång |
-| `IceConsumptionServiceTest` (14) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning, modellord som upprepar märkesnamnet i variant-strängen hoppas över (Mazda 3/CX-5, DS-alla — annars matchar t.ex. Mazda CX-5 på Mazda 3:ans motor), `engineDescriptor` (motorbeteckning utan modellnamn/märkesupprepning för engineOptions-kortet) — mot riktig H2 |
+| `IceConsumptionServiceTest` (16) | Seed från ice-consumption.csv (957 varianter), titelmatchning (märke+modell, hk-närmaste variant, drivmedelsfilter), jämförelsesammanfattning, hk-parsning, modellord som upprepar märkesnamnet i variant-strängen hoppas över (Mazda 3/CX-5, DS-alla — annars matchar t.ex. Mazda CX-5 på Mazda 3:ans motor), ordgränsmatchning istället för substräng (Mazda CX-30/CX-60 matchar inte Mazda 3:ans/6:ans modellord "3"/"6" bara för att de råkar vara substrängar av "cx-30"/"cx-60"), `engineDescriptor` (motorbeteckning utan modellnamn/märkesupprepning för engineOptions-kortet) — mot riktig H2 |
 | `SafetyRatingServiceCsvTest` (6) | CSV-parsern: citattecken, null-fält, trimning |
 | `SafetyRatingServiceMatchTest` (3) | Euro NCAP-radens titelmatchning: MG4/Renault 5 träffar rätt utan att spilla över på ZS/MG5/Zoe; otestade bilar (ë-C3) ger null |
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
