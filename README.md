@@ -45,6 +45,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen
 - **Trustpilot-handlartips** under korten — länk till Trustpilots kategori för bilfirmor så användaren kan kolla handlarens omdömen innan köp
+- **AI-disclaimer** under korten — påminner om att fritext (fördelar, expertomdöme, "passar dig") kan innehålla fel även om priser stäms av mot Blocket
 
 ### Bränslespecifikationer (bensin/diesel)
 - **⛽ Bensin/Diesel**-sektion per bilkort för fossildrivna bilar
@@ -111,7 +112,8 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Flytande knapp nere till höger med bil-ikon i glassmorphism-design; lila/indigo-tema
 - Svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil)
 - Streaming-svar — token för token via SSE; automatisk fallback till JSON om ReadableStream saknas
-- **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna; benutrymme bak (mm) och batterikemi (LFP/NMC) för de rekommenderade bilarna injiceras automatiskt i chattens systemprompt så AI:n kan svara korrekt på frågor som "kan jag ladda till 100%?" eller "hur mycket plats är det i baksätet?"
+- **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna; benutrymme bak (mm), batterikemi (LFP/NMC), Euro NCAP-betyg och verifierad bränsleförbrukning för de rekommenderade bilarna injiceras automatiskt i chattens systemprompt så AI:n kan svara korrekt på frågor som "kan jag ladda till 100%?", "hur mycket plats är det i baksätet?" eller "hur säker är den?"
+- **AI-disclaimer** i chattpanelens footer — påminner om att AI-svar kan innehålla fel
 - **Per-bil-fokus** — klickar man "Fråga om denna bil" ändras chatboten till att fokusera på just den bilen med specifika chips: Berätta om, Driftkostnad & skatt, Tillförlitlighet & problem, Jämför med
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; max 10 frågor/minut per IP
@@ -159,6 +161,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **Utmärkelser är köpsignaler**: scrape- och relevansprompterna behåller uttryckligen utmärkelser
   till specifika modeller (Årets Bil/Car of the Year, "bäst i test", topplaceringar i
   försäljningsstatistik) trots att företags- och marknadsnyheter i övrigt filtreras bort
+- **Relevansvakten är fail-closed**: om Groq-anropet till relevansfiltret felar eller inte svarar hoppas hela batchen över den körningen istället för att sparas ofiltrerad — det är den enda spärren mot att icke-köparrelevant/hallucinerat innehåll hamnar i den "verifierade" insiktsdatabasen andra delar av appen litar på. Dubblettfiltret (parafras-dedup) är fortsatt fail-open — en dubblett är lägre risk än en tappad insikt
 
 ### Kuraterade källor (CSV-seed via admin-importen)
 - **Årets Bil-juryn** — Car of the Year-resultat: Mercedes CLA vann 2026 (före Škoda Elroq
@@ -288,7 +291,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `SafetyRatingServiceMatchTest` (3) | Euro NCAP-radens titelmatchning: MG4/Renault 5 träffar rätt utan att spilla över på ZS/MG5/Zoe; otestade bilar (ë-C3) ger null |
 | `FeedbackServiceTest` (5) | Tumme upp/ner: röstmappning, summering per bil, ogiltig input avvisas, radering per biltitel, idempotent tabellskapande — mot riktig H2 |
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
-| `WebInsightScraperServiceTest` (20) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel) |
+| `WebInsightScraperServiceTest` (20) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel — Groq-fel under själva anropet är numera fail-closed, hoppar över batchen) |
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
 | `CarControllerTest` (37) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
@@ -742,6 +745,7 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: 
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Hallucinationsaudit: disclaimer + relevansvakt fail-closed | Ingen del av UI:t hade en synlig disclaimer om att AI-fritext kan innehålla fel — tillagd under bilkorten och i chattpanelen. `WebInsightScraperService.filterIrrelevant` sparade tidigare hela batchen ofiltrerad om Groq-relevansanropet felade ("hellre en skräprad än en tappad insikt") — det är den enda spärren mot att irrelevant/hallucinerat innehåll når den "verifierade" insiktsdatabasen, så beteendet är nu fail-closed (hoppar över batchen). Chattens `buildChatSpecFacts` injicerar nu även Euro NCAP-betyg och verifierad bränsleförbrukning, inte bara benutrymme/batterikemi. Ny loggrad flaggar rekommendationer utan någon verifierad specdata (synlighet, ej blockerande) |
 | Förbrukning visades som "0,07 l/mil" | Enhetskonventionen: `consumptionLiterPerMil` bär **l/100km** trots namnet (AI:n svarar så och frontenden delar med 10 vid visning, räknar ägandekostnad på l/100km). De verifierade `ice_consumption`-värdena (äkta l/mil) injicerades utan konvertering → tiofalt fel. Nu ×10 vid enrichment, jämförelseprompten uttrycker l/100km, och AI-svar som redan är i l/mil-skala (< 3) normaliseras. Live-verifierat: Sandero 5.8 → 0,58 l/mil på kortet |
 | Insiktsrotation + feedback-loop | `buildExpertContext` tog alltid samma 2 första insikterna i databasordning — nattens nya insikter nådde aldrig prompten. Nu slumpas 5 ur hela den matchande poolen per sökning. Dessutom: bilar med netto ≥ 2 tummar ner injiceras som undvik-signal i systemprompten (cachas 1h) |
 | "AI-svaret blev ofullständigt" vid flera sökningar i rad | Snabba sökningar i följd fick 429 på qwen och föll tillbaka på gpt-oss-20b vars reasoning åt upp tokenbudgeten → trunkerat JSON → fel till användaren. Nu: (1) trestegskedja qwen → gpt-oss-20b → gpt-oss-120b vid 429 (egen TPM-pott per modell hos Groq), (2) automatiskt omförsök med gpt-oss-120b när svaret kom tillbaka trunkerat/tomt, för både rekommendationer och jämförelser |
