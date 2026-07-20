@@ -317,9 +317,7 @@ public class GroqService {
                     if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
                             fuelSpec.consumptionLiterPerMil(), fuelSpec.gearbox(), verifiedHp, fuelSpec.engineVolumeLiters());
                 }
-                String desc = iceVariant.variant();
-                int sp = desc.indexOf(' ');
-                engineOptions = sp > 0 ? desc.substring(sp + 1) : desc;
+                engineOptions = IceConsumptionService.engineDescriptor(iceVariant);
             }
 
             result.add(new CarRecommendation(

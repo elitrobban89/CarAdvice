@@ -106,10 +106,22 @@ public class IceConsumptionService {
     public java.util.Set<String> allModelNames() {
         java.util.Set<String> names = new java.util.LinkedHashSet<>();
         for (Variant v : findAll()) {
-            String modelWord = normalize(v.variant()).split("\\s+")[0];
-            names.add(v.brand() + " " + modelWord);
+            names.add(v.brand() + " " + modelWord(v));
         }
         return names;
+    }
+
+    /**
+     * Modellordet i variant-strängen — hoppar över en inledande upprepning av märkesnamnet
+     * (t.ex. "Mazda 3 2.0 Skyactiv-X 186 hk" → "3", inte "mazda"). Utan detta matchar en rad
+     * som "Mazda 3 ..." ALLA Mazda-titlar (modellordet "mazda" finns per definition redan i
+     * titeln via märkeskontrollen) — skarpt fall: Mazda CX-5 fick Mazda 3:ans Skyactiv-X-motor
+     * i engineOptions. Samma mönster för DS (alla rader) och MG ZS/HS.
+     */
+    private static String modelWord(Variant v) {
+        String[] words = normalize(v.variant()).split("\\s+");
+        if (words.length > 1 && words[0].equals(normalize(v.brand()))) return words[1];
+        return words[0];
     }
 
     /** Rader för GET /api/ice-consumption — carName = "märke variant" som i /api/ev-consumption. */
@@ -135,8 +147,7 @@ public class IceConsumptionService {
         List<Variant> candidates = new ArrayList<>();
         for (Variant v : findAll()) {
             if (!t.contains(normalize(v.brand()))) continue;
-            String modelWord = normalize(v.variant()).split("\\s+")[0];
-            if (t.contains(modelWord)) candidates.add(v);
+            if (t.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
 
@@ -167,8 +178,7 @@ public class IceConsumptionService {
         List<Variant> candidates = new ArrayList<>();
         for (Variant v : findAll()) {
             if (!t.contains(normalize(v.brand()))) continue;
-            String modelWord = normalize(v.variant()).split("\\s+")[0];
-            if (t.contains(modelWord)) candidates.add(v);
+            if (t.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
 
@@ -189,6 +199,19 @@ public class IceConsumptionService {
     static Integer parseHp(String variant) {
         Matcher m = HP_PATTERN.matcher(variant);
         return m.find() ? Integer.parseInt(m.group(1)) : null;
+    }
+
+    /**
+     * Motorbeteckningen utan modellnamnet i fronten — för att visa som engineOptions utan att
+     * upprepa bilens modell (som redan står i titeln på kortet). "CX-5 2.0 Skyactiv-G 165 hk"
+     * → "2.0 Skyactiv-G 165 hk"; "Mazda 3 2.0 Skyactiv-X 186 hk" → "2.0 Skyactiv-X 186 hk"
+     * (hoppar även över märkesupprepningen, se modelWord()).
+     */
+    static String engineDescriptor(Variant v) {
+        String[] words = v.variant().split("\\s+");
+        int skip = (words.length > 1 && words[0].equalsIgnoreCase(v.brand())) ? 2 : 1;
+        if (words.length <= skip) return v.variant();
+        return String.join(" ", java.util.Arrays.asList(words).subList(skip, words.length));
     }
 
     private static String normalize(String s) {

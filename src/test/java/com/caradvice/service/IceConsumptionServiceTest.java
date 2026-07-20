@@ -85,4 +85,52 @@ class IceConsumptionServiceTest {
         assertThat(IceConsumptionService.parseHp("Golf 1.5 TSI 150 hk")).isEqualTo(150);
         assertThat(IceConsumptionService.parseHp("Golf 1.5 TSI")).isNull();
     }
+
+    // --- Modellord som upprepar märkesnamnet ("Mazda 3 2.0 ...") ska inte matcha andra modeller ---
+
+    @Test
+    void mazdaCx5MatcharInteMazda3sMotor() {
+        // Skarpt fall: CX-5 fick Mazda 3:ans Skyactiv-X-motor innan modelWord() hoppade över
+        // den upprepade märkesprefixen i variant-strängen ("Mazda 3 2.0 Skyactiv-X 186 hk")
+        IceConsumptionService.Variant v = service.consumptionForTitle("Mazda CX-5 (2023)", null, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.variant()).startsWith("CX-5");
+        assertThat(v.variant()).doesNotContain("Skyactiv-X");
+    }
+
+    @Test
+    void mazda3MatcharFortfarandeSigSjalv() {
+        IceConsumptionService.Variant v = service.consumptionForTitle("Mazda 3 (2022)", null, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.variant()).startsWith("Mazda 3");
+    }
+
+    @Test
+    void dsFyraMatcharInteDsTre() {
+        // Alla DS-rader har märket upprepat i variant-strängen ("DS 3 1.2 PureTech ...")
+        IceConsumptionService.Variant v = service.consumptionForTitle("DS 4 (2021)", null, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.variant()).startsWith("DS 4");
+    }
+
+    @Test
+    void modellnamnListanHopparOverMarkesupprepning() {
+        // allModelNames() normaliserar (gemener) modellordet, precis som innan denna fix
+        assertThat(service.allModelNames()).contains("Mazda 3", "Mazda cx-5", "DS 4");
+        assertThat(service.allModelNames()).doesNotContain("Mazda mazda", "DS ds");
+    }
+
+    // --- engineDescriptor (motorbeteckning utan modellnamn, för engineOptions-kortet) ---
+
+    @Test
+    void engineDescriptorStripparModellord() {
+        var v = new IceConsumptionService.Variant("Mazda", "CX-5 2.0 Skyactiv-G 165 hk", "bensin", 0.8);
+        assertThat(IceConsumptionService.engineDescriptor(v)).isEqualTo("2.0 Skyactiv-G 165 hk");
+    }
+
+    @Test
+    void engineDescriptorStripparAvenUpprepatMarke() {
+        var v = new IceConsumptionService.Variant("Mazda", "Mazda 3 2.0 Skyactiv-X 186 hk", "bensin", 0.68);
+        assertThat(IceConsumptionService.engineDescriptor(v)).isEqualTo("2.0 Skyactiv-X 186 hk");
+    }
 }
