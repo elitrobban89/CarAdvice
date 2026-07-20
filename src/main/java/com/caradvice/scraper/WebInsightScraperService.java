@@ -411,22 +411,27 @@ public class WebInsightScraperService {
     /**
      * Slänger insikter utan köparrelevans (ej-Sverige-bilar, hypercars, auktioner m.m.)
      * via ett separat Groq-anrop. Körs före dubblettfiltret så skräp aldrig kostar
-     * dedup-anrop. Alla fel-lägen släpper igenom allt — hellre en skräprad än en
-     * tappad insikt.
+     * dedup-anrop. Detta är den enda spärren mot att irrelevant/hallucinerat innehåll
+     * hamnar i den "verifierade" insiktsdatabasen — därför fail-closed vid fel: hoppar
+     * över hela batchen den här körningen hellre än att spara den ofiltrerad.
      */
     List<JsonNode> filterIrrelevant(List<JsonNode> insights) {
         if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
         Set<Integer> irrelevant;
         try {
             String body = postGroq(RELEVANCE_PROMPT, buildRelevanceUserContent(insights), 300, "relevansvakt");
-            if (body == null) return insights;
+            if (body == null) {
+                log.warn("Web insights: relevansvakten fick inget svar — hoppar över batchen ({} insikter) den här körningen", insights.size());
+                return List.of();
+            }
             irrelevant = parseIndexes(body, "irrelevant");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return insights;
+            return List.of();
         } catch (Exception e) {
-            log.warn("Web insights: relevansvakten misslyckades — sparar utan filtrering: {}", e.getMessage());
-            return insights;
+            log.warn("Web insights: relevansvakten misslyckades — hoppar över batchen ({} insikter) den här körningen: {}",
+                    insights.size(), e.getMessage());
+            return List.of();
         }
         List<JsonNode> kept = new ArrayList<>();
         for (int i = 0; i < insights.size(); i++) {

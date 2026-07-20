@@ -567,6 +567,9 @@ function caRenderCards(recommendations) {
         '&#x1F4A1; <strong style="color:rgba(255,255,255,.75)">Tips vid k\xf6p fr\xe5n bilhandlare:</strong> kolla firmans omd\xf6men p\xe5 ' +
         '<a href="https://se.trustpilot.com/categories/cars_trucks" target="_blank" rel="noopener" style="color:#7ec8ff;text-decoration:underline">Trustpilot</a>' +
         ' innan du sl\xe5r till &mdash; d\xe4r betygs\xe4tter riktiga kunder svenska bilfirmor.' +
+      '</div>' +
+      '<div class="ca-ai-disclaimer" style="grid-column:1/-1;margin-top:8px;padding:0 4px;font-size:.72rem;color:rgba(255,255,255,.35);line-height:1.4">' +
+        '&#x1F916; F\xf6rslagen \xe4r AI-genererade. Priser stäms av mot Blocket-annonser men fritext (f\xf6rdelar, expertomd\xf6me m.m.) kan innehålla fel &mdash; dubbelkolla alltid mot annonsen innan k\xf6p.' +
       '</div>';
     caFetchCarImages(recommendations);
     caFetchInsights(recommendations);

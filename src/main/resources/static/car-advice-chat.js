@@ -373,6 +373,9 @@
           <input class="ca-chat-input" id="ca-chat-input" type="text" placeholder="Ställ en fråga om bilar…" autocomplete="off"/>
           <button class="ca-chat-send" id="ca-chat-send">➤</button>
         </div>
+        <div class="ca-chat-disclaimer" style="padding:4px 12px 8px;font-size:.68rem;color:rgba(255,255,255,.3);line-height:1.3">
+          🤖 AI-svar kan innehålla fel — dubbelkolla viktiga fakta.
+        </div>
       </div>
     `;
     document.body.appendChild(root);

@@ -274,6 +274,10 @@ public class GroqService {
                         consumption, fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
             }
 
+            if (safety == null && evSpec == null && cargo == null && blocketRange == null) {
+                log.info("Ingen verifierad specdata hittades för \"{}\" — bygger enbart på AI:ns friitext", r.title());
+            }
+
             result.add(new CarRecommendation(
                     r.title(), price, r.whyRecommended(), r.pros(), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, r.horsepower(), r.engineOptions()));
@@ -782,14 +786,29 @@ public class GroqService {
             String name = raw.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
             Integer legroom = null;
             String chem = null;
+            String safety = null;
+            String consumption = null;
             try { legroom = cargoSpecService.getLegroom(name); } catch (Exception ignored) {}
             try { chem = evSpecService.getBatteryChemistry(name); } catch (Exception ignored) {}
-            if (legroom == null && chem == null) continue;
+            try { safety = safetyRatingService.formatForTitle(name); } catch (Exception ignored) {}
+            try { consumption = iceConsumptionService.consumptionSummaryForTitle(name); } catch (Exception ignored) {}
+            if (legroom == null && chem == null && safety == null && consumption == null) continue;
             sb.append(name).append(": ");
-            if (legroom != null) sb.append("benutrymme bak ").append(legroom).append(" mm");
+            boolean needsComma = false;
+            if (legroom != null) { sb.append("benutrymme bak ").append(legroom).append(" mm"); needsComma = true; }
             if (chem != null) {
-                if (legroom != null) sb.append(", ");
+                if (needsComma) sb.append(", ");
                 sb.append("batterikemi ").append(chem);
+                needsComma = true;
+            }
+            if (safety != null) {
+                if (needsComma) sb.append(", ");
+                sb.append(safety);
+                needsComma = true;
+            }
+            if (consumption != null) {
+                if (needsComma) sb.append(", ");
+                sb.append(consumption);
             }
             sb.append("\n");
         }
