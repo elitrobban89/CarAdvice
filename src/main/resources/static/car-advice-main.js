@@ -118,6 +118,9 @@ function caUpdateFuelVisibility() {
     document.getElementById('ca-fuel').value = 'spelar ingen roll';
     var t = document.getElementById('ca-transmission');
     if (t) t.value = 'spelar ingen roll';
+  } else if (cat === 'familjebil') {
+    var charger = document.getElementById('ca-charger');
+    if (charger && charger.value === 'true') document.getElementById('ca-fuel').value = 'el';
   }
   caUpdateMaxAgeVisibility();
 }
@@ -241,7 +244,9 @@ function caBindChangeListeners() {
   var cat = document.getElementById('ca-category');
   var bud = document.getElementById('ca-budget-slider');
   var nc  = document.getElementById('ca-newcar');
+  var chg = document.getElementById('ca-charger');
   if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
+  if (chg) chg.addEventListener('change', caUpdateFuelVisibility);
   if (bud) bud.addEventListener('input', caUpdateSliderFill);
   if (nc)  nc.addEventListener('change', caUpdateMaxAgeVisibility);
 }

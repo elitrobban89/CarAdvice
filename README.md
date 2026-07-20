@@ -13,7 +13,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ### Sök & rekommendationer
 - Rekommenderar välrecenserade bilar baserat på kategori, budget och körbehov
 - Stöd för ekonomibil, familjebil, SUV, elbil, laddhybrid och småbil
-- Drivmedelsfilter: bensin, diesel, hybrid — döljs automatiskt för elbil/laddhybrid
+- Drivmedelsfilter: bensin, diesel, hybrid, el — döljs automatiskt för elbil/laddhybrid (kategorin styr redan drivmedlet där); för familjebil sätts drivmedel automatiskt till "el" när laddbox hemma = Ja (kan ändras manuellt igen); AI-prompten har kategoribundna exempellistor (SUV: XC40/C-HR för bensin/diesel/hybrid, EX40 för el; Småbil: Aygo för bensin, Zoe/Renault 5 för el) så att t.ex. XC40 och EX40 aldrig blandas ihop
 - **Växellådsfilter:** manuell / automat — döljs automatiskt för elbil/laddhybrid; AI-prompten begränsas till vald växellåda
 - Budget-slider med tickmärken och live-uppdaterat värde:
   - **Köp-läge** (standard): 50 000–1 000 000 kr, steg 25 000 kr (tickmärken: 50k · 200k · 400k · 700k · 1M)
@@ -419,7 +419,7 @@ Utan `DB_URL` körs en H2 in-memory-databas som seedas automatiskt vid uppstart 
 | `usage` | string | `pendling`, `familj`, `landsväg`, `stad` |
 | `passengers` | int | 1–9 |
 | `newCar` | boolean | Ny eller begagnad |
-| `fuelType` | string | `bensin`, `diesel`, `hybrid`, `spelar ingen roll` |
+| `fuelType` | string | `bensin`, `diesel`, `hybrid`, `el`, `spelar ingen roll` |
 | `transmission` | string | `manuell`, `automat`, `spelar ingen roll` (null = spelar ingen roll) |
 | `budgetType` | string | `köp` (standard) eller `leasing` |
 
