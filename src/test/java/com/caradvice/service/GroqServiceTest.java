@@ -469,11 +469,19 @@ class GroqServiceTest {
     }
 
     @Test
-    void faAnnonserSkriverInteOverAiPriset() {
-        // 2 annonser kan vara fynd/felannonser — då litar vi på kalkylen
-        var blocket = new BlocketPriceService.PriceRange(500_000, 550_000, 2, "...");
+    void enAnnonsSkriverInteOverAiPriset() {
+        // 1 annons kan vara fynd/felannons och saknar percentil-outlier-skydd i BlocketPriceService — litar på kalkylen
+        var blocket = new BlocketPriceService.PriceRange(500_000, 550_000, 1, "...");
         assertThat(GroqService.correctedPrice("200 000–210 000 kr", blocket, "Volvo V60 (2021)"))
                 .isEqualTo("200 000–210 000 kr");
+    }
+
+    @Test
+    void tvaAnnonserRackerForAttSkrivaOverAiPriset() {
+        // Tröskeln sänkt från 3 till 2 annonser — två oberoende fynd räcker för att lita på verkligheten
+        var blocket = new BlocketPriceService.PriceRange(500_000, 550_000, 2, "...");
+        assertThat(GroqService.correctedPrice("200 000–210 000 kr", blocket, "Volvo V60 (2021)"))
+                .isEqualTo("500 000–550 000 kr");
     }
 
     @Test

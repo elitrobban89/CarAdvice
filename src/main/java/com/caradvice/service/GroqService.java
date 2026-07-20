@@ -183,10 +183,12 @@ public class GroqService {
      * Skarpt läge: AI:n satte 200 000–210 000 kr på en Kia EV6 som på Blocket börjar vid 333 500 kr.
      * Ligger AI:ns intervall helt under eller helt över Blockets årsfiltrerade annonsintervall
      * ersätts det med Blocket-intervallet — verkligheten vinner över deprecieringskalkylen.
-     * Minst 3 annonser krävs så att enstaka fynd/felannonser inte skriver över rimliga priser.
+     * Minst 2 annonser krävs (sänkt från 3) så att en enstaka fel-/scamannons inte ensam
+     * skriver över rimliga priser — BlocketPriceService trimmar bara percentil-outliers vid
+     * ≥5 träffar, så en enda annons har noll skydd mot fluktannonser.
      */
     static String correctedPrice(String aiPrice, BlocketPriceService.PriceRange blocket, String title) {
-        if (aiPrice == null || blocket == null || blocket.count() < 3) return aiPrice;
+        if (aiPrice == null || blocket == null || blocket.count() < 2) return aiPrice;
         java.util.List<Long> nums = new ArrayList<>();
         Matcher m = Pattern.compile("\\d[\\d\\s\\u00a0]*").matcher(aiPrice);
         while (m.find()) {
