@@ -365,7 +365,7 @@ CarAdvice/
             ├── manifest.json       ← PWA-manifest
             ├── subscribe.html      ← Login/register + Stripe Checkout (öppnas i nytt fönster)
             ├── success.html        ← Visas efter lyckad Stripe-betalning; visar länkar till båda tjänsterna
-            └── test.html           ← Lokal testmiljö
+            └── test.html           ← Lokal testmiljö — samma markup som wordpress-snippet.html, laddar de riktiga car-advice-main.js/car-advice-chat.js (inte en egen kopia)
 ```
 
 ---

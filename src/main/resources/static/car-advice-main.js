@@ -10,7 +10,7 @@ window._ca = function(action, arg) {
   if (window._caFns && window._caFns[action]) window._caFns[action](arg);
 };
 
-var CA_API_BASE = 'https://caradvice.onrender.com';
+var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
 
 // Dagsaktuella bränslepriser från Bilresa-backenden (6 h localStorage-cache) —
 // används i ägandekostnadskalkylen; värdena nedan är fallback om API:et inte svarar
