@@ -504,6 +504,7 @@ function caFuelChips(fuel, price) {
 }
 
 function caRenderCards(recommendations) {
+  caRestoreResults();
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
   setTimeout(function() {
@@ -1658,9 +1659,48 @@ function caFcCompare() {
   });
 }
 
+// Minimerar den gamla "Dina rekommendationer"-sektionen till en klickbar rad när en
+// fri jämförelse visas ovanför den — annars ser man både 3 bilkort + kompakt jämförelse
+// staplat. Klick på raden återställer sektionen. Samma mönster som stationslistan i Elbilsladdning.
+function caMinimizeResults() {
+  var results = document.getElementById('ca-results');
+  var cards = document.getElementById('ca-cards');
+  if (!results || !cards) return;
+  var count = cards.querySelectorAll('.ca-card').length;
+  if (!count) return;
+  if (results.style.display === 'none') return;
+  results.style.display = 'none';
+
+  var bar = document.getElementById('ca-results-collapsed');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'ca-results-collapsed';
+    results.parentNode.insertBefore(bar, results);
+    bar.addEventListener('click', function() {
+      document.getElementById('ca-results').style.display = 'block';
+      bar.style.display = 'none';
+    });
+  }
+  bar.style.cssText = 'cursor:pointer;padding:10px 16px;margin-bottom:14px;background:rgba(255,255,255,.04);' +
+    'border:1px solid rgba(255,255,255,.12);border-radius:10px;font-size:.82rem;color:rgba(255,255,255,.65);' +
+    'display:flex;align-items:center;justify-content:space-between;gap:10px';
+  bar.innerHTML = '<span>&#x1F4CB; Dina rekommendationer (' + count + ' bilar)</span><span style="color:#7ec8ff;white-space:nowrap">visa &#x25BE;</span>';
+}
+
+// Tar bort en ev. minimerad rad och visar resultatsektionen igen — körs innan nya
+// bilkort renderas så inget föråldrat minimerat läge blir kvar från en tidigare fri jämförelse.
+function caRestoreResults() {
+  var bar = document.getElementById('ca-results-collapsed');
+  if (bar) bar.style.display = 'none';
+  var results = document.getElementById('ca-results');
+  if (results) results.style.display = 'block';
+}
+
 function caFcRenderResult(recs) {
   var result = document.getElementById('ca-fc-result');
   if (!result || !recs || recs.length < 2) return;
+
+  caMinimizeResults();
 
   var mini = recs.slice(0, 2).map(function(r, i) {
     var col = i === 0 ? '#a78bfa' : '#38bdf8';
