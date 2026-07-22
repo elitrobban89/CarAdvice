@@ -114,9 +114,10 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Streaming-svar — token för token via SSE; automatisk fallback till JSON om ReadableStream saknas
 - **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna; benutrymme bak (mm), batterikemi (LFP/NMC), Euro NCAP-betyg och verifierad bränsleförbrukning för de rekommenderade bilarna injiceras automatiskt i chattens systemprompt så AI:n kan svara korrekt på frågor som "kan jag ladda till 100%?", "hur mycket plats är det i baksätet?" eller "hur säker är den?"
 - **AI-disclaimer** i chattpanelens footer — påminner om att AI-svar kan innehålla fel
+- **"Info & prenumeration"-knapp** ovanför inmatningsfältet — visar ett statiskt info-kort (ingen AI/backend-anrop, räknas **aldrig** mot timpotten) med allt som ingår i prenumerationen (49 kr/mån): AI Bilrådgivning, AI EV Laddassistent och Bränslekostnadsberäkning — alla obegränsade mot begränsade demoversioner — plus en Prenumerera-knapp som öppnar `/subscribe.html`
 - **Per-bil-fokus** — klickar man "Fråga om denna bil" ändras chatboten till att fokusera på just den bilen med specifika chips: Berätta om, Driftkostnad & skatt, Tillförlitlighet & problem, Jämför med
 - Dynamiska follow-up chips baserade på svarsinnehållet
-- Rensa-knapp; max 10 frågor/minut per IP
+- Rensa-knapp; chattfrågor drar ur den kombinerade timpotten (se Rate limiting nedan) + burstspärr 20/min utloggad
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
 - **Modellsplit:** rekommendationer och jämförelser använder `openai/gpt-oss-120b` (`reasoning_effort: low`), fallback `openai/gpt-oss-20b`; chatboten använder `openai/gpt-oss-20b` primärt, `openai/gpt-oss-120b` som fallback. `qwen/qwen3.6-27b` (preview-tier hos Groq) är reservmodell — tredje 429-utväg och trunkeringsomförsök
 
@@ -231,8 +232,8 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 `ca_token` lagras i `localStorage` under domänen `elitrobban.se` och delas automatiskt mellan sidorna. `ev-charging.js` (serveras av CarAdvice-backenden) agerar access guard på elbilsladdning-sidan — kontrollerar token mot `/api/auth/me` och visar antingen innehållet eller ett betalvägg-kort.
 
-- Ej inloggad: **max 10 sökningar/timme** och **10 chattmeddelanden/minut** (IP-baserat)
-- Inloggad (gratis konto): **30 sökningar/timme** och **30 chattmeddelanden/minut**
+- Ej inloggad: **max 10 sökningar/timme** — en *kombinerad* timpott där rekommendationer, jämförelser **och chattfrågor** räknas mot samma 10 (IP-baserat), plus en per-minut-burstspärr på chatten (20/min)
+- Inloggad (gratis konto): **30 sökningar/timme** kombinerat (samma pott för sök + chatt), burst 50/min
 - Aktiv prenumerant (49 kr/mån): **obegränsade sökningar och chatt på båda tjänsterna**
 - Konto skapas på `/subscribe.html` — öppnas i nytt fönster
 - Betalning via Stripe Checkout (hosted betalningssida)
@@ -278,7 +279,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-227 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+228 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -293,7 +294,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `FuelPriceServiceTest` (2) | Bränsleprisradens format i AI-promptarna: båda priserna med, diesel utelämnas om det saknas |
 | `WebInsightScraperServiceTest` (20) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel — Groq-fel under själva anropet är numera fail-closed, hoppar över batchen) |
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
-| `CarControllerTest` (37) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `CarControllerTest` (38) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
