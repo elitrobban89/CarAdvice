@@ -292,6 +292,14 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        // Timvis kombinerad pott: chattfrågor räknas mot SAMMA 10/h (30 inloggad) som
+        // rekommendationer/jämförelser — en fråga i chatten drar en sökning.
+        int hourLimit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (!subscriber && isRateLimited(ip, hourLimit))
+            return ResponseEntity.status(429).body(Map.of("error", loggedIn
+                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
+                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!",
+                    "rateLimited", true));
         int chatLimit = loggedIn ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
@@ -301,6 +309,7 @@ public class CarController {
                 return ResponseEntity.status(429).body(Map.of("error", "För många frågor — vänta en minut och försök igen.", "rateLimited", true));
             times.addLast(now);
         }
+        if (!subscriber) persistRateLimit(ip); // dra en sökning ur timpotten
         try {
             @SuppressWarnings("unchecked")
             List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
@@ -319,6 +328,10 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedInStream = subscriber || userService.isLoggedIn(auth);
+        // Timvis kombinerad pott: chattfrågor drar en sökning ur samma 10/h (30 inloggad).
+        int hourLimitStream = loggedInStream ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (!subscriber && isRateLimited(ip, hourLimitStream))
+            return ResponseEntity.status(429).build();
         int chatLimitStream = loggedInStream ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
         Deque<Long> times = chatTimestamps.computeIfAbsent(ip, k -> new ArrayDeque<>());
@@ -328,6 +341,7 @@ public class CarController {
                 return ResponseEntity.status(429).build();
             times.addLast(now);
         }
+        if (!subscriber) persistRateLimit(ip); // dra en sökning ur timpotten
         @SuppressWarnings("unchecked")
         List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
         if (messages == null || messages.isEmpty())

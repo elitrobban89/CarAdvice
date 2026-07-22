@@ -220,6 +220,28 @@ class CarControllerTest {
            .andExpect(jsonPath("$.reply").value("Inga meddelanden."));
     }
 
+    @Test
+    void chattFragorRaknasMotSammaTimpottSomRekommendationer() throws Exception {
+        when(groqService.chat(any(), any())).thenReturn("svar");
+        String body = "{\"messages\":[{\"role\":\"user\",\"content\":\"fråga\"}]}";
+        // 10 chattfrågor drar hela timpotten (samma pool som /recommend)
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(post("/api/chat")
+                    .header("X-Forwarded-For", "10.6.6.6")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+               .andExpect(status().isOk());
+        }
+        // 11:e blockeras med timgräns-meddelandet
+        mvc.perform(post("/api/chat")
+                .header("X-Forwarded-For", "10.6.6.6")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isTooManyRequests())
+           .andExpect(jsonPath("$.rateLimited").value(true))
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("timme")));
+    }
+
     // --- /api/insights ---
 
     @Test
