@@ -34,9 +34,11 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-wrap{padding:0 8px;margin:22px auto;}' +
     '.ca-grid{grid-template-columns:1fr;gap:12px;margin-bottom:12px;}' +
     '#ca-hero{padding:24px 15px;}' +
-    '#ca-hero p.ca-sub{margin-bottom:22px;}' +
-    '.ca-field label{margin-bottom:6px;}' +
+    '#ca-hero p.ca-sub{margin-bottom:20px;font-size:.95rem;color:rgba(255,255,255,.72);line-height:1.45;}' +
+    '.ca-field label{margin-bottom:6px;font-size:.8rem;letter-spacing:.4px;color:rgba(255,255,255,.82);}' +
     '.ca-field select,.ca-field input[type="number"]{padding:13px 15px;font-size:1rem;border-radius:12px;}' +
+    '.ca-fc-sub{color:rgba(255,255,255,.55);}.ca-fc-header{color:rgba(255,255,255,.9);}' +
+    '.ca-history-label{color:rgba(255,255,255,.42);}' +
     '}';
   (document.body || document.documentElement).appendChild(s);
 })();
