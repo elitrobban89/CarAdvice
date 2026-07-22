@@ -165,7 +165,20 @@
       '@keyframes ca-sp-aurora{0%{opacity:.7;}100%{opacity:1;}}',
       '@keyframes ca-sp-blink{0%,100%{opacity:1;}50%{opacity:0;}}',
       '@keyframes ca-sp-pop{0%{transform:scale(.4);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}',
-      '@media (max-width:520px){.ca-splash{padding:24px 16px;}.ca-sp-title{font-size:1.2rem;}}',
+      // Mobil: förankra innehållet i toppen (hero:n är hög pga formuläret → centrering hamnar
+      // under fold), och kompaktare kärna/rader så allt syns i en skärmhöjd.
+      '@media (max-width:520px){',
+        '.ca-splash{justify-content:flex-start;padding:38px 13px 20px;}',
+        '.ca-sp-title{font-size:1.2rem;}',
+        '.ca-sp-core{width:74px;height:74px;margin-bottom:11px;}',
+        '.ca-sp-node{width:52px;height:52px;border-radius:16px;}',
+        '.ca-sp-chip{margin-bottom:11px;}',
+        '.ca-sp-boot{margin-bottom:15px;font-size:.72rem;}',
+        '.ca-sp-rows{gap:7px;}',
+        '.ca-sp-row{padding:8px 12px;gap:10px;}',
+        '.ca-sp-tx b{font-size:.8rem;}.ca-sp-tx i{font-size:.67rem;}',
+        '.ca-sp-bar{margin-top:14px;}',
+      '}',
       '@media (prefers-reduced-motion:reduce){',
         '.ca-splash *{animation:none!important;transition:none!important;}}'
     ].join('');
@@ -237,7 +250,7 @@
     if (!el) return;
     animated.models = true;
     var tm = targets.models, tv = targets.variants;
-    animate(el, 1400, function (e) { return modelsText(e, tm, tv); });
+    animate(el, 2000, function (e) { return modelsText(e, tm, tv); });
   }
   function refreshModels() {
     if (!animated.models) return; // animeras strax med färska mål
@@ -252,7 +265,7 @@
     if (animated.insights) { el.innerHTML = insightsText(n); return; }
     animated.insights = true;
     var from = cachedInsights || 0;
-    animate(el, 1150, function (e) { return insightsText(Math.round(from + (n - from) * e)); });
+    animate(el, 1600, function (e) { return insightsText(Math.round(from + (n - from) * e)); });
   }
 
   function fetchStats() {
@@ -327,7 +340,7 @@
       timers.push(setTimeout(function () {
         overlay.classList.add('ca-sp-out');
         setTimeout(function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 540);
-      }, 620));
+      }, 1400));
       markSeen();
     }
 
@@ -345,12 +358,12 @@
       var mEl = suba(MODELS_ROW); if (mEl) mEl.innerHTML = modelsText(1, targets.models, targets.variants);
       animateInsights();
       if (fill) fill.style.width = '100%';
-      timers.push(setTimeout(finish, 1400));
+      timers.push(setTimeout(finish, 2600));
       return;
     }
 
-    // ~5,5 s total: rader tickar in långsamt (loading-känsla), sen "boot complete"-flärt
-    var START = 480, STAGGER = 520, FLIP = 360;
+    // ~8 s total: rader tickar in långsamt (loading-känsla), sen "boot complete"-flärt som dröjer sig kvar
+    var START = 600, STAGGER = 760, FLIP = 420;
     rows.forEach(function (row, i) {
       var appear = START + i * STAGGER;
       timers.push(setTimeout(function () {
@@ -362,7 +375,7 @@
         row.classList.add('done');
         row.querySelector('.ca-sp-st').innerHTML = '<span class="ca-sp-check">✓</span>';
         if (fill) fill.style.width = Math.round((i + 1) / rows.length * 100) + '%';
-        if (i === rows.length - 1) timers.push(setTimeout(finish, 520));
+        if (i === rows.length - 1) timers.push(setTimeout(finish, 700));
       }, appear + FLIP));
     });
   }
