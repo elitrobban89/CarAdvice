@@ -404,6 +404,32 @@ public class CarController {
         return ResponseEntity.ok(new ArrayList<>(names));
     }
 
+    // Publikt: lätta live-antal för uppstartssplashen ("aktuellt värde"). Alla räkningar är
+    // best-effort — en enskild tabell som fallerar ska inte fälla hela svaret (splashen
+    // klampar mot golvvärden och faller tillbaka på källnamn). Ingen rate-limit, cachas i
+    // webbläsaren.
+    //   models   = distinkta "märke modell" över cargo_spec ∪ ev_spec ∪ ice_consumption
+    //   variants = totala variantrader (cargo + elbils- + förbrukningsvarianter)
+    //   insights = antal expertinsikter
+    @GetMapping("/stats")
+    public ResponseEntity<?> stats() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        TreeSet<String> models = new TreeSet<>();
+        long variants = 0, insights = 0;
+        try { models.addAll(cargoSpecRepo.findAllCarNames()); variants += cargoSpecRepo.count(); }
+        catch (Exception e) { log.warn("Stats: cargo_spec: {}", e.getMessage()); }
+        try { models.addAll(evSpecRepo.findAllCarNames()); variants += evSpecRepo.count(); }
+        catch (Exception e) { log.warn("Stats: ev_spec: {}", e.getMessage()); }
+        try { models.addAll(iceConsumptionService.allModelNames()); variants += iceConsumptionService.findAll().size(); }
+        catch (Exception e) { log.warn("Stats: ice_consumption: {}", e.getMessage()); }
+        try { insights = expertInsightService.count(); }
+        catch (Exception e) { log.warn("Stats: insikter: {}", e.getMessage()); }
+        out.put("models", models.size());
+        out.put("variants", variants);
+        out.put("insights", insights);
+        return ResponseEntity.ok(out);
+    }
+
     @GetMapping("/ev-consumption")
     public ResponseEntity<List<Map<String, Object>>> getEvConsumption() {
         List<Map<String, Object>> result = evSpecRepo.findAll().stream()

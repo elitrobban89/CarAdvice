@@ -141,6 +141,11 @@ public class ExpertInsightService {
         return repo.save(insight);
     }
 
+    /** Totalt antal expertinsikter i databasen — matar uppstartssplashens "X insikter". */
+    public long count() {
+        return repo.count();
+    }
+
     /** Admin: senaste insikterna (högsta id först — tabellen saknar created_at), valfritt filtrerat på expert/källa. */
     public List<Map<String, Object>> listRecent(String expert, int limit) {
         Pageable page = PageRequest.of(0, Math.max(1, Math.min(limit, 500)));
