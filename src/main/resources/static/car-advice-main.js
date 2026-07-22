@@ -12,6 +12,17 @@ window._ca = function(action, arg) {
 
 var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
 
+// Auto-ladda uppstartssplashen om sidan inte redan inkluderar den — så WordPress-sidor
+// som bara har <script> för denna fil får splashen utan att snippet-HTML:en ändras.
+// Guard: hoppa över om taggen redan finns eller splashen redan körts (undviker dubbelladdning).
+(function caLoadSplash() {
+  if (window.caReplaySplash || document.querySelector('script[src*="car-advice-splash"]')) return;
+  var s = document.createElement('script');
+  s.src = CA_API_BASE + '/car-advice-splash.js';
+  s.defer = true;
+  (document.head || document.documentElement).appendChild(s);
+})();
+
 // Dagsaktuella bränslepriser från Bilresa-backenden (6 h localStorage-cache) —
 // används i ägandekostnadskalkylen; värdena nedan är fallback om API:et inte svarar
 var CA_FUEL_PRICES = { bensin: 18, diesel: 17.5 };
