@@ -55,7 +55,7 @@
 <body>
 <div class="card">
   <div class="logo">
-    <h1>BilRådgivning</h1>
+    <h1 id="ctxTitle">BilRådgivning</h1>
     <p>Logga in eller skapa ett konto</p>
   </div>
 
@@ -91,7 +91,7 @@
         <p id="subEndsAt"></p>
         <p id="subRenewal"></p>
       </div>
-      <button class="btn btn-back" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
+      <button class="btn btn-back" id="backBtn" onclick="goBack()">← Tillbaka till bilrådgivningen</button>
       <button class="btn btn-cancel" id="cancelBtn" onclick="cancelSubscription()">Avsluta prenumeration</button>
       <button class="btn btn-reactivate" id="reactivateBtn" onclick="reactivateSubscription()" style="display:none;">Återaktivera prenumeration</button>
     </div>
@@ -136,6 +136,24 @@
 
 <script>
 const API = '';
+
+// Kontextmedveten rubrik + tillbaka-text utifran vilken sida som oppnade popupen.
+// document.referrer = oppnarsidans URL (satts for window.open-popups); ?from= kan overrida.
+(function applyContext() {
+  var ref = '';
+  try { ref = ((new URLSearchParams(location.search).get('from')) || document.referrer || '').toLowerCase(); } catch (e) {}
+  var ctx;
+  if (ref.indexOf('bransle') !== -1 || ref.indexOf('bensinkost') !== -1) {
+    ctx = { title: 'Bränslekostnadberäkning', label: 'Bränslekostnad&shy;beräkning', back: 'Bränslekostnad&shy;beräkning' };
+  } else if (ref.indexOf('elbilsladdning') !== -1) {
+    ctx = { title: 'Elbilsladdning', label: 'Elbilsladdning', back: 'Elbilsladdning' };
+  } else {
+    ctx = { title: 'BilRådgivning', label: 'BilRådgivning', back: 'bilrådgivningen' };
+  }
+  try { document.title = 'Logga in / Prenumerera – ' + ctx.title; } catch (e) {}
+  var h = document.getElementById('ctxTitle'); if (h) h.innerHTML = ctx.label;
+  var b = document.getElementById('backBtn'); if (b) b.innerHTML = '← Tillbaka till ' + ctx.back;
+})();
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
