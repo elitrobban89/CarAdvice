@@ -250,7 +250,7 @@
     if (!el) return;
     animated.models = true;
     var tm = targets.models, tv = targets.variants;
-    animate(el, 2000, function (e) { return modelsText(e, tm, tv); });
+    animate(el, 1500, function (e) { return modelsText(e, tm, tv); });
   }
   function refreshModels() {
     if (!animated.models) return; // animeras strax med färska mål
@@ -265,7 +265,7 @@
     if (animated.insights) { el.innerHTML = insightsText(n); return; }
     animated.insights = true;
     var from = cachedInsights || 0;
-    animate(el, 1600, function (e) { return insightsText(Math.round(from + (n - from) * e)); });
+    animate(el, 1200, function (e) { return insightsText(Math.round(from + (n - from) * e)); });
   }
 
   function fetchStats() {
@@ -340,7 +340,7 @@
       timers.push(setTimeout(function () {
         overlay.classList.add('ca-sp-out');
         setTimeout(function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 540);
-      }, 1400));
+      }, 800));
       markSeen();
     }
 
@@ -358,12 +358,12 @@
       var mEl = suba(MODELS_ROW); if (mEl) mEl.innerHTML = modelsText(1, targets.models, targets.variants);
       animateInsights();
       if (fill) fill.style.width = '100%';
-      timers.push(setTimeout(finish, 2600));
+      timers.push(setTimeout(finish, 2200));
       return;
     }
 
-    // ~8 s total: rader tickar in långsamt (loading-känsla), sen "boot complete"-flärt som dröjer sig kvar
-    var START = 600, STAGGER = 760, FLIP = 420;
+    // ~5,5 s total: rader tickar in (loading-känsla), sen "boot complete"-flärt
+    var START = 420, STAGGER = 500, FLIP = 360;
     rows.forEach(function (row, i) {
       var appear = START + i * STAGGER;
       timers.push(setTimeout(function () {
@@ -375,7 +375,7 @@
         row.classList.add('done');
         row.querySelector('.ca-sp-st').innerHTML = '<span class="ca-sp-check">✓</span>';
         if (fill) fill.style.width = Math.round((i + 1) / rows.length * 100) + '%';
-        if (i === rows.length - 1) timers.push(setTimeout(finish, 700));
+        if (i === rows.length - 1) timers.push(setTimeout(finish, 500));
       }, appear + FLIP));
     });
   }
