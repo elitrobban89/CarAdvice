@@ -286,6 +286,22 @@ public class CarController {
         }
     }
 
+    /** Peek på timpotten UTAN att förbruka en sökning — frontenden synkar demoräknaren
+     *  efter en chattfråga (chatt + rekommendationer delar samma pott, se /chat). */
+    @GetMapping("/search-status")
+    public ResponseEntity<?> searchStatus(HttpServletRequest request,
+                                          @RequestHeader(value = "Authorization", required = false) String auth) {
+        String ip = getClientIp(request);
+        boolean subscriber = userService.isActiveSubscriber(auth);
+        boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        Map<String, Object> body = new HashMap<>();
+        body.put("subscriber", subscriber);
+        body.put("loggedIn", loggedIn);
+        body.put("remaining", subscriber ? null : remainingSearches(ip, limit));
+        return ResponseEntity.ok(body);
+    }
+
     @PostMapping("/chat")
     public ResponseEntity<?> chat(@RequestBody Map<String, Object> req, HttpServletRequest httpReq,
                                   @RequestHeader(value = "Authorization", required = false) String auth) {

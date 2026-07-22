@@ -242,6 +242,19 @@ class CarControllerTest {
            .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("timme")));
     }
 
+    @Test
+    void searchStatusPeekarUtanAttForbruka() throws Exception {
+        mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.remaining").value(10))
+           .andExpect(jsonPath("$.subscriber").value(false))
+           .andExpect(jsonPath("$.loggedIn").value(false));
+        // Andra anropet ger SAMMA remaining = peek förbrukar ingen sökning
+        mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.remaining").value(10));
+    }
+
     // --- /api/insights ---
 
     @Test

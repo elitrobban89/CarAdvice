@@ -409,6 +409,17 @@
     if (caSubBtn) caSubBtn.addEventListener("click", caChatShowSubscriptionInfo);
   }
 
+  // Hämtar aktuell status ur timpotten (peek, förbrukar inget) och uppdaterar
+  // demoräknaren i sub-baren så en chattfråga syns räkna ner "N av 10 sökningar kvar".
+  function caChatRefreshSearchCounter() {
+    if (typeof window.caUpdateSubBar !== 'function') return;
+    var token = localStorage.getItem('ca_token');
+    fetch(CA_CHAT_API + "/api/search-status", { headers: token ? { "Authorization": "Bearer " + token } : {} })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) window.caUpdateSubBar(d.subscriber, d.loggedIn, d.remaining); })
+      .catch(function(){});
+  }
+
   // Statiskt info-kort — ingen AI/backend-anrop, räknas aldrig mot rate-limiten (alltid gratis)
   function caChatShowSubscriptionInfo() {
     var quick = document.getElementById("ca-chat-quick");
@@ -572,10 +583,13 @@
     var limited = caChatHistory.slice(-10);
 
     var resp;
+    var caChatHeaders = { "Content-Type": "application/json" };
+    var caChatToken = localStorage.getItem('ca_token');
+    if (caChatToken) caChatHeaders["Authorization"] = "Bearer " + caChatToken; // inloggad → rätt pott (30/h)
     try {
       resp = await fetch(CA_CHAT_API + "/api/chat/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: caChatHeaders,
         body: JSON.stringify({ messages: limited, context: context })
       });
     } catch (_) {
@@ -588,6 +602,7 @@
     }
 
     typingDiv.remove();
+    caChatRefreshSearchCounter(); // en chattfråga drog ur timpotten → synka demoräknaren i sub-baren
 
     if (resp.status === 429) {
       caChatAppendBot("Du har ställt för många frågor — vänta en minut och försök igen.", false);
@@ -605,7 +620,7 @@
     if (!resp.body || typeof resp.body.getReader !== "function") {
       try {
         var fb = await fetch(CA_CHAT_API + "/api/chat", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST", headers: caChatHeaders,
           body: JSON.stringify({ messages: limited, context: context })
         });
         var fbData = await fb.json();
