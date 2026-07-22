@@ -23,6 +23,24 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.head || document.documentElement).appendChild(s);
 })();
 
+// Mobil-CSS för formuläret injiceras här (samma regler som @media(max-width:520px) i
+// WP-snippeten) så befintliga WordPress-sidor får den kompaktare mobil-layouten utan att
+// snippet-HTML:en klistras om. Läggs sist i <body> så den vinner över snippetens inline-<style>.
+(function caMobileCss() {
+  if (document.getElementById('ca-mobile-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-mobile-css';
+  s.textContent = '@media(max-width:520px){' +
+    '#ca-wrap{padding:0 8px;margin:22px auto;}' +
+    '.ca-grid{grid-template-columns:1fr;gap:12px;margin-bottom:12px;}' +
+    '#ca-hero{padding:24px 15px;}' +
+    '#ca-hero p.ca-sub{margin-bottom:22px;}' +
+    '.ca-field label{margin-bottom:6px;}' +
+    '.ca-field select,.ca-field input[type="number"]{padding:13px 15px;font-size:1rem;border-radius:12px;}' +
+    '}';
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 // Dagsaktuella bränslepriser från Bilresa-backenden (6 h localStorage-cache) —
 // används i ägandekostnadskalkylen; värdena nedan är fallback om API:et inte svarar
 var CA_FUEL_PRICES = { bensin: 18, diesel: 17.5 };
