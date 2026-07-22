@@ -369,6 +369,9 @@
           <button class="ca-chat-quick-btn" data-q="Vilken begagnad bil är mest pålitlig?">🔧 Pålitlighet</button>
           <button class="ca-chat-quick-btn" data-q="Vad ska jag tänka på när jag köper begagnad bil?">📋 Köpguide</button>
         </div>
+        <div class="ca-chat-subbar" id="ca-chat-subbar" style="display:flex;justify-content:flex-end;padding:6px 12px 0;">
+          <button id="ca-chat-subbtn" type="button" style="background:rgba(139,92,246,0.18);border:1px solid rgba(167,139,250,0.4);color:#c4b5fd;border-radius:8px;padding:5px 11px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">💳 Info &amp; prenumeration</button>
+        </div>
         <div class="ca-chat-input-row">
           <input class="ca-chat-input" id="ca-chat-input" type="text" placeholder="Ställ en fråga om bilar…" autocomplete="off"/>
           <button class="ca-chat-send" id="ca-chat-send">➤</button>
@@ -402,6 +405,38 @@
     document.querySelectorAll(".ca-chat-quick-btn").forEach(function(btn) {
       btn.addEventListener("click", function() { caChatSendMessage(btn.dataset.q); });
     });
+    var caSubBtn = document.getElementById("ca-chat-subbtn");
+    if (caSubBtn) caSubBtn.addEventListener("click", caChatShowSubscriptionInfo);
+  }
+
+  // Statiskt info-kort — ingen AI/backend-anrop, räknas aldrig mot rate-limiten (alltid gratis)
+  function caChatShowSubscriptionInfo() {
+    var quick = document.getElementById("ca-chat-quick");
+    if (quick) quick.style.display = "none";
+    var msgs = document.getElementById("ca-chat-messages");
+    var outer = document.createElement("div");
+    var bubble = document.createElement("div");
+    bubble.className = "ca-chat-bubble bot";
+    bubble.innerHTML =
+      '<div style="font-weight:800;margin-bottom:6px">💳 Prenumeration – 49 kr/mån</div>' +
+      '<div style="font-size:.82rem;opacity:.85;margin-bottom:8px">Utan konto är tjänsterna begränsade (demoläge). Som prenumerant får du <b>allt obegränsat</b>:</div>' +
+      '<div style="display:flex;flex-direction:column;gap:5px;font-size:.82rem">' +
+        '<div>🚗 <b>AI Bilrådgivning</b> – obegränsad chatt och bilförslag</div>' +
+        '<div>⚡ <b>AI EV Laddassistent</b> – obegränsad chatt, laddstationer och ruttplanering</div>' +
+        '<div>⛽ <b>Bränslekostnadsberäkning</b> – obegränsade beräkningar</div>' +
+      '</div>' +
+      '<div style="font-size:.75rem;opacity:.6;margin-top:8px">Avbryt när som helst.</div>';
+    var cta = document.createElement("button");
+    cta.textContent = "Prenumerera – 49 kr/mån →";
+    cta.style.cssText = "margin-top:10px;width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:9px;padding:9px 14px;font-size:.82rem;font-weight:800;cursor:pointer";
+    cta.onclick = function() {
+      if (window.caOpenSubscribe) window.caOpenSubscribe();
+      else window.open(CA_CHAT_API + "/subscribe.html?from=bilradgivning", "_blank", "width=480,height=650,resizable=yes");
+    };
+    bubble.appendChild(cta);
+    outer.appendChild(bubble);
+    msgs.appendChild(outer);
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   function caChatToggle() {
