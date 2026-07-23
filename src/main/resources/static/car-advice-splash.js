@@ -70,7 +70,7 @@
     var css = document.createElement('style');
     css.id = 'ca-splash-style';
     css.textContent = [
-      '.ca-splash{position:absolute;inset:0;z-index:50;border-radius:inherit;overflow:hidden;',
+      '.ca-splash{position:fixed;inset:0;z-index:99999;overflow:hidden;',
         'display:flex;flex-direction:column;align-items:center;justify-content:center;',
         'padding:30px 22px;text-align:center;',
         "font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Roboto,sans-serif;",
@@ -312,12 +312,15 @@
     if (!hero || document.querySelector('.ca-splash')) return;
 
     injectStyles();
-    if (getComputedStyle(hero).position === 'static') hero.style.position = 'relative';
 
+    // Helskärms-takeover (som EV-/bränsle-splasharna): mounta på <body> med position:fixed
+    // och lås scroll medan lagret visas. #ca-hero används bara som grind (rätt sida).
     var overlay = document.createElement('div');
     overlay.className = 'ca-splash';
     overlay.innerHTML = template();
-    hero.appendChild(overlay);
+    document.body.appendChild(overlay);
+    var prevOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
 
     var fill    = overlay.querySelector('.ca-sp-fill');
     var bootTx  = overlay.querySelector('.ca-sp-boot-tx');
@@ -337,6 +340,7 @@
       else if (bootTx) bootTx.textContent = 'klar — hitta din dr\xf6mbil ✓';
       if (cursor) cursor.style.display = 'none';
       if (fill) fill.style.width = '100%';
+      document.documentElement.style.overflow = prevOverflow;
       timers.push(setTimeout(function () {
         overlay.classList.add('ca-sp-out');
         setTimeout(function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 540);
