@@ -43,6 +43,45 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.body || document.documentElement).appendChild(s);
 })();
 
+// Polish-lager: mer glöd + glasmorphism + skiftande lila. Injiceras (som mobil-CSS:en)
+// så WP-sidan slipper omklistring; läggs sist i <body> → vinner över snippetens inline-<style>.
+(function caPolishCss() {
+  if (document.getElementById('ca-polish-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-polish-css';
+  s.textContent = [
+    // Skiftande lila nyansdrift + aurora-drift för glödlagren
+    '@keyframes ca-hue{0%{filter:hue-rotate(-12deg)}50%{filter:hue-rotate(16deg)}100%{filter:hue-rotate(-12deg)}}',
+    '@keyframes ca-aurora{from{opacity:.62;transform:scale(1)}to{opacity:1;transform:scale(1.06) translate(1.5%,-1.5%)}}',
+    '@keyframes ca-btn-glow{from{box-shadow:0 6px 24px rgba(139,92,246,.5),0 0 40px rgba(167,139,250,.2),inset 0 1px 0 rgba(255,255,255,.25)}to{box-shadow:0 8px 34px rgba(167,139,250,.72),0 0 74px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.32)}}',
+    '@keyframes ca-sheen{0%,58%{left:-60%}82%,100%{left:130%}}',
+    // Hero: glödande lila kant + djupare glow, och en skiftande aurora i ::before
+    '#ca-hero{border:1px solid rgba(167,139,250,.28);box-shadow:0 24px 60px rgba(0,0,0,.4),0 0 90px rgba(139,92,246,.22),inset 0 1px 0 rgba(255,255,255,.09);}',
+    '#ca-hero h2{text-shadow:0 0 34px rgba(167,139,250,.4);}',
+    '#ca-hero::before{',
+      'background:',
+        'radial-gradient(ellipse at 72% 12%,rgba(139,92,246,.28) 0%,transparent 55%),',
+        'radial-gradient(ellipse at 12% 88%,rgba(99,102,241,.2) 0%,transparent 48%),',
+        'radial-gradient(ellipse at 88% 92%,rgba(217,70,239,.14) 0%,transparent 50%);',
+      'animation:ca-hue 20s ease-in-out infinite,ca-aurora 12s ease-in-out infinite alternate;}',
+    // Fält: mer glas + lila fokus-glöd
+    '.ca-field select,.ca-field input[type="number"]{backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border-color:rgba(167,139,250,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}',
+    '.ca-field input[type="number"]:focus,.ca-field select:focus{border-color:rgba(167,139,250,.7);box-shadow:0 0 0 3px rgba(139,92,246,.28),0 0 34px rgba(167,139,250,.4),inset 0 1px 0 rgba(255,255,255,.1);}',
+    // Sök-knapp: ljusare skiftande lila, pulserande glöd + vandrande sheen
+    '#ca-btn{position:relative;overflow:hidden;background:linear-gradient(135deg,#a855f7 0%,#8b5cf6 45%,#6366f1 100%);text-shadow:0 1px 8px rgba(30,10,60,.45);animation:ca-btn-glow 2.8s ease-in-out infinite alternate,ca-hue 16s ease-in-out infinite;}',
+    '#ca-btn::after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);pointer-events:none;animation:ca-sheen 5s ease-in-out infinite;}',
+    '#ca-btn:hover{box-shadow:0 12px 40px rgba(167,139,250,.7),0 0 80px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.3);}',
+    // Kort: glasigare + topp-highlight; starkare lila hover-glow på Bil 1
+    '.ca-card{backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);box-shadow:0 2px 14px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);}',
+    '.ca-card-1:hover{border-color:rgba(139,92,246,.65);box-shadow:0 16px 50px rgba(139,92,246,.3),0 0 54px rgba(167,139,250,.2),inset 0 1px 0 rgba(255,255,255,.08);}',
+    '.ca-card-2:hover{box-shadow:0 16px 50px rgba(14,165,233,.24),0 0 50px rgba(56,189,248,.18),inset 0 1px 0 rgba(255,255,255,.08);}',
+    '.ca-card-3:hover{box-shadow:0 16px 50px rgba(16,185,129,.22),0 0 50px rgba(52,211,153,.16),inset 0 1px 0 rgba(255,255,255,.08);}',
+    // Respektera reduced motion
+    '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-btn,#ca-btn::after{animation:none!important;}}'
+  ].join('');
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 // Dagsaktuella bränslepriser från Bilresa-backenden (6 h localStorage-cache) —
 // används i ägandekostnadskalkylen; värdena nedan är fallback om API:et inte svarar
 var CA_FUEL_PRICES = { bensin: 18, diesel: 17.5 };
