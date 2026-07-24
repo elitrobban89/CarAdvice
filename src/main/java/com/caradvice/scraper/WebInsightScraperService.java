@@ -159,6 +159,18 @@ public class WebInsightScraperService {
     enum Mode { ARTICLES, PAGE }
     enum Discover { SITEMAP, RSS, LISTING, WPJSON, NONE }
 
+    /**
+     * Utfall för en källa. En källa som inte hittade något att skrapa (0 länkar, tom sida)
+     * gav förut samma "0" i scrape-status som en källa där allt fungerade men dedupen tog
+     * allt — en layoutändring hos källan kunde alltså gå obemärkt förbi hur länge som helst.
+     * warning != null lyfts därför fram i statusraden i stället för antalet.
+     */
+    record SourceResult(int saved, String warning) {
+        static SourceResult of(int saved) { return new SourceResult(saved, null); }
+
+        String label() { return warning != null ? warning : String.valueOf(saved); }
+    }
+
     private static final List<Source> SOURCES = List.of(
             new Source("Teknikens Värld", Mode.ARTICLES, Discover.SITEMAP,
                     "https://teknikensvarld.se/sitemap.xml", null, null,
@@ -277,10 +289,14 @@ public class WebInsightScraperService {
         List<String> perSource = new ArrayList<>();
         for (Source source : SOURCES) {
             try {
-                int n = source.mode() == Mode.PAGE ? processPage(source) : processArticles(source);
-                log.info("Web insights [{}]: {} nya insikter", source.expert(), n);
-                total += n;
-                perSource.add(source.expert() + ": " + n);
+                SourceResult r = source.mode() == Mode.PAGE ? processPage(source) : processArticles(source);
+                log.info("Web insights [{}]: {} nya insikter", source.expert(), r.saved());
+                if (r.warning() != null) {
+                    log.error("SCRAPER ALERT [{}]: {} — källan kan ha ändrat sin HTML-struktur. Manuell koll behövs.",
+                            source.expert(), r.warning());
+                }
+                total += r.saved();
+                perSource.add(source.expert() + ": " + r.label());
             } catch (Exception e) {
                 log.warn("Web insights [{}]: källan misslyckades: {}", source.expert(), e.getMessage());
                 perSource.add(source.expert() + ": FEL (" + e.getMessage() + ")");
@@ -328,10 +344,11 @@ public class WebInsightScraperService {
 
     // ── Artikelkällor ─────────────────────────────────────────────────────────
 
-    private int processArticles(Source source) throws Exception {
+    private SourceResult processArticles(Source source) throws Exception {
         List<String> urls = new ArrayList<>(source.extraUrls());
         urls.addAll(discover(source));
         Set<String> unique = new LinkedHashSet<>(urls);
+        if (unique.isEmpty()) return new SourceResult(0, "INGA LANKAR (0 artikel-URL:er)");
 
         int saved = 0;
         int processed = 0;
@@ -358,21 +375,21 @@ public class WebInsightScraperService {
                 log.warn("Web insights [{}]: hoppar över {}: {}", source.expert(), url, e.getMessage());
             }
         }
-        return saved;
+        return SourceResult.of(saved);
     }
 
     // ── Sidkällor (car.info, Folksam) ─────────────────────────────────────────
 
-    private int processPage(Source source) throws Exception {
+    private SourceResult processPage(Source source) throws Exception {
         String text = fetchPageText(source.url());
         if (text.length() < MIN_TEXT_CHARS) {
             log.warn("Web insights [{}]: för lite text på sidan ({} tecken) — JS-renderad?", source.expert(), text.length());
-            return 0;
+            return new SourceResult(0, "FOR LITE TEXT (" + text.length() + " tecken, JS-renderad?)");
         }
         List<JsonNode> insights = extractInsights(text, source.kind(), source.url());
         int saved = saveInsights(source.expert(), insights, source.expert());
         Thread.sleep(GROQ_DELAY_MS);
-        return saved;
+        return SourceResult.of(saved);
     }
 
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */

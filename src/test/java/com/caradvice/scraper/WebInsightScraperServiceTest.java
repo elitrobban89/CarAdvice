@@ -207,6 +207,16 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void statusradenSkiljerNollNyaFranTystMisslyckadKalla() {
+        // "0" i scrape-status betydde både "allt fungerade, dedupen tog allt" och "hittade
+        // ingenting att skrapa" — en layoutändring hos källan kunde gå obemärkt förbi
+        assertThat(WebInsightScraperService.SourceResult.of(0).label()).isEqualTo("0");
+        assertThat(WebInsightScraperService.SourceResult.of(3).label()).isEqualTo("3");
+        assertThat(new WebInsightScraperService.SourceResult(0, "INGA LANKAR (0 artikel-URL:er)").label())
+                .isEqualTo("INGA LANKAR (0 artikel-URL:er)");
+    }
+
+    @Test
     void parsarWpJsonLankar() throws Exception {
         String json = """
             [{"link":"https:\\/\\/elbilen.se\\/mazda-pressar-priset\\/"},
