@@ -136,6 +136,10 @@ public class WebInsightScraperService {
               lagersiffror, marknadsstatistik
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler
             - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
+            - en modell som ännu inte går att köpa och där uppgifterna är spekulativa: rykten
+              om kommande namn ("kan heta X"), plattform, teknik eller lanseringsår. En insikt
+              om en snart lanserad modell med BEKRÄFTAT namn och konkreta uppgifter (pris,
+              utrustning, mätvärden) är däremot RELEVANT
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
             Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
