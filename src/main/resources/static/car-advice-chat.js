@@ -204,10 +204,11 @@
         transition:transform .15s,box-shadow .15s;
       }
       .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
-      /* Frostat glas: tunn bas + kraftig blur/saturate, ljusfall uppifrån vänster och
-         lila glöd i hörnen. Basen kan hållas låg (.44) eftersom panelen byter till
-         ljust glas via .ca-chat-onlight när den ligger mot en ljus bakgrund — utan
-         det lägen dör den ljusa texten så fort sidan bakom är vit. */
+      /* Frostat glas: basfärgen är i praktiken borta (.01) — det som gör panelen
+         läsbar är blur/saturate plus att VARJE textbärande del har en egen tätare
+         bricka (header, bubblor, snabbknappar, inputrad, disclaimer). Panelen byter
+         dessutom till ljust glas via .ca-chat-onlight mot ljus bakgrund; utan det
+         dör den ljusa texten så fort sidan bakom är vit. */
       .ca-chat-panel {
         position:fixed;bottom:96px;right:24px;z-index:9998;
         width:380px;max-height:540px;
@@ -215,7 +216,7 @@
           linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0) 46%),
           radial-gradient(120% 60% at 100% 0%,rgba(139,92,246,0.22),transparent 62%),
           radial-gradient(110% 55% at 0% 100%,rgba(76,29,149,0.26),transparent 68%),
-          linear-gradient(160deg,rgba(17,13,44,0.44),rgba(9,7,26,0.54));
+          linear-gradient(160deg,rgba(17,13,44,0.01),rgba(9,7,26,0.01));
         backdrop-filter:blur(34px) saturate(180%);-webkit-backdrop-filter:blur(34px) saturate(180%);
         border:1px solid rgba(196,181,253,0.28);border-radius:22px;
         box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 70px rgba(139,92,246,.16),
@@ -224,7 +225,7 @@
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       }
       .ca-chat-header {
-        background:linear-gradient(135deg,rgba(109,40,217,0.55),rgba(139,92,246,0.32));
+        background:linear-gradient(135deg,rgba(109,40,217,0.78),rgba(139,92,246,0.55));
         backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);
         border-bottom:1px solid rgba(196,181,253,0.22);
         box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);
@@ -259,7 +260,7 @@
       }
       .ca-chat-bubble.bot {
         background:linear-gradient(150deg,rgba(255,255,255,0.07),rgba(255,255,255,0) 55%),
-          rgba(30,24,60,0.46);
+          rgba(30,24,60,0.58);
         backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);
         border:1px solid rgba(196,181,253,0.20);
         box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
@@ -269,18 +270,20 @@
       .ca-chat-bubble.bot ul { margin:6px 0 2px 16px;padding:0;display:flex;flex-direction:column;gap:3px; }
       .ca-chat-bubble.bot li { list-style:disc; }
       .ca-chat-bubble.user {
-        background:linear-gradient(135deg,rgba(109,40,217,0.62),rgba(139,92,246,0.52));
+        background:linear-gradient(135deg,rgba(109,40,217,0.74),rgba(139,92,246,0.64));
         backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
         border:1px solid rgba(196,181,253,0.32);
         box-shadow:inset 0 1px 0 rgba(255,255,255,0.20);
         color:#fff;border-radius:14px 14px 4px 14px;align-self:flex-end;
       }
+      /* Egen bricka — med .01-bas skulle de här flyta ihop med sidan bakom */
       .ca-chat-quick {
         padding:10px 12px 4px;display:flex;flex-wrap:wrap;gap:7px;flex-shrink:0;
-        background:rgba(255,255,255,0.04);border-top:1px solid rgba(196,181,253,0.16);
+        background:rgba(12,9,32,0.42);border-top:1px solid rgba(196,181,253,0.16);
+        backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);
       }
       .ca-chat-quick-btn {
-        background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.28);color:#c4b5fd;
+        background:rgba(46,32,92,0.62);border:1px solid rgba(167,139,250,0.42);color:#ddd0ff;
         border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;
         cursor:pointer;transition:all .15s;white-space:nowrap;
         backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
@@ -289,8 +292,15 @@
       .ca-chat-input-row {
         display:flex;gap:8px;padding:10px 12px;
         border-top:1px solid rgba(196,181,253,0.16);
-        background:rgba(255,255,255,0.04);flex-shrink:0;
+        background:rgba(12,9,32,0.42);flex-shrink:0;
+        backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);
       }
+      .ca-chat-disclaimer {
+        background:rgba(12,9,32,0.42);
+        backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      }
+      .ca-chat-subbar { background:rgba(12,9,32,0.42);
+        backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px); }
       .ca-chat-input {
         flex:1;border:1px solid rgba(196,181,253,0.26);border-radius:22px;
         padding:8px 14px;font-size:13px;outline:none;
@@ -331,7 +341,7 @@
           linear-gradient(135deg,rgba(255,255,255,0.55),rgba(255,255,255,0.18) 48%),
           radial-gradient(120% 60% at 100% 0%,rgba(139,92,246,0.20),transparent 62%),
           radial-gradient(110% 55% at 0% 100%,rgba(167,139,250,0.18),transparent 68%),
-          linear-gradient(160deg,rgba(255,255,255,0.34),rgba(243,240,255,0.26));
+          linear-gradient(160deg,rgba(255,255,255,0.01),rgba(243,240,255,0.01));
         border-color:rgba(109,40,217,0.22);
         box-shadow:0 24px 64px rgba(49,29,94,.22),0 0 60px rgba(139,92,246,.16),
           inset 0 1px 0 rgba(255,255,255,0.85),inset 0 0 0 1px rgba(255,255,255,0.35);
@@ -351,11 +361,13 @@
         border-color:rgba(255,255,255,0.35);
       }
       .ca-chat-onlight .ca-chat-quick,
-      .ca-chat-onlight .ca-chat-input-row {
-        background:rgba(255,255,255,0.30);border-top-color:rgba(109,40,217,0.16);
+      .ca-chat-onlight .ca-chat-input-row,
+      .ca-chat-onlight .ca-chat-disclaimer,
+      .ca-chat-onlight .ca-chat-subbar {
+        background:rgba(255,255,255,0.58);border-top-color:rgba(109,40,217,0.16);
       }
       .ca-chat-onlight .ca-chat-quick-btn {
-        background:rgba(255,255,255,0.62);border-color:rgba(109,40,217,0.28);color:#5b21b6;
+        background:rgba(255,255,255,0.80);border-color:rgba(109,40,217,0.30);color:#5b21b6;
       }
       .ca-chat-onlight .ca-chat-quick-btn:hover {
         background:rgba(139,92,246,0.30);color:#2e1065;border-color:rgba(109,40,217,0.5);
@@ -367,7 +379,12 @@
       .ca-chat-onlight .ca-chat-thumb { color:rgba(91,33,182,0.55);border-color:rgba(109,40,217,0.28); }
       .ca-chat-onlight .ca-chat-thumb:hover,
       .ca-chat-onlight .ca-chat-thumb.voted { color:#6d28d9;border-color:rgba(109,40,217,0.6); }
-      .ca-chat-onlight .ca-chat-disclaimer { color:rgba(59,7,100,0.55) !important; }
+      .ca-chat-onlight .ca-chat-disclaimer { color:rgba(59,7,100,0.62) !important; }
+      /* Inline-stilen på prenumerationsknappen är mörk — ljust läge behöver !important */
+      .ca-chat-onlight #ca-chat-subbtn {
+        background:rgba(255,255,255,0.80) !important;color:#5b21b6 !important;
+        border-color:rgba(109,40,217,0.30) !important;
+      }
       .ca-chat-onlight .ca-chat-messages::-webkit-scrollbar-thumb { background:rgba(109,40,217,0.35); }
       @media(max-width:400px){
         .ca-chat-panel{width:calc(100vw - 16px);right:8px;bottom:92px;}
@@ -428,7 +445,7 @@
           <button class="ca-chat-quick-btn" data-q="Vad ska jag tänka på när jag köper begagnad bil?">📋 Köpguide</button>
         </div>
         <div class="ca-chat-subbar" id="ca-chat-subbar" style="display:flex;justify-content:flex-end;padding:6px 12px 0;">
-          <button id="ca-chat-subbtn" type="button" style="background:rgba(139,92,246,0.18);border:1px solid rgba(167,139,250,0.4);color:#c4b5fd;border-radius:8px;padding:5px 11px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">💳 Info &amp; prenumeration</button>
+          <button id="ca-chat-subbtn" type="button" style="background:rgba(46,32,92,0.66);border:1px solid rgba(167,139,250,0.5);color:#ddd0ff;border-radius:8px;padding:5px 11px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">💳 Info &amp; prenumeration</button>
         </div>
         <div class="ca-chat-input-row">
           <input class="ca-chat-input" id="ca-chat-input" type="text" placeholder="Ställ en fråga om bilar…" autocomplete="off"/>
