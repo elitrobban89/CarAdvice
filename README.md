@@ -110,6 +110,9 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 
 ### Chatbot
 - Flytande knapp nere till höger med bil-ikon i glassmorphism-design; lila/indigo-tema
+- **Frostat glas som faktiskt är genomskinligt** — panelens bas ligger på 0.01, så sidan bakom syns rakt igenom `blur(34px) saturate(180%)`. Läsbarheten bärs i stället av att varje textbärande del (header, bubblor, snabbknappar, inputrad, disclaimer) har egen tätare bricka
+- **Adaptivt ljus/mörkt läge** — `caChatSyncGlass` mäter luminansen bakom panelen (tre punkter, `elementFromPoint` med `pointer-events` tillfälligt av) vid öppning, scroll och storleksändring. Ljus bakgrund → vitt glas med mörklila text, mörk bakgrund → lila glas med ljus text. Mätfel ger alltid mörkt läge, så en trasig mätning kan aldrig göra texten oläslig
+- **Skiftande färgglöd** — mjuka färgfält (lila/cyan/rosa/turkos) driver bakom innehållet i 24 s och en conic-gradient-ring vandrar runt kanten på 9 s. Endast `transform` och en registrerad `@property`-vinkel animeras (uppmätt 61 fps med backdrop-filter kvar); avstängt vid `prefers-reduced-motion`
 - Svarar på köpråd för alla drivmedel (bensin, diesel, hybrid, elbil)
 - Streaming-svar — token för token via SSE; automatisk fallback till JSON om ReadableStream saknas
 - **Kontextuell efter sökning** — FAB-etiketten och snabbknappar uppdateras med de rekommenderade bilarna; benutrymme bak (mm), batterikemi (LFP/NMC), Euro NCAP-betyg och verifierad bränsleförbrukning för de rekommenderade bilarna injiceras automatiskt i chattens systemprompt så AI:n kan svara korrekt på frågor som "kan jag ladda till 100%?", "hur mycket plats är det i baksätet?" eller "hur säker är den?"
