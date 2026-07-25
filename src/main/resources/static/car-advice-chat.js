@@ -219,10 +219,52 @@
           linear-gradient(160deg,rgba(17,13,44,0.01),rgba(9,7,26,0.01));
         backdrop-filter:blur(34px) saturate(180%);-webkit-backdrop-filter:blur(34px) saturate(180%);
         border:1px solid rgba(196,181,253,0.28);border-radius:22px;
-        box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 70px rgba(139,92,246,.16),
-          inset 0 1px 0 rgba(255,255,255,0.22),inset 0 0 0 1px rgba(255,255,255,0.05);
+        box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 80px rgba(139,92,246,.34),
+          0 0 130px rgba(56,189,248,.20),
+          inset 0 1px 0 rgba(255,255,255,0.28),inset 0 0 0 1px rgba(255,255,255,0.06);
         display:flex;flex-direction:column;overflow:hidden;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      }
+      /* Skiftande färgspel bakom glaset: fyra mjuka färgfält som långsamt driver runt.
+         Bara transform animeras (komposit) — animerad background-position/filter på ett
+         element med backdrop-filter tvingar om-filtrering varje bildruta och hackar. */
+      .ca-chat-panel::before {
+        content:"";position:absolute;inset:-45%;z-index:0;pointer-events:none;
+        background:
+          radial-gradient(42% 42% at 26% 28%,rgba(167,139,250,0.95),transparent 72%),
+          radial-gradient(38% 38% at 76% 20%,rgba(56,189,248,0.75),transparent 72%),
+          radial-gradient(44% 44% at 64% 80%,rgba(244,114,182,0.72),transparent 72%),
+          radial-gradient(40% 40% at 18% 76%,rgba(45,212,191,0.58),transparent 72%);
+        opacity:.85;
+        animation:ca-chat-aurora 24s ease-in-out infinite alternate;
+      }
+      /* Färgen som vandrar runt kanten. Insidan av panelen täcks till stor del av
+         brickorna, så kantljuset är det som faktiskt syns skifta. Ringen ritas med
+         conic-gradient + mask-composite (klassiska gradient-border-tricket) och
+         animeras via en registrerad vinkelvariabel — utan @property står den still,
+         vilket bara ger en statisk färgring i äldre webbläsare. */
+      @property --ca-rim-ang { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+      .ca-chat-panel::after {
+        content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+        border-radius:inherit;padding:2.4px;
+        background:conic-gradient(from var(--ca-rim-ang),
+          #a78bfa,#38bdf8,#22d3ee,#f472b6,#fbbf24,#a78bfa);
+        -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+        mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+        -webkit-mask-composite:xor;mask-composite:exclude;
+        opacity:.9;filter:saturate(140%);
+        animation:ca-chat-rim 9s linear infinite;
+      }
+      @keyframes ca-chat-rim { to { --ca-rim-ang:360deg; } }
+      /* Innehållet över färgspelet — annars målas texten under pseudon */
+      .ca-chat-panel > * { position:relative;z-index:1; }
+      @keyframes ca-chat-aurora {
+        0%   { transform:translate3d(-14%,-10%,0) rotate(0deg)   scale(1.10); }
+        50%  { transform:translate3d(13%,9%,0)    rotate(16deg)  scale(1.34); }
+        100% { transform:translate3d(-9%,14%,0)   rotate(-13deg) scale(1.16); }
+      }
+      @media (prefers-reduced-motion:reduce){
+        .ca-chat-panel::before,.ca-chat-panel::after{ animation:none; }
       }
       .ca-chat-header {
         background:linear-gradient(135deg,rgba(109,40,217,0.78),rgba(139,92,246,0.55));
@@ -346,6 +388,9 @@
         box-shadow:0 24px 64px rgba(49,29,94,.22),0 0 60px rgba(139,92,246,.16),
           inset 0 1px 0 rgba(255,255,255,0.85),inset 0 0 0 1px rgba(255,255,255,0.35);
       }
+      /* Ljust läge: samma färgspel men dämpat, annars konkurrerar det med den mörka texten */
+      .ca-chat-panel.ca-chat-onlight::before { opacity:.52; }
+      .ca-chat-panel.ca-chat-onlight::after { opacity:.8;filter:saturate(120%); }
       .ca-chat-onlight .ca-chat-header {
         background:linear-gradient(135deg,rgba(91,33,182,0.88),rgba(124,58,237,0.72));
         border-bottom-color:rgba(109,40,217,0.25);
