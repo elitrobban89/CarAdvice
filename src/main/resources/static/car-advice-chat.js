@@ -204,20 +204,29 @@
         transition:transform .15s,box-shadow .15s;
       }
       .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
+      /* Frostat glas: tunn bas + kraftig blur/saturate, ljusfall uppifrån vänster och
+         lila glöd i hörnen. Basen hålls kring .66 — panelen ligger fixerad över hela
+         sidan och kan hamna mot vit bakgrund, där en tunnare bas dödar textkontrasten. */
       .ca-chat-panel {
         position:fixed;bottom:96px;right:24px;z-index:9998;
         width:380px;max-height:540px;
-        background:rgba(15,12,41,0.78);
-        backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-        border:1px solid rgba(139,92,246,0.25);border-radius:20px;
-        box-shadow:0 8px 48px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,0.04) inset;
+        background:
+          linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0) 46%),
+          radial-gradient(120% 60% at 100% 0%,rgba(139,92,246,0.22),transparent 62%),
+          radial-gradient(110% 55% at 0% 100%,rgba(76,29,149,0.26),transparent 68%),
+          linear-gradient(160deg,rgba(17,13,44,0.66),rgba(9,7,26,0.76));
+        backdrop-filter:blur(34px) saturate(180%);-webkit-backdrop-filter:blur(34px) saturate(180%);
+        border:1px solid rgba(196,181,253,0.28);border-radius:22px;
+        box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 70px rgba(139,92,246,.16),
+          inset 0 1px 0 rgba(255,255,255,0.22),inset 0 0 0 1px rgba(255,255,255,0.05);
         display:flex;flex-direction:column;overflow:hidden;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       }
       .ca-chat-header {
-        background:linear-gradient(135deg,rgba(76,29,149,0.9),rgba(109,40,217,0.8));
-        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        border-bottom:1px solid rgba(139,92,246,0.2);
+        background:linear-gradient(135deg,rgba(109,40,217,0.55),rgba(139,92,246,0.32));
+        backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);
+        border-bottom:1px solid rgba(196,181,253,0.22);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);
         color:#fff;padding:13px 16px;
         display:flex;align-items:center;justify-content:space-between;
         font-weight:700;font-size:14px;flex-shrink:0;gap:8px;
@@ -248,23 +257,26 @@
         font-size:13px;line-height:1.6;word-break:break-word;
       }
       .ca-chat-bubble.bot {
-        background:rgba(30,24,60,0.7);
-        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        border:1px solid rgba(139,92,246,0.18);
+        background:linear-gradient(150deg,rgba(255,255,255,0.07),rgba(255,255,255,0) 55%),
+          rgba(30,24,60,0.46);
+        backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);
+        border:1px solid rgba(196,181,253,0.20);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
         border-radius:4px 14px 14px 14px;align-self:flex-start;color:#e9d5ff;
       }
       .ca-chat-bubble.bot strong { color:#c4b5fd; }
       .ca-chat-bubble.bot ul { margin:6px 0 2px 16px;padding:0;display:flex;flex-direction:column;gap:3px; }
       .ca-chat-bubble.bot li { list-style:disc; }
       .ca-chat-bubble.user {
-        background:linear-gradient(135deg,rgba(109,40,217,0.85),rgba(139,92,246,0.8));
-        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        border:1px solid rgba(167,139,250,0.2);
+        background:linear-gradient(135deg,rgba(109,40,217,0.62),rgba(139,92,246,0.52));
+        backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+        border:1px solid rgba(196,181,253,0.32);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.20);
         color:#fff;border-radius:14px 14px 4px 14px;align-self:flex-end;
       }
       .ca-chat-quick {
         padding:10px 12px 4px;display:flex;flex-wrap:wrap;gap:7px;flex-shrink:0;
-        background:rgba(15,12,41,0.5);border-top:1px solid rgba(139,92,246,0.12);
+        background:rgba(255,255,255,0.04);border-top:1px solid rgba(196,181,253,0.16);
       }
       .ca-chat-quick-btn {
         background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.28);color:#c4b5fd;
@@ -275,14 +287,15 @@
       .ca-chat-quick-btn:hover { background:rgba(139,92,246,0.35);color:#fff;border-color:rgba(167,139,250,0.55); }
       .ca-chat-input-row {
         display:flex;gap:8px;padding:10px 12px;
-        border-top:1px solid rgba(139,92,246,0.12);
-        background:rgba(15,12,41,0.5);flex-shrink:0;
+        border-top:1px solid rgba(196,181,253,0.16);
+        background:rgba(255,255,255,0.04);flex-shrink:0;
       }
       .ca-chat-input {
-        flex:1;border:1px solid rgba(139,92,246,0.22);border-radius:22px;
+        flex:1;border:1px solid rgba(196,181,253,0.26);border-radius:22px;
         padding:8px 14px;font-size:13px;outline:none;
-        background:rgba(30,24,60,0.6);color:#f3e8ff;transition:border-color .15s,box-shadow .15s;
-        backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+        background:rgba(30,24,60,0.42);color:#f3e8ff;transition:border-color .15s,box-shadow .15s;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.10);
+        backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);
       }
       .ca-chat-input::placeholder { color:rgba(196,181,253,0.35); }
       .ca-chat-input:focus { border-color:rgba(167,139,250,0.55);box-shadow:0 0 0 3px rgba(139,92,246,0.12); }
@@ -376,7 +389,7 @@
           <input class="ca-chat-input" id="ca-chat-input" type="text" placeholder="Ställ en fråga om bilar…" autocomplete="off"/>
           <button class="ca-chat-send" id="ca-chat-send">➤</button>
         </div>
-        <div class="ca-chat-disclaimer" style="padding:4px 12px 8px;font-size:.68rem;color:rgba(255,255,255,.3);line-height:1.3">
+        <div class="ca-chat-disclaimer" style="padding:4px 12px 8px;font-size:.68rem;color:rgba(255,255,255,.46);line-height:1.3">
           🤖 AI-svar kan innehålla fel — dubbelkolla viktiga fakta.
         </div>
       </div>
