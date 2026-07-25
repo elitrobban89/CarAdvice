@@ -127,7 +127,12 @@ public class WebInsightScraperService {
             hjälpa svenska privatpersoner att välja och köpa personbil.
 
             En insikt är IRRELEVANT om den handlar om:
-            - en bil som inte säljs och inte kommer att säljas i Sverige
+            - en bil som inte säljs och inte kommer att säljas i Sverige. Detta gäller även
+              modeller som säljs på andra marknader men inte här (t.ex. Lada) eller som
+              lämnat den svenska marknaden — prisuppgifter i kronor gör dem INTE relevanta
+            - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
+              förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
+              utgångna prestandabilar — underhållande, men ingen köpvägledning
             - superbilar/hypercars, racingbilar eller lyxbilar långt över vanliga konsumentpriser
             - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
             - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
