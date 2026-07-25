@@ -205,8 +205,9 @@
       }
       .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
       /* Frostat glas: tunn bas + kraftig blur/saturate, ljusfall uppifrån vänster och
-         lila glöd i hörnen. Basen hålls kring .66 — panelen ligger fixerad över hela
-         sidan och kan hamna mot vit bakgrund, där en tunnare bas dödar textkontrasten. */
+         lila glöd i hörnen. Basen kan hållas låg (.44) eftersom panelen byter till
+         ljust glas via .ca-chat-onlight när den ligger mot en ljus bakgrund — utan
+         det lägen dör den ljusa texten så fort sidan bakom är vit. */
       .ca-chat-panel {
         position:fixed;bottom:96px;right:24px;z-index:9998;
         width:380px;max-height:540px;
@@ -214,7 +215,7 @@
           linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0) 46%),
           radial-gradient(120% 60% at 100% 0%,rgba(139,92,246,0.22),transparent 62%),
           radial-gradient(110% 55% at 0% 100%,rgba(76,29,149,0.26),transparent 68%),
-          linear-gradient(160deg,rgba(17,13,44,0.66),rgba(9,7,26,0.76));
+          linear-gradient(160deg,rgba(17,13,44,0.44),rgba(9,7,26,0.54));
         backdrop-filter:blur(34px) saturate(180%);-webkit-backdrop-filter:blur(34px) saturate(180%);
         border:1px solid rgba(196,181,253,0.28);border-radius:22px;
         box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 70px rgba(139,92,246,.16),
@@ -324,6 +325,50 @@
       .ca-chat-thumb.voted{border-color:rgba(139,92,246,0.7);color:#c4b5fd;background:rgba(139,92,246,0.1);}
       .ca-chat-retry{background:none;border:1px solid rgba(239,68,68,0.3);color:rgba(239,68,68,0.65);font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;cursor:pointer;margin-top:7px;display:inline-block;transition:all .15s;}
       .ca-chat-retry:hover{border-color:rgba(239,68,68,0.6);color:#ef4444;}
+      /* ── Ljust glas: sätts av caChatSyncGlass när bakgrunden bakom panelen är ljus ── */
+      .ca-chat-panel.ca-chat-onlight {
+        background:
+          linear-gradient(135deg,rgba(255,255,255,0.55),rgba(255,255,255,0.18) 48%),
+          radial-gradient(120% 60% at 100% 0%,rgba(139,92,246,0.20),transparent 62%),
+          radial-gradient(110% 55% at 0% 100%,rgba(167,139,250,0.18),transparent 68%),
+          linear-gradient(160deg,rgba(255,255,255,0.34),rgba(243,240,255,0.26));
+        border-color:rgba(109,40,217,0.22);
+        box-shadow:0 24px 64px rgba(49,29,94,.22),0 0 60px rgba(139,92,246,.16),
+          inset 0 1px 0 rgba(255,255,255,0.85),inset 0 0 0 1px rgba(255,255,255,0.35);
+      }
+      .ca-chat-onlight .ca-chat-header {
+        background:linear-gradient(135deg,rgba(91,33,182,0.88),rgba(124,58,237,0.72));
+        border-bottom-color:rgba(109,40,217,0.25);
+      }
+      .ca-chat-onlight .ca-chat-bubble.bot {
+        background:linear-gradient(150deg,rgba(255,255,255,0.78),rgba(255,255,255,0.52));
+        border-color:rgba(109,40,217,0.20);color:#3b0764;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.9);
+      }
+      .ca-chat-onlight .ca-chat-bubble.bot strong { color:#6d28d9; }
+      .ca-chat-onlight .ca-chat-bubble.user {
+        background:linear-gradient(135deg,rgba(91,33,182,0.88),rgba(124,58,237,0.78));
+        border-color:rgba(255,255,255,0.35);
+      }
+      .ca-chat-onlight .ca-chat-quick,
+      .ca-chat-onlight .ca-chat-input-row {
+        background:rgba(255,255,255,0.30);border-top-color:rgba(109,40,217,0.16);
+      }
+      .ca-chat-onlight .ca-chat-quick-btn {
+        background:rgba(255,255,255,0.62);border-color:rgba(109,40,217,0.28);color:#5b21b6;
+      }
+      .ca-chat-onlight .ca-chat-quick-btn:hover {
+        background:rgba(139,92,246,0.30);color:#2e1065;border-color:rgba(109,40,217,0.5);
+      }
+      .ca-chat-onlight .ca-chat-input {
+        background:rgba(255,255,255,0.66);border-color:rgba(109,40,217,0.24);color:#2e1065;
+      }
+      .ca-chat-onlight .ca-chat-input::placeholder { color:rgba(91,33,182,0.45); }
+      .ca-chat-onlight .ca-chat-thumb { color:rgba(91,33,182,0.55);border-color:rgba(109,40,217,0.28); }
+      .ca-chat-onlight .ca-chat-thumb:hover,
+      .ca-chat-onlight .ca-chat-thumb.voted { color:#6d28d9;border-color:rgba(109,40,217,0.6); }
+      .ca-chat-onlight .ca-chat-disclaimer { color:rgba(59,7,100,0.55) !important; }
+      .ca-chat-onlight .ca-chat-messages::-webkit-scrollbar-thumb { background:rgba(109,40,217,0.35); }
       @media(max-width:400px){
         .ca-chat-panel{width:calc(100vw - 16px);right:8px;bottom:92px;}
         .ca-chat-fab-wrap{right:12px;bottom:12px;}
@@ -467,8 +512,56 @@
     var panel = document.getElementById("ca-chat-panel");
     var open = panel.style.display === "none";
     panel.style.display = open ? "flex" : "none";
-    if (open) document.getElementById("ca-chat-input").focus();
+    if (open) { caChatSyncGlass(); document.getElementById("ca-chat-input").focus(); }
   }
+
+  /* ── Adaptivt glas ──────────────────────────────────────────────────────────
+     Panelen är genomskinlig, så texten måste följa det som råkar ligga bakom:
+     mörk widget → ljus text på mörkt glas, ljus WP-sida → mörk text på ljust glas.
+     Bakgrunden mäts genom att plocka elementen under tre punkter av panelen
+     (pointer-events stängs av så elementFromPoint ser förbi panelen) och ta
+     relativ luminans på första förfadern med en icke-transparent bakgrund. */
+  function caChatBackdropLuminance(panel) {
+    var r = panel.getBoundingClientRect();
+    var pts = [[r.left + 14, r.top + 14], [r.left + r.width / 2, r.top + r.height / 2],
+               [r.right - 14, r.bottom - 14]];
+    var prev = panel.style.pointerEvents;
+    panel.style.pointerEvents = "none";
+    var sum = 0, n = 0;
+    for (var i = 0; i < pts.length; i++) {
+      var x = Math.max(1, Math.min(window.innerWidth - 2, pts[i][0]));
+      var y = Math.max(1, Math.min(window.innerHeight - 2, pts[i][1]));
+      var el = document.elementFromPoint(x, y);
+      while (el) {
+        var m = String(window.getComputedStyle(el).backgroundColor)
+                  .match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/);
+        if (m && (m[4] === undefined || parseFloat(m[4]) > 0.5)) {
+          sum += (0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3]) / 255;
+          n++;
+          break;
+        }
+        el = el.parentElement;
+      }
+    }
+    panel.style.pointerEvents = prev;
+    return n ? sum / n : 0;
+  }
+
+  var caGlassPending = false;
+  function caChatSyncGlass() {
+    var panel = document.getElementById("ca-chat-panel");
+    if (!panel || panel.style.display === "none") return;
+    try {
+      panel.classList.toggle("ca-chat-onlight", caChatBackdropLuminance(panel) > 0.55);
+    } catch (e) { /* mätningen får aldrig ta ner chatten */ }
+  }
+  function caChatSyncGlassSoon() {
+    if (caGlassPending) return;
+    caGlassPending = true;
+    requestAnimationFrame(function () { caGlassPending = false; caChatSyncGlass(); });
+  }
+  window.addEventListener("scroll", caChatSyncGlassSoon, { passive: true });
+  window.addEventListener("resize", caChatSyncGlassSoon);
 
   function caChatMarkdown(text) {
     return text
