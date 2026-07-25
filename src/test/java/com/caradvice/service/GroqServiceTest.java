@@ -36,11 +36,12 @@ class GroqServiceTest {
     @Mock private FeedbackService feedbackService;
     @Mock private IceConsumptionService iceConsumptionService;
     @Mock private FuelPriceService fuelPriceService;
+    @Mock private ElectricityPriceService electricityPriceService;
 
     private GroqService service() {
         return new GroqService(expertInsightService, safetyRatingService,
                 evSpecService, cargoSpecService, blocketPriceService, newCarPriceService,
-                feedbackService, iceConsumptionService, fuelPriceService);
+                feedbackService, iceConsumptionService, fuelPriceService, electricityPriceService);
     }
 
     /** Stubbar pristabellerna som buildSystemPrompt hämtar via prisreferens-cachen. */

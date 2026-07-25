@@ -66,12 +66,13 @@ public class GroqService {
     private final FeedbackService feedbackService;
     private final IceConsumptionService iceConsumptionService;
     private final FuelPriceService fuelPriceService;
+    private final ElectricityPriceService electricityPriceService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
                        BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
                        FeedbackService feedbackService, IceConsumptionService iceConsumptionService,
-                       FuelPriceService fuelPriceService) {
+                       FuelPriceService fuelPriceService, ElectricityPriceService electricityPriceService) {
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
@@ -81,6 +82,7 @@ public class GroqService {
         this.feedbackService = feedbackService;
         this.iceConsumptionService = iceConsumptionService;
         this.fuelPriceService = fuelPriceService;
+        this.electricityPriceService = electricityPriceService;
     }
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -338,7 +340,7 @@ public class GroqService {
         String prompt = buildPrompt(prefs);
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
-        String systemPrompt = withFuelPrices(buildSystemPrompt(expertContext, prefs.fuelType()));
+        String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs.fuelType()));
         String feedbackContext = getFeedbackContext();
         if (!feedbackContext.isBlank()) systemPrompt = systemPrompt + "\n" + feedbackContext;
 
@@ -461,7 +463,7 @@ public class GroqService {
         String specContext = buildCompareSpecContext(car1, prefCargo1, prefEv1, car2, prefCargo2, prefEv2);
         String userPrompt = "Jämför dessa exakt 2 bilar: 1. " + car1 + "  2. " + car2;
         if (!specContext.isBlank()) userPrompt += "\n\nVerifierade specifikationer från databas:\n" + specContext;
-        String compareSystemPrompt = withFuelPrices(buildCompareSystemPrompt());
+        String compareSystemPrompt = withEnergyPrices(buildCompareSystemPrompt());
 
         Map<String, Object> primaryBody = jsonCallBody(model, 0.2, compareSystemPrompt, userPrompt);
         Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.2, compareSystemPrompt, userPrompt);
@@ -859,17 +861,25 @@ public class GroqService {
         }
         if (expertContext != null && !expertContext.isBlank())
             base += "\n\n" + expertContext;
-        return withFuelPrices(base);
+        return withEnergyPrices(base);
     }
 
-    /** Lägger på dagsaktuella bränslepriser (Bilresa-backenden) sist i systemprompten. */
-    private String withFuelPrices(String systemPrompt) {
+    /**
+     * Lägger på dagsaktuella bränslepriser (Bilresa-backenden) och elpriser
+     * (hemmaladdning + snabbladdningssnitt från Elbilsladdning) sist i systemprompten.
+     * Var för sig fail-open — en källa som ligger nere tar inte med sig den andra.
+     */
+    private String withEnergyPrices(String systemPrompt) {
+        String out = systemPrompt;
         try {
-            String prices = fuelPriceService.promptContext();
-            return prices.isEmpty() ? systemPrompt : systemPrompt + "\n" + prices;
-        } catch (Exception e) {
-            return systemPrompt;
-        }
+            String fuel = fuelPriceService.promptContext();
+            if (!fuel.isEmpty()) out += "\n" + fuel;
+        } catch (Exception ignored) {}
+        try {
+            String electricity = electricityPriceService.promptContext();
+            if (!electricity.isEmpty()) out += "\n" + electricity;
+        } catch (Exception ignored) {}
+        return out;
     }
 
     private String buildChatSpecFacts(String carContext) {
