@@ -47,23 +47,46 @@ public class ExpertInsightService {
         return formatInsights(insights, "Expertinsikter (använd som extra underlag i din analys):\n");
     }
 
+    /** Max insikter som injiceras i chattens systemprompt */
+    static final int MAX_CHAT_INSIGHTS = 3;
+
     public String buildChatExpertContext(List<String> recentMessages) {
+        return buildChatExpertContext(recentMessages, null);
+    }
+
+    /**
+     * carContext = de bilar användaren just fått rekommenderade/valt. Räknas med i
+     * matchningen så att en vald Audi ger Audi-insikter även om användaren skriver
+     * "vad tycker du om den?" utan att nämna märket.
+     */
+    public String buildChatExpertContext(List<String> recentMessages, String carContext) {
         List<ExpertInsight> all = repo.findAll();
         if (all.isEmpty()) return "";
 
         // Only include insights whose car make is explicitly mentioned in the conversation.
         // Never add general (carMake == null) insights — they appear regardless of topic and cause off-topic noise.
-        String combined = String.join(" ", recentMessages).toLowerCase();
-        List<ExpertInsight> matched = new ArrayList<>();
+        String combined = (String.join(" ", recentMessages) + " "
+                + (carContext == null ? "" : carContext)).toLowerCase();
+        List<ExpertInsight> modelMatches = new ArrayList<>();
+        List<ExpertInsight> makeMatches = new ArrayList<>();
 
         for (ExpertInsight i : all) {
-            if (i.getCarMake() != null && combined.contains(i.getCarMake().toLowerCase())) {
-                matched.add(i);
-            }
+            if (i.getCarMake() == null || !combined.contains(i.getCarMake().toLowerCase())) continue;
+            String model = i.getCarModel();
+            if (model != null && !model.isBlank() && combined.contains(model.toLowerCase())) modelMatches.add(i);
+            else makeMatches.add(i);
         }
 
-        if (matched.isEmpty()) return "";
-        List<ExpertInsight> selected = matched.stream().limit(3).toList();
+        if (modelMatches.isEmpty() && makeMatches.isEmpty()) return "";
+
+        // Modellträffar går före rena märkesträffar, och märkesträffarna roteras: med fast
+        // databasordning vann alltid de äldsta raderna (26 Audi-rader → samma tre varje gång)
+        Collections.shuffle(modelMatches);
+        Collections.shuffle(makeMatches);
+        List<ExpertInsight> selected = new ArrayList<>(modelMatches);
+        selected.addAll(makeMatches);
+        if (selected.size() > MAX_CHAT_INSIGHTS) selected = selected.subList(0, MAX_CHAT_INSIGHTS);
+
         return formatInsights(selected, "Bilexpertinsikter (referera BARA till dessa om de direkt gäller den bil användaren frågar om just nu — inkludera dem INTE om de handlar om en annan bil):\n");
     }
 

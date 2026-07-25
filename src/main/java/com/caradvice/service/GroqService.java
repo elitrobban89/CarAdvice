@@ -781,7 +781,7 @@ public class GroqService {
 
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
         String expertContext = "";
-        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
+        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages), carContext); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY
@@ -808,7 +808,7 @@ public class GroqService {
 
     public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
         String expertContext = "";
-        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages)); } catch (Exception ignored) {}
+        try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages), carContext); } catch (Exception ignored) {}
         String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
 
         List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY

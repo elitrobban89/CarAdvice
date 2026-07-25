@@ -143,7 +143,31 @@ class ExpertInsightServiceTest {
                 insikt("Vi Bilägare", "Volvo", "EX30", "Insikt 4", 7)));
 
         String ctx = service().buildChatExpertContext(List.of("Berätta om Volvo"));
-        assertThat(ctx).contains("Insikt 3").doesNotContain("Insikt 4");
+        // Urvalet roterar (shuffle) — vilka tre som kommer med är inte deterministiskt, antalet är det
+        assertThat(ctx.lines().filter(l -> l.startsWith("- ")).count()).isEqualTo(3);
+    }
+
+    @Test
+    void modelltraffGarForeRenMarkestraff() {
+        when(repo.findAll()).thenReturn(List.of(
+                insikt("Vi Bilägare", "Audi", "Q3", "Q3-insikt 1", 7),
+                insikt("Vi Bilägare", "Audi", "Q3", "Q3-insikt 2", 7),
+                insikt("Vi Bilägare", "Audi", "Q3", "Q3-insikt 3", 7),
+                insikt("Vi Bilägare", "Audi", "e-tron", "Fyndläge på begagnad e-tron", 7)));
+
+        String ctx = service().buildChatExpertContext(List.of("Är Audi e-tron ett bra köp?"));
+        assertThat(ctx).contains("Fyndläge på begagnad e-tron");
+    }
+
+    @Test
+    void valdBilIKontextenRaknasSomOmMarketNamnts() {
+        when(repo.findAll()).thenReturn(List.of(
+                insikt("Vi Bilägare", "Audi", "e-tron", "Audiinsikt", 7),
+                insikt("Vi Bilägare", "Kia", "EV6", "Kiainsikt", 8)));
+
+        String ctx = service().buildChatExpertContext(
+                List.of("Vad tycker du om den?"), "1. Audi e-tron (2020) — 280 000 kr");
+        assertThat(ctx).contains("Audiinsikt").doesNotContain("Kiainsikt");
     }
 
     // --- importCsv ---
