@@ -155,6 +155,40 @@ public class WebInsightScraperService {
             """;
 
     /**
+     * Källor som återkommande levererar mest skräp får en andra, smalare vakt ovanpå
+     * RELEVANCE_PROMPT. CarUp publicerar mycket översatt amerikanskt innehåll
+     * (mekaniker-listicles, EPA-siffror för bilar som inte säljs här) — tre auditer i rad
+     * (2026-07-09, 07-25, 07-26) har visat att den generella vakten släpper igenom det
+     * trots att reglerna finns, medan bra rader (VW Arteon begagnat) kommer från samma
+     * källa. Att lyfta ut CarUp hade alltså kostat mer än det smakat.
+     */
+    static final Set<String> STRICT_SOURCES = Set.of("CarUp");
+
+    private static final String STRICT_RELEVANCE_PROMPT = """
+            Du gör en sista, hård granskning av bilinsikter från en källa som ofta
+            publicerar översatt amerikanskt innehåll. Databasen används bara av svenska
+            privatpersoner som ska köpa personbil i Sverige.
+
+            Markera en insikt som IRRELEVANT om något av detta gäller:
+            - bilen går inte att köpa i Sverige idag, varken ny hos handlare eller begagnad
+              på den svenska marknaden (typiska exempel: modeller som bara sålts i USA)
+            - insikten bygger på utländska mätvärden eller testcykler (EPA, miles, mpg,
+              amerikanska priser i dollar) för en bil som ännu inte säljs här
+            - insikten är ett svepande omdöme utan konkret underlag ("en mekaniker tycker
+              att den är dyr att reparera", "den är opålitlig") utan att ange vilket fel,
+              vilken motor, vilken årsmodell eller vilken kostnad det handlar om
+            - innehållet är hämtat ur en topplista/video av typen "bilar mekaniker aldrig
+              skulle köpa" utan svensk förankring
+
+            Behåll insikten om den beskriver ett konkret, kontrollerbart förhållande om en
+            bil som en svensk köpare faktiskt kan hitta i marknaden — kända fel med angiven
+            motor/årsmodell, mätvärden, testresultat, utrustning eller prisläge på begagnat.
+
+            Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
+            Om alla ska behållas: {"irrelevant": []}
+            """;
+
+    /**
      * mode ARTICLES: hämta artikellänkar (via sitemap/rss/listing), extrahera per artikel — dedup på URL.
      * mode PAGE: extrahera insikter direkt från sidan — dedup per ägaromdöme/bilmodell via source_ref.
      */
@@ -400,7 +434,7 @@ public class WebInsightScraperService {
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */
     int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
         int saved = 0;
-        for (JsonNode ins : filterKnownDuplicates(filterIrrelevant(insights))) {
+        for (JsonNode ins : filterKnownDuplicates(filterStrict(expert, filterIrrelevant(insights)))) {
             String insightText = ins.path("insight").asText("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
 
@@ -442,12 +476,26 @@ public class WebInsightScraperService {
      * över hela batchen den här körningen hellre än att spara den ofiltrerad.
      */
     List<JsonNode> filterIrrelevant(List<JsonNode> insights) {
+        return runGuard(RELEVANCE_PROMPT, insights, "relevansvakten");
+    }
+
+    /**
+     * Extra vakt för {@link #STRICT_SOURCES}. Körs efter den generella vakten (bara på det
+     * som överlevt den — färre tokens) och före dubblettfiltret. Samma fail-closed-regel:
+     * hellre en tappad insikt än en oskärskådad från en källa som bevisligen läcker.
+     */
+    List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
+        if (!STRICT_SOURCES.contains(expert)) return insights;
+        return runGuard(STRICT_RELEVANCE_PROMPT, insights, "extravakten [" + expert + "]");
+    }
+
+    private List<JsonNode> runGuard(String prompt, List<JsonNode> insights, String label) {
         if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
         Set<Integer> irrelevant;
         try {
-            String body = postGroq(RELEVANCE_PROMPT, buildRelevanceUserContent(insights), 300, "relevansvakt");
+            String body = postGroq(prompt, buildRelevanceUserContent(insights), 300, label);
             if (body == null) {
-                log.warn("Web insights: relevansvakten fick inget svar — hoppar över batchen ({} insikter) den här körningen", insights.size());
+                log.warn("Web insights: {} fick inget svar — hoppar över batchen ({} insikter) den här körningen", label, insights.size());
                 return List.of();
             }
             irrelevant = parseIndexes(body, "irrelevant");
@@ -455,15 +503,15 @@ public class WebInsightScraperService {
             Thread.currentThread().interrupt();
             return List.of();
         } catch (Exception e) {
-            log.warn("Web insights: relevansvakten misslyckades — hoppar över batchen ({} insikter) den här körningen: {}",
-                    insights.size(), e.getMessage());
+            log.warn("Web insights: {} misslyckades — hoppar över batchen ({} insikter) den här körningen: {}",
+                    label, insights.size(), e.getMessage());
             return List.of();
         }
         List<JsonNode> kept = new ArrayList<>();
         for (int i = 0; i < insights.size(); i++) {
             JsonNode ins = insights.get(i);
             if (irrelevant.contains(i)) {
-                log.info("Web insights: relevansvakten stoppar {} {}: {}",
+                log.info("Web insights: {} stoppar {} {}: {}", label,
                         ins.path("car_make").asText(), ins.path("car_model").asText(),
                         truncate(ins.path("insight").asText(""), 80));
             } else {

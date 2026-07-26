@@ -207,6 +207,27 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void extravaktenGallerBaraStriktaKallor() throws Exception {
+        // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
+        // övriga källor ska inte betala för ett extra Groq-anrop
+        assertThat(WebInsightScraperService.STRICT_SOURCES).containsExactly("CarUp");
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        List<JsonNode> insikter = List.of(mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}"));
+        assertThat(service().filterStrict("Teknikens Värld", insikter)).isSameAs(insikter);
+    }
+
+    @Test
+    void striktKallaSparasFortfarandeNarVaktenArPassiv() throws Exception {
+        // apiKey är null i testtjänsten → extravakten ska vara passiv, inte blockera CarUp helt
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode ins = mapper.readTree(
+                "{\"car_make\":\"Volkswagen\",\"car_model\":\"Arteon\",\"insight\":\"Mest begagnade är laddhybrider.\"}");
+        assertThat(service.saveInsights("CarUp", List.of(ins), null)).isEqualTo(1);
+    }
+
+    @Test
     void statusradenSkiljerNollNyaFranTystMisslyckadKalla() {
         // "0" i scrape-status betydde både "allt fungerade, dedupen tog allt" och "hittade
         // ingenting att skrapa" — en layoutändring hos källan kunde gå obemärkt förbi
