@@ -175,16 +175,55 @@ class EvSpecServiceTest {
     }
 
     @Test
-    void allaVarianterListasSorteradeEfterBatteristorlek() {
-        // Skarpt fall: EX30 fick 58/77/44 kWh av AI:n — riktiga varianter är 51/65/65 kWh
+    void varianterMedSammaBatteriSlasIhopTillEttRackviddsspann() {
+        // Skarpt fall: EX30 fick 58/77/44 kWh av AI:n — riktiga batterier är 51 och 65/69 kWh.
+        // De två 65-varianterna ar samma batteri i olika drivlinor → ett spann, inte tva rader.
         EvSpec singleMotor = new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 370_000);
         EvSpec extendedRange = new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 65.0, 480, 420_000);
         EvSpec twinPerformance = new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 153.0, 65.0, 450, 460_000);
         when(repo.findAll()).thenReturn(List.of(extendedRange, twinPerformance, singleMotor));
 
-        String result = service().verifiedEngineOptions("Volvo EX30 (2024)");
-        // Sorterad efter kWh, sen räckvidd — 65 kWh-varianterna (450/480 km) i stigande räckviddsordning
-        assertThat(result).isEqualTo("51 kWh (344 km), 65 kWh (450 km), 65 kWh (480 km)");
+        assertThat(service().verifiedEngineOptions("Volvo EX30 (2024)"))
+                .isEqualTo("51 kWh (344 km), 65 kWh (450–480 km)");
+    }
+
+    @Test
+    void nettoOchBruttokapacitetForSammaBatteriBlirEnRad() {
+        // Produktionsfallet: 19 EX30-rader under tva namngenerationer (Single Motor/Twin Motor
+        // och ev-databases P3/P5/P8) gav nio rader pa kortet. Bilen har tva batterier.
+        // 49/51 ar samma batteri (netto/brutto), likasa 65/69.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX30 P3", 11.0, 153.0, 49.0, 337, 320_000),
+                new EvSpec("Volvo EX30 P5", 11.0, 153.0, 49.0, 339, 330_000),
+                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 370_000),
+                new EvSpec("Volvo EX30 P8 AWD", 11.0, 200.0, 65.0, 450, 430_000),
+                new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 463, 400_000),
+                new EvSpec("Volvo EX30 P5 Long Range", 11.0, 153.0, 65.0, 476, 410_000),
+                new EvSpec("Volvo EX30 Cross Country", 11.0, 153.0, 69.0, 436, 395_000),
+                new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 200.0, 69.0, 460, 430_000),
+                new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000)));
+
+        assertThat(service().verifiedEngineOptions("Volvo EX30 (2024)"))
+                .isEqualTo("51 kWh (337–344 km), 69 kWh (436–480 km)");
+    }
+
+    @Test
+    void tydligtOlikaBatterierHallsIsar() {
+        // 58 och 77 kWh ar over toleransen (10 %) — tva riktiga val, ska inte slas ihop
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Kia EV6 Standard", 11.0, 180.0, 58.0, 394, 400_000),
+                new EvSpec("Kia EV6 Long Range", 11.0, 240.0, 77.0, 528, 480_000)));
+
+        assertThat(service().verifiedEngineOptions("Kia EV6"))
+                .isEqualTo("58 kWh (394 km), 77 kWh (528 km)");
+    }
+
+    @Test
+    void variantUtanRackviddVisasUtanKmParentes() {
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 0, 370_000)));
+
+        assertThat(service().verifiedEngineOptions("Volvo EX30")).isEqualTo("51 kWh");
     }
 
     @Test

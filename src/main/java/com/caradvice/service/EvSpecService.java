@@ -81,7 +81,8 @@ public class EvSpecService {
     }
 
     /**
-     * Verifierade motor-/batterivarianter för modellen, en post per variant ("51 kWh (344 km)"),
+     * Verifierade motor-/batterivarianter för modellen, en post per batteri ("69 kWh (436–480 km)"
+     * — se {@link #groupByBattery} för varför varianter slås ihop och räckvidden blir ett spann),
      * byggda av ev_spec istället för AI:ns fritext i "engineOptions" — som annars kan hitta på
      * kWh/räckvidd (skarpt fall: Volvo EX30 fick 58/77/44 kWh från AI:n trots att de riktiga
      * varianterna är 51/65/65 kWh). Ingen hästkraft per variant (inte lagrat i DB) — bara kWh
@@ -115,9 +116,53 @@ public class EvSpecService {
         }
         if (variants.isEmpty()) return null;
         variants.sort(java.util.Comparator.<double[]>comparingDouble(v -> v[0]).thenComparingDouble(v -> v[1]));
-        return variants.stream()
-                .map(v -> formatKwh(v[0]) + " kWh" + (v[1] > 0 ? " (" + (int) v[1] + " km)" : ""))
+        return groupByBattery(variants).stream()
+                .map(EvSpecService::formatGroup)
                 .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    /** Batterier inom 10 % av gruppens minsta räknas som samma fysiska batteri. */
+    private static final double SAME_BATTERY_TOLERANCE = 1.10;
+
+    /**
+     * Slår ihop varianter som beskriver samma batteri. Databasen innehåller samma bil under
+     * flera namn (EX30 finns både som "Single Motor"/"Twin Motor Performance" och som
+     * ev-database.orgs "P3"/"P5"/"P8 AWD") och samma batteri både som netto- och
+     * bruttokapacitet — EX30:s 49/51 kWh är ett batteri, 65/69 kWh är ett annat. Utan
+     * ihopslagning blev kortet nio rader för en bil som har två batterier.
+     *
+     * <p>Jämförelsen görs mot gruppens MINSTA kWh, inte den största, så en lång kedja av
+     * närliggande värden inte kan växa ihop till en enda grupp.
+     *
+     * @param sorted varianter sorterade på kWh stigande, {kWh, km} per post (km = 0 om okänt)
+     * @return grupper som {maxKwh, minKm, maxKm} — 0 i km-fälten betyder att räckvidd saknas
+     */
+    private static List<double[]> groupByBattery(List<double[]> sorted) {
+        List<double[]> groups = new java.util.ArrayList<>();
+        double groupMinKwh = 0;
+        for (double[] v : sorted) {
+            double kwh = v[0], km = v[1];
+            double[] current = groups.isEmpty() ? null : groups.get(groups.size() - 1);
+            if (current == null || kwh > groupMinKwh * SAME_BATTERY_TOLERANCE) {
+                groups.add(new double[]{kwh, km, km});
+                groupMinKwh = kwh;
+                continue;
+            }
+            current[0] = Math.max(current[0], kwh);          // visa bruttokapaciteten
+            if (km > 0) {
+                current[1] = current[1] == 0 ? km : Math.min(current[1], km);
+                current[2] = Math.max(current[2], km);
+            }
+        }
+        return groups;
+    }
+
+    /** {maxKwh, minKm, maxKm} → "69 kWh (436–480 km)", "51 kWh (344 km)" eller "51 kWh". */
+    private static String formatGroup(double[] g) {
+        String kwh = formatKwh(g[0]) + " kWh";
+        if (g[2] <= 0) return kwh;
+        if (g[1] == g[2]) return kwh + " (" + (int) g[2] + " km)";
+        return kwh + " (" + (int) g[1] + "–" + (int) g[2] + " km)";
     }
 
     private static String formatKwh(double kwh) {
