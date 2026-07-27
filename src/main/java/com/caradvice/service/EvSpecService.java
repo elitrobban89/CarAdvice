@@ -523,9 +523,22 @@ public class EvSpecService {
                 .orElse(null);
     }
 
+    /**
+     * Gemener utan diakritik, med alla sorters blanktecken nedkokta till ett vanligt mellanslag.
+     *
+     * <p>Blankstegsstädningen finns för att AI:n ibland skriver modellnamn med <i>smalt hårt
+     * mellanslag</i> (U+202F) eller vanligt hårt mellanslag (U+00A0) — "Hyundai IONIQ 5" såg rätt
+     * ut men matchade ingenting, eftersom Javas {@code \s} bara täcker ASCII-blanktecken. Namnet
+     * blev då ETT ord ("ioniq 5") i stället för två och all ordmatchning nedan missade, varpå
+     * kortet föll tillbaka på AI:ns egen fritext. NFD-normaliseringen ovan hjälper inte: U+202F
+     * har bara en <i>kompatibilitets</i>dekomposition till mellanslag, inte en kanonisk.
+     */
     private static String normalize(String s) {
         return Normalizer.normalize(s, Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+                .replaceAll("\\p{Cf}", "")          // osynliga styrtecken: zero-width space, BOM, mjukt bindestreck
+                .replaceAll("[\\p{Z}\\s]+", " ")    // hårt/smalt/typografiskt mellanslag → vanligt
+                .trim()
                 .toLowerCase();
     }
 }

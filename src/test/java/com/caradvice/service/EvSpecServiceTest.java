@@ -251,6 +251,32 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void hartMellanslagITitelnHindrarInteMatchningen() {
+        // Skarpt fall fran produktion: AI:n skrev "Hyundai IONIQ 5" med SMALT HART MELLANSLAG
+        // (U+202F) mellan orden. Javas \s matchar inte det tecknet, sa namnet blev ETT ord och
+        // all ordmatchning missade - kortet foll tillbaka pa AI:ns egen fritext i stallet for
+        // de verifierade siffrorna. Tecknet byggs ur sin kodpunkt i stallet for att skrivas
+        // rakt in: osynliga tecken gar inte att se i en diff och overlever inte en kopiering.
+        String nnbsp = String.valueOf((char) 0x202F);
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Hyundai IONIQ 5", 11.0, 233.0, 84.0, 570, 500_000)));
+
+        assertThat(service().verifiedEngineOptions("Hyundai IONIQ" + nnbsp + "5 (2024)"))
+                .isEqualTo("84 kWh (570 km)");
+    }
+
+    @Test
+    void vanligtHartMellanslagOchZeroWidthHanterasOcksa() {
+        String nbsp = String.valueOf((char) 0x00A0);       // NO-BREAK SPACE
+        String zeroWidth = String.valueOf((char) 0x200B);  // ZERO WIDTH SPACE
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Hyundai IONIQ 5", 11.0, 233.0, 84.0, 570, 500_000)));
+
+        assertThat(service().verifiedEngineOptions("Hyundai" + nbsp + "IONIQ" + zeroWidth + " 5"))
+                .isEqualTo("84 kWh (570 km)");
+    }
+
+    @Test
     void nullTitelGerNullForVerifieradeMotoralternativ() {
         assertThat(service().verifiedEngineOptions(null)).isNull();
     }

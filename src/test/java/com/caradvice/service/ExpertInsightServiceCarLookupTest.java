@@ -84,4 +84,15 @@ class ExpertInsightServiceCarLookupTest {
         assertThat(service.findForCarTitle(null)).isEmpty();
         assertThat(service.findForCarTitle("  ")).isEmpty();
     }
+
+    @Test
+    void hartMellanslagITitelnHindrarInteInsiktsmatchningen() {
+        // Tredje stallet med samma bugg: modellen matchas med contains("ioniq 5") mot AI:ns
+        // titel, som ibland innehaller smalt hart mellanslag (U+202F) i stallet for vanligt.
+        String nnbsp = String.valueOf((char) 0x202F);
+        when(repo.findAll()).thenReturn(List.of(
+                insight("Teknikens Värld", "Hyundai", "IONIQ 5", "Snabbladdar i toppklass.", 9)));
+
+        assertThat(service.findForCarTitle("Hyundai IONIQ" + nnbsp + "5 (2024)")).hasSize(1);
+    }
 }

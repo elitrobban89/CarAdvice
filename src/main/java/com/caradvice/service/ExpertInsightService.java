@@ -65,8 +65,8 @@ public class ExpertInsightService {
 
         // Only include insights whose car make is explicitly mentioned in the conversation.
         // Never add general (carMake == null) insights — they appear regardless of topic and cause off-topic noise.
-        String combined = (String.join(" ", recentMessages) + " "
-                + (carContext == null ? "" : carContext)).toLowerCase();
+        String combined = flattenSpaces(String.join(" ", recentMessages) + " "
+                + (carContext == null ? "" : carContext));
         List<ExpertInsight> modelMatches = new ArrayList<>();
         List<ExpertInsight> makeMatches = new ArrayList<>();
 
@@ -102,6 +102,20 @@ public class ExpertInsightService {
     private static final java.util.regex.Pattern EV_MARKER =
             java.util.regex.Pattern.compile("\\b(ev|elbil|electric)\\b");
 
+    /**
+     * Gemener med alla sorters blanktecken nedkokta till ett vanligt mellanslag. Behövs eftersom
+     * matchningen nedan är {@code contains("ioniq 5")} mot AI-text som ibland innehåller hårt
+     * (U+00A0) eller smalt hårt mellanslag (U+202F) — se motiveringen i EvSpecService.normalize.
+     * Bara "höstacken" städas; märken och modeller i databasen kommer från kurerad CSV.
+     */
+    static String flattenSpaces(String s) {
+        if (s == null) return "";
+        return s.replaceAll("\\p{Cf}", "")
+                .replaceAll("[\\p{Z}\\s]+", " ")
+                .trim()
+                .toLowerCase();
+    }
+
     /** Drivlina ur en text: "phev", "hev" eller "ev" — null om ospecificerad. */
     static String drivetrainOf(String s) {
         if (s == null) return null;
@@ -122,7 +136,7 @@ public class ExpertInsightService {
      */
     public List<Map<String, Object>> findForCarTitle(String title) {
         if (title == null || title.isBlank()) return List.of();
-        String t = title.toLowerCase();
+        String t = flattenSpaces(title);
         String titleDrive = drivetrainOf(t);
 
         List<ExpertInsight> makeAndModel = new ArrayList<>();

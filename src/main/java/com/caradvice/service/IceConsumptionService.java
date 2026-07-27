@@ -226,9 +226,11 @@ public class IceConsumptionService {
         return String.join(" ", java.util.Arrays.asList(words).subList(skip, words.length));
     }
 
+    /** Samma blankstegsstädning som EvSpecService.normalize — se motiveringen där. */
     private static String normalize(String s) {
         return s.toLowerCase(Locale.ROOT)
                 .replace("š", "s").replace("ë", "e").replace("é", "e")
-                .replaceAll("\\s+", " ").trim();
+                .replaceAll("\\p{Cf}", "")
+                .replaceAll("[\\p{Z}\\s]+", " ").trim();
     }
 }

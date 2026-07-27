@@ -49,4 +49,16 @@ class SafetyRatingServiceMatchTest {
         assertThat(service.formatForTitle("Citroën ë-C3 (2024)")).isNull();
         assertThat(service.formatForTitle(null)).isNull();
     }
+
+    @Test
+    void hartMellanslagITitelnHindrarInteSakerhetsmatchningen() {
+        // Samma bugg som i EvSpecService: matchningen ar contains("ioniq 5") mot AI:ns titel,
+        // och skriver AI:n ett smalt hart mellanslag (U+202F) traffar den ingenting.
+        String nnbsp = String.valueOf((char) 0x202F);
+        when(repo.findAll()).thenReturn(List.of(
+                new SafetyRating("Hyundai", "IONIQ 5", 2021, 5, 88, 86, 63, 88)));
+
+        assertThat(service.formatForTitle("Hyundai IONIQ" + nnbsp + "5 (2024)"))
+                .contains("★★★★★").contains("88% vuxna");
+    }
 }
