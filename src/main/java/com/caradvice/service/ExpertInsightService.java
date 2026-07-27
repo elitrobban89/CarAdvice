@@ -148,9 +148,22 @@ public class ExpertInsightService {
 
         // DB:n innehåller enstaka dubblettrader (samma insikt sparad två gånger) —
         // visa aldrig samma text två gånger på ett kort
-        Set<String> seenTexts = new HashSet<>();
+        Set<String> seenTexts = new HashSet<>(); // "Grindvakt" påse som vägrar dubletter
         return selected.stream()
                 .filter(i -> seenTexts.add(i.getInsight()))
+                /*Knepet är att add() gör
+två saker i ett enda anrop: den lägger in
+texten och svarar om den var ny ( true ) eller
+redan fanns ( false ). Eftersom svaret
+används direkt som villkor i filter() blir
+raden ett filter: första gången en insiktstext
+passerar släpps den igenom, andra gången
+svarar add() false och insikten faller bort.
+Att den "känner igen" texten avgörs av
+String :ens equals/hashCode — samma
+tecken i samma ordning. Utan raden kan
+samma expertcitat dyka upp tre gånger på
+ett bilkort.*/
                 .limit(MAX_CARD_INSIGHTS).map(i -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("expert", resolveExpertName(i.getExpertName()));
