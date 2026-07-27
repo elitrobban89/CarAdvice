@@ -282,7 +282,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-239 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+241 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -298,7 +298,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `ElectricityPriceServiceTest` (2) | Elprisradens format: hemmaladdningsintervall + snabbladdningssnitt, snabbladdningen utelämnas när priset inte kunnat hämtas |
 | `WebInsightScraperServiceTest` (23) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel — Groq-fel under själva anropet är numera fail-closed, hoppar över batchen), extravakten för strikta källor (bara CarUp, övriga källor går förbi den utan extraanrop), statusradens skillnad mellan "0 nya" och en källa som inte hittade något att skrapa |
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
-| `CarControllerTest` (39) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK) |
+| `CarControllerTest` (41) | HTTP-lagret (MockMvc): X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -643,6 +643,35 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `GROQ_API_KEY` saknas | **503** | `{ "status": "UNCONFIGURED" }` |
 
 **UptimeRobot:** lägg till en HTTP-monitor mot `https://caradvice.onrender.com/api/health/groq` — 503 larmar automatiskt.
+
+### `GET /api/version`
+
+Svarar på frågan *"hann deployen ut, och är det min senaste commit som kör?"* utan att man behöver logga in i Render-dashboarden. Öppen endpoint, ingen nyckel.
+
+```json
+{
+  "version": "1.0.0",
+  "commit": "6754daf",
+  "commitFull": "6754daf0123456789abcdef...",
+  "branch": "master",
+  "startedAt": "2026-07-27T21:05:12.482Z",
+  "uptimeSeconds": 342
+}
+```
+
+| Fält | Varifrån |
+|---|---|
+| `version` | `@project.version@` ur `pom.xml`, ersätts av Maven vid bygget (resursfiltrering från `spring-boot-starter-parent`) |
+| `commit` / `commitFull` | Miljövariabeln `RENDER_GIT_COMMIT` som Render sätter vid deploy — kort form är de sju första tecknen |
+| `branch` | Miljövariabeln `RENDER_GIT_BRANCH` |
+| `startedAt` / `uptimeSeconds` | När JVM:en startade. **Låg uptime = instansen har nyss startat om** — användbart för att bekräfta spindown på free tier, och för att se om en deploy verkligen bytte process |
+
+Kör man lokalt saknas Render-variablerna: `commit` blir `unknown` och `branch` blir `local`. Jämför `commitFull` med `git rev-parse HEAD` för att bekräfta att rätt kod ligger ute:
+
+```bash
+curl -s https://caradvice.onrender.com/api/version | jq -r .commitFull
+git rev-parse HEAD
+```
 
 ### Auth-endpoints
 

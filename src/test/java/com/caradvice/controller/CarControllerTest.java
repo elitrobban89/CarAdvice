@@ -45,6 +45,9 @@ class CarControllerTest {
     @Autowired
     private MockMvc mvc;
 
+    @Autowired
+    private CarController controller;
+
     @MockBean private GroqService groqService;
     @MockBean private ExpertInsightService expertInsightService;
     @MockBean private SafetyRatingService safetyRatingService;
@@ -94,6 +97,36 @@ class CarControllerTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.status").value("DEGRADED"))
            .andExpect(jsonPath("$.lastScrape").value("ERROR"));
+    }
+
+    // --- version (svarar på "hann deployen ut?") ---
+
+    @Test
+    void versionUtanRenderVariablerGerUnknownOchLocal() throws Exception {
+        mvc.perform(get("/api/version"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.version").value("1.0.0"))
+           .andExpect(jsonPath("$.commit").value("unknown"))
+           .andExpect(jsonPath("$.commitFull").value("unknown"))
+           .andExpect(jsonPath("$.branch").value("local"))
+           .andExpect(jsonPath("$.uptimeSeconds").isNumber());
+    }
+
+    @Test
+    void versionKortarNerRendersCommitShaTillSjuTecken() throws Exception {
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                controller, "appCommit", "6754daf0123456789abcdef");
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "appBranch", "master");
+        try {
+            mvc.perform(get("/api/version"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.commit").value("6754daf"))
+               .andExpect(jsonPath("$.commitFull").value("6754daf0123456789abcdef"))
+               .andExpect(jsonPath("$.branch").value("master"));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(controller, "appCommit", "");
+            org.springframework.test.util.ReflectionTestUtils.setField(controller, "appBranch", "");
+        }
     }
 
     // --- admin-nyckelskyddet ---

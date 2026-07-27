@@ -33,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
@@ -81,6 +82,19 @@ public class CarController {
 
     @Value("${admin.key}")
     private String adminKey;
+
+    // Fylls av Maven vid bygget (@project.version@) respektive av Render vid deploy
+    // (RENDER_GIT_COMMIT/RENDER_GIT_BRANCH). Lokalt är de två sistnämnda tomma.
+    @Value("${app.version:unknown}")
+    private String appVersion;
+
+    @Value("${app.commit:}")
+    private String appCommit;
+
+    @Value("${app.branch:}")
+    private String appBranch;
+
+    private final Instant startedAt = Instant.now();
 
     public CarController(GroqService groqService, ExpertInsightService expertInsightService,
                          SafetyRatingService safetyRatingService, EvDatabaseScraperService evScraper,
@@ -476,6 +490,21 @@ public class CarController {
         } catch (Exception e) {
             out.put("lastScrape", "ERROR");
         }
+        return ResponseEntity.ok(out);
+    }
+
+    // Vilken kod som faktiskt kör — svarar på "hann deployen ut?" utan Render-dashboarden.
+    // commit/branch kommer från Renders miljövariabler; kör man lokalt blir de "unknown"/"local".
+    // uptimeSeconds avslöjar dessutom spindown: låg siffra = instansen har nyss startat om.
+    @GetMapping("/version")
+    public ResponseEntity<?> version() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("version", appVersion);
+        out.put("commit", appCommit.isBlank() ? "unknown" : appCommit.substring(0, Math.min(7, appCommit.length())));
+        out.put("commitFull", appCommit.isBlank() ? "unknown" : appCommit);
+        out.put("branch", appBranch.isBlank() ? "local" : appBranch);
+        out.put("startedAt", startedAt.toString());
+        out.put("uptimeSeconds", Instant.now().getEpochSecond() - startedAt.getEpochSecond());
         return ResponseEntity.ok(out);
     }
 
