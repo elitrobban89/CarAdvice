@@ -330,12 +330,12 @@ public class GroqService {
     }
 
     public Result getRecommendation(CarPreferences prefs) throws Exception {
-        String key = buildCacheKey(prefs);
-        CacheEntry cached = cache.get(key);
-        if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS) {
+        String key = buildCacheKey(prefs); //Skapar cachen etiketten
+        CacheEntry cached = cache.get(key); //Slår upp cachen i lådan av sparade svar (rå post — 429-vägen nedan får använda även en utgången)
+        if (isFresh(cached)) { //Fanns det något cachat och isf är det inom 4 timmar?
             long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
-            return new Result(cached.result(), true, ageSeconds);
-        }
+            return new Result(cached.result(), true, ageSeconds); //Ja på båda då returneras det cachade svaret går alltså inte en fråga till LLM
+        } //Annars blir det alltså en fråga till LLM om cachat svar inte finns --> Sparar alltså tid o pengar
 
         String prompt = buildPrompt(prefs);
         String expertContext = "";
@@ -343,7 +343,7 @@ public class GroqService {
         String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs.fuelType()));
         String feedbackContext = getFeedbackContext();
         if (!feedbackContext.isBlank()) systemPrompt = systemPrompt + "\n" + feedbackContext;
-
+//Här går ett riktigt anrop ifall cachat svar ej finns ovan alltså
         Map<String, Object> primaryBody = jsonCallBody(model, 0.3, systemPrompt, prompt);
         Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.3, systemPrompt, prompt);
         Map<String, Object> reserveBody = jsonCallBody(reserveModel, 0.3, systemPrompt, prompt);
@@ -368,8 +368,7 @@ public class GroqService {
 
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
                 "leasing".equals(prefs.budgetType()));
-        evictIfNeeded();
-        cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
+        store(key, result);
         return new Result(result, false, 0);
     }
 
@@ -399,7 +398,7 @@ public class GroqService {
     }
 
     /** Gemener, diakritik bortnormaliserad, uppdelat på ord — samma mönster som WebInsightScraperService.modelTokens. */
-    private static Set<String> modelTokens(String s) {
+    private static Set<String> modelTokens(String s) { //Hallucinationsvakt styckar upp bilnamn blir tokenset i ord och kollar requireKnownModels i databas
         if (s == null) return Set.of();
         String norm = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}", "")
@@ -436,6 +435,17 @@ public class GroqService {
                 + String.join(", ", dislikedCars);
     }
 
+    /** Färsk = finns och är yngre än TTL:n. Enda stället TTL-aritmetiken står — anropas från båda cachevägarna. */
+    private static boolean isFresh(CacheEntry entry) {
+        return entry != null && System.currentTimeMillis() - entry.timestamp() < CACHE_TTL_MS;
+    }
+
+    /** Städa vid behov och lägg in svaret med färsk tidsstämpel. */
+    private void store(String key, List<CarRecommendation> result) {
+        evictIfNeeded();
+        cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
+    }
+
     private void evictIfNeeded() {
         if (cache.size() < MAX_CACHE_SIZE) return;
         long cutoff = cache.values().stream()
@@ -450,8 +460,7 @@ public class GroqService {
     public List<CarRecommendation> compareSpecific(String car1, String car2) throws Exception {
         String compareCacheKey = "compare|" + car1 + "|" + car2;
         CacheEntry cachedCompare = cache.get(compareCacheKey);
-        if (cachedCompare != null && System.currentTimeMillis() - cachedCompare.timestamp() < CACHE_TTL_MS)
-            return cachedCompare.result();
+        if (isFresh(cachedCompare)) return cachedCompare.result();
 
         com.caradvice.model.CargoSpecDto prefCargo1 = null, prefCargo2 = null;
         com.caradvice.model.EvSpecDto prefEv1 = null, prefEv2 = null;
@@ -471,16 +480,18 @@ public class GroqService {
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody, reserveBody);
 
-        if (response.statusCode() == 429)
+        // Samma nödutgång som getRecommendation: hellre ett utgånget svar än ett felmeddelande
+        if (response.statusCode() == 429) {
+            if (cachedCompare != null) return cachedCompare.result();
             throw new RuntimeException(buildRateLimitError(response.body()));
+        }
         if (response.statusCode() != 200)
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
 
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "compareSpecific");
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
-        evictIfNeeded();
-        cache.put(compareCacheKey, new CacheEntry(result, System.currentTimeMillis()));
+        store(compareCacheKey, result);
         return result;
     }
 
@@ -678,7 +689,7 @@ public class GroqService {
             return null;
         }
     }
-
+//Ettikettskaparen pipe sammanslagen sträng
     String buildCacheKey(CarPreferences prefs) {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
                prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +

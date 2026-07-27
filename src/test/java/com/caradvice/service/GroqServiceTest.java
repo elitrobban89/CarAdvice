@@ -643,6 +643,45 @@ class GroqServiceTest {
         assertThat(key).contains("köp"); // budgetType null faller tillbaka på "köp"
     }
 
+    // --- isFresh / store (delade cachehjälpare för både rekommendationer och jämförelser) ---
+
+    @Test
+    void isFreshAerFalsktForSaknadPost() {
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(GroqService.class, "isFresh", new Object[]{null}))
+                .isFalse();
+    }
+
+    @Test
+    void storeLaeggerInPostenSomIsFreshGodkanner() {
+        GroqService s = service();
+        ReflectionTestUtils.invokeMethod(s, "store", "compare|Volvo XC60|BMW X3", List.of());
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> cache =
+                (java.util.Map<String, Object>) ReflectionTestUtils.getField(s, "cache");
+        Object post = cache.get("compare|Volvo XC60|BMW X3");
+
+        assertThat(post).isNotNull();
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(GroqService.class, "isFresh", post)).isTrue();
+    }
+
+    @Test
+    void isFreshAerFalsktForPostAeldreAenTtl() throws Exception {
+        GroqService s = service();
+        ReflectionTestUtils.invokeMethod(s, "store", "nyckel", List.of());
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> cache =
+                (java.util.Map<String, Object>) ReflectionTestUtils.getField(s, "cache");
+
+        // Bygg en likadan post men med tidsstämpel 5 timmar tillbaka (TTL:n är 4 h)
+        var ctor = cache.get("nyckel").getClass().getDeclaredConstructors()[0];
+        ctor.setAccessible(true);
+        Object gammal = ctor.newInstance(List.of(), System.currentTimeMillis() - 5 * 60 * 60 * 1000L);
+
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(GroqService.class, "isFresh", gammal)).isFalse();
+    }
+
     // --- missingModels / configuredModels (hälsokoll mot Groqs /models-lista) ---
 
     private GroqService serviceMedModeller(String model, String chatModel) {
