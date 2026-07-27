@@ -300,6 +300,25 @@ public class DataLoader implements CommandLineRunner {
         if (!existing.contains("Kia EV4 Long Range"))
             extras.add(new EvSpec("Kia EV4 Long Range",     11.0, 128.0, 81.4, 590, 435_000));
 
+        // Kia EV6 — databasen hade EN rad ("Kia EV6", 60 kWh/428 km = facelift Standard Range
+        // med nettokapacitet), så kortet visade ett enda batterialternativ trots att bilen
+        // finns med tre. Långdistansvarianterna är dessutom de vanligaste på begagnatmarknaden.
+        // Namnen följer ev-database.org så nattsynken matchar dem; batteriet anges brutto som i
+        // seeden ovan. Alla siffror verifierade mot ev-database.org 2026-07-27.
+        // Pris 0 = okänt — filtreras bort ur prisreferensen (>50 000 kr) tills synken fyller i.
+        // Facelift 2024–2026: 84 kWh brutto / 80 netto, 263 kW DC
+        if (!existing.contains("Kia EV6 Long Range 2WD 84 kWh"))
+            extras.add(new EvSpec("Kia EV6 Long Range 2WD 84 kWh",   11.0, 263.0, 84.0,   582, 0));
+        if (!existing.contains("Kia EV6 Long Range AWD 84 kWh"))
+            extras.add(new EvSpec("Kia EV6 Long Range AWD 84 kWh",   11.0, 263.0, 84.0,   546, 0));
+        // Pre-facelift 2021–2024: 77.4 kWh brutto / 74 netto, 233 kW DC — begagnatvolymen
+        if (!existing.contains("Kia EV6 Long Range 2WD 77.4 kWh"))
+            extras.add(new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4,   528, 0));
+        if (!existing.contains("Kia EV6 Long Range AWD 77.4 kWh"))
+            extras.add(new EvSpec("Kia EV6 Long Range AWD 77.4 kWh", 11.0, 233.0, 77.4,   506, 0));
+        if (!existing.contains("Kia EV6 GT 77.4 kWh"))
+            extras.add(new EvSpec("Kia EV6 GT 77.4 kWh",             11.0, 233.0, 77.4,   424, 0));
+
         // MG Marvel R (2021–2023) — säljs begagnad men saknade specs
         if (!existing.contains("MG Marvel R"))
             extras.add(new EvSpec("MG Marvel R",            11.0,  92.0, 70.0, 402, 465_000));

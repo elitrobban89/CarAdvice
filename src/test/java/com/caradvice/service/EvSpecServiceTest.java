@@ -208,6 +208,21 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void tvaGenerationersBatterierIsammaModellHallsIsar() {
+        // EV6 finns med 77,4 kWh (2021-2024) och 84 kWh (2024-2026) — 8,5 % isar, alltsa tva
+        // riktiga batterier och inte netto/brutto av samma. Regressionsskydd for toleransen:
+        // med den ursprungliga 10 %-gransen slogs de ihop till en enda rad.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4, 528, 0),
+                new EvSpec("Kia EV6 GT 77.4 kWh", 11.0, 233.0, 77.4, 424, 0),
+                new EvSpec("Kia EV6 Long Range 2WD 84 kWh", 11.0, 263.0, 84.0, 582, 0),
+                new EvSpec("Kia EV6 Long Range AWD 84 kWh", 11.0, 263.0, 84.0, 546, 0)));
+
+        assertThat(service().verifiedEngineOptions("Kia EV6"))
+                .isEqualTo("77.4 kWh (424–528 km), 84 kWh (546–582 km)");
+    }
+
+    @Test
     void tydligtOlikaBatterierHallsIsar() {
         // 58 och 77 kWh ar over toleransen (10 %) — tva riktiga val, ska inte slas ihop
         when(repo.findAll()).thenReturn(List.of(

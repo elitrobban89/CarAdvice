@@ -121,8 +121,16 @@ public class EvSpecService {
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 
-    /** Batterier inom 10 % av gruppens minsta räknas som samma fysiska batteri. */
-    private static final double SAME_BATTERY_TOLERANCE = 1.10;
+    /**
+     * Batterier inom 8 % av gruppens minsta räknas som samma fysiska batteri.
+     *
+     * <p>Gränsen ligger där den gör för att skilja två saker åt: tillverkarnas buffert mellan
+     * netto- och bruttokapacitet ligger i praktiken på 4–7 % (EX30 49/51 = 4,1 %, 65/69 = 6,2 %,
+     * EV6 Standard 60/63 = 5,0 %), medan verkligt olika batterival skiljer sig mer (EV6:s
+     * 77,4 mot 84 kWh = 8,5 %, EV6 Standard mot Long Range = 23 %). Toleransen var först 10 %,
+     * vilket slog ihop EV6:s två generationer till en rad.
+     */
+    private static final double SAME_BATTERY_TOLERANCE = 1.08;
 
     /**
      * Slår ihop varianter som beskriver samma batteri. Databasen innehåller samma bil under
