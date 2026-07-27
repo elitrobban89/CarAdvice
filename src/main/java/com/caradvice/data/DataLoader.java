@@ -272,6 +272,19 @@ public class DataLoader implements CommandLineRunner {
                     toDelete.add(spec);
                     existing.remove(spec.getCarName());
                 }
+                case "Kia EV6" -> {
+                    // Seedens rad var Long Range (77,4 kWh/528 km) men nattsynken har skrivit om
+                    // den till facelift Standard Range med NETTOkapacitet (60 kWh/428 km). Kortet
+                    // blandade därför konventioner: 60 netto bredvid 77,4 och 84 brutto.
+                    // Nu när varianterna finns som egna rader ersätts den av en tydlig
+                    // Standard Range-rad med bruttokapacitet. EvSpec saknar setCarName, så raden
+                    // byts ut i stället för att döpas om. Villkoret träffar bara den omskrivna
+                    // raden — en orörd seed-rad (77,4) lämnas som den är.
+                    if (spec.getBatteryKwh() != null && spec.getBatteryKwh() < 65.0) {
+                        toDelete.add(spec);
+                        existing.remove("Kia EV6");
+                    }
+                }
                 default -> {}
             }
         }
@@ -306,6 +319,9 @@ public class DataLoader implements CommandLineRunner {
         // Namnen följer ev-database.org så nattsynken matchar dem; batteriet anges brutto som i
         // seeden ovan. Alla siffror verifierade mot ev-database.org 2026-07-27.
         // Pris 0 = okänt — filtreras bort ur prisreferensen (>50 000 kr) tills synken fyller i.
+        // Facelift 2025–2026 Standard Range: 63 kWh brutto / 60 netto, 195 kW DC
+        if (!existing.contains("Kia EV6 Standard Range 63 kWh"))
+            extras.add(new EvSpec("Kia EV6 Standard Range 63 kWh",   11.0, 195.0, 63.0,   428, 0));
         // Facelift 2024–2026: 84 kWh brutto / 80 netto, 263 kW DC
         if (!existing.contains("Kia EV6 Long Range 2WD 84 kWh"))
             extras.add(new EvSpec("Kia EV6 Long Range 2WD 84 kWh",   11.0, 263.0, 84.0,   582, 0));
