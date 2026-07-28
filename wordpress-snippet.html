@@ -67,22 +67,6 @@
     margin-bottom: 16px;
   }
 
-  @media (max-width: 520px) {
-    #ca-wrap { padding: 0 8px; margin: 22px auto; }
-    .ca-grid { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-    #ca-hero { padding: 24px 15px; }
-    #ca-hero h2 { font-size: 1.5rem; }
-    #ca-hero p.ca-sub { margin-bottom: 20px; font-size: .95rem; color: rgba(255,255,255,.72); line-height: 1.45; }
-    .ca-field label { margin-bottom: 6px; font-size: .8rem; letter-spacing: .4px; color: rgba(255,255,255,.82); }
-    .ca-field select,
-    .ca-field input[type="number"] { padding: 13px 15px; font-size: 1rem; border-radius: 12px; }
-    .ca-fc-sub { color: rgba(255,255,255,.55); }
-    .ca-fc-header { color: rgba(255,255,255,.9); }
-    .ca-history-label { color: rgba(255,255,255,.42); }
-    .ca-card-head { padding: 18px 20px 14px; }
-    .ca-card-body { padding: 18px 20px 20px; }
-  }
-
   .ca-field label {
     display: block;
     font-size: 0.78rem;
@@ -664,6 +648,29 @@
   .ca-fc-mini-card { flex: 1; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 12px 14px; min-width: 0; }
   .ca-fc-chat-btn { margin-top: 14px; width: 100%; background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.28); border-radius: 10px; color: #c4b5fd; font-size: .8rem; font-weight: 600; padding: 10px 16px; cursor: pointer; transition: background .2s; }
   .ca-fc-chat-btn:hover { background: rgba(139,92,246,.22); }
+
+  /* Mobilanpassningarna ligger sist med flit. Media queries ger ingen extra specificitet,
+     så vid samma specificitet avgör källordningen. Blocket låg tidigare på rad 70 och
+     förlorade därför mot varje huvudregel längre ned i filen — i praktiken .ca-card-head
+     och .ca-card-body (rad ~449), som fick desktopens 22px 28px även på 390 px. Övriga
+     överstyrningar i blocket låg redan före sina huvudregler och fungerade.
+     Lägg nya mobilregler HÄR, inte högre upp. */
+  @media (max-width: 520px) {
+    #ca-wrap { padding: 0 8px; margin: 22px auto; }
+    .ca-grid { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+    #ca-hero { padding: 24px 15px; }
+    #ca-hero h2 { font-size: 1.5rem; }
+    #ca-hero p.ca-sub { margin-bottom: 20px; font-size: .95rem; color: rgba(255,255,255,.72); line-height: 1.45; }
+    .ca-field label { margin-bottom: 6px; font-size: .8rem; letter-spacing: .4px; color: rgba(255,255,255,.82); }
+    .ca-field select,
+    .ca-field input[type="number"] { padding: 13px 15px; font-size: 1rem; border-radius: 12px; }
+    .ca-fc-sub { color: rgba(255,255,255,.55); }
+    .ca-fc-header { color: rgba(255,255,255,.9); }
+    .ca-history-label { color: rgba(255,255,255,.42); }
+    .ca-card-head { padding: 18px 20px 14px; }
+    .ca-card-body { padding: 18px 20px 20px; }
+  }
+
   </style>
 
   <div id="ca-wrap">
