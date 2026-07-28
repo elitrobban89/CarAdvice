@@ -41,6 +41,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
 ### Bilkortsdesign
 - Tre kort med **per-kort accentfärger**: Bil 1 lila, Bil 2 blå, Bil 3 grön
 - **Aurora-glödeffekt** — animerat radiellt gradient-orb bakom varje kort (CSS `@keyframes` med staggerade delays)
+- **Vandrande färgkant** — samma grepp som chattpanelen: en conic-gradient ritad som ring med `mask-composite` och roterad via den registrerade vinkelvariabeln `--ca-rim-ang`. Heron får hela färgskalan på 9 s; korten håller sig i sin egen accentfärg (så numreringen fortfarande går att läsa på färgen), går långsammare (14 s), svagare (opacity .55) och med förskjutna starter så de tre inte pulserar i lockstep. Tänds vid hover. Ringen ligger i `::after` eftersom `::before` redan är upptaget av aurora-orben, och innehållet lyfts med `z-index` — en absolut pseudo utan det tvättar ur korttexten. Utan `@property`-stöd står vinkeln still och kanten blir en statisk färgring i stället för att sluta fungera
 - **Bilbilder** — varje kort hämtar automatiskt en thumbnail från Wikipedias öppna REST API; trefallsordning: direktträff (engelska) → suffixvarianter (`_EV`, `_electric`) → Wikipedia opensearch (fuzzy titelmatchning, upp till 3 kandidater); svenska Wikipedia som sista fallback; döljs tyst om ingen bild hittas
 - Sektionsrubriker (Fördelar / Nackdel / Passar dig) med dividers för tydlig läsbarhet
 - **"Fråga om denna bil"-knapp** på varje kort — markerar kortet med glödande ram och öppnar chatboten fokuserad på just den bilen

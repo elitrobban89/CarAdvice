@@ -76,8 +76,49 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-card-1:hover{border-color:rgba(139,92,246,.65);box-shadow:0 16px 50px rgba(139,92,246,.3),0 0 54px rgba(167,139,250,.2),inset 0 1px 0 rgba(255,255,255,.08);}',
     '.ca-card-2:hover{box-shadow:0 16px 50px rgba(14,165,233,.24),0 0 50px rgba(56,189,248,.18),inset 0 1px 0 rgba(255,255,255,.08);}',
     '.ca-card-3:hover{box-shadow:0 16px 50px rgba(16,185,129,.22),0 0 50px rgba(52,211,153,.16),inset 0 1px 0 rgba(255,255,255,.08);}',
+    // ── Vandrande färgkant, samma grepp som chattpanelens ────────────────────
+    // Ringen ritas med conic-gradient + mask-composite och roteras via en registrerad
+    // vinkelvariabel. Utan @property går vinkeln inte att animera och kanten står stilla
+    // som en statisk färgring — degraderar alltså snyggt i äldre webbläsare.
+    '@property --ca-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false;}',
+    '@keyframes ca-rim{to{--ca-rim-ang:360deg;}}',
+    // Hero: hela färgskalan, som chattpanelen. ::before är upptaget av auroran, så ::after.
+    '#ca-hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
+      'border-radius:inherit;padding:2px;',
+      'background:conic-gradient(from var(--ca-rim-ang),#a78bfa,#38bdf8,#22d3ee,#f472b6,#fbbf24,#a78bfa);',
+      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      '-webkit-mask-composite:xor;mask-composite:exclude;',
+      'opacity:.85;filter:saturate(140%);animation:ca-rim 9s linear infinite;}',
+    // Hero-innehållet över ringen — annars målas rubriken under pseudon
+    '#ca-hero>*{position:relative;z-index:1;}',
+    // Auroran får cyan, rosa och turkos utöver lila så skiftningen syns som färg och
+    // inte bara som ljusstyrka (hue-rotate på enbart lila ger nästan ingen upplevd rörelse)
+    '#ca-hero::before{',
+      'background:',
+        'radial-gradient(ellipse at 72% 12%,rgba(139,92,246,.3) 0%,transparent 55%),',
+        'radial-gradient(ellipse at 18% 22%,rgba(56,189,248,.17) 0%,transparent 52%),',
+        'radial-gradient(ellipse at 12% 88%,rgba(99,102,241,.2) 0%,transparent 48%),',
+        'radial-gradient(ellipse at 88% 92%,rgba(244,114,182,.15) 0%,transparent 50%),',
+        'radial-gradient(ellipse at 52% 62%,rgba(45,212,191,.1) 0%,transparent 46%);',
+      'animation:ca-hue 20s ease-in-out infinite,ca-aurora 12s ease-in-out infinite alternate;}',
+    // Korten: ringen håller sig i kortets egen färgfamilj så numreringen 1/2/3 fortfarande
+    // går att läsa på färgen. ::before är upptaget av orben, ::after är fritt.
+    // Långsammare och svagare än heron — tre samtidiga ringar ska inte stjäla blicken.
+    '.ca-card::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
+      'border-radius:inherit;padding:1.5px;',
+      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      '-webkit-mask-composite:xor;mask-composite:exclude;',
+      'opacity:.55;animation:ca-rim 14s linear infinite;}',
+    '.ca-card-1::after{background:conic-gradient(from var(--ca-rim-ang),#8b5cf6,#a78bfa,#c4b5fd,#6366f1,#8b5cf6);}',
+    // Förskjutna starter så de tre korten inte pulserar i lockstep
+    '.ca-card-2::after{background:conic-gradient(from var(--ca-rim-ang),#0ea5e9,#38bdf8,#67e8f9,#3b82f6,#0ea5e9);animation-delay:-4.6s;}',
+    '.ca-card-3::after{background:conic-gradient(from var(--ca-rim-ang),#10b981,#34d399,#6ee7b7,#14b8a6,#10b981);animation-delay:-9.3s;}',
+    // Kanten tänds tydligare när man hovrar kortet man läser
+    '.ca-card:hover::after{opacity:.95;animation-duration:7s;}',
     // Respektera reduced motion
-    '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-btn,#ca-btn::after{animation:none!important;}}'
+    '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-hero::after,#ca-btn,#ca-btn::after,.ca-card::after{animation:none!important;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
