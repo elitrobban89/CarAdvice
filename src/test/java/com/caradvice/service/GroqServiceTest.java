@@ -556,6 +556,57 @@ class GroqServiceTest {
                 .hasMessageContaining("oväntat svar");
     }
 
+    // --- exceedsBudgetCeiling (budgeten kontrollerad mot riktiga annonser, inte bara promptad) ---
+
+    @Test
+    void bilLangtOverBudgetFallerPaTaket() {
+        // Live-fynd: budget 275 000 gav Kia EV3 som börjar på 359 000 kr — 84 000 över
+        var blocket = new BlocketPriceService.PriceRange(359_000, 425_000, 40, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isTrue();
+    }
+
+    @Test
+    void bilStraxOverBudgetSlapperIgenom() {
+        // EX30 på 300 000 mot 275 000-budget är +25 000 — inom marginalen och godkänd av användaren
+        var blocket = new BlocketPriceService.PriceRange(300_000, 380_000, 40, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
+    }
+
+    @Test
+    void taketGarVidExakt30000Over() {
+        int budget = 275_000;
+        var precisPa = new BlocketPriceService.PriceRange(budget + 30_000, 400_000, 10, "...");
+        var precisOver = new BlocketPriceService.PriceRange(budget + 30_001, 400_000, 10, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(precisPa, budget)).isFalse();
+        assertThat(GroqService.exceedsBudgetCeiling(precisOver, budget)).isTrue();
+    }
+
+    @Test
+    void billigBilFallerAldrigPaTaket() {
+        // Bara ett tak, inget golv — en bil under budget är fortfarande köpbar
+        var blocket = new BlocketPriceService.PriceRange(120_000, 160_000, 25, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
+    }
+
+    @Test
+    void enAnnonsFallerIngenBil() {
+        // Samma tröskel som correctedPrice: en ensam fel-/scamannons ska inte kunna fälla en bil
+        var blocket = new BlocketPriceService.PriceRange(900_000, 900_000, 1, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
+    }
+
+    @Test
+    void utanBlocketDataGallerIngetTak() {
+        assertThat(GroqService.exceedsBudgetCeiling(null, 275_000)).isFalse();
+    }
+
+    @Test
+    void taketMatsMotBilligasteAnnonsenInteSnittet() {
+        // Intervallet spänner över taket: billigaste exemplaret går att köpa, alltså godkänd
+        var blocket = new BlocketPriceService.PriceRange(290_000, 500_000, 30, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
+    }
+
     // --- correctedPrice (Blocket-verkligheten vinner över AI:ns priskalkyl) ---
 
     @Test

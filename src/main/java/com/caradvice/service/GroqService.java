@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +219,32 @@ public class GroqService {
         return sb.toString();
     }
 
+    /**
+     * Hur långt över budgeten en bils billigaste Blocket-annons får ligga.
+     *
+     * Live-fynd: budget 275 000 kr gav Kia EV3, som börjar på 359 000 kr på Blocket — 84 000 kr
+     * över, alltså inte köpbar för användaren. Budgeten var tidigare enbart en promptregel
+     * ("UTNYTTJA BUDGETEN"), aldrig kontrollerad mot verklig marknadsdata, och correctedPrice
+     * gjorde felet synligt utan att åtgärda det: den bytte AI:ns påhittade pris mot Blockets
+     * riktiga och visade 359 000 kr på ett kort som föreslagits för en 275 000-budget.
+     *
+     * Bara ett tak, inget golv: en bil under budget är fortfarande köpbar, och prompten ska
+     * kunna lägga ett prisvärt fynd bland förslagen.
+     */
+    static final int BUDGET_CEILING_MARGIN_KR = 30_000;
+
+    /**
+     * Blocket-verifierat budgettak. Jämför mot annonsintervallets LÄGSTA pris: räcker inte
+     * den billigaste annonsen finns bilen inte att köpa inom budget, oavsett var snittet ligger.
+     *
+     * Kräver minst 2 annonser av samma skäl som correctedPrice — en ensam fel- eller scamannons
+     * ska inte kunna fälla en bil som egentligen är prisvärd.
+     */
+    static boolean exceedsBudgetCeiling(BlocketPriceService.PriceRange blocket, int budgetKr) {
+        if (blocket == null || blocket.count() < 2) return false;
+        return blocket.minKr() > budgetKr + BUDGET_CEILING_MARGIN_KR;
+    }
+
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
         return enrichRecommendations(parsed, kmPerYear, null, false);
     }
@@ -228,6 +255,16 @@ public class GroqService {
      */
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
                                                           String fuelPref, boolean skipBlocket) {
+        return enrichRecommendations(parsed, kmPerYear, fuelPref, skipBlocket, null);
+    }
+
+    /**
+     * rangesOut != null: Blocket-intervallet per titel läggs där för anropare som behöver
+     * siffrorna efteråt (budgettaket) — CarRecommendation bär bara den formaterade strängen.
+     */
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
+                                                          String fuelPref, boolean skipBlocket,
+                                                          Map<String, BlocketPriceService.PriceRange> rangesOut) {
         List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -259,6 +296,7 @@ public class GroqService {
             } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
+            if (rangesOut != null && blocketRange != null) rangesOut.put(r.title(), blocketRange);
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
             String price = correctedPrice(r.price(), blocketRange, r.title());
 
@@ -366,10 +404,86 @@ public class GroqService {
         if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation", validator);
 
+        boolean isLeasing = "leasing".equals(prefs.budgetType());
+        Map<String, BlocketPriceService.PriceRange> ranges = new LinkedHashMap<>();
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
-                "leasing".equals(prefs.budgetType()));
+                isLeasing, ranges);
+
+        // Budgettaket gäller bara begagnatköp: i leasingläge är budgeten kr/mån och Blocket
+        // hämtas inte alls, och för nybilssök är begagnatpriset fel måttstock.
+        if (!isLeasing && !prefs.newCar()) {
+            List<CarRecommendation> over = overBudget(result, ranges, prefs.budget());
+            if (!over.isEmpty()) {
+                result = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges);
+            }
+        }
         store(key, result);
         return new Result(result, false, 0);
+    }
+
+    /** Rekommendationer vars billigaste Blocket-annons ligger över budgettaket. */
+    private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
+                                                      Map<String, BlocketPriceService.PriceRange> ranges,
+                                                      int budgetKr) {
+        List<CarRecommendation> over = new ArrayList<>();
+        for (CarRecommendation r : recs) {
+            if (exceedsBudgetCeiling(ranges.get(r.title()), budgetKr)) over.add(r);
+        }
+        return over;
+    }
+
+    /**
+     * Ett omförsök där de för dyra bilarna pekas ut vid namn med sitt verkliga Blocket-pris.
+     * Först efter berikningen vet vi vad bilarna faktiskt kostar, så det här kan inte ligga i
+     * parseWithRetry med de andra regelvakterna — därför en egen, senare runda.
+     *
+     * Blir omförsöket inte bättre behålls det ursprungliga svaret. Att returnera en kortare
+     * lista vore att låta vakten straffa användaren för AI:ns miss; hellre tre bilar där en är
+     * dyr — och ärligt prismärkt av correctedPrice — än ett tomt eller stympat resultat.
+     */
+    private List<CarRecommendation> retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
+                                                      List<CarRecommendation> original, List<CarRecommendation> over,
+                                                      Map<String, BlocketPriceService.PriceRange> ranges) {
+        StringBuilder namn = new StringBuilder();
+        for (CarRecommendation r : over) {
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            if (namn.length() > 0) namn.append(", ");
+            namn.append(r.title()).append(" (billigaste annons ").append(formatSekSpace(pr.minKr())).append(" kr)");
+        }
+        log.warn("AI föreslog bil(ar) över budgettaket {} + {} kr: {} — omförsök",
+                prefs.budget(), BUDGET_CEILING_MARGIN_KR, namn);
+
+        String skarptPrompt = prompt + String.format("""
+
+                VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr
+                (budget + %,d kr) räknat på BILLIGASTE annonsen på Blocket. Föreslå andra
+                bilar som faktiskt går att köpa för pengarna: äldre årsmodell, enklare
+                utrustningsnivå eller ett billigare märke i samma storleksklass.
+                """, namn, prefs.budget() + BUDGET_CEILING_MARGIN_KR, BUDGET_CEILING_MARGIN_KR);
+
+        try {
+            Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, skarptPrompt);
+            HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
+            if (response.statusCode() != 200) return original;
+
+            List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)");
+            Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
+            List<CarRecommendation> retried = enrichRecommendations(
+                    parsed, prefs.kmPerYear(), prefs.fuelType(), false, retryRanges);
+
+            int stillOver = overBudget(retried, retryRanges, prefs.budget()).size();
+            if (stillOver < over.size()) {
+                log.info("Budgetomförsök: {} bil(ar) över taket, var {}", stillOver, over.size());
+                return retried;
+            }
+            log.warn("Budgetomförsök gav ingen förbättring ({} över taket) — behåller första svaret", stillOver);
+            return original;
+        } catch (Exception e) {
+            log.warn("Budgetomförsök misslyckades: {} — behåller första svaret", e.getMessage());
+            return original;
+        }
     }
 
     private synchronized void refreshPricesIfNeeded() {
@@ -961,6 +1075,8 @@ public class GroqService {
                 SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).
                 SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
+                BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte att hitta under det taket är bilen fel förslag oavsett hur väl den passar i övrigt — byt till äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
+                SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
                 FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.
