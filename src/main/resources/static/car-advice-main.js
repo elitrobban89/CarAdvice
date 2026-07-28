@@ -640,7 +640,13 @@ function caRenderCards(recommendations) {
         priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Pris</span>' + caEsc(r.price) + '</div>';
       }
       return '<div class="ca-card ca-card-'+(i+1)+'">' +
-        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:80px;overflow:hidden;border-radius:inherit;background:rgba(255,255,255,.04);margin-bottom:0;display:none">' +
+        // Remsan var 80 px hög med en egen ljus platta som bakgrund. Med object-fit:contain
+        // blev ett 16:9-foto ~142 px brett i ett 814 px brett fält — 83 % av ytan var tom
+        // platta, vilket läste som ett fel snarare än ett designval. Nu: dubbelt så hög remsa
+        // (fotot blir ~2× större) och genomskinlig bakgrund så överskottsytan smälter in i
+        // kortet i stället för att bilda ett eget grått band. contain behålls — Wikipedia-
+        // bilderna har vitt spretiga proportioner och cover hade beskurit bilar på måfå.
+        '<div id="ca-img-wrap-'+i+'" style="width:100%;height:150px;overflow:hidden;border-radius:inherit;background:transparent;margin-bottom:0;display:none">' +
           '<img id="ca-img-'+i+'" src="" alt="'+caEsc(r.title)+'" style="width:100%;height:100%;object-fit:contain;object-position:center center;transition:opacity .4s">' +
         '</div>' +
         '<div class="ca-card-head">' +

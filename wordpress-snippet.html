@@ -1,5 +1,15 @@
 ﻿  <style>
-  #ca-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Resetten fanns för att neutralisera WordPress-temat, men `#ca-wrap *` har
+     ID-specificitet (1,0,0) och slog därför snippetens EGNA klassregler (0,1,0):
+     32 padding-regler nollställdes, bl.a. all luft i bilkorten. Mätt på produktion
+     började kortrubriken 3 px från kanten på ett 818 px brett kort.
+     Padding-resetten gäller nu bara de element WP-teman faktiskt stylar. Ingen av de
+     32 reglerna sitter på dessa taggar (alla är div/span/button/select), så de kan
+     inte krocka. `.ca-pros` behöver ul-resetten för att bli av med listindraget. */
+  #ca-wrap * { box-sizing: border-box; margin: 0; }
+  #ca-wrap p, #ca-wrap ul, #ca-wrap ol, #ca-wrap li,
+  #ca-wrap h1, #ca-wrap h2, #ca-wrap h3, #ca-wrap h4,
+  #ca-wrap blockquote, #ca-wrap figure, #ca-wrap table { padding: 0; }
 
   #ca-wrap {
     font-family: 'Segoe UI', system-ui, sans-serif;
@@ -457,12 +467,16 @@
   .ca-card h3 { font-size: 1.15rem; font-weight: 800; color: #fff; line-height: 1.3; margin: 0; }
   .ca-price { font-size: 0.95rem; font-weight: 700; color: rgba(167,139,250,0.95); }
   .ca-blocket-price { font-size: 0.72rem; color: #60a5fa; margin-top: 3px; }
+  /* Var 0.6rem (9,6 px) vid 28 % vitt — etiketterna som strukturerar hela kortet
+     ("Fördelar", "Nackdel", "Passar dig") gick i praktiken inte att läsa mot
+     kortbakgrunden. Höjd till 11 px och 50 % opacitet: fortfarande underordnad
+     brödtexten, men synlig. */
   .ca-section-label {
-    font-size: 0.6rem;
+    font-size: 0.69rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.28);
+    color: rgba(255,255,255,0.5);
     display: block;
     margin-bottom: 7px;
     margin-top: 18px;
