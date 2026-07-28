@@ -421,6 +421,28 @@ public class GroqService {
         return new Result(result, false, 0);
     }
 
+    /**
+     * Plockar ihop upp till tre bilar som håller budgeten ur båda försöken, dedupat på titel.
+     * Omförsöket först — dess bilar valdes med budgettaket i prompten — sedan påfyllning ur
+     * ursprungssvaret. Tom lista betyder att ingendera omgången gav en köpbar bil.
+     */
+    static List<CarRecommendation> mergeWithinBudget(
+            List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
+            List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
+            int budgetKr) {
+        List<CarRecommendation> out = new ArrayList<>();
+        Set<String> titles = new LinkedHashSet<>();
+        for (CarRecommendation r : retried) {
+            if (out.size() >= 3) break;
+            if (!exceedsBudgetCeiling(retryRanges.get(r.title()), budgetKr) && titles.add(r.title())) out.add(r);
+        }
+        for (CarRecommendation r : original) {
+            if (out.size() >= 3) break;
+            if (!exceedsBudgetCeiling(ranges.get(r.title()), budgetKr) && titles.add(r.title())) out.add(r);
+        }
+        return out;
+    }
+
     /** Rekommendationer vars billigaste Blocket-annons ligger över budgettaket. */
     private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
                                                       Map<String, BlocketPriceService.PriceRange> ranges,
@@ -437,9 +459,14 @@ public class GroqService {
      * Först efter berikningen vet vi vad bilarna faktiskt kostar, så det här kan inte ligga i
      * parseWithRetry med de andra regelvakterna — därför en egen, senare runda.
      *
-     * Blir omförsöket inte bättre behålls det ursprungliga svaret. Att returnera en kortare
-     * lista vore att låta vakten straffa användaren för AI:ns miss; hellre tre bilar där en är
-     * dyr — och ärligt prismärkt av correctedPrice — än ett tomt eller stympat resultat.
+     * Resultatet plockas ihop av de bilar som HÅLLER budgeten ur båda försöken, dedupat på
+     * titel, upp till tre. Första versionen behöll i stället hela ursprungssvaret när
+     * omförsöket inte blev bättre, och släppte då igenom en Volvo EX40 på 439 000 kr mot en
+     * 275 000-budget — 164 000 kr över taket. En kortare lista med köpbara bilar är mer värd
+     * än en full lista där en bil inte går att köpa.
+     *
+     * Bara om ingendera omgången gav en enda bil inom budget faller vi tillbaka på
+     * ursprungssvaret — tomt resultat hjälper ingen.
      */
     private List<CarRecommendation> retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
                                                       List<CarRecommendation> original, List<CarRecommendation> over,
@@ -473,16 +500,21 @@ public class GroqService {
             List<CarRecommendation> retried = enrichRecommendations(
                     parsed, prefs.kmPerYear(), prefs.fuelType(), false, retryRanges);
 
-            int stillOver = overBudget(retried, retryRanges, prefs.budget()).size();
-            if (stillOver < over.size()) {
-                log.info("Budgetomförsök: {} bil(ar) över taket, var {}", stillOver, over.size());
-                return retried;
+            List<CarRecommendation> withinBudget =
+                    mergeWithinBudget(retried, retryRanges, original, ranges, prefs.budget());
+
+            if (withinBudget.isEmpty()) {
+                log.warn("Budgetomförsök: ingen bil inom budget i någondera omgången — behåller första svaret");
+                return original;
             }
-            log.warn("Budgetomförsök gav ingen förbättring ({} över taket) — behåller första svaret", stillOver);
-            return original;
+            log.info("Budgettak: {} bil(ar) inom budget efter omförsök (var {} av {} över taket)",
+                    withinBudget.size(), over.size(), original.size());
+            return withinBudget;
         } catch (Exception e) {
-            log.warn("Budgetomförsök misslyckades: {} — behåller första svaret", e.getMessage());
-            return original;
+            log.warn("Budgetomförsök misslyckades: {} — filtrerar ursprungssvaret", e.getMessage());
+            List<CarRecommendation> kept = new ArrayList<>(original);
+            kept.removeAll(over);
+            return kept.isEmpty() ? original : kept;
         }
     }
 

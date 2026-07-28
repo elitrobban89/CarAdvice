@@ -11,6 +11,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Year;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -605,6 +606,80 @@ class GroqServiceTest {
         // Intervallet spänner över taket: billigaste exemplaret går att köpa, alltså godkänd
         var blocket = new BlocketPriceService.PriceRange(290_000, 500_000, 30, "...");
         assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
+    }
+
+    // --- mergeWithinBudget (vilka bilar som överlever budgettaket) ---
+
+    private static CarRecommendation bil(String titel) {
+        return new CarRecommendation(titel, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    private static BlocketPriceService.PriceRange range(int minKr) {
+        return new BlocketPriceService.PriceRange(minKr, minKr + 80_000, 40, "...");
+    }
+
+    @Test
+    void forDyrBilTasBortAvenNarOmforsoketIntearBattre() {
+        // Live-fynd: omförsöket gav ingen förbättring och hela ursprungssvaret behölls, vilket
+        // slappte igenom Volvo EX40 pa 439 000 kr mot en 275 000-budget — 164 000 over taket
+        var original = List.of(bil("Volvo EX40 (2022)"), bil("Kia Niro EV (2022)"));
+        var ranges = Map.of("Volvo EX40 (2022)", range(439_000), "Kia Niro EV (2022)", range(244_000));
+        var retried = List.of(bil("Volvo EX40 (2022)"));
+
+        var result = GroqService.mergeWithinBudget(retried, ranges, original, ranges, 275_000);
+
+        assertThat(result).extracting(CarRecommendation::title).containsExactly("Kia Niro EV (2022)");
+    }
+
+    @Test
+    void omforsoketsBilarKommerForst() {
+        var original = List.of(bil("Kia Niro EV (2022)"));
+        var retried = List.of(bil("Renault Megane E-Tech (2023)"));
+        var ranges = Map.of("Kia Niro EV (2022)", range(244_000),
+                "Renault Megane E-Tech (2023)", range(230_000));
+
+        var result = GroqService.mergeWithinBudget(retried, ranges, original, ranges, 275_000);
+
+        assertThat(result).extracting(CarRecommendation::title)
+                .containsExactly("Renault Megane E-Tech (2023)", "Kia Niro EV (2022)");
+    }
+
+    @Test
+    void sammaBilIBadaOmgangarnaDubbleras() {
+        var bilen = List.of(bil("Kia Niro EV (2022)"));
+        var ranges = Map.of("Kia Niro EV (2022)", range(244_000));
+
+        var result = GroqService.mergeWithinBudget(bilen, ranges, bilen, ranges, 275_000);
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void aldrigFlerAnTreBilar() {
+        var retried = List.of(bil("A (2022)"), bil("B (2022)"), bil("C (2022)"));
+        var original = List.of(bil("D (2022)"), bil("E (2022)"));
+        var ranges = new java.util.HashMap<String, BlocketPriceService.PriceRange>();
+        for (String t : List.of("A (2022)", "B (2022)", "C (2022)", "D (2022)", "E (2022)")) ranges.put(t, range(200_000));
+
+        assertThat(GroqService.mergeWithinBudget(retried, ranges, original, ranges, 275_000)).hasSize(3);
+    }
+
+    @Test
+    void ingenBilInomBudgetGerTomLista() {
+        // Anroparen faller da tillbaka pa ursprungssvaret — tomt resultat hjalper ingen
+        var original = List.of(bil("Volvo EX40 (2022)"));
+        var ranges = Map.of("Volvo EX40 (2022)", range(439_000));
+
+        assertThat(GroqService.mergeWithinBudget(List.of(), Map.of(), original, ranges, 275_000)).isEmpty();
+    }
+
+    @Test
+    void bilUtanBlocketDataFallerInteBort() {
+        // Ingen prisdata = ingen grund att falla bilen pa; samma linje som exceedsBudgetCeiling
+        var original = List.of(bil("Ovanlig Modell (2022)"));
+
+        assertThat(GroqService.mergeWithinBudget(List.of(), Map.of(), original, Map.of(), 275_000))
+                .extracting(CarRecommendation::title).containsExactly("Ovanlig Modell (2022)");
     }
 
     // --- correctedPrice (Blocket-verkligheten vinner över AI:ns priskalkyl) ---
