@@ -8,6 +8,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,7 +82,18 @@ public class EvDatabaseScraperService {
                                 scraped.rangeKm(),
                                 scraped.priceKr()
                         );
-                        repo.save(newSpec);
+                        try {
+                            repo.save(newSpec);
+                        } catch (DataIntegrityViolationException e) {
+                            // ux_ev_spec_car_name slog till: raden finns redan trots att findMatch
+                            // sa nej. Exakt så uppstod de 756 dubbletterna som städades bort
+                            // 2026-07-28 — då tyst, nu högljutt. Hoppa över bilen och kör vidare;
+                            // ett trasigt namn ska inte sänka resten av nattens synk.
+                            log.error("SCRAPER ALERT: '{}' finns redan i ev_spec men findMatch hittade den inte — "
+                                    + "matchningen behöver ses över. Bilen hoppas över.", scraped.name());
+                            failed++;
+                            continue;
+                        }
                         nameMap.put(normalize(scraped.name()), newSpec);
                         created++;
                         log.info("Created {}: range={}km bat={}kWh DC={}kW AC={}kW price={}kr",

@@ -139,10 +139,10 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 ### Expertinsikter (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; källnamnet visas i AI:ns svar (t.ex. "Teknikens Värld: bäst i test")
-- **~290 insikter** från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, bilägare på car.info, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter
+- **~290 insikter** från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, Auto Motor & Sport, Elbilen, CarUp, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter (car.info-omdömen finns kvar historiskt men källan skrapas inte längre)
 - Fylls på **automatiskt varje natt** av insiktsscrapern (se nedan); manuell import via `POST /api/admin/import/insights?expert=Namn`
 
-### Insiktsscraper (10 motorsajter, nattlig)
+### Insiktsscraper (9 motorsajter, nattlig)
 - **`WebInsightScraperService`** körs kl **04:00 Stockholm-tid** på Render — efter EV-synken (02:00) och CargoSpec-synken (03:00)
 - Källor och upptäcktsmetod:
   - **Teknikens Värld** — WordPress-sitemap (deras `/feed/` svarar 406)
@@ -151,15 +151,15 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   - **Bytbil** — artikellistan `nybil.bytbil.com/posts`
   - **M3** — RSS (icke-bilartiklar ger tom insiktslista och filtreras bort automatiskt)
   - **Auto Motor & Sport** — WordPress REST API (`wp-json`); F1/racing-artiklar filtreras bort som M3:s
-  - **Elbilen** — WordPress REST API (`wp-json`)
+  - **Elbilen** — WordPress REST API, posttyperna `tester` + `artiklar` (standardtypen `posts` innehåller bara 3 poster; notisflödet `nyheter` är medvetet utelämnat)
   - **CarUp** — WordPress REST API (`wp-json`)
-  - **car.info** — ägaromdömen direkt på sidan (dedup per recensent + datum)
   - **Folksam** — krocksäkerhetsstudien "Hur säker är bilen" (dedup per bilmodell)
+- **Magert utbud varnar**: en källa som hittar färre än 5 artikel-URL:er flaggas i statusraden (`MAGERT UTBUD (n)`) och loggas som `ERROR`. Ren nolla har alltid varnat, men Elbilen svalt i tysthet i månader bakom ett oskyldigt "0" — endpointen svarade 200, den innehöll bara 3 artiklar som dedupen tog varje natt
 - Artikeltexten extraheras med Jsoup, skickas till Groq (`groq.insight.model`, default `openai/gpt-oss-120b`, `reasoning_effort: low`) som returnerar strukturerade insikter (märke, modell, drivmedel, kategori, insikt, betyg — källans betyg räknas om proportionerligt till skalan 1–10, t.ex. "4 av 5" → 8; tonlägesgissningar är förbjudna)
 - **Inkrementell**: processade artikel-URL:er och sedda omdömen lagras i `web_insight_seen` — inga dubbletter, oavsett hur ofta synken körs
 - Max 12 artiklar per källa och körning — backlog betas av gradvis över flera nätter
 - 1,5 s fördröjning mellan sidhämtningar, 5 s mellan Groq-anrop (respekterar TPM-gränsen)
-- **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg (själva ägarbetygen — artiklarna nås via wp-json), blocket.se/bilguiden
+- **Ej skrapbara** (JavaScript-renderade utan öppet API): automotorsport.se/agarbetyg (själva ägarbetygen — artiklarna nås via wp-json), blocket.se/bilguiden, car.info/sv-se/user-reviews (borttagen som källa — sidan serverar bara ett filterskal, omdömestexterna hämtas av JS efteråt; källan sparade aldrig en enda insikt)
 - Manuell trigger: `POST /api/admin/sync-web-insights`; körstatus: `GET /api/admin/scrape-status`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys`
 - `extract_web_insights.py` är samma pipeline som fristående Python-verktyg för manuella körningar
 - **Utmärkelser är köpsignaler**: scrape- och relevansprompterna behåller uttryckligen utmärkelser
@@ -527,7 +527,7 @@ curl https://caradvice.onrender.com/api/admin/scrape-status \
 
 ```json
 {"status":"OK","startedAt":"2026-07-06 04:00:00","finishedAt":"2026-07-06 04:19:12",
- "newInsights":23,"perSource":"Teknikens Värld: 4, Vi Bilägare: 3, M Sverige: 6, Bytbil: 5, M3: 1, Bilägare (car.info): 3, Folksam: 1"}
+ "newInsights":23,"perSource":"Teknikens Värld: 4, Vi Bilägare: 3, M Sverige: 6, Bytbil: 5, M3: 1, Elbilen: 3, Folksam: 1"}
 ```
 
 ### `GET /api/ice-consumption` (publik)
@@ -695,8 +695,8 @@ git rev-parse HEAD
 
 | Tabell | Innehåll |
 |--------|----------|
-| `expert_insight` | Bilexpertinsikter (RAG-kontext för AI-prompten) från namngivna källor (Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, car.info, Folksam, Bilprovningen) — fylls på nattligen av insiktsscrapern |
-| `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper |
+| `expert_insight` | Bilexpertinsikter (RAG-kontext för AI-prompten) från namngivna källor (Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, Auto Motor & Sport, Elbilen, CarUp, Folksam, Bilprovningen) — fylls på nattligen av insiktsscrapern |
+| `ev_spec` | WLTP-räckvidd, batteri, DC/AC-laddning, pris per EV/PHEV-modell — auto-utökas av daglig scraper. Unikt index `ux_ev_spec_car_name` på `car_name` (se "Senaste bugfixar") |
 | `cargo_spec` | Bagageutrymme (standard + max L) för 110+ bilmodeller |
 | `safety_rating` | Euro NCAP-betyg per modell (45+ bilar) |
 | `ca_user` | Användarkonton: email, BCrypt-lösenordshash, Stripe customer ID, prenumerationsstatus, startdatum, slutdatum, sessionstoken, token-utgångsdatum |
@@ -704,7 +704,7 @@ git rev-parse HEAD
 | `rate_limit_log` | Rate limit-logg för `/api/recommend` — IP + tidsstämpel; seedar in-memory-kartan vid restart; städas varje timme |
 | `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
-| `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare (RSS), M Sverige, Bytbil och M3 (RSS) + ägaromdömen från car.info och Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
+| `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare och M3 (RSS), M Sverige och Bytbil (artikellistor), Auto Motor & Sport, Elbilen och CarUp (wp-json) + Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
 | `web_scrape_status` | Senaste insiktsscrape-körningens status (job, started_at, finished_at, new_insights, detail per källa) — en rad, skrivs om vid varje körning; läses av `GET /api/admin/scrape-status` |
 | `ice_consumption` | Verifierade förbrukningssiffror (l/mil) för ~950 bensin/diesel/hybrid/laddhybrid-motorvarianter — seedas från `ice-consumption.csv` (extraherad ur Bilresa-projektets fordonsdatabas). Används av publika `GET /api/ice-consumption` (Bilresas kalkylator, l/mil) och för att ersätta AI:ns gissade `consumptionLiterPerMil` med verifierade värden i rekommendationer (hk-närmaste variant, drivmedelsfiltrerad; **konverteras ×10 till l/100km** — fältets konvention) samt injiceras som förbrukningsrader i jämförelseprompten (l/100km) |
 
@@ -779,6 +779,7 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: 
 
 | Fix | Beskrivning |
 |-----|-------------|
+| 756 dubblettrader i `ev_spec` (60 % av tabellen) | Skanning av `/api/ev-consumption` 2026-07-28: 1 261 rader men bara 505 unika bilnamn. Fördelningen var onaturligt ren — 127 namn i 1 exemplar (exakt DataLoaders seed-rader), 378 namn i exakt 3 (exakt de nattsynken auto-skapat), inget däremellan. Värre än slöseriet var följdfelet: `EvDatabaseScraperService` bygger sin `nameMap` som namn → EvSpec, så tre rader med samma namn kollapsar till en och nattsynken uppdaterade bara den ena — de andra två frös fast med gammal data som bilkortet kunde plocka upp, vilket gav rader som blandade netto- och bruttokapacitet för samma bil (samma familj som Kia EV6-buggarna). Fix: `DataLoader.dedupeEvSpecs()` behåller högsta id per `car_name` (den kopia `findAll()` ger `nameMap` sist, alltså den enda som hållits uppdaterad) och lägger ett unikt index `ux_ev_spec_car_name`. Synken fångar `DataIntegrityViolationException` och loggar `SCRAPER ALERT` per bil i stället för att sänka hela nattens körning. **Varför matchningen missade sina egna rader i exakt tre körningar är inte klarlagt** — indexet gör frågan ofarlig men inte besvarad: nästa gång det händer syns det i loggen i stället för i datan |
 | EX30 fick fabricerade batterivarianter i "Motor & batterialternativ" | Live-fynd (användaren jämförde bilar): EX30:s `engineOptions` visade "58 kWh 150hk (420km), 77 kWh 200hk (540km), 44 kWh 150hk (480km)" — helt påhittat, de riktiga varianterna är 51/65/65 kWh. Roten: `engineOptions` var ren AI-fritext, aldrig verifierad mot `ev_spec` (till skillnad från pris/safety/förbrukning/EV-chippen som redan var det). Fix: ny `EvSpecService.verifiedEngineOptions()` hämtar ALLA matchande varianter (inte bara bästa träff som `formatForTitle`), dedupar identiska rader, sorterar kWh→räckvidd, och ersätter `engineOptions` i `enrichRecommendations` när en träff finns. Ingen hästkraft per variant (inte lagrat i DB) — hellre mindre info som stämmer än mer som delvis är påhittad |
 | Blocket-snappingens tröskel sänkt 3 → 2 annonser | `correctedPrice` litade bara på Blocket-priset vid ≥3 annonser, vilket lämnade tunt annonserade bilar med AI:ns egen (okontrollerade) prisgissning. Övervägde att bygga en Java-portering av deprecieringsformeln (nypris × ålderskoefficient) för att kryssa av dessa fall istället, men tackade nej — `new_car_price`-tabellens 105 rader kodar generation som fritext i tre olika format ("2021+"/"2015-2020"/"(Gen3)") och en andra deprecieringsimplementation i Java riskerar att glida isär från prompttexten (`DEPRECIATION_RULE`). Sänkte istället tröskeln till 2 annonser — inte 1, eftersom `BlocketPriceService` bara percentil-trimmar outliers vid ≥5 träffar, så en enda annons har inget skydd mot en scam-/felannons |
 | Modellhallucinationsvakt (`requireKnownModels`) | Modellexistens var tidigare bara en promptregel ("Hitta ALDRIG på Volvo-modeller") utan kodkontroll. Ny validator jämför varje rekommenderad titel mot en whitelist av ~700+ modeller ur cargo_spec/ev_spec/ice_consumption (ordmängd-delmängdsmatchning i båda riktningar så trimvarianter som "Octavia Combi" mot databasens "Skoda Octavia" godkänns) och triggar samma engångs-omförsök som familjespärren vid ett regelbrott. Whitelisten är inte uttömmande — okänd modell blockerar bara tillfälligt, aldrig permanent |

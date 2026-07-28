@@ -12,7 +12,10 @@ import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.NewCarPriceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -20,6 +23,9 @@ import java.util.List;
 @Component
 public class DataLoader implements CommandLineRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
+
+    private final JdbcTemplate jdbc;
     private final ExpertInsightRepository expertRepo;
     private final SafetyRatingRepository safetyRepo;
     private final EvSpecRepository evSpecRepo;
@@ -29,10 +35,12 @@ public class DataLoader implements CommandLineRunner {
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
 
-    public DataLoader(ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
+    public DataLoader(JdbcTemplate jdbc,
+                      ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
                       EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo,
                       NewCarPriceService newCarPriceService, FeedbackService feedbackService,
                       WebInsightScraperService webInsightScraper, IceConsumptionService iceConsumptionService) {
+        this.jdbc = jdbc;
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
         this.evSpecRepo = evSpecRepo;
@@ -52,6 +60,7 @@ public class DataLoader implements CommandLineRunner {
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();
+        dedupeEvSpecs();
         seedEvSpecExtras();
         seedCargoSpecs();
         seedSafetyExtras();
@@ -241,6 +250,32 @@ public class DataLoader implements CommandLineRunner {
         add.accept("Renault|5 E-Tech",        new SafetyRating("Renault",    "5 E-Tech",          2024, 4, 80, 80, 76, 68));
 
         if (!extras.isEmpty()) safetyRepo.saveAll(extras);
+    }
+
+    /**
+     * Städar bort dubbletter i ev_spec och gör dem omöjliga framöver.
+     *
+     * Bakgrund: en skanning 2026-07-28 visade 1 261 rader men bara 505 unika namn — 127 namn
+     * (seed-raderna) fanns i ett exemplar, 378 namn (de nattsynken auto-skapat) i exakt tre.
+     * Följdfelet var värre än slöseriet: EvDatabaseScraperService bygger sin nameMap som
+     * namn → EvSpec, så tre rader med samma namn kollapsar till en och nattsynken uppdaterade
+     * bara den ena. De andra två frös fast med gammal data och kunde plockas upp av bilkortet,
+     * vilket gav rader som blandade netto- och bruttokapacitet för samma bil.
+     *
+     * Vi behåller högsta id per namn — det är den kopia nameMap får sist ur findAll() och
+     * därmed den enda som faktiskt har hållits uppdaterad.
+     */
+    void dedupeEvSpecs() {
+        int removed = jdbc.update("""
+            DELETE FROM ev_spec
+             WHERE id NOT IN (SELECT MAX(id) FROM ev_spec GROUP BY car_name)
+            """);
+        if (removed > 0) log.warn("ev_spec: rensade {} dubblettrader (behöll högsta id per car_name)", removed);
+
+        // Unikt index i stället för enbart städning: utan det återuppstår dubbletterna tyst
+        // vid nästa körning. Med det får synken ett hårt fel den dagen matchningen missar
+        // sin egen rad igen — vilket är precis vad vi vill se i loggen.
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_ev_spec_car_name ON ev_spec (car_name)");
     }
 
     private void seedEvSpecExtras() {
