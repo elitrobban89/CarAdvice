@@ -90,7 +90,7 @@ public class EvDatabaseScraperService {
                 if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
                 if (isExcludedBrand(scraped.name())) continue;   // inte failed — medvetet bortvald
 
-                EvSpec match = findMatch(scraped.name(), nameMap);
+                EvSpec match = findMatch(scraped.name(), scraped.rangeKm(), nameMap);
                 if (match == null) {
                     if (scraped.rangeKm() > 0 && scraped.batteryKwh() > 0) {
                         EvSpec newSpec = new EvSpec(
@@ -291,7 +291,20 @@ public class EvDatabaseScraperService {
         }
     }
 
-    private EvSpec findMatch(String scrapedName, Map<String, EvSpec> nameMap) {
+    /** Minsta antal ord i det skrapade namnet för att steg 3 ska få leta. Se motiveringen där. */
+    static final int MIN_SCRAPED_WORDS_FOR_REVERSE = 3;
+    /** Hur mycket DB-radens räckvidd får avvika från den skrapade för att räknas som samma bil. */
+    static final double REVERSE_RANGE_TOLERANCE = 0.10;
+
+    EvSpec findMatch(String scrapedName, Map<String, EvSpec> nameMap) {
+        return findMatch(scrapedName, 0, nameMap);
+    }
+
+    /**
+     * scrapedRangeKm > 0 aktiverar steg 3 (omvänd riktning), som behöver räckvidden för att
+     * kunna skilja varianter åt.
+     */
+    EvSpec findMatch(String scrapedName, int scrapedRangeKm, Map<String, EvSpec> nameMap) {
         String normScraped = normalize(scrapedName);
 
         // 1. Exact normalized match
@@ -312,7 +325,41 @@ public class EvDatabaseScraperService {
                 bestLen = dbWords.length;
             }
         }
-        return best;
+        if (best != null) return best;
+
+        // 3. Omvänt: DB-namnet är MER specifikt än det skrapade.
+        //
+        // Steg 2 klarar bara att DB-namnet är kortare. Våra egna varianter heter t.ex.
+        // "Kia EV6 Long Range 2WD 84 kWh" medan ev-database säger "Kia EV6 Long Range 2WD" —
+        // orden "84" och "kwh" saknas i det skrapade namnet, så träffen uteblev varje natt och
+        // synken skapade en parallell rad i stället. Samma bil under två namn, med netto- resp.
+        // bruttobatteri. Det här steget stänger den luckan.
+        //
+        // Två spärrar mot felträffar, eftersom det här är den riskabla riktningen:
+        // kort skrapat namn ("Kia EV6") skulle annars matcha ett dussin rader, och flera
+        // varianter delar samma prefix. Räckvidden avgör vilken — pre-facelift 2WD ligger på
+        // 528 km, facelift på 582, så en skrapad 582:a kan bara vara den senare.
+        if (scrapedRangeKm <= 0) return null;
+        Set<String> scrapedWords = new LinkedHashSet<>(Arrays.asList(normScraped.split("\\s+")));
+        if (scrapedWords.size() < MIN_SCRAPED_WORDS_FOR_REVERSE) return null;
+
+        EvSpec closest = null;
+        int closestDiff = Integer.MAX_VALUE;
+        boolean tie = false;
+        for (Map.Entry<String, EvSpec> entry : nameMap.entrySet()) {
+            Set<String> dbWords = new LinkedHashSet<>(Arrays.asList(entry.getKey().split("\\s+")));
+            if (!dbWords.containsAll(scrapedWords)) continue;      // DB-namnet måste vara supermängden
+            Integer dbRange = entry.getValue().getRangeKm();
+            if (dbRange == null || dbRange <= 0) continue;
+            if (Math.abs(dbRange - scrapedRangeKm) > scrapedRangeKm * REVERSE_RANGE_TOLERANCE) continue;
+
+            int diff = Math.abs(dbRange - scrapedRangeKm);
+            if (diff < closestDiff) { closest = entry.getValue(); closestDiff = diff; tie = false; }
+            else if (diff == closestDiff) { tie = true; }
+        }
+        // Lika nära två varianter = ingen aning om vilken. Hellre ingen träff (och en ny rad
+        // som syns) än att skriva över fel variants data i tysthet.
+        return tie ? null : closest;
     }
 
     private static String normalize(String s) {

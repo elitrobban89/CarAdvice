@@ -266,14 +266,34 @@ public class DataLoader implements CommandLineRunner {
      * Vi behåller högsta id per namn — det är den kopia nameMap får sist ur findAll() och
      * därmed den enda som faktiskt har hållits uppdaterad.
      */
-    /** Se prismotiveringen vid EV6-raderna i seedEvSpecExtras. Nyckel = exakt car_name. */
+    /**
+     * Priser för de EV6-varianter nattsynken aldrig når (se prismotiveringen i
+     * seedEvSpecExtras). DataLoader äger dem: raderna finns bara för att synkens
+     * namnmatchning inte klarar dem, så det finns ingen annan källa som kan hålla
+     * dem aktuella. Därför sätts de vid varje uppstart, inte bara när de saknas.
+     *
+     * Pre-facelift-priserna är svenska listpriser vid lanseringen av 77,4 kWh-
+     * generationen (alltomelbil.se, före elbilsbonusen på 70 000 kr): 2WD 229 hk
+     * 569 900, GT-Line AWD 325 hk 674 700, GT 584 hk 749 600. Källan beskriver
+     * exakt våra tre rader — räckvidderna 528/506/424 km stämmer på alla tre.
+     * Ersätter de härledda gissningar som stod här först (529 000 / 679 000).
+     *
+     * Facelift-priserna är avlästa ur synkens tvillingrader och är därmed
+     * EUR × 11,5, inte svenska listpriser. Tabellen blandar alltså två
+     * priskonventioner — se README, det är ett känt och medvetet kvarstående glapp.
+     */
     static final java.util.Map<String, Integer> EV6_PRISER = java.util.Map.of(
             "Kia EV6 Standard Range 63 kWh",   517_000,
             "Kia EV6 Long Range 2WD 84 kWh",   569_000,
             "Kia EV6 Long Range AWD 84 kWh",   638_000,
-            "Kia EV6 Long Range 2WD 77.4 kWh", 460_000,
-            "Kia EV6 Long Range AWD 77.4 kWh", 529_000,
-            "Kia EV6 GT 77.4 kWh",             679_000);
+            "Kia EV6 Long Range 2WD 77.4 kWh", 569_900,
+            "Kia EV6 Long Range AWD 77.4 kWh", 674_700,
+            "Kia EV6 GT 77.4 kWh",             749_600);
+
+    /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
+    private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
+        return new EvSpec(namn, 11.0, dcKw, batteryKwh, rangeKm, EV6_PRISER.get(namn));
+    }
 
     void dedupeEvSpecs() {
         int removed = jdbc.update("""
@@ -341,12 +361,14 @@ public class DataLoader implements CommandLineRunner {
                 }
                 default -> {}
             }
-            // Prisbackfill för EV6-varianterna: raderna finns redan i produktion med pris 0,
-            // och extras-listan nedan hoppar över namn som redan existerar — utan det här
-            // hade de nya priserna aldrig nått databasen. Sätts bara när priset saknas, så
-            // en senare korrigering (manuell eller från synken) inte skrivs tillbaka.
+            // Prisbackfill för EV6-varianterna: raderna finns redan i produktion, och
+            // extras-listan nedan hoppar över namn som redan existerar — utan det här hade
+            // priserna aldrig nått databasen. Skriver även över befintligt värde, till
+            // skillnad från batterikorrigeringarna ovan: EV6_PRISER är enda källan för de
+            // här raderna (synken når dem inte), så den ska vinna. Utan det hade den första
+            // omgångens härledda gissningar legat kvar för evigt.
             Integer ev6Pris = EV6_PRISER.get(spec.getCarName());
-            if (ev6Pris != null && (spec.getPriceKr() == null || spec.getPriceKr() == 0)) {
+            if (ev6Pris != null && !ev6Pris.equals(spec.getPriceKr())) {
                 spec.setPriceKr(ev6Pris);
                 toUpdate.add(spec);
             }
@@ -388,27 +410,25 @@ public class DataLoader implements CommandLineRunner {
         // skapade i stället egna parallella rader ("Kia EV6 Long Range 2WD") som fick priset.
         // Därav hårdkodade priser här, som alla andra seedrader.
         //
-        // De tre facelift-priserna är avlästa ur synkens egna tvillingrader (identisk räckvidd
-        // och DC-effekt, alltså samma bil). Pre-facelift 2WD ärver 460 000 från den gamla
-        // "Kia EV6"-seedraden, vars spec är exakt densamma. AWD- och GT-priserna för
-        // pre-facelift är HÄRLEDDA ur faceliftens egna påslag (+69 000 för AWD, +150 000 för
-        // GT) eftersom ingen tvillingrad finns — mindre exakta än de övriga fyra.
+        // Priserna ligger i EV6_PRISER, se motiveringen där.
         //
+        // Priset hämtas ur EV6_PRISER även här, så en ny rad inte föds med ett annat pris än
+        // korrigeringsloopen ovan sedan sätter — en inline-siffra vore en andra sanning.
         // Facelift 2025–2026 Standard Range: 63 kWh brutto / 60 netto, 195 kW DC
         if (!existing.contains("Kia EV6 Standard Range 63 kWh"))
-            extras.add(new EvSpec("Kia EV6 Standard Range 63 kWh",   11.0, 195.0, 63.0,   428, 517_000));
+            extras.add(ev6("Kia EV6 Standard Range 63 kWh",   195.0, 63.0,   428));
         // Facelift 2024–2026: 84 kWh brutto / 80 netto, 263 kW DC
         if (!existing.contains("Kia EV6 Long Range 2WD 84 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range 2WD 84 kWh",   11.0, 263.0, 84.0,   582, 569_000));
+            extras.add(ev6("Kia EV6 Long Range 2WD 84 kWh",   263.0, 84.0,   582));
         if (!existing.contains("Kia EV6 Long Range AWD 84 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range AWD 84 kWh",   11.0, 263.0, 84.0,   546, 638_000));
+            extras.add(ev6("Kia EV6 Long Range AWD 84 kWh",   263.0, 84.0,   546));
         // Pre-facelift 2021–2024: 77.4 kWh brutto / 74 netto, 233 kW DC — begagnatvolymen
         if (!existing.contains("Kia EV6 Long Range 2WD 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4,   528, 460_000));
+            extras.add(ev6("Kia EV6 Long Range 2WD 77.4 kWh", 233.0, 77.4,   528));
         if (!existing.contains("Kia EV6 Long Range AWD 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range AWD 77.4 kWh", 11.0, 233.0, 77.4,   506, 529_000));
+            extras.add(ev6("Kia EV6 Long Range AWD 77.4 kWh", 233.0, 77.4,   506));
         if (!existing.contains("Kia EV6 GT 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 GT 77.4 kWh",             11.0, 233.0, 77.4,   424, 679_000));
+            extras.add(ev6("Kia EV6 GT 77.4 kWh",             233.0, 77.4,   424));
 
         // MG Marvel R (2021–2023) — säljs begagnad men saknade specs
         if (!existing.contains("MG Marvel R"))

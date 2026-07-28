@@ -101,7 +101,12 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
         'radial-gradient(ellipse at 12% 88%,rgba(99,102,241,.2) 0%,transparent 48%),',
         'radial-gradient(ellipse at 88% 92%,rgba(244,114,182,.15) 0%,transparent 50%),',
         'radial-gradient(ellipse at 52% 62%,rgba(45,212,191,.1) 0%,transparent 46%);',
-      'animation:ca-hue 20s ease-in-out infinite,ca-aurora 12s ease-in-out infinite alternate;}',
+      // ca-hue är BORTTAGEN här med flit. Animerad filter:hue-rotate() på den här ytan
+      // om-filtrerar hela heron varje bildruta: uppmätt 31,4 → 43,9 fps när den togs bort,
+      // klart dyrast av allt på sidan. Den var ett billigt sätt att fejka färgrörelse på en
+      // enfärgat lila gradient — överflödig nu när auroran har riktiga färger och ringen
+      // ovan ger äkta färgvandring. Kvar på #ca-btn där ytan är liten (mätt till ~1 fps).
+      'animation:ca-aurora 12s ease-in-out infinite alternate;}',
     // Korten: ringen håller sig i kortets egen färgfamilj så numreringen 1/2/3 fortfarande
     // går att läsa på färgen. ::before är upptaget av orben, ::after är fritt.
     // Långsammare och svagare än heron — tre samtidiga ringar ska inte stjäla blicken.
