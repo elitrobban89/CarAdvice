@@ -8,6 +8,7 @@ import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
+import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.IceConsumptionService;
@@ -265,6 +266,15 @@ public class DataLoader implements CommandLineRunner {
      * Vi behåller högsta id per namn — det är den kopia nameMap får sist ur findAll() och
      * därmed den enda som faktiskt har hållits uppdaterad.
      */
+    /** Se prismotiveringen vid EV6-raderna i seedEvSpecExtras. Nyckel = exakt car_name. */
+    static final java.util.Map<String, Integer> EV6_PRISER = java.util.Map.of(
+            "Kia EV6 Standard Range 63 kWh",   517_000,
+            "Kia EV6 Long Range 2WD 84 kWh",   569_000,
+            "Kia EV6 Long Range AWD 84 kWh",   638_000,
+            "Kia EV6 Long Range 2WD 77.4 kWh", 460_000,
+            "Kia EV6 Long Range AWD 77.4 kWh", 529_000,
+            "Kia EV6 GT 77.4 kWh",             679_000);
+
     void dedupeEvSpecs() {
         int removed = jdbc.update("""
             DELETE FROM ev_spec
@@ -276,6 +286,15 @@ public class DataLoader implements CommandLineRunner {
         // vid nästa körning. Med det får synken ett hårt fel den dagen matchningen missar
         // sin egen rad igen — vilket är precis vad vi vill se i loggen.
         jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_ev_spec_car_name ON ev_spec (car_name)");
+
+        // Märken utan svensk marknad. Raderingen måste paras med spärren i
+        // EvDatabaseScraperService.isExcludedBrand — annars skapar nattsynken raderna igen.
+        for (String brand : EvDatabaseScraperService.EXCLUDED_BRANDS) {
+            // LOWER(...) LIKE och inte ILIKE — ILIKE finns bara i Postgres och skulle
+            // spricka den dag projektet körs mot en annan databas.
+            int n = jdbc.update("DELETE FROM ev_spec WHERE LOWER(car_name) LIKE LOWER(?)", brand + "%");
+            if (n > 0) log.warn("ev_spec: tog bort {} rader för uteslutet märke {}", n, brand);
+        }
     }
 
     private void seedEvSpecExtras() {
@@ -322,6 +341,15 @@ public class DataLoader implements CommandLineRunner {
                 }
                 default -> {}
             }
+            // Prisbackfill för EV6-varianterna: raderna finns redan i produktion med pris 0,
+            // och extras-listan nedan hoppar över namn som redan existerar — utan det här
+            // hade de nya priserna aldrig nått databasen. Sätts bara när priset saknas, så
+            // en senare korrigering (manuell eller från synken) inte skrivs tillbaka.
+            Integer ev6Pris = EV6_PRISER.get(spec.getCarName());
+            if (ev6Pris != null && (spec.getPriceKr() == null || spec.getPriceKr() == 0)) {
+                spec.setPriceKr(ev6Pris);
+                toUpdate.add(spec);
+            }
         }
         if (!toUpdate.isEmpty()) evSpecRepo.saveAll(toUpdate);
         if (!toDelete.isEmpty()) evSpecRepo.deleteAll(toDelete);
@@ -353,22 +381,34 @@ public class DataLoader implements CommandLineRunner {
         // finns med tre. Långdistansvarianterna är dessutom de vanligaste på begagnatmarknaden.
         // Namnen följer ev-database.org så nattsynken matchar dem; batteriet anges brutto som i
         // seeden ovan. Alla siffror verifierade mot ev-database.org 2026-07-27.
-        // Pris 0 = okänt — filtreras bort ur prisreferensen (>50 000 kr) tills synken fyller i.
+        //
+        // PRISER: lades ursprungligen som 0 ("synken fyller i"), men det kunde den aldrig göra.
+        // findMatch matchar bara när DB-namnet är KORTARE än det skrapade — våra namn har ett
+        // "84 kWh"-suffix som ev-database saknar, så träffen uteblev varje natt och synken
+        // skapade i stället egna parallella rader ("Kia EV6 Long Range 2WD") som fick priset.
+        // Därav hårdkodade priser här, som alla andra seedrader.
+        //
+        // De tre facelift-priserna är avlästa ur synkens egna tvillingrader (identisk räckvidd
+        // och DC-effekt, alltså samma bil). Pre-facelift 2WD ärver 460 000 från den gamla
+        // "Kia EV6"-seedraden, vars spec är exakt densamma. AWD- och GT-priserna för
+        // pre-facelift är HÄRLEDDA ur faceliftens egna påslag (+69 000 för AWD, +150 000 för
+        // GT) eftersom ingen tvillingrad finns — mindre exakta än de övriga fyra.
+        //
         // Facelift 2025–2026 Standard Range: 63 kWh brutto / 60 netto, 195 kW DC
         if (!existing.contains("Kia EV6 Standard Range 63 kWh"))
-            extras.add(new EvSpec("Kia EV6 Standard Range 63 kWh",   11.0, 195.0, 63.0,   428, 0));
+            extras.add(new EvSpec("Kia EV6 Standard Range 63 kWh",   11.0, 195.0, 63.0,   428, 517_000));
         // Facelift 2024–2026: 84 kWh brutto / 80 netto, 263 kW DC
         if (!existing.contains("Kia EV6 Long Range 2WD 84 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range 2WD 84 kWh",   11.0, 263.0, 84.0,   582, 0));
+            extras.add(new EvSpec("Kia EV6 Long Range 2WD 84 kWh",   11.0, 263.0, 84.0,   582, 569_000));
         if (!existing.contains("Kia EV6 Long Range AWD 84 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range AWD 84 kWh",   11.0, 263.0, 84.0,   546, 0));
+            extras.add(new EvSpec("Kia EV6 Long Range AWD 84 kWh",   11.0, 263.0, 84.0,   546, 638_000));
         // Pre-facelift 2021–2024: 77.4 kWh brutto / 74 netto, 233 kW DC — begagnatvolymen
         if (!existing.contains("Kia EV6 Long Range 2WD 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4,   528, 0));
+            extras.add(new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4,   528, 460_000));
         if (!existing.contains("Kia EV6 Long Range AWD 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 Long Range AWD 77.4 kWh", 11.0, 233.0, 77.4,   506, 0));
+            extras.add(new EvSpec("Kia EV6 Long Range AWD 77.4 kWh", 11.0, 233.0, 77.4,   506, 529_000));
         if (!existing.contains("Kia EV6 GT 77.4 kWh"))
-            extras.add(new EvSpec("Kia EV6 GT 77.4 kWh",             11.0, 233.0, 77.4,   424, 0));
+            extras.add(new EvSpec("Kia EV6 GT 77.4 kWh",             11.0, 233.0, 77.4,   424, 679_000));
 
         // MG Marvel R (2021–2023) — säljs begagnad men saknade specs
         if (!existing.contains("MG Marvel R"))

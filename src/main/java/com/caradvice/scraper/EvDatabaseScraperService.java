@@ -29,6 +29,24 @@ public class EvDatabaseScraperService {
     private static final int REQUEST_DELAY_MS = 1000;
     private static final double EUR_TO_SEK = 11.5;
 
+    /**
+     * Märken som inte ska in i databasen. ev-database.org listar hela världsmarknaden, men
+     * bilar utan svensk återförsäljare, verkstadsnät eller andrahandsmarknad är inga vettiga
+     * förslag till en svensk köpare — och de rankar högt på räckvidd per krona, så de trängde
+     * sig in bland "Utmärkt prisvärdhet" utan att gå att köpa här.
+     *
+     * Spärren sitter i synken och inte bara som en radering: utan den skulle nattkörningen
+     * auto-skapa raderna igen vid nästa 02:00.
+     */
+    public static final Set<String> EXCLUDED_BRANDS = Set.of("TOGG", "Jaecoo", "Changan");
+
+    /** Namnet börjar med ett uteslutet märke (skiftlägesokänsligt). */
+    public static boolean isExcludedBrand(String carName) {
+        if (carName == null) return false;
+        String n = carName.trim();
+        return EXCLUDED_BRANDS.stream().anyMatch(b -> n.regionMatches(true, 0, b, 0, b.length()));
+    }
+
     private final EvSpecRepository repo;
 
     public EvDatabaseScraperService(EvSpecRepository repo) {
@@ -70,6 +88,7 @@ public class EvDatabaseScraperService {
                 Thread.sleep(REQUEST_DELAY_MS);
                 ScrapedSpec scraped = scrapeCarPage(BASE_URL + path);
                 if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
+                if (isExcludedBrand(scraped.name())) continue;   // inte failed — medvetet bortvald
 
                 EvSpec match = findMatch(scraped.name(), nameMap);
                 if (match == null) {

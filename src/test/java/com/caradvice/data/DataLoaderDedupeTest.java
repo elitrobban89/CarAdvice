@@ -4,6 +4,7 @@ import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
+import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.IceConsumptionService;
@@ -54,6 +55,37 @@ class DataLoaderDedupeTest {
         InOrder order = inOrder(jdbc);
         order.verify(jdbc).update(org.mockito.ArgumentMatchers.anyString());
         order.verify(jdbc).execute(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void uteslutnaMarkenRaderasEfterIndexet() {
+        loader().dedupeEvSpecs();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> arg = ArgumentCaptor.forClass(Object.class);
+        // dubblettstädningen är update(String) utan argument — den här överlagringen
+        // (update med parameter) träffas bara av märkesraderingarna, en per märke
+        verify(jdbc, org.mockito.Mockito.times(EvDatabaseScraperService.EXCLUDED_BRANDS.size()))
+                .update(sql.capture(), arg.capture());
+
+        assertThat(arg.getAllValues()).contains("TOGG%", "Jaecoo%", "Changan%");
+        // ILIKE finns bara i Postgres — portabiliteten är avsiktlig
+        assertThat(sql.getAllValues()).noneMatch(s -> s.contains("ILIKE"));
+    }
+
+    @Test
+    void ev6PriserTackerAllaSexVarianter() {
+        // Raderna lades in med pris 0 i tron att nattsynken skulle fylla dem, men findMatch
+        // matchar bara kortare DB-namn än det skrapade — "84 kWh"-suffixet gjorde träff omöjlig
+        assertThat(DataLoader.EV6_PRISER).hasSize(6);
+        assertThat(DataLoader.EV6_PRISER.keySet())
+                .allMatch(n -> n.startsWith("Kia EV6 "));
+        assertThat(DataLoader.EV6_PRISER.values()).allMatch(p -> p > 50_000);
+        // AWD ska kosta mer än 2WD i samma generation, GT mest av allt
+        assertThat(DataLoader.EV6_PRISER.get("Kia EV6 Long Range AWD 84 kWh"))
+                .isGreaterThan(DataLoader.EV6_PRISER.get("Kia EV6 Long Range 2WD 84 kWh"));
+        assertThat(DataLoader.EV6_PRISER.get("Kia EV6 GT 77.4 kWh"))
+                .isGreaterThan(DataLoader.EV6_PRISER.get("Kia EV6 Long Range AWD 77.4 kWh"));
     }
 
     @Test
