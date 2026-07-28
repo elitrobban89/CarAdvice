@@ -254,4 +254,28 @@ class WebInsightScraperServiceTest {
         assertThat(service().parseWpJsonLinks("[]")).isEmpty();
         assertThat(service().parseWpJsonLinks("{}")).isEmpty();
     }
+
+    @Test
+    void varningDoljerInteAntaletSparadeInsikter() {
+        // en magert levererande källa kan ändå ha gett träffar — siffran får inte försvinna
+        assertThat(new WebInsightScraperService.SourceResult(2, "MAGERT UTBUD (3 artikel-URL:er)").label())
+                .isEqualTo("2 (MAGERT UTBUD (3 artikel-URL:er))");
+        assertThat(new WebInsightScraperService.SourceResult(0, "MAGERT UTBUD (3 artikel-URL:er)").label())
+                .isEqualTo("MAGERT UTBUD (3 artikel-URL:er)");
+    }
+
+    @Test
+    void elbilenPekarPaEgnaPosttyperInteStandardPosts() {
+        // elbilen.se/wp-json/wp/v2/posts innehåller 3 poster totalt — allt redaktionellt
+        // ligger i posttyperna tester/artiklar. Källan svalt tyst tills detta upptäcktes.
+        String url = WebInsightScraperService.sourceByName("Elbilen").url();
+        assertThat(url).contains("/wp/v2/tester").contains("/wp/v2/artiklar");
+        assertThat(url).doesNotContain("/wp/v2/posts");
+    }
+
+    @Test
+    void carInfoArBorttagenSomKalla() {
+        // JS-renderat filterskal utan omdömestext — sparade aldrig en insikt
+        assertThat(WebInsightScraperService.sourceByName("Bilägare (car.info)")).isNull();
+    }
 }

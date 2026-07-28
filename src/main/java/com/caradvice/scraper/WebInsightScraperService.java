@@ -48,6 +48,7 @@ public class WebInsightScraperService {
     private static final long FETCH_DELAY_MS = 1_500;   // artighet mot sajterna
     private static final long GROQ_DELAY_MS = 5_000;    // TPM-gräns 8000 tokens/min
     private static final int MAX_ARTICLES_PER_SOURCE = 12;
+    private static final int MIN_DISCOVERED_LINKS = 5;   // färre än så = källan håller på att sina
     private static final int MIN_TEXT_CHARS = 400;
     private static final int MAX_TEXT_CHARS = 7_000;
 
@@ -207,7 +208,11 @@ public class WebInsightScraperService {
     record SourceResult(int saved, String warning) {
         static SourceResult of(int saved) { return new SourceResult(saved, null); }
 
-        String label() { return warning != null ? warning : String.valueOf(saved); }
+        String label() {
+            if (warning == null) return String.valueOf(saved);
+            // en varnande källa kan ändå ha levererat — dölj inte siffran bakom varningen
+            return saved > 0 ? saved + " (" + warning + ")" : warning;
+        }
     }
 
     private static final List<Source> SOURCES = List.of(
@@ -236,18 +241,28 @@ public class WebInsightScraperService {
             new Source("Auto Motor & Sport", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.automotorsport.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
                     "artikel/test från motortidningen Auto Motor & Sport", List.of()),
+            // Elbilen publicerar inte i standardtypen "posts" (den innehåller 3 poster totalt)
+            // utan i egna posttyper. tester + artiklar är de redaktionella; "nyheter" (7 000+)
+            // är kort notisflöde och ger sällan konkreta insikter — därför medvetet utelämnad.
             new Source("Elbilen", Mode.ARTICLES, Discover.WPJSON,
-                    "https://elbilen.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
+                    "https://elbilen.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
+                            + "https://elbilen.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link", null, null,
                     "artikel/test från elbilsmagasinet Elbilen", List.of()),
             new Source("CarUp", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.carup.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
                     "artikel/nyhet från bilsajten CarUp", List.of()),
-            new Source("Bilägare (car.info)", Mode.PAGE, Discover.NONE,
-                    "https://www.car.info/sv-se/user-reviews", null, null,
-                    "ägaromdömen från verkliga bilägare på car.info", List.of()),
+            // car.info är borttagen: /sv-se/user-reviews serverar bara ett filterskal —
+            // omdömestexterna hämtas av JS efteråt, så en ren HTTP-hämtning ser inga
+            // omdömen och inga länkar till enskilda omdömen. Källan sparade aldrig en
+            // enda insikt. Kräver headless browser för att återinföras.
             new Source("Folksam", Mode.PAGE, Discover.NONE,
                     "https://www.folksam.se/tester-och-goda-rad/vara-tester/hur-saker-ar-bilen", null, null,
                     "Folksams krocksäkerhetsstudie 'Hur säker är bilen' baserad på verkliga olyckor", List.of()));
+
+    /** Slår upp en konfigurerad källa på namn. null om källan inte finns. Används av testerna. */
+    static Source sourceByName(String expert) {
+        return SOURCES.stream().filter(s -> s.expert().equals(expert)).findFirst().orElse(null);
+    }
 
     @Value("${groq.api.key}")
     private String apiKey;
@@ -389,6 +404,12 @@ public class WebInsightScraperService {
         Set<String> unique = new LinkedHashSet<>(urls);
         if (unique.isEmpty()) return new SourceResult(0, "INGA LANKAR (0 artikel-URL:er)");
 
+        // Elbilen svalt i det tysta: endpointen svarade 200 men innehöll bara 3 artiklar, så
+        // dedupen tog allt varje natt och statusraden visade ett oskyldigt "0". Ett magert men
+        // icke-tomt utbud är därför också värt en varning — det är så en källa dör numera.
+        String warning = unique.size() < MIN_DISCOVERED_LINKS
+                ? "MAGERT UTBUD (" + unique.size() + " artikel-URL:er)" : null;
+
         int saved = 0;
         int processed = 0;
         for (String url : unique) {
@@ -414,7 +435,7 @@ public class WebInsightScraperService {
                 log.warn("Web insights [{}]: hoppar över {}: {}", source.expert(), url, e.getMessage());
             }
         }
-        return SourceResult.of(saved);
+        return new SourceResult(saved, warning);
     }
 
     // ── Sidkällor (car.info, Folksam) ─────────────────────────────────────────
@@ -718,9 +739,22 @@ public class WebInsightScraperService {
             case SITEMAP -> discoverSitemap(source.url());
             case RSS -> discoverRss(source.url());
             case LISTING -> discoverListing(source);
-            case WPJSON -> parseWpJsonLinks(fetchRaw(source.url()));
+            case WPJSON -> discoverWpJson(source);
             case NONE -> List.of();
         };
+    }
+
+    /**
+     * WPJSON-källans url kan innehålla flera endpoints separerade med komma — sajter som
+     * Elbilen lägger sitt redaktionella material i egna posttyper i stället för "posts",
+     * och då räcker inte en enda endpoint. Länkarna varvas inte, de läggs i tur och ordning.
+     */
+    private List<String> discoverWpJson(Source source) throws Exception {
+        List<String> links = new ArrayList<>();
+        for (String endpoint : source.url().split(",")) {
+            links.addAll(parseWpJsonLinks(fetchRaw(endpoint.trim())));
+        }
+        return links;
     }
 
     /** WordPress REST API: [{"link":"https://..."}, ...] — nyaste först. */
