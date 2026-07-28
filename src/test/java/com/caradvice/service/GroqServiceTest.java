@@ -655,6 +655,22 @@ class GroqServiceTest {
     }
 
     @Test
+    void sammaModellIOlikaArsmodellRaknasSomEnBil() {
+        // Live-fynd efter forsta merge-versionen: omforsoket gav ID.4 (2022) och ursprunget
+        // ID.4 (2021). Var lista var fri fran dubbletter, men ihopslagna blev det samma bil
+        // tva ganger — dedup pa exakt titel racker inte, den maste ga pa modell.
+        var retried = List.of(bil("Volkswagen ID.4 (2022)"));
+        var original = List.of(bil("Volkswagen ID.4 (2021)"), bil("MG ZS EV (2022)"));
+        var ranges = Map.of("Volkswagen ID.4 (2022)", range(304_990),
+                "Volkswagen ID.4 (2021)", range(280_000), "MG ZS EV (2022)", range(144_900));
+
+        var result = GroqService.mergeWithinBudget(retried, ranges, original, ranges, 275_000);
+
+        assertThat(result).extracting(CarRecommendation::title)
+                .containsExactly("Volkswagen ID.4 (2022)", "MG ZS EV (2022)");
+    }
+
+    @Test
     void aldrigFlerAnTreBilar() {
         var retried = List.of(bil("A (2022)"), bil("B (2022)"), bil("C (2022)"));
         var original = List.of(bil("D (2022)"), bil("E (2022)"));

@@ -422,25 +422,37 @@ public class GroqService {
     }
 
     /**
-     * Plockar ihop upp till tre bilar som håller budgeten ur båda försöken, dedupat på titel.
-     * Omförsöket först — dess bilar valdes med budgettaket i prompten — sedan påfyllning ur
-     * ursprungssvaret. Tom lista betyder att ingendera omgången gav en köpbar bil.
+     * Plockar ihop upp till tre bilar som håller budgeten ur båda försöken. Omförsöket först —
+     * dess bilar valdes med budgettaket i prompten — sedan påfyllning ur ursprungssvaret.
+     * Tom lista betyder att ingendera omgången gav en köpbar bil.
+     *
+     * Dedupen går på MODELL, inte titel: två listor som var för sig är fria från dubbletter kan
+     * tillsammans innehålla samma bil i olika årsmodell. Första versionen dedupade på exakt
+     * titel och gav "Volkswagen ID.4 (2022)" bredvid "Volkswagen ID.4 (2021)" — samma bil två
+     * gånger, vilket promptregeln om tre OLIKA modeller uttryckligen förbjuder.
      */
     static List<CarRecommendation> mergeWithinBudget(
             List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
             List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
             int budgetKr) {
         List<CarRecommendation> out = new ArrayList<>();
-        Set<String> titles = new LinkedHashSet<>();
+        Set<String> models = new LinkedHashSet<>();
         for (CarRecommendation r : retried) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(retryRanges.get(r.title()), budgetKr) && titles.add(r.title())) out.add(r);
+            if (!exceedsBudgetCeiling(retryRanges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+                out.add(r);
         }
         for (CarRecommendation r : original) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(ranges.get(r.title()), budgetKr) && titles.add(r.title())) out.add(r);
+            if (!exceedsBudgetCeiling(ranges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+                out.add(r);
         }
         return out;
+    }
+
+    /** Titel utan årtalsparentes, gemener — "Volkswagen ID.4 (2021)" och "(2022)" blir samma nyckel. */
+    private static String modelKey(String title) {
+        return title == null ? "" : title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim().toLowerCase();
     }
 
     /** Rekommendationer vars billigaste Blocket-annons ligger över budgettaket. */
