@@ -10,6 +10,7 @@ import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
+import com.caradvice.service.EvSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
@@ -67,6 +68,7 @@ public class CarController {
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
     private final MobilityStatsSyncService mobilityStatsSyncService;
+    private final EvSpecService evSpecService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -103,7 +105,9 @@ public class CarController {
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
                          FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
                          IceConsumptionService iceConsumptionService,
-                         MobilityStatsSyncService mobilityStatsSyncService) {
+                         MobilityStatsSyncService mobilityStatsSyncService,
+                         EvSpecService evSpecService) {
+        this.evSpecService = evSpecService;
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -562,6 +566,16 @@ public class CarController {
                 "groq", configured ? "OK" : "WARN",
                 "rekommendation", configured
         ));
+    }
+
+    // Admin: hela ev_spec med samma härledda fält som bilkortet visar — för granskning av
+    // datakvalitet (prisvärdhetsetikett, saknade priser, orimliga räckvidder). Läsning bakom
+    // admin-nyckeln eftersom det är hela databasen i ett svar, inte en enskild bil.
+    @GetMapping("/admin/ev-specs")
+    public ResponseEntity<?> listEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                         @RequestParam(defaultValue = "15000") int kmPerYear) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(evSpecService.listAllWithValueLabel(kmPerYear));
     }
 
     // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning

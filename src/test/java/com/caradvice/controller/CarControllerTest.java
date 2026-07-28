@@ -8,6 +8,7 @@ import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
+import com.caradvice.service.EvSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
@@ -27,6 +28,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,6 +64,7 @@ class CarControllerTest {
     @MockBean private WebInsightScraperService webInsightScraper;
     @MockBean private IceConsumptionService iceConsumptionService;
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
+    @MockBean private EvSpecService evSpecService;
 
     // --- health ---
 
@@ -354,6 +357,37 @@ class CarControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests());
+    }
+
+    // --- GET /api/admin/ev-specs ---
+
+    @Test
+    void adminEvSpecListanKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/ev-specs"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminEvSpecListanReturnerarRaderMedPrisvardhet() throws Exception {
+        when(evSpecService.listAllWithValueLabel(15000)).thenReturn(List.of(
+                Map.of("carName", "MG4 Extended Range", "priceKr", 375_000,
+                       "valueLabel", "Utmärkt prisvärdhet")));
+
+        mvc.perform(get("/api/admin/ev-specs").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].carName").value("MG4 Extended Range"))
+           .andExpect(jsonPath("$[0].valueLabel").value("Utmärkt prisvärdhet"));
+    }
+
+    @Test
+    void adminEvSpecListanTarKmPerArSomParameter() throws Exception {
+        // kmPerYear styr daysPerCharge i DTO:n — default 15000 ska gå att åsidosätta
+        when(evSpecService.listAllWithValueLabel(30000)).thenReturn(List.of());
+
+        mvc.perform(get("/api/admin/ev-specs").param("kmPerYear", "30000")
+                .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk());
+        verify(evSpecService).listAllWithValueLabel(30000);
     }
 
     // --- GET /api/admin/insights + DELETE /api/admin/insights/{id} ---

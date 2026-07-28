@@ -554,6 +554,12 @@ curl -X POST https://caradvice.onrender.com/api/admin/import/seen-keys \
 Listar senaste insikterna (nyast först — högsta id, tabellen saknar tidsstämpel) för kvalitetsgranskning av nattens skrapning. `expert` är valfritt filter, `limit` default 50 (max 500). Kräver `X-Admin-Key`-header.
 
 ```bash
+curl "https://caradvice.onrender.com/api/admin/ev-specs" \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+# hela ev_spec med samma härledda fält som bilkortet visar (prisvärdhetsetikett, pris,
+# räckvidd, batteri, DC/AC) — för granskning av datakvalitet. ?kmPerYear=30000 styr
+# laddintervallet. Går via samma toDto som kortet, så etiketten kan inte glida isär.
+
 curl "https://caradvice.onrender.com/api/admin/insights?limit=80" \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 ```

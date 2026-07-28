@@ -211,6 +211,34 @@ public class EvSpecService {
         Map.entry("MG Marvel R Performance", 288)
     );
 
+    /**
+     * Hela ev_spec med samma härledda fält som bilkortet visar — för admin-granskning av
+     * datakvalitet (prisvärdhetsetiketter, saknade priser, orimliga räckvidder).
+     *
+     * Går via toDto och inte via en egen kopia av poängformeln: en andra implementation hade
+     * kunnat glida isär från den etikett användaren faktiskt ser, vilket gör granskningen
+     * värdelös just när den behövs.
+     */
+    public List<Map<String, Object>> listAllWithValueLabel(int kmPerYear) {
+        return repo.findAll().stream()
+                .sorted(java.util.Comparator.comparing(EvSpec::getCarName,
+                        java.util.Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(spec -> {
+                    EvSpecDto d = toDto(spec, kmPerYear, null);
+                    Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    row.put("carName", spec.getCarName());
+                    row.put("carType", d.carType());
+                    row.put("batteryKwh", d.batteryKwh());
+                    row.put("rangeKm", d.wltpKm());
+                    row.put("maxDcKw", d.maxDcKw());
+                    row.put("maxAcKw", d.maxAcKw());
+                    row.put("priceKr", d.priceKr());
+                    row.put("valueLabel", d.valueLabel());
+                    return row;
+                })
+                .toList();
+    }
+
     private EvSpecDto toDto(EvSpec spec, int kmPerYear, String chemistry) {
         int wltp   = spec.getRangeKm() != null ? spec.getRangeKm() : 0;
         int summer = (int) (wltp * 0.85);
