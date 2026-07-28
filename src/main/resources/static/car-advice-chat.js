@@ -167,14 +167,22 @@
   function initCaChat() {
     var style = document.createElement("style");
     style.textContent = `
+      /* flex-end, inte center: etiketten är bredare än den 58 px breda knappen och
+         växer åt båda håll vid center — med wrappen fäst 24 px från högerkanten
+         hamnade halva utanför skärmen. "Fråga om Škoda Octavia Combi" klipptes mitt
+         i ordet. Högerjusterad växer den bara inåt. */
       .ca-chat-fab-wrap {
         position:fixed;bottom:24px;right:24px;z-index:9999;
-        display:flex;flex-direction:column;align-items:center;gap:6px;
+        display:flex;flex-direction:column;align-items:flex-end;gap:6px;
       }
+      /* Taket behövs ändå: bilnamnen har ingen övre längd (t.ex. "Volkswagen ID.Buzz
+         Pro Lång Bas") och nowrap gör att en tillräckligt lång titel skjuter ut åt
+         vänster över kortinnehållet i stället. Ellips i stället för överflöde. */
       .ca-chat-fab-label {
         background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);
         color:#c4b5fd;font-size:11px;font-weight:700;padding:3px 10px;
         border-radius:20px;white-space:nowrap;letter-spacing:0.04em;
+        max-width:min(58vw,240px);overflow:hidden;text-overflow:ellipsis;
         animation:ca-label-pulse 3s ease-in-out infinite;
       }
       @keyframes ca-label-pulse {

@@ -1,15 +1,19 @@
 ﻿  <style>
   /* Resetten fanns för att neutralisera WordPress-temat, men `#ca-wrap *` har
      ID-specificitet (1,0,0) och slog därför snippetens EGNA klassregler (0,1,0):
-     32 padding-regler nollställdes, bl.a. all luft i bilkorten. Mätt på produktion
-     började kortrubriken 3 px från kanten på ett 818 px brett kort.
-     Padding-resetten gäller nu bara de element WP-teman faktiskt stylar. Ingen av de
-     32 reglerna sitter på dessa taggar (alla är div/span/button/select), så de kan
-     inte krocka. `.ca-pros` behöver ul-resetten för att bli av med listindraget. */
-  #ca-wrap * { box-sizing: border-box; margin: 0; }
+     32 padding- och 38 margin-regler nollställdes. Mätt på produktion började
+     kortrubriken 3 px från kanten på ett 818 px brett kort, och budgetsliderns
+     `margin-top: 12px` blev 0 så reglaget lade sig ovanpå sin egen etikett.
+     De tre regler som bar `!important` (.ca-card, .ca-ask-btn, .ca-cargo) överlevde —
+     spår av att buggen tidigare plåstrats lokalt i stället för vid roten.
+     Reset:en gäller nu bara de element WP-teman faktiskt stylar. Ingen av de
+     nollställda reglerna sitter på dessa taggar (alla är div/span/button/select),
+     så de kan inte krocka. `.ca-pros` behöver ul-resetten för listindraget, och
+     `#ca-wrap h2/h3` behöver margin-resetten mot temats rubrikmarginaler. */
+  #ca-wrap * { box-sizing: border-box; }
   #ca-wrap p, #ca-wrap ul, #ca-wrap ol, #ca-wrap li,
   #ca-wrap h1, #ca-wrap h2, #ca-wrap h3, #ca-wrap h4,
-  #ca-wrap blockquote, #ca-wrap figure, #ca-wrap table { padding: 0; }
+  #ca-wrap blockquote, #ca-wrap figure, #ca-wrap table { margin: 0; padding: 0; }
 
   #ca-wrap {
     font-family: 'Segoe UI', system-ui, sans-serif;
