@@ -161,6 +161,19 @@ public class ExpertInsightService {
     }
 
     /**
+     * Får en insikt om drivlinan {@code insight} visas på ett kort med drivlinan {@code card}?
+     * Samma drivlina duger alltid. Förbränningsinnehåll ("ice") är däremot fel BARA på en ren
+     * elbil — en laddhybrid och en hybrid har faktiskt en bensinmotor, så Toyotas oljebytesråd
+     * hör hemma på ett Corolla Hybrid-kort även om det nämner "bensinmotorer". Utan det
+     * undantaget hade ice-ledet tystat hybridkorten på köpet.
+     */
+    static boolean drivetrainsCompatible(String card, String insight) {
+        if (card.equals(insight)) return true;
+        if ("ice".equals(insight)) return !"ev".equals(card);
+        return false;
+    }
+
+    /**
      * Publika insikter för ett bilkort. Märket måste finnas i titeln; modellspecifika
      * träffar prioriteras och insikter om en ANNAN modell av samma märke utesluts
      * (en Model S-insikt ska inte visas på ett Model 3-kort). Har kortet en känd drivlina
@@ -182,7 +195,7 @@ public class ExpertInsightService {
             if (titleDrive != null) {
                 String insightDrive = drivetrainOf(i.getCarModel());
                 if (insightDrive == null) insightDrive = drivetrainOf(i.getInsight());
-                if (insightDrive != null && !titleDrive.equals(insightDrive)) continue;
+                if (insightDrive != null && !drivetrainsCompatible(titleDrive, insightDrive)) continue;
             }
             if (i.getCarModel() != null) {
                 if (t.contains(i.getCarModel().toLowerCase())) makeAndModel.add(i);

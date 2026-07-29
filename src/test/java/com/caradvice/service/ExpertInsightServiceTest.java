@@ -417,6 +417,26 @@ class ExpertInsightServiceTest {
     }
 
     @Test
+    void hybridkortBehallerForbranningsinsikt() {
+        // En hybrid HAR en bensinmotor — Toyotas oljebytesråd hör hemma på ett Corolla
+        // Hybrid-kort. Ren likhetsjämförelse hade tystat hybridkorten när ice-ledet infördes
+        ExpertInsight olja = insikt("CarUp", "Toyota", null,
+                "För vanliga bensinmotorer i moderna Toyota-bilar föreslås oljebyten var 8 000 km.", null);
+        when(repo.findAll()).thenReturn(List.of(olja));
+
+        assertThat(service().findForCarTitle("Toyota Corolla Hybrid (2022)")).hasSize(1);
+    }
+
+    @Test
+    void drivetrainsCompatibleSlapperIceOveralltUtomPaElbil() {
+        assertThat(ExpertInsightService.drivetrainsCompatible("ev", "ice")).isFalse();
+        assertThat(ExpertInsightService.drivetrainsCompatible("hev", "ice")).isTrue();
+        assertThat(ExpertInsightService.drivetrainsCompatible("phev", "ice")).isTrue();
+        assertThat(ExpertInsightService.drivetrainsCompatible("ev", "hev")).isFalse();
+        assertThat(ExpertInsightService.drivetrainsCompatible("ev", "ev")).isTrue();
+    }
+
+    @Test
     void evSpecFelSlackerInteInsikterna() {
         // Fail open: ett DB-fel i ev_spec-uppslaget får stänga av filtreringen, inte kortet
         ExpertInsight allman = insikt("Vi Bilägare", "Volvo", "EX30", "Bra räckvidd.", 8);
