@@ -158,6 +158,22 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void markesbredInsiktUtanModellSparasInte() throws Exception {
+        // Utan carModel hamnar raden i findForCarTitle:s makeOnly-hink och visas på VARJE bil av
+        // märket — CarUps N47-dieselvarning hade annars dykt upp på ett BMW i4-kort
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode utanModell = mapper.readTree(
+                "{\"car_make\":\"BMW\",\"car_model\":\"\",\"insight\":\"N47-dieseln kan få kamkedjebrott.\"}");
+        JsonNode medModell = mapper.readTree(
+                "{\"car_make\":\"BMW\",\"car_model\":\"320d\",\"insight\":\"Kamkedjan bör kontrolleras vid köp.\"}");
+        assertThat(service.saveInsights("CarUp", List.of(utanModell, medModell), null)).isEqualTo(1);
+        org.mockito.Mockito.verify(repo, org.mockito.Mockito.times(1))
+                .save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void sammaBilPaTokenDelmangd() {
         assertThat(WebInsightScraperService.sameCar("CLA 45 4MATIC+", "AMG CLA 45 4Matic+")).isTrue();
         assertThat(WebInsightScraperService.sameCar("EV4", "EV4 AWD")).isTrue();

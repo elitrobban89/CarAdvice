@@ -61,7 +61,9 @@ public class WebInsightScraperService {
             Varje insikt ska ha exakt dessa fält:
             - "car_make": biltillverkare (t.ex. "Volvo", "Toyota") — obligatoriskt; hoppa över
               insikter som inte handlar om ett specifikt bilmärke
-            - "car_model": modell (t.ex. "EX30", "RAV4") eller ""
+            - "car_model": modell (t.ex. "EX30", "RAV4") — obligatoriskt; en insikt om ett helt
+              märke eller om en motor som sitter i flera modeller ("BMW:s N47-diesel") ska hoppas
+              över helt, inte sparas med tom modell
             - "fuel_type": ett av: "elbil", "bensin", "diesel", "hybrid", "laddhybrid" — eller ""
             - "category": ett av: "ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil" — eller ""
             - "insight": 1-3 meningar på svenska med källans konkreta åsikt eller fakta, i tredje person
@@ -463,6 +465,14 @@ public class WebInsightScraperService {
             // överallt) — spara dem inte.
             if (ins.path("car_make").asText("").isBlank()) {
                 log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, 80));
+                continue;
+            }
+
+            // Utan modell hamnar insikten i findForCarTitle:s makeOnly-hink och visas på VARJE
+            // bil av märket — en N47-dieselvarning dyker upp på ett BMW i4-kort. Kuraterade
+            // CSV-rader får fortsatt vara märkesbreda; skrapade får inte.
+            if (ins.path("car_model").asText("").isBlank()) {
+                log.info("Web insights: hoppar över märkesbred insikt utan modell: {}", truncate(insightText, 80));
                 continue;
             }
 
