@@ -31,8 +31,11 @@ class ExpertInsightServiceTest {
     @Mock
     private ExpertInsightRepository repo;
 
+    @Mock
+    private EvSpecService evSpecService;
+
     private ExpertInsightService service() {
-        return new ExpertInsightService(repo);
+        return new ExpertInsightService(repo, evSpecService);
     }
 
     private static CarPreferences prefs(String category, String fuelType) {
@@ -352,5 +355,74 @@ class ExpertInsightServiceTest {
         assertThat(ExpertInsightService.drivetrainOf("Kia Niro EV (2023)")).isEqualTo("ev");
         assertThat(ExpertInsightService.drivetrainOf("Kia EV6 (2022)")).isNull(); // "ev6" är ett ord
         assertThat(ExpertInsightService.drivetrainOf("Kia Niro")).isNull();
+    }
+
+    @Test
+    void drivetrainOfKannerIgenForbranningsord() {
+        assertThat(ExpertInsightService.drivetrainOf("N47-dieselmotorn kan få kamkedjebrott.")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("EcoBoost-motorer med kamremmar i olja.")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Modellerna är kompatibla med E20.")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Bensinbilar före 2011 klarar bara E5.")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Igensatt partikelfilter är ett känt fel.")).isEqualTo("ice");
+    }
+
+    @Test
+    void hybridVinnerOverForbranningsordISammaText() {
+        // En hybridinsikt nämner nästan alltid bensinmotorn också — den ska förbli phev/hev,
+        // annars filtreras laddhybridinsikter bort från laddhybridkort
+        assertThat(ExpertInsightService.drivetrainOf("Laddhybriden drar 2,7 l/100 km bensin."))
+                .isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("Hybriden kombinerar elmotor med bensinmotor."))
+                .isEqualTo("hev");
+    }
+
+    @Test
+    void drivlinemarkorerTalSvenskaAndelser() {
+        // "\bhybrid\b" missade bestämd form — ofarligt när utfallet blev null, men efter att
+        // ICE-ledet tillkom hade "hybridEN ... bensin" klassats som förbränning
+        assertThat(ExpertInsightService.drivetrainOf("Hybriden är billig i drift")).isEqualTo("hev");
+        assertThat(ExpertInsightService.drivetrainOf("Laddhybriderna blir dyrare 2027")).isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("Elbilarna stjäls sällan")).isEqualTo("ev");
+    }
+
+    @Test
+    void elbilsordVinnerSaTaycanTurboInteBlirForbranning() {
+        // Medvetet utelämnade ICE-ord: "turbo" (Porsche Taycan Turbo S ÄR en elbil) och
+        // "olja"/"växellåda" (elbilar har reduktionsväxel med olja)
+        assertThat(ExpertInsightService.drivetrainOf("Taycan Turbo S är en snabb elbil")).isEqualTo("ev");
+        assertThat(ExpertInsightService.drivetrainOf("Oljan i växellådan bör bytas")).isNull();
+    }
+
+    @Test
+    void forbranningsinsiktVisasIntePaElbilskort() {
+        // Fords EcoBoost-kamremsvarning är märkesbred (carModel == null) och hamnade därför
+        // på VARJE Ford-kort — inklusive Mustang Mach-E, som är en ren elbil
+        ExpertInsight kamrem = insikt("CarUp", "Ford", null,
+                "Ford med trecylindriga EcoBoost-motorer har problem med kamremmar i olja.", null);
+        when(repo.findAll()).thenReturn(List.of(kamrem));
+        when(evSpecService.isKnownEv("Ford Mustang Mach-E (2023)")).thenReturn(true);
+
+        assertThat(service().findForCarTitle("Ford Mustang Mach-E (2023)")).isEmpty();
+    }
+
+    @Test
+    void forbranningsinsiktVisasFortfarandePaForbranningskort() {
+        // Samma insikt på en bensin-/dieselbil av samma märke ska INTE filtreras bort
+        ExpertInsight kamrem = insikt("CarUp", "Ford", null,
+                "Ford med trecylindriga EcoBoost-motorer har problem med kamremmar i olja.", null);
+        when(repo.findAll()).thenReturn(List.of(kamrem));
+        when(evSpecService.isKnownEv("Ford Focus (2019)")).thenReturn(false);
+
+        assertThat(service().findForCarTitle("Ford Focus (2019)")).hasSize(1);
+    }
+
+    @Test
+    void evSpecFelSlackerInteInsikterna() {
+        // Fail open: ett DB-fel i ev_spec-uppslaget får stänga av filtreringen, inte kortet
+        ExpertInsight allman = insikt("Vi Bilägare", "Volvo", "EX30", "Bra räckvidd.", 8);
+        when(repo.findAll()).thenReturn(List.of(allman));
+        when(evSpecService.isKnownEv("Volvo EX30 (2024)")).thenThrow(new RuntimeException("DB nere"));
+
+        assertThat(service().findForCarTitle("Volvo EX30 (2024)")).hasSize(1);
     }
 }

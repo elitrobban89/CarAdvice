@@ -18,7 +18,8 @@ import static org.mockito.Mockito.when;
 class ExpertInsightServiceCarLookupTest {
 
     private final ExpertInsightRepository repo = mock(ExpertInsightRepository.class);
-    private final ExpertInsightService service = new ExpertInsightService(repo);
+    private final EvSpecService evSpecService = mock(EvSpecService.class);
+    private final ExpertInsightService service = new ExpertInsightService(repo, evSpecService);
 
     private static ExpertInsight insight(String expert, String make, String model, String text, Integer rating) {
         return new ExpertInsight(expert, make, model, "el", "kombi", text, rating);

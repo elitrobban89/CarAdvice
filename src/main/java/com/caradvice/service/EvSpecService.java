@@ -24,6 +24,26 @@ public class EvSpecService {
     }
 
     public EvSpecDto formatForTitle(String title, int kmPerYear) {
+        EvSpec match = matchByTitle(title);
+        if (match == null) return null;
+        String chemistry = null;
+        try { chemistry = getBatteryChemistry(title); } catch (Exception ignored) {}
+        return toDto(match, kmPerYear, chemistry);
+    }
+
+    /**
+     * Är titeln en bil som finns i ev_spec, dvs. en ren elbil? Används av
+     * {@link ExpertInsightService#findForCarTitle} för att veta att ett kort är en elbil
+     * när titeln inte säger det själv ("Kia EV6" innehåller inget drivlineord — "ev6" är
+     * ETT ord). Går via samma matchning som specsiffrorna på kortet: en andra
+     * implementation hade kunnat glida isär från den bil kortet faktiskt visar specar för.
+     */
+    public boolean isKnownEv(String title) {
+        return matchByTitle(title) != null;
+    }
+
+    /** Fuzzy-matchning titel → ev_spec i tre pass. Null om inget hittas. */
+    private EvSpec matchByTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
                 .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")   // strip year
@@ -74,10 +94,7 @@ public class EvSpecService {
                     .orElse(null);
         }
 
-        if (match == null) return null;
-        String chemistry = null;
-        try { chemistry = getBatteryChemistry(title); } catch (Exception ignored) {}
-        return toDto(match, kmPerYear, chemistry);
+        return match;
     }
 
     /**

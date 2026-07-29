@@ -24,9 +24,11 @@ public class ExpertInsightService {
     static final int MAX_RECOMMEND_INSIGHTS = 5;
 
     private final ExpertInsightRepository repo;
+    private final EvSpecService evSpecService;
 
-    public ExpertInsightService(ExpertInsightRepository repo) {
+    public ExpertInsightService(ExpertInsightRepository repo, EvSpecService evSpecService) {
         this.repo = repo;
+        this.evSpecService = evSpecService;
     }
 
     public String buildExpertContext(CarPreferences prefs) {
@@ -94,13 +96,27 @@ public class ExpertInsightService {
     static final int MAX_CARD_INSIGHTS = 3;
 
     // Drivlinemarkörer — mest specifika först: "PHEV" innehåller "HEV" som innehåller "EV",
-    // därav helordsmatchning och prövningsordningen phev → hev → ev
+    // därav helordsmatchning och prövningsordningen phev → hev → ev → ice.
+    // Substantiven tillåter svenska ändelser (\w*): "\bhybrid\b" missade "hybridEN" och
+    // "laddhybridER", vilket var ofarligt när utfallet ändå blev null — men sedan ICE-ledet
+    // tillkom skulle en obestämd hybridtext i stället fastna på "bensinmotor" och klassas
+    // som förbränning, och därmed filtreras bort från hybridkort.
     private static final java.util.regex.Pattern PHEV_MARKER =
-            java.util.regex.Pattern.compile("\\b(phev|laddhybrid|plug[- ]?in)\\b");
+            java.util.regex.Pattern.compile("\\b(phev|laddhybrid\\w*|plug[- ]?in)\\b");
     private static final java.util.regex.Pattern HEV_MARKER =
-            java.util.regex.Pattern.compile("\\b(hev|elhybrid|self[- ]?charging|hybrid)\\b");
+            java.util.regex.Pattern.compile("\\b(hev|elhybrid\\w*|self[- ]?charging|hybrid\\w*)\\b");
     private static final java.util.regex.Pattern EV_MARKER =
-            java.util.regex.Pattern.compile("\\b(ev|elbil|electric)\\b");
+            java.util.regex.Pattern.compile("\\b(ev|elbil\\w*|electric)\\b");
+    /**
+     * Förbränningsmarkörer — prövas SIST, efter hybridmarkörerna, eftersom en hybridinsikt
+     * nästan alltid nämner bensinmotorn också ("laddhybriden ... 2,7 l/100 km bensin"): den
+     * ska klassas som phev/hev, inte ice. Bara ord som är omöjliga på en ren elbil får stå
+     * här. Medvetet UTELÄMNADE: "turbo" (Porsche Taycan Turbo S är en elbil), "växellåda"
+     * och "olja" (elbilar har reduktionsväxel med olja).
+     */
+    private static final java.util.regex.Pattern ICE_MARKER = java.util.regex.Pattern.compile(
+            "\\b(bensin\\w*|diesel\\w*|etanol\\w*|e5|e10|e20|e85"
+            + "|kamrem\\w*|kamkedj\\w*|partikelfilter\\w*|avgas\\w*|tändstift\\w*|förgasar\\w*)\\b");
 
     /**
      * Gemener med alla sorters blanktecken nedkokta till ett vanligt mellanslag. Behövs eftersom
@@ -116,28 +132,48 @@ public class ExpertInsightService {
                 .toLowerCase();
     }
 
-    /** Drivlina ur en text: "phev", "hev" eller "ev" — null om ospecificerad. */
+    /** Drivlina ur en text: "phev", "hev", "ev" eller "ice" — null om ospecificerad. */
     static String drivetrainOf(String s) {
         if (s == null) return null;
         String t = s.toLowerCase();
         if (PHEV_MARKER.matcher(t).find()) return "phev";
         if (HEV_MARKER.matcher(t).find()) return "hev";
         if (EV_MARKER.matcher(t).find()) return "ev";
+        if (ICE_MARKER.matcher(t).find()) return "ice";
         return null;
+    }
+
+    /**
+     * Kortets drivlina. Titelorden först ("Kia Niro EV" → ev), men de flesta elbilstitlar
+     * saknar drivlineord helt — "EV6", "EX30" och "Mach-E" är ETT ord var, så {@code \bev\b}
+     * missar dem och filtret nedan stod avstängt på precis de kort som behövde det. Faller
+     * därför tillbaka på ev_spec: finns bilen där är den en ren elbil. Fail open — ett
+     * DB-fel får inte släcka insikterna på kortet, bara filtreringen.
+     */
+    private String titleDrivetrain(String rawTitle, String flattened) {
+        String fromText = drivetrainOf(flattened);
+        if (fromText != null) return fromText;
+        try {
+            return evSpecService.isKnownEv(rawTitle) ? "ev" : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
      * Publika insikter för ett bilkort. Märket måste finnas i titeln; modellspecifika
      * träffar prioriteras och insikter om en ANNAN modell av samma märke utesluts
-     * (en Model S-insikt ska inte visas på ett Model 3-kort). Anger titeln en drivlina
-     * utesluts insikter om en annan drivlinevariant — Vi Bilägares Niro HEV-test
-     * (4,8 l/100 km) ska aldrig visas på ett Kia Niro EV-kort. Slumpat urval inom
-     * grupperna så hela poolen roterar över tid.
+     * (en Model S-insikt ska inte visas på ett Model 3-kort). Har kortet en känd drivlina
+     * (se {@link #titleDrivetrain}) utesluts insikter om en annan drivlinevariant — Vi
+     * Bilägares Niro HEV-test (4,8 l/100 km) ska aldrig visas på ett Kia Niro EV-kort, och
+     * en märkesbred förbränningsvarning (Fords EcoBoost-kamrem, BMW:s N47-diesel) ska aldrig
+     * visas på ett Mustang Mach-E- eller i4-kort. Slumpat urval inom grupperna så hela
+     * poolen roterar över tid.
      */
     public List<Map<String, Object>> findForCarTitle(String title) {
         if (title == null || title.isBlank()) return List.of();
         String t = flattenSpaces(title);
-        String titleDrive = drivetrainOf(t);
+        String titleDrive = titleDrivetrain(title, t);
 
         List<ExpertInsight> makeAndModel = new ArrayList<>();
         List<ExpertInsight> makeOnly = new ArrayList<>();
