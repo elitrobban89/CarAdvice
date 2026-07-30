@@ -125,14 +125,27 @@ public class WebInsightScraperService {
     // "säljs ej i Sverige", Lamborghini Temerario, Porsche-auktioner) — samma lärdom som
     // med parafraserna: ett separat, smalt Groq-anrop dömer säkrare än regler inbakade
     // i den stora prompten.
+    // Sverigekravet var först mjukt, med ett undantag för "snart lanserad modell med
+    // bekräftat namn och konkreta uppgifter" — det undantaget blev hålet: en artikel om
+    // en ännu ej säljstartad bil innehåller nästan alltid effekt, vikt eller räckvidd,
+    // så vakten läste specdumpar som köpvägledning (Zeekr 9X Ultra, nästa MX-5, båda
+    // 2026-07-30; Elbilens nya posttyper 2026-07-29 drar in mycket sådant). Kriteriet är
+    // därför "går att köpa i Sverige idag", inte "hur konkreta uppgifterna är".
     private static final String RELEVANCE_PROMPT = """
             Du granskar bilinsikter innan de sparas i en databas vars enda syfte är att
             hjälpa svenska privatpersoner att välja och köpa personbil.
 
             En insikt är IRRELEVANT om den handlar om:
-            - en bil som inte säljs och inte kommer att säljas i Sverige. Detta gäller även
-              modeller som säljs på andra marknader men inte här (t.ex. Lada) eller som
-              lämnat den svenska marknaden — prisuppgifter i kronor gör dem INTE relevanta
+            - en bil som inte går att köpa i Sverige IDAG, varken ny hos en svensk handlare
+              eller begagnad på den svenska marknaden. Kravet är hårt: konkreta uppgifter
+              (effekt, vikt, räckvidd, mått, testvärden, pris i kronor) gör INTE en bil
+              relevant om läsaren inte kan köpa den. Hit hör modeller som bara säljs på
+              andra marknader (t.ex. Lada eller varianter som säljs i Kina/USA), modeller
+              som lämnat den svenska marknaden, kommande generationer av en befintlig modell
+              ("nästa generation blir elbil"), bilar som visats men inte prissatts här, samt
+              rykten om kommande namn ("kan heta X"), plattform, teknik eller lanseringsår.
+              ENDA undantaget: modellen har bekräftad svensk säljstart med offentligt svenskt
+              pris eller öppen orderbok — då är den RELEVANT
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
@@ -144,10 +157,6 @@ public class WebInsightScraperService {
               lagersiffror, marknadsstatistik
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler
             - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
-            - en modell som ännu inte går att köpa och där uppgifterna är spekulativa: rykten
-              om kommande namn ("kan heta X"), plattform, teknik eller lanseringsår. En insikt
-              om en snart lanserad modell med BEKRÄFTAT namn och konkreta uppgifter (pris,
-              utrustning, mätvärden) är däremot RELEVANT
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
             Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
