@@ -18,9 +18,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -284,12 +281,14 @@ public class WebInsightScraperService {
 
     private final ExpertInsightRepository insightRepo;
     private final JdbcTemplate jdbc;
+    private final JobStatusService jobStatus;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public WebInsightScraperService(ExpertInsightRepository insightRepo, JdbcTemplate jdbc) {
+    public WebInsightScraperService(ExpertInsightRepository insightRepo, JdbcTemplate jdbc, JobStatusService jobStatus) {
         this.insightRepo = insightRepo;
         this.jdbc = jdbc;
+        this.jobStatus = jobStatus;
     }
 
     public void ensureTable() {
@@ -298,15 +297,7 @@ public class WebInsightScraperService {
                 seen_key VARCHAR(500) PRIMARY KEY
             )
             """);
-        jdbc.execute("""
-            CREATE TABLE IF NOT EXISTS web_scrape_status (
-                job VARCHAR(50) PRIMARY KEY,
-                started_at VARCHAR(40),
-                finished_at VARCHAR(40),
-                new_insights INT,
-                detail VARCHAR(2000)
-            )
-            """);
+        jobStatus.ensureTable();
     }
 
     boolean isSeen(String key) {
@@ -345,11 +336,11 @@ public class WebInsightScraperService {
         ensureTable();
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Web insight sync: GROQ_API_KEY saknas — hoppar över");
-            recordStatus(now(), now(), 0, "GROQ_API_KEY saknas — synken hoppades över");
+            jobStatus.markStarted(JOB_NAME);
+            jobStatus.markFinished(JOB_NAME, 0, "GROQ_API_KEY saknas — synken hoppades över");
             return 0;
         }
-        String startedAt = now();
-        recordStatus(startedAt, null, null, null);
+        jobStatus.markStarted(JOB_NAME);
         int total = 0;
         List<String> perSource = new ArrayList<>();
         for (Source source : SOURCES) {
@@ -368,43 +359,17 @@ public class WebInsightScraperService {
             }
         }
         log.info("Web insight sync klar — {} nya insikter totalt", total);
-        recordStatus(startedAt, now(), total, String.join(", ", perSource));
+        jobStatus.markFinished(JOB_NAME, total, String.join(", ", perSource));
         return total;
     }
 
     // ── Körstatus (läses av GET /api/admin/scrape-status) ────────────────────
 
-    private static final String JOB_NAME = "web-insights";
-
-    private static String now() {
-        return ZonedDateTime.now(ZoneId.of("Europe/Stockholm"))
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    }
-
-    private void recordStatus(String startedAt, String finishedAt, Integer newInsights, String detail) {
-        jdbc.update("DELETE FROM web_scrape_status WHERE job = ?", JOB_NAME);
-        jdbc.update("INSERT INTO web_scrape_status(job, started_at, finished_at, new_insights, detail) VALUES (?,?,?,?,?)",
-                JOB_NAME, startedAt, finishedAt, newInsights, detail == null ? null : truncate(detail, 2000));
-    }
+    private static final String JOB_NAME = JobStatusService.JOB_WEB_INSIGHTS;
 
     /** Senaste körningens status. RUNNING = startad men inte klar (eller avbruten av omstart mitt i). */
     public Map<String, Object> lastRunStatus() {
-        ensureTable();
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT started_at, finished_at, new_insights, detail FROM web_scrape_status WHERE job = ?", JOB_NAME);
-        Map<String, Object> out = new LinkedHashMap<>();
-        if (rows.isEmpty()) {
-            out.put("status", "NEVER_RUN");
-            out.put("info", "Ingen synk har körts ännu (schemalagd 04:00 Europe/Stockholm)");
-            return out;
-        }
-        Map<String, Object> row = rows.get(0);
-        out.put("status", row.get("finished_at") == null ? "RUNNING" : "OK");
-        out.put("startedAt", row.get("started_at"));
-        out.put("finishedAt", row.get("finished_at"));
-        out.put("newInsights", row.get("new_insights"));
-        out.put("perSource", row.get("detail"));
-        return out;
+        return jobStatus.lastRun(JOB_NAME);
     }
 
     // ── Artikelkällor ─────────────────────────────────────────────────────────

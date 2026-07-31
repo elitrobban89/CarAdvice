@@ -7,6 +7,7 @@ import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.scraper.JobStatusService;
 import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
@@ -69,6 +70,7 @@ public class CarController {
     private final IceConsumptionService iceConsumptionService;
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
+    private final JobStatusService jobStatus;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -106,7 +108,8 @@ public class CarController {
                          FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
                          IceConsumptionService iceConsumptionService,
                          MobilityStatsSyncService mobilityStatsSyncService,
-                         EvSpecService evSpecService) {
+                         EvSpecService evSpecService, JobStatusService jobStatus) {
+        this.jobStatus = jobStatus;
         this.evSpecService = evSpecService;
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
@@ -156,20 +159,16 @@ public class CarController {
     @PostMapping("/admin/sync-ev-specs")
     public ResponseEntity<?> syncEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        Thread.ofVirtual().start(() -> {
-            try { evScraper.syncFromEvDatabase(); }
-            catch (Exception e) { /* logged inside scraper */ }
-        });
+        Thread.ofVirtual().start(() ->
+                jobStatus.track(JobStatusService.JOB_EV_SPECS, evScraper::syncFromEvDatabase));
         return ResponseEntity.accepted().body(Map.of("status", "sync started — check server logs for result"));
     }
 
     @PostMapping("/admin/sync-cargo-specs")
     public ResponseEntity<?> syncCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        Thread.ofVirtual().start(() -> {
-            try { cargoSpecSyncService.syncCarNames(); }
-            catch (Exception e) { /* logged inside service */ }
-        });
+        Thread.ofVirtual().start(() ->
+                jobStatus.track(JobStatusService.JOB_CARGO_SPECS, cargoSpecSyncService::syncCarNames));
         return ResponseEntity.accepted().body(Map.of("status", "CargoSpec sync started — check server logs for result"));
     }
 
@@ -195,11 +194,18 @@ public class CarController {
                 : ResponseEntity.status(502).body(result);
     }
 
-    // Admin: senaste insiktsscrape-körningens status (nattlig 04:00 eller manuell trigger)
+    // Admin: senaste körningens status för de schemalagda jobben.
+    // Toppnivån är insiktsscrapen (oförändrat svar sedan tidigare); "jobs" listar alla fyra.
     @GetMapping("/admin/scrape-status")
     public ResponseEntity<?> scrapeStatus(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        return ResponseEntity.ok(webInsightScraper.lastRunStatus());
+        Map<String, Object> out = new LinkedHashMap<>(webInsightScraper.lastRunStatus());
+        try {
+            out.put("jobs", jobStatus.allJobs());
+        } catch (Exception e) {
+            log.warn("Kunde inte läsa jobbstatus: {}", e.getMessage());
+        }
+        return ResponseEntity.ok(out);
     }
 
     // Admin: seed already-processed keys (URL:er/omdömes-refs) so the scraper skips them — text body, one key per line

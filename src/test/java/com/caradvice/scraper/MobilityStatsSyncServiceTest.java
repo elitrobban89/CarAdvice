@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,7 +32,7 @@ class MobilityStatsSyncServiceTest {
     private ExpertInsightService insightService;
 
     private MobilityStatsSyncService service() {
-        return new MobilityStatsSyncService(insightService);
+        return new MobilityStatsSyncService(insightService, mock(JobStatusService.class));
     }
 
     // ── Testdata: bygger en xlsx i minnet med samma struktur som riktiga rapporten ──
@@ -152,7 +153,7 @@ class MobilityStatsSyncServiceTest {
     // ── syncNow (nät stubbas via överlagring) ──
 
     private MobilityStatsSyncService stubbed(byte[] xlsx) {
-        return new MobilityStatsSyncService(insightService) {
+        return new MobilityStatsSyncService(insightService, mock(JobStatusService.class)) {
             @Override
             String findLatestReportUrl() {
                 return xlsx == null ? null : "https://mobilitysweden.se/storage/rapport.xlsx";

@@ -284,7 +284,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-294 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+305 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -302,7 +302,8 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `DataLoaderDedupeTest` (5) | Städningen av `ev_spec`: dubblettraderingen behåller **högsta** id per `car_name` (inte lägsta — den högsta är den kopia nattsynken faktiskt hållit uppdaterad), städningen sker **före** det unika indexet skapas (indexet misslyckas annars mot en tabell som fortfarande har dubbletter), indexet är unikt och idempotent, uteslutna märken raderas med portabel SQL (ingen `ILIKE`), och `EV6_PRISER` täcker alla sex varianterna med rimlig prisordning (AWD över 2WD, GT högst) |
 | `WebInsightScraperServiceTest` (27) | Insiktsscraperns JSON-parsning: insiktslista, markdown-kodstaket, trasig JSON → tom lista, wp-json-länklistor, whitelist för category/fuel_type, mall-eko-rader, insikter utan bilmärke sparas inte, märkesbreda insikter utan modell sparas inte (de skulle annars visas på varje bil av märket), dubblettfiltrering mot DB (normaliserad textjämförelse, fuzzy bilmatchning över märkesstavningar, batch-intern dedup, parafras-promptbygge, dedup-svarsparsning med fail open), relevansvakt (indexparsning, promptbygge, fail open utan API-nyckel — Groq-fel under själva anropet är numera fail-closed, hoppar över batchen), extravakten för strikta källor (bara CarUp, övriga källor går förbi den utan extraanrop), statusradens skillnad mellan "0 nya" och en källa som inte hittade något att skrapa, att en varning inte döljer antalet sparade insikter, att Elbilen pekar på posttyperna `tester`/`artiklar` och inte standardtypen `posts`, och att car.info är borttagen som källa |
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
-| `CarControllerTest` (44) | HTTP-lagret (MockMvc): admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns) |
+| `JobStatusServiceTest` (9) | Körstatusen för de schemalagda jobben: `track` returnerar jobbets antal och skriver start + slut, undantag ur jobbet ger `-1` och en `FEL:`-märkt rad i stället för att fälla schemaläggaren, statusskrivningen sväljer sina egna DB-fel (jobbet får aldrig krascha på loggningen), statusen härleds rätt (`OK`/`RUNNING` när sluttid saknas/`ERROR` vid felprefix/`NEVER_RUN` med schematext), och `allJobs` listar alla fyra i körordning även när DB:n svarar med fel |
+| `CarControllerTest` (46) | HTTP-lagret (MockMvc): admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns), jobbstatuslistan i `/api/admin/scrape-status` (`jobs`-fältet per jobb, och att endpointen fortfarande svarar om jobbtabellen kraschar) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -522,7 +523,9 @@ curl -X POST https://caradvice.onrender.com/api/admin/sync-web-insights \
 
 ### `GET /api/admin/scrape-status`
 
-Senaste insiktsscrape-körningens status (nattlig eller manuell) — persisterad i tabellen `web_scrape_status` så den överlever omstarter. `status` är `OK` (klar), `RUNNING` (pågår — eller avbruten av en omstart mitt i), eller `NEVER_RUN`. `perSource` visar antal nya insikter per källa, med `FEL (...)` för källor som misslyckades.
+Senaste körningens status för **alla fyra schemalagda jobb** — persisterad i tabellen `web_scrape_status` så den överlever omstarter (Renders loggar rullar bort; den här endpointen svarar på "gick nattjobbet?" utan dashboarden). Toppnivån är insiktsscrapen, `jobs` listar alla fyra i körordning.
+
+`status` per jobb är `OK` (klar), `RUNNING` (pågår — eller avbruten av en omstart mitt i), `ERROR` (körningen kastade undantag; `perSource` börjar då med `FEL: `), eller `NEVER_RUN` (då visar `info` när jobbet är schemalagt). `newInsights` är jobbets returvärde: nya insikter för scrapen, uppdaterade rader för EV-synken, nya bilar för CargoSpec-synken, importerade rader för Mobility-synken.
 
 ```bash
 curl https://caradvice.onrender.com/api/admin/scrape-status \
@@ -530,8 +533,13 @@ curl https://caradvice.onrender.com/api/admin/scrape-status \
 ```
 
 ```json
-{"status":"OK","startedAt":"2026-07-06 04:00:00","finishedAt":"2026-07-06 04:19:12",
- "newInsights":23,"perSource":"Teknikens Värld: 4, Vi Bilägare: 3, M Sverige: 6, Bytbil: 5, M3: 1, Elbilen: 3, Folksam: 1"}
+{"status":"OK","startedAt":"2026-07-31 04:00:00","finishedAt":"2026-07-31 04:12:17",
+ "newInsights":9,"perSource":"Vi Bilägare: 3, CarUp: 6","schedule":"dagligen 04:00 Europe/Stockholm",
+ "jobs":{
+   "ev-specs":{"status":"OK","startedAt":"2026-07-31 02:00:00","finishedAt":"2026-07-31 02:12:05","newInsights":294,"perSource":null,"schedule":"dagligen 02:00 Europe/Stockholm"},
+   "cargo-specs":{"status":"OK","startedAt":"2026-07-31 03:00:00","finishedAt":"2026-07-31 03:07:47","newInsights":0,"perSource":null,"schedule":"dagligen 03:00 Europe/Stockholm"},
+   "web-insights":{"status":"OK","startedAt":"2026-07-31 04:00:00","finishedAt":"2026-07-31 04:12:17","newInsights":9,"perSource":"Vi Bilägare: 3, CarUp: 6","schedule":"dagligen 04:00 Europe/Stockholm"},
+   "mobility-stats":{"status":"OK","startedAt":"2026-08-04 05:00:00","finishedAt":"2026-08-04 05:00:06","newInsights":2,"perSource":"https://mobilitysweden.se/...xlsx","schedule":"den 4:e varje månad 05:00 Europe/Stockholm"}}}
 ```
 
 ### `GET /api/ice-consumption` (publik)
@@ -718,7 +726,7 @@ git rev-parse HEAD
 | `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
 | `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare och M3 (RSS), M Sverige och Bytbil (artikellistor), Auto Motor & Sport, Elbilen och CarUp (wp-json) + Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad) |
-| `web_scrape_status` | Senaste insiktsscrape-körningens status (job, started_at, finished_at, new_insights, detail per källa) — en rad, skrivs om vid varje körning; läses av `GET /api/admin/scrape-status` |
+| `web_scrape_status` | Senaste körningens status per schemalagt jobb (job, started_at, finished_at, new_insights, detail) — en rad per jobb (`ev-specs`, `cargo-specs`, `web-insights`, `mobility-stats`), skrivs om vid varje körning; skrivs av `JobStatusService` och läses av `GET /api/admin/scrape-status` |
 | `ice_consumption` | Verifierade förbrukningssiffror (l/mil) för ~950 bensin/diesel/hybrid/laddhybrid-motorvarianter — seedas från `ice-consumption.csv` (extraherad ur Bilresa-projektets fordonsdatabas). Används av publika `GET /api/ice-consumption` (Bilresas kalkylator, l/mil) och för att ersätta AI:ns gissade `consumptionLiterPerMil` med verifierade värden i rekommendationer (hk-närmaste variant, drivmedelsfiltrerad; **konverteras ×10 till l/100km** — fältets konvention) samt injiceras som förbrukningsrader i jämförelseprompten (l/100km) |
 
 ---

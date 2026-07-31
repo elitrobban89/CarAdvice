@@ -5,6 +5,7 @@ import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
 import com.caradvice.scraper.CargoSpecSyncService;
 import com.caradvice.scraper.EvDatabaseScraperService;
+import com.caradvice.scraper.JobStatusService;
 import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
@@ -62,6 +63,7 @@ class CarControllerTest {
     @MockBean private EvSpecRepository evSpecRepo;
     @MockBean private FeedbackService feedbackService;
     @MockBean private WebInsightScraperService webInsightScraper;
+    @MockBean private JobStatusService jobStatus;
     @MockBean private IceConsumptionService iceConsumptionService;
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
     @MockBean private EvSpecService evSpecService;
@@ -154,6 +156,31 @@ class CarControllerTest {
         mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.status").value("OK"));
+    }
+
+    @Test
+    void scrapeStatusListarAllaSchemalagdaJobb() throws Exception {
+        when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
+        when(jobStatus.allJobs()).thenReturn(Map.of(
+                "ev-specs", Map.of("status", "OK", "startedAt", "2026-07-31 02:00:00"),
+                "cargo-specs", Map.of("status", "NEVER_RUN")));
+
+        mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.status").value("OK"))
+           .andExpect(jsonPath("$.jobs.['ev-specs'].status").value("OK"))
+           .andExpect(jsonPath("$.jobs.['cargo-specs'].status").value("NEVER_RUN"));
+    }
+
+    @Test
+    void scrapeStatusSvararAndaOmJobbtabellenKrasar() throws Exception {
+        when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
+        when(jobStatus.allJobs()).thenThrow(new RuntimeException("DB nere"));
+
+        mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.status").value("OK"))
+           .andExpect(jsonPath("$.jobs").doesNotExist());
     }
 
     // --- /api/recommend ---

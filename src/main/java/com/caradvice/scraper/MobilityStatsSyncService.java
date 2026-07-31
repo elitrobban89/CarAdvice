@@ -80,17 +80,34 @@ public class MobilityStatsSyncService {
             "BMW", "BMW");
 
     private final ExpertInsightService insightService;
+    private final JobStatusService jobStatus;
     private final HttpClient http = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
-    public MobilityStatsSyncService(ExpertInsightService insightService) {
+    public MobilityStatsSyncService(ExpertInsightService insightService, JobStatusService jobStatus) {
         this.insightService = insightService;
+        this.jobStatus = jobStatus;
     }
 
-    /** Hämtar senaste rapporten och ersätter månadsinsikterna. Returnerar körsammanfattning. */
+    /**
+     * Hämtar senaste rapporten och ersätter månadsinsikterna. Returnerar körsammanfattning.
+     * Körstatusen skrivs här (inte i schemaläggaren) så även manuella triggers registreras.
+     */
     public Map<String, Object> syncNow() {
+        jobStatus.markStarted(JobStatusService.JOB_MOBILITY_STATS);
+        Map<String, Object> result = runSync();
+        if ("OK".equals(result.get("status"))) {
+            jobStatus.markFinished(JobStatusService.JOB_MOBILITY_STATS,
+                    (Integer) result.get("imported"), String.valueOf(result.get("source")));
+        } else {
+            jobStatus.markFailed(JobStatusService.JOB_MOBILITY_STATS, String.valueOf(result.get("error")));
+        }
+        return result;
+    }
+
+    private Map<String, Object> runSync() {
         try {
             String xlsxUrl = findLatestReportUrl();
             if (xlsxUrl == null) return Map.of("status", "ERROR", "error", "Hittade ingen xlsx-rapport");

@@ -10,20 +10,18 @@ public class EvSpecSyncScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(EvSpecSyncScheduler.class);
     private final EvDatabaseScraperService scraper;
+    private final JobStatusService jobStatus;
 
-    public EvSpecSyncScheduler(EvDatabaseScraperService scraper) {
+    public EvSpecSyncScheduler(EvDatabaseScraperService scraper, JobStatusService jobStatus) {
         this.scraper = scraper;
+        this.jobStatus = jobStatus;
     }
 
     // Runs every day at 02:00 Stockholm time (handles DST automatically)
     @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily EV spec sync triggered");
-        try {
-            int updated = scraper.syncFromEvDatabase();
-            log.info("Daily sync finished — {} records updated", updated);
-        } catch (Exception e) {
-            log.error("Daily sync failed: {}", e.getMessage(), e);
-        }
+        int updated = jobStatus.track(JobStatusService.JOB_EV_SPECS, scraper::syncFromEvDatabase);
+        log.info("Daily sync finished — {} records updated", updated);
     }
 }
