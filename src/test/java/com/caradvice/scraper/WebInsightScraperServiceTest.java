@@ -20,6 +20,29 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void tomtVaktsvarSkiljsFranTomLista() {
+        // gpt-oss-120b är en reasoning-modell: med för snål tokenbudget svarar den 200 med
+        // finish_reason=length och TOMT content (uppmätt 2026-07-31). Läses det som "inget var
+        // irrelevant" blir vakten en tyst nolla och hela batchen sparas ofiltrerad.
+        var service = service();
+        assertThat(service.parseIndexesOrNull(groqResponse(""), "irrelevant")).isNull();
+        assertThat(service.parseIndexesOrNull(groqResponse("inte json"), "irrelevant")).isNull();
+        assertThat(service.parseIndexesOrNull(groqResponse("{\"irrelevant\":\"inte en array\"}"), "irrelevant")).isNull();
+
+        // ...men en äkta tom lista är ett giltigt svar och ska släppa igenom allt
+        assertThat(service.parseIndexesOrNull(groqResponse("{\"irrelevant\":[]}"), "irrelevant")).isEmpty();
+        assertThat(service.parseIndexesOrNull(groqResponse("{\"irrelevant\":[0,2]}"), "irrelevant"))
+                .containsExactlyInAnyOrder(0, 2);
+    }
+
+    @Test
+    void dedupBeharSinFailOpenViaParseIndexes() {
+        // dubblettfiltret ska fortsatt spara hellre än tappa vid trasigt svar
+        assertThat(service().parseIndexes(groqResponse(""), "duplicates")).isEmpty();
+        assertThat(service().parseIndexes(groqResponse("{\"duplicates\":[1]}"), "duplicates")).containsExactly(1);
+    }
+
+    @Test
     void relevanspromptenLaterSvensktPrisAvgora() {
         // DS N°8 stoppades 2026-07-31 trots startpris 849 900 kr i artikeln — ett svenskt
         // pris betyder att bilen säljs här, och då får vakten inte blockera den

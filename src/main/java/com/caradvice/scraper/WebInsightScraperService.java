@@ -52,7 +52,11 @@ public class WebInsightScraperService {
     private static final long MAX_BACKOFF_MS = 60_000;
     private static final Pattern RETRY_IN_PATTERN =
             Pattern.compile("try again in (?:(\\d+)m)?([\\d.]+)s", Pattern.CASE_INSENSITIVE);
-    private static final int GUARD_BATCH_SIZE = 25;         // vakterna körs per källa — chunka så prompten inte skenar
+    // Vakterna körs per källa, men chunkas: gpt-oss-120b är en reasoning-modell och
+    // resonemanget växer med batchens storlek. Med 25 insikter och 400 tokens gick HELA
+    // budgeten till reasoning (finish_reason=length, tomt content) — mätt 2026-07-31.
+    private static final int GUARD_BATCH_SIZE = 10;
+    private static final int GUARD_MAX_TOKENS = 1500;
     private static final int MIN_DISCOVERED_LINKS = 5;   // färre än så = källan håller på att sina
     private static final int MIN_TEXT_CHARS = 400;
     private static final int MAX_TEXT_CHARS = 7_000;
@@ -560,13 +564,22 @@ public class WebInsightScraperService {
         Set<Integer> irrelevant;
         Set<Integer> upcoming;
         try {
-            String body = postGroq(guardModel, prompt, buildRelevanceUserContent(insights), 400, label);
+            String body = postGroq(guardModel, prompt, buildRelevanceUserContent(insights), GUARD_MAX_TOKENS, label);
             if (body == null) {
                 log.warn("Web insights: {} fick inget svar — hoppar över batchen ({} insikter) den här körningen", label, insights.size());
                 return List.of();
             }
-            irrelevant = parseIndexes(body, "irrelevant");
-            upcoming = flagUpcoming ? parseIndexes(body, "upcoming") : Set.of();
+            // Ett tomt eller oparsbart svar är INTE "inget var irrelevant". Reasoning-modellen
+            // kan bränna hela tokenbudgeten och svara 200 med tomt content — tolkas det som en
+            // tom irrelevant-lista blir vakten en tyst nolla och batchen sparas ofiltrerad.
+            irrelevant = parseIndexesOrNull(body, "irrelevant");
+            if (irrelevant == null) {
+                log.warn("Web insights: {} svarade utan användbar lista — hoppar över batchen ({} insikter) den här körningen",
+                        label, insights.size());
+                return List.of();
+            }
+            Set<Integer> flagged = flagUpcoming ? parseIndexesOrNull(body, "upcoming") : null;
+            upcoming = flagged == null ? Set.of() : flagged;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return List.of();
@@ -743,16 +756,33 @@ public class WebInsightScraperService {
         return parseIndexes(responseBody, "duplicates");
     }
 
+    /** Fail open — tom mängd betyder "filtrera inget". Används av dedupen. */
     Set<Integer> parseIndexes(String responseBody, String field) {
+        Set<Integer> parsed = parseIndexesOrNull(responseBody, field);
+        return parsed == null ? Set.of() : parsed;
+    }
+
+    /**
+     * Som {@link #parseIndexes} men skiljer "modellen svarade tom lista" från "inget
+     * användbart svar" — null betyder det senare. Vakterna måste kunna se skillnaden:
+     * en reasoning-modell som bränt tokenbudgeten svarar 200 med tomt content, och den
+     * tystnaden får inte läsas som ett godkännande av hela batchen.
+     */
+    Set<Integer> parseIndexesOrNull(String responseBody, String field) {
         try {
-            JsonNode arr = mapper.readTree(contentOf(responseBody)).path(field);
-            if (!arr.isArray()) return Set.of();
+            String content = contentOf(responseBody);
+            if (content.isBlank()) {
+                log.warn("Web insights: tomt {}-svar (tokenbudgeten kan ha gått till reasoning)", field);
+                return null;
+            }
+            JsonNode arr = mapper.readTree(content).path(field);
+            if (!arr.isArray()) return null;
             Set<Integer> out = new HashSet<>();
             arr.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt()); });
             return out;
         } catch (Exception e) {
             log.warn("Web insights: kunde inte parsa {}-svar: {}", field, e.getMessage());
-            return Set.of();
+            return null;
         }
     }
 
