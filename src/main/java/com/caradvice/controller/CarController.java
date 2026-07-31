@@ -18,6 +18,7 @@ import com.caradvice.service.GroqService;
 import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
+import com.caradvice.service.UpcomingInsightService;
 import com.caradvice.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,6 +72,7 @@ public class CarController {
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
     private final JobStatusService jobStatus;
+    private final UpcomingInsightService upcomingInsightService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -108,8 +110,10 @@ public class CarController {
                          FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
                          IceConsumptionService iceConsumptionService,
                          MobilityStatsSyncService mobilityStatsSyncService,
-                         EvSpecService evSpecService, JobStatusService jobStatus) {
+                         EvSpecService evSpecService, JobStatusService jobStatus,
+                         UpcomingInsightService upcomingInsightService) {
         this.jobStatus = jobStatus;
+        this.upcomingInsightService = upcomingInsightService;
         this.evSpecService = evSpecService;
         this.groqService = groqService;
         this.expertInsightService = expertInsightService;
@@ -192,6 +196,25 @@ public class CarController {
         return "OK".equals(result.get("status"))
                 ? ResponseEntity.ok(result)
                 : ResponseEntity.status(502).body(result);
+    }
+
+    // Admin: insikter som väntar på att bilen ska bli köpbar i Sverige. De ligger i
+    // expert_insight men döljs för prompter och bilkort tills de släpps.
+    @GetMapping("/admin/insights/upcoming")
+    public ResponseEntity<?> upcomingInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rows = upcomingInsightService.list();
+        return ResponseEntity.ok(Map.of("count", rows.size(), "insights", rows));
+    }
+
+    // Admin: bilen går att köpa nu — insikten blir synlig som vilken annan som helst.
+    @DeleteMapping("/admin/insights/{id}/upcoming")
+    public ResponseEntity<?> releaseUpcoming(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                             @PathVariable Long id) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return upcomingInsightService.release(id)
+                ? ResponseEntity.ok(Map.of("released", id))
+                : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte markerad som kommande"));
     }
 
     // Admin: senaste körningens status för de schemalagda jobben.

@@ -1,6 +1,7 @@
 package com.caradvice.scraper;
 
 import com.caradvice.repository.ExpertInsightRepository;
+import com.caradvice.service.UpcomingInsightService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,7 +15,45 @@ import static org.mockito.Mockito.mock;
 class WebInsightScraperServiceTest {
 
     private WebInsightScraperService service() {
-        return new WebInsightScraperService(mock(ExpertInsightRepository.class), mock(JdbcTemplate.class), mock(JobStatusService.class));
+        return new WebInsightScraperService(mock(ExpertInsightRepository.class), mock(JdbcTemplate.class),
+                mock(JobStatusService.class), mock(UpcomingInsightService.class));
+    }
+
+    // ── 429-backoff: Groq säger själv hur länge vi ska vänta ───────────────────
+
+    @Test
+    void retryDelayFoljerRetryAfterHeadern() {
+        assertThat(WebInsightScraperService.retryDelayMs("2.5", null, 0)).isEqualTo(2500);
+    }
+
+    @Test
+    void retryDelayLaserVantetidenUrFelmeddelandetNarHeadernSaknas() {
+        String body = "{\"error\":{\"message\":\"Rate limit reached, try again in 8.31s\"}}";
+        assertThat(WebInsightScraperService.retryDelayMs(null, body, 0)).isEqualTo(8310);
+    }
+
+    @Test
+    void retryDelayTolkarMinuterOchSekunder() {
+        String body = "Rate limit reached for model, limit 1000 per day, try again in 2m59.56s";
+        // 2m59.56s = 179 560 ms, men taket kapar — en enstaka lång gräns får inte binda hela synken
+        assertThat(WebInsightScraperService.retryDelayMs(null, body, 0)).isEqualTo(60_000);
+    }
+
+    @Test
+    void retryDelayFallerTillbakaPaTrappaNarGroqInteSagerNagot() {
+        assertThat(WebInsightScraperService.retryDelayMs(null, "inget här", 0)).isEqualTo(10_000);
+        assertThat(WebInsightScraperService.retryDelayMs(null, null, 2)).isEqualTo(30_000);
+    }
+
+    @Test
+    void retryDelayHallerSigOvanGolvet() {
+        // Groq svarar ibland "try again in 0.05s" — hamra inte vidare direkt
+        assertThat(WebInsightScraperService.retryDelayMs("0.05", null, 0)).isEqualTo(1_000);
+    }
+
+    @Test
+    void retryDelayIgnorerarSkrapIHeadern() {
+        assertThat(WebInsightScraperService.retryDelayMs("snart", "try again in 4s", 0)).isEqualTo(4_000);
     }
 
     private static String groqResponse(String content) {
@@ -99,7 +138,7 @@ class WebInsightScraperServiceTest {
         org.mockito.Mockito.when(repo.findByMakePrefix(
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of(existing));
-        return new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class));
+        return new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
     }
 
     @Test
@@ -148,7 +187,7 @@ class WebInsightScraperServiceTest {
         // Insikter utan carMake visas aldrig (ExpertInsightService utesluter dem) — SAE-studier
         // och kändisnotiser utan bil kom ändå in i DB via scrapen
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode utanMarke = mapper.readTree("{\"car_make\":\"\",\"insight\":\"Studie om återcirkulation.\"}");
         JsonNode medMarke = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
@@ -158,11 +197,44 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandeModellSparasMenFlaggas() throws Exception {
+        // Relevansvakten markerar noden i stället för att kasta insikten — raden sparas men
+        // hålls borta från prompter och bilkort tills bilen går att köpa (el-GLA-fallet)
+        var repo = mock(ExpertInsightRepository.class);
+        var upcoming = mock(UpcomingInsightService.class);
+        var sparad = new com.caradvice.model.ExpertInsight("TV", "Mercedes", "GLA", null, null, "Tre varianter.", null);
+        org.springframework.test.util.ReflectionTestUtils.setField(sparad, "id", 77L);
+        org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any())).thenReturn(sparad);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming);
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode kommande = mapper.readTree("{\"car_make\":\"Mercedes\",\"car_model\":\"GLA\","
+                + "\"insight\":\"Tre varianter.\",\"" + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+
+        assertThat(service.saveInsights("TV", List.of(kommande), null)).isEqualTo(1);
+        org.mockito.Mockito.verify(upcoming).mark(77L);
+    }
+
+    @Test
+    void vanligInsiktFlaggasInteSomKommande() throws Exception {
+        var repo = mock(ExpertInsightRepository.class);
+        var upcoming = mock(UpcomingInsightService.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode vanlig = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
+
+        assertThat(service.saveInsights("TV", List.of(vanlig), null)).isEqualTo(1);
+        org.mockito.Mockito.verify(upcoming, org.mockito.Mockito.never())
+                .mark(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void markesbredInsiktUtanModellSparasInte() throws Exception {
         // Utan carModel hamnar raden i findForCarTitle:s makeOnly-hink och visas på VARJE bil av
         // märket — CarUps N47-dieselvarning hade annars dykt upp på ett BMW i4-kort
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode utanModell = mapper.readTree(
                 "{\"car_make\":\"BMW\",\"car_model\":\"\",\"insight\":\"N47-dieseln kan få kamkedjebrott.\"}");
@@ -236,7 +308,7 @@ class WebInsightScraperServiceTest {
     void striktKallaSparasFortfarandeNarVaktenArPassiv() throws Exception {
         // apiKey är null i testtjänsten → extravakten ska vara passiv, inte blockera CarUp helt
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree(
                 "{\"car_make\":\"Volkswagen\",\"car_model\":\"Arteon\",\"insight\":\"Mest begagnade är laddhybrider.\"}");

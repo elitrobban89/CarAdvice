@@ -25,10 +25,24 @@ public class ExpertInsightService {
 
     private final ExpertInsightRepository repo;
     private final EvSpecService evSpecService;
+    private final UpcomingInsightService upcomingService;
 
-    public ExpertInsightService(ExpertInsightRepository repo, EvSpecService evSpecService) {
+    public ExpertInsightService(ExpertInsightRepository repo, EvSpecService evSpecService,
+                                UpcomingInsightService upcomingService) {
         this.repo = repo;
         this.evSpecService = evSpecService;
+        this.upcomingService = upcomingService;
+    }
+
+    /**
+     * Filtrerar bort insikter om bilar som ännu inte går att köpa i Sverige. De sparas av
+     * scrapern men får inte nå prompter eller bilkort — en insikt om en bil läsaren inte
+     * kan köpa läses som en rekommendation. Admin-vyerna går medvetet förbi det här.
+     */
+    private List<ExpertInsight> visible(List<ExpertInsight> insights) {
+        Set<Long> hidden = upcomingService.hiddenIds();
+        if (hidden.isEmpty()) return insights;
+        return insights.stream().filter(i -> !hidden.contains(i.getId())).toList();
     }
 
     public String buildExpertContext(CarPreferences prefs) {
@@ -37,7 +51,7 @@ public class ExpertInsightService {
                 ? category
                 : prefs.fuelType();
 
-        List<ExpertInsight> matched = repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType);
+        List<ExpertInsight> matched = visible(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType));
         if (matched.isEmpty()) return "";
 
         // Slumpat urval så hela insiktspoolen roterar in i prompten över tid — med fast
@@ -62,7 +76,7 @@ public class ExpertInsightService {
      * "vad tycker du om den?" utan att nämna märket.
      */
     public String buildChatExpertContext(List<String> recentMessages, String carContext) {
-        List<ExpertInsight> all = repo.findAll();
+        List<ExpertInsight> all = visible(repo.findAll());
         if (all.isEmpty()) return "";
 
         // Only include insights whose car make is explicitly mentioned in the conversation.
@@ -190,7 +204,7 @@ public class ExpertInsightService {
 
         List<ExpertInsight> makeAndModel = new ArrayList<>();
         List<ExpertInsight> makeOnly = new ArrayList<>();
-        for (ExpertInsight i : repo.findAll()) {
+        for (ExpertInsight i : visible(repo.findAll())) {
             if (i.getCarMake() == null || !t.contains(i.getCarMake().toLowerCase())) continue;
             if (titleDrive != null) {
                 String insightDrive = drivetrainOf(i.getCarModel());

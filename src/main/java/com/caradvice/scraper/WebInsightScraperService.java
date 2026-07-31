@@ -2,8 +2,10 @@ package com.caradvice.scraper;
 
 import com.caradvice.model.ExpertInsight;
 import com.caradvice.repository.ExpertInsightRepository;
+import com.caradvice.service.UpcomingInsightService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
@@ -45,6 +47,12 @@ public class WebInsightScraperService {
     private static final long FETCH_DELAY_MS = 1_500;   // artighet mot sajterna
     private static final long GROQ_DELAY_MS = 5_000;    // TPM-gräns 8000 tokens/min
     private static final int MAX_ARTICLES_PER_SOURCE = 12;
+    private static final long DEFAULT_BACKOFF_MS = 10_000;  // bara när Groq inte säger något själv
+    private static final long MIN_BACKOFF_MS = 1_000;
+    private static final long MAX_BACKOFF_MS = 60_000;
+    private static final Pattern RETRY_IN_PATTERN =
+            Pattern.compile("try again in (?:(\\d+)m)?([\\d.]+)s", Pattern.CASE_INSENSITIVE);
+    private static final int GUARD_BATCH_SIZE = 25;         // vakterna körs per källa — chunka så prompten inte skenar
     private static final int MIN_DISCOVERED_LINKS = 5;   // färre än så = källan håller på att sina
     private static final int MIN_TEXT_CHARS = 400;
     private static final int MAX_TEXT_CHARS = 7_000;
@@ -128,21 +136,21 @@ public class WebInsightScraperService {
     // så vakten läste specdumpar som köpvägledning (Zeekr 9X Ultra, nästa MX-5, båda
     // 2026-07-30; Elbilens nya posttyper 2026-07-29 drar in mycket sådant). Kriteriet är
     // därför "går att köpa i Sverige idag", inte "hur konkreta uppgifterna är".
+    // Sedan 2026-07-31 kastas de kommande modellerna inte längre: de sparas med
+    // upcoming-flagga och hålls utanför prompter och bilkort tills bilen släpps (natten
+    // till 07-31 slängdes 13 rader om nya el-GLA:n — innehåll som blir användbart om
+    // några månader). Skillnaden mot IRRELEVANT är bekräftad modell + konkret innehåll.
     private static final String RELEVANCE_PROMPT = """
             Du granskar bilinsikter innan de sparas i en databas vars enda syfte är att
             hjälpa svenska privatpersoner att välja och köpa personbil.
 
             En insikt är IRRELEVANT om den handlar om:
-            - en bil som inte går att köpa i Sverige IDAG, varken ny hos en svensk handlare
-              eller begagnad på den svenska marknaden. Kravet är hårt: konkreta uppgifter
-              (effekt, vikt, räckvidd, mått, testvärden, pris i kronor) gör INTE en bil
-              relevant om läsaren inte kan köpa den. Hit hör modeller som bara säljs på
-              andra marknader (t.ex. Lada eller varianter som säljs i Kina/USA), modeller
-              som lämnat den svenska marknaden, kommande generationer av en befintlig modell
-              ("nästa generation blir elbil"), bilar som visats men inte prissatts här, samt
-              rykten om kommande namn ("kan heta X"), plattform, teknik eller lanseringsår.
-              ENDA undantaget: modellen har bekräftad svensk säljstart med offentligt svenskt
-              pris eller öppen orderbok — då är den RELEVANT
+            - en bil som inte går att köpa i Sverige IDAG och inte heller är på väg hit.
+              Kravet är hårt: konkreta uppgifter (effekt, vikt, räckvidd, mått, testvärden,
+              pris i kronor) gör INTE en bil relevant om läsaren inte kan köpa den. Hit hör
+              modeller som bara säljs på andra marknader (t.ex. Lada eller varianter som
+              säljs i Kina/USA), modeller som lämnat den svenska marknaden, samt rykten om
+              kommande namn ("kan heta X"), plattform, teknik eller lanseringsår
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
@@ -159,8 +167,17 @@ public class WebInsightScraperService {
             Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
             "bäst i test", mest sålda bilen i sin klass) — de är köpsignaler, inte företagsnyheter.
 
-            Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
-            Om alla är relevanta: {"irrelevant": []}
+            En insikt är KOMMANDE (varken irrelevant eller direkt användbar) om den handlar om
+            en namngiven, bekräftad modell eller generation som ska säljas i Sverige men ännu
+            inte går att köpa här: presenterad men inte prissatt, annonserad säljstart längre
+            fram, eller ny generation av en modell som redan säljs här. Insikten måste ha
+            konkret innehåll (mått, effekt, räckvidd, utrustning, testintryck) — lösa rykten
+            om namn eller lanseringsår är IRRELEVANTA, inte kommande.
+
+            Svara ENDAST med valid JSON:
+            {"irrelevant": [index...], "upcoming": [index...]}
+            Ett index får bara stå i en av listorna. Om alla är direkt användbara:
+            {"irrelevant": [], "upcoming": []}
             """;
 
     /**
@@ -279,16 +296,27 @@ public class WebInsightScraperService {
     @Value("${groq.insight.model:openai/gpt-oss-120b}")
     private String insightModel;
 
+    // Vakterna (relevans, extravakt, parafras-dedup) kör på EN ANNAN modell än extraktionen.
+    // Groq har egen TPM-pott per modell, och extraktionen är den tunga (systemprompt + upp
+    // till 7 000 tecken artikeltext mot 8 000 tokens/min) — låter man vakterna dela pott med
+    // den betalar hela synken i 429-väntor. Uppgiften är smal (klassificera numrerade rader),
+    // så den mindre modellen räcker.
+    @Value("${groq.guard.model:openai/gpt-oss-20b}")
+    private String guardModel;
+
     private final ExpertInsightRepository insightRepo;
     private final JdbcTemplate jdbc;
     private final JobStatusService jobStatus;
+    private final UpcomingInsightService upcomingService;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public WebInsightScraperService(ExpertInsightRepository insightRepo, JdbcTemplate jdbc, JobStatusService jobStatus) {
+    public WebInsightScraperService(ExpertInsightRepository insightRepo, JdbcTemplate jdbc,
+                                    JobStatusService jobStatus, UpcomingInsightService upcomingService) {
         this.insightRepo = insightRepo;
         this.jdbc = jdbc;
         this.jobStatus = jobStatus;
+        this.upcomingService = upcomingService;
     }
 
     public void ensureTable() {
@@ -386,8 +414,12 @@ public class WebInsightScraperService {
         String warning = unique.size() < MIN_DISCOVERED_LINKS
                 ? "MAGERT UTBUD (" + unique.size() + " artikel-URL:er)" : null;
 
-        int saved = 0;
+        // Insikterna samlas för HELA källan och filtreras sedan i ett svep. Vakterna och
+        // parafras-dedupen kostade förut ett Groq-anrop per artikel var (upp till tre extra
+        // anrop × 12 artiklar per källa); nu blir det ett par anrop per källa i stället.
         int processed = 0;
+        List<JsonNode> collected = new ArrayList<>();
+        List<String> extracted = new ArrayList<>();
         for (String url : unique) {
             if (processed >= MAX_ARTICLES_PER_SOURCE) break;
             if (isSeen(url)) continue;
@@ -400,9 +432,8 @@ public class WebInsightScraperService {
                     markSeen(url);
                     continue;
                 }
-                List<JsonNode> insights = extractInsights(text, source.kind(), url);
-                saved += saveInsights(source.expert(), insights, null);
-                markSeen(url);
+                collected.addAll(extractInsights(text, source.kind(), url));
+                extracted.add(url);
                 Thread.sleep(GROQ_DELAY_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -411,6 +442,9 @@ public class WebInsightScraperService {
                 log.warn("Web insights [{}]: hoppar över {}: {}", source.expert(), url, e.getMessage());
             }
         }
+        int saved = saveInsights(source.expert(), collected, null);
+        // Först efter sparandet — annars tappas artiklar tyst om körningen dör i filtreringen
+        extracted.forEach(this::markSeen);
         return new SourceResult(saved, warning);
     }
 
@@ -458,7 +492,7 @@ public class WebInsightScraperService {
                 markSeen(key);
             }
 
-            insightRepo.save(new ExpertInsight(
+            ExpertInsight stored = insightRepo.save(new ExpertInsight(
                     expert,
                     blankToNull(ins.path("car_make").asText("")),
                     blankToNull(ins.path("car_model").asText("")),
@@ -466,6 +500,9 @@ public class WebInsightScraperService {
                     validOrNull(ins.path("category").asText(""), VALID_CATEGORIES),
                     insightText,
                     parseRating(ins.path("rating"))));
+            if (ins.path(UPCOMING_FIELD).asBoolean(false)) {
+                upcomingService.mark(stored.getId());
+            }
             saved++;
         }
         return saved;
@@ -481,7 +518,7 @@ public class WebInsightScraperService {
      * över hela batchen den här körningen hellre än att spara den ofiltrerad.
      */
     List<JsonNode> filterIrrelevant(List<JsonNode> insights) {
-        return runGuard(RELEVANCE_PROMPT, insights, "relevansvakten");
+        return runGuard(RELEVANCE_PROMPT, insights, "relevansvakten", true);
     }
 
     /**
@@ -491,19 +528,35 @@ public class WebInsightScraperService {
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
         if (!STRICT_SOURCES.contains(expert)) return insights;
-        return runGuard(STRICT_RELEVANCE_PROMPT, insights, "extravakten [" + expert + "]");
+        return runGuard(STRICT_RELEVANCE_PROMPT, insights, "extravakten [" + expert + "]", false);
     }
 
-    private List<JsonNode> runGuard(String prompt, List<JsonNode> insights, String label) {
+    /**
+     * Vakterna körs per källa (inte per artikel) sedan 2026-07-31 — men en hel källas
+     * insikter i en prompt kan bli lång, så batchen chunkas. Varje chunk är sitt eget
+     * fail-closed-fönster: ett Groq-fel tappar den chunken, inte hela källan.
+     */
+    private List<JsonNode> runGuard(String prompt, List<JsonNode> insights, String label, boolean flagUpcoming) {
         if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
+        List<JsonNode> kept = new ArrayList<>();
+        for (int start = 0; start < insights.size(); start += GUARD_BATCH_SIZE) {
+            List<JsonNode> chunk = insights.subList(start, Math.min(insights.size(), start + GUARD_BATCH_SIZE));
+            kept.addAll(runGuardChunk(prompt, chunk, label, flagUpcoming));
+        }
+        return kept;
+    }
+
+    private List<JsonNode> runGuardChunk(String prompt, List<JsonNode> insights, String label, boolean flagUpcoming) {
         Set<Integer> irrelevant;
+        Set<Integer> upcoming;
         try {
-            String body = postGroq(prompt, buildRelevanceUserContent(insights), 300, label);
+            String body = postGroq(guardModel, prompt, buildRelevanceUserContent(insights), 400, label);
             if (body == null) {
                 log.warn("Web insights: {} fick inget svar — hoppar över batchen ({} insikter) den här körningen", label, insights.size());
                 return List.of();
             }
             irrelevant = parseIndexes(body, "irrelevant");
+            upcoming = flagUpcoming ? parseIndexes(body, "upcoming") : Set.of();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return List.of();
@@ -519,12 +572,25 @@ public class WebInsightScraperService {
                 log.info("Web insights: {} stoppar {} {}: {}", label,
                         ins.path("car_make").asText(), ins.path("car_model").asText(),
                         truncate(ins.path("insight").asText(""), 80));
-            } else {
-                kept.add(ins);
+                continue;
             }
+            if (upcoming.contains(i)) {
+                markUpcoming(ins);
+                log.info("Web insights: {} markerar {} {} som kommande modell: {}", label,
+                        ins.path("car_make").asText(), ins.path("car_model").asText(),
+                        truncate(ins.path("insight").asText(""), 80));
+            }
+            kept.add(ins);
         }
         return kept;
     }
+
+    /** Fältet läses av saveInsights och följer med insikten genom dedupen. */
+    private static void markUpcoming(JsonNode ins) {
+        if (ins instanceof ObjectNode node) node.put(UPCOMING_FIELD, true);
+    }
+
+    static final String UPCOMING_FIELD = "_upcoming";
 
     static String buildRelevanceUserContent(List<JsonNode> insights) {
         StringBuilder sb = new StringBuilder("INSIKTER:\n");
@@ -629,7 +695,8 @@ public class WebInsightScraperService {
     private Set<Integer> paraphraseDuplicates(List<JsonNode> candidates, Map<String, List<String>> existingByCar) {
         if (apiKey == null || apiKey.isBlank()) return Set.of();
         try {
-            String body = postGroq(DEDUP_PROMPT, buildDedupUserContent(candidates, existingByCar), 500, "parafras-dedup");
+            String body = postGroq(guardModel, DEDUP_PROMPT,
+                    buildDedupUserContent(candidates, existingByCar), 500, "parafras-dedup");
             return body == null ? Set.of() : parseDuplicateIndexes(body);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -823,10 +890,15 @@ public class WebInsightScraperService {
         return body == null ? List.of() : parseInsightJson(body, label);
     }
 
-    /** Skickar en chat completion till Groq. Returnerar svarskroppen, eller null vid fel/kvarstående 429. */
+    /** Extraktionen körs på insiktsmodellen. */
     private String postGroq(String systemPrompt, String userContent, int maxTokens, String label) throws Exception {
+        return postGroq(insightModel, systemPrompt, userContent, maxTokens, label);
+    }
+
+    /** Skickar en chat completion till Groq. Returnerar svarskroppen, eller null vid fel/kvarstående 429. */
+    private String postGroq(String model, String systemPrompt, String userContent, int maxTokens, String label) throws Exception {
         Map<String, Object> body = Map.of(
-                "model", insightModel,
+                "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userContent)),
@@ -845,8 +917,9 @@ public class WebInsightScraperService {
         for (int attempt = 0; attempt < 3; attempt++) {
             HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 429) {
-                long wait = 30_000L * (attempt + 1);
-                log.info("Web insights: Groq rate limit — väntar {}s", wait / 1000);
+                long wait = retryDelayMs(resp.headers().firstValue("retry-after").orElse(null),
+                        resp.body(), attempt);
+                log.info("Web insights: Groq rate limit — väntar {}s ({})", wait / 1000.0, label);
                 Thread.sleep(wait);
                 continue;
             }
@@ -858,6 +931,42 @@ public class WebInsightScraperService {
         }
         log.warn("Web insights: rate limit kvarstår efter 3 försök — hoppar över {}", label);
         return null;
+    }
+
+    /**
+     * Hur länge vi ska vänta på en 429. Groq säger själv till — i <code>retry-after</code>-headern
+     * (sekunder) och i felmeddelandet ("try again in 2m59.56s"). Den fasta trappan 30/60/90 s
+     * som stod här förut kostade 8 av 12 minuter i nattkörningen 2026-07-31: alla 16 väntor
+     * loggades som första försöket, dvs. omförsöket lyckades varje gång och 30 s var för mycket.
+     * Taket finns för att en enstaka lång gräns inte ska binda hela synken; golvet för att
+     * inte hamra vidare direkt.
+     */
+    static long retryDelayMs(String retryAfterHeader, String body, int attempt) {
+        Long fromServer = parseSeconds(retryAfterHeader);
+        if (fromServer == null) fromServer = parseWaitFromBody(body);
+        long wait = fromServer != null ? fromServer : DEFAULT_BACKOFF_MS * (attempt + 1);
+        return Math.max(MIN_BACKOFF_MS, Math.min(MAX_BACKOFF_MS, wait));
+    }
+
+    /** "2.5" / "30" → millisekunder. Ogiltigt eller saknat → null. */
+    private static Long parseSeconds(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return (long) (Double.parseDouble(raw.trim()) * 1000);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Plockar "try again in 2m59.56s" ur felkroppen när headern saknas. */
+    private static Long parseWaitFromBody(String body) {
+        if (body == null) return null;
+        Matcher m = RETRY_IN_PATTERN.matcher(body);
+        if (!m.find()) return null;
+        long ms = 0;
+        if (m.group(1) != null) ms += Long.parseLong(m.group(1)) * 60_000;
+        if (m.group(2) != null) ms += (long) (Double.parseDouble(m.group(2)) * 1000);
+        return ms;
     }
 
     private String contentOf(String responseBody) throws Exception {

@@ -15,6 +15,7 @@ import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.SafetyRatingService;
+import com.caradvice.service.UpcomingInsightService;
 import com.caradvice.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,7 @@ class CarControllerTest {
     @MockBean private FeedbackService feedbackService;
     @MockBean private WebInsightScraperService webInsightScraper;
     @MockBean private JobStatusService jobStatus;
+    @MockBean private UpcomingInsightService upcomingInsightService;
     @MockBean private IceConsumptionService iceConsumptionService;
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
     @MockBean private EvSpecService evSpecService;
@@ -156,6 +158,32 @@ class CarControllerTest {
         mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.status").value("OK"));
+    }
+
+    @Test
+    void upcomingListanKraverAdminNyckelOchRaknarRader() throws Exception {
+        mvc.perform(get("/api/admin/insights/upcoming"))
+           .andExpect(status().isForbidden());
+
+        when(upcomingInsightService.list()).thenReturn(List.of(
+                Map.of("insight_id", 12, "car_make", "Mercedes", "car_model", "GLA")));
+
+        mvc.perform(get("/api/admin/insights/upcoming").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.count").value(1))
+           .andExpect(jsonPath("$.insights[0].car_model").value("GLA"));
+    }
+
+    @Test
+    void slappKommandeInsiktGer200EllerNarInteMarkerad404() throws Exception {
+        when(upcomingInsightService.release(12L)).thenReturn(true);
+        mvc.perform(delete("/api/admin/insights/12/upcoming").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.released").value(12));
+
+        when(upcomingInsightService.release(99L)).thenReturn(false);
+        mvc.perform(delete("/api/admin/insights/99/upcoming").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isNotFound());
     }
 
     @Test

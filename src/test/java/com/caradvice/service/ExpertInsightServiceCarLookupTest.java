@@ -19,7 +19,8 @@ class ExpertInsightServiceCarLookupTest {
 
     private final ExpertInsightRepository repo = mock(ExpertInsightRepository.class);
     private final EvSpecService evSpecService = mock(EvSpecService.class);
-    private final ExpertInsightService service = new ExpertInsightService(repo, evSpecService);
+    private final UpcomingInsightService upcomingService = mock(UpcomingInsightService.class);
+    private final ExpertInsightService service = new ExpertInsightService(repo, evSpecService, upcomingService);
 
     private static ExpertInsight insight(String expert, String make, String model, String text, Integer rating) {
         return new ExpertInsight(expert, make, model, "el", "kombi", text, rating);
@@ -32,6 +33,22 @@ class ExpertInsightServiceCarLookupTest {
 
         assertThat(service.findForCarTitle("Volvo XC60 (2020)")).isEmpty();
         assertThat(service.findForCarTitle("Tesla Model 3 (2021)")).hasSize(1);
+    }
+
+    @Test
+    void kommandeInsiktVisasIntePåBilkortet() {
+        // Bilen är bekräftad för Sverige men går inte att köpa än — insikten finns kvar i DB,
+        // men på ett bilkort skulle den läsas som en rekommendation
+        ExpertInsight kommande = insight("Teknikens Värld", "Mercedes", "GLA", "Tre elvarianter.", null);
+        org.springframework.test.util.ReflectionTestUtils.setField(kommande, "id", 12L);
+        ExpertInsight saljs = insight("Vi Bilägare", "Mercedes", "GLA", "Bra andrahandsvärde.", null);
+        org.springframework.test.util.ReflectionTestUtils.setField(saljs, "id", 13L);
+        when(repo.findAll()).thenReturn(List.of(kommande, saljs));
+        when(upcomingService.hiddenIds()).thenReturn(java.util.Set.of(12L));
+
+        List<Map<String, Object>> result = service.findForCarTitle("Mercedes GLA (2024)");
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).get("insight")).isEqualTo("Bra andrahandsvärde.");
     }
 
     @Test

@@ -34,8 +34,11 @@ class ExpertInsightServiceTest {
     @Mock
     private EvSpecService evSpecService;
 
+    @Mock
+    private UpcomingInsightService upcomingService;
+
     private ExpertInsightService service() {
-        return new ExpertInsightService(repo, evSpecService);
+        return new ExpertInsightService(repo, evSpecService, upcomingService);
     }
 
     private static CarPreferences prefs(String category, String fuelType) {
