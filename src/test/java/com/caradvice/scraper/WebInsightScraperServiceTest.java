@@ -51,6 +51,17 @@ class WebInsightScraperServiceTest {
                 .contains("RELEVANT");
     }
 
+    @Test
+    void relevanspromptenTackerDeTreKandaBlindaFlackarna() {
+        // A/B-mätning 2026-07-31: både 20b och 120b släppte igenom specialutgåvor, lyx-SUV:ar
+        // och innehållslös designprosa. Med konkreta exempel gick 120b från 9/12 till 12/12 —
+        // försvinner reglerna kommer läckorna tillbaka
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("1,5 miljoner")          // prisnivå för lyxbilar
+                .contains("jubileums")             // specialutgåvor
+                .contains("kontrollerbart");       // designprosa utan substans
+    }
+
     // ── 429-backoff: Groq säger själv hur länge vi ska vänta ───────────────────
 
     @Test

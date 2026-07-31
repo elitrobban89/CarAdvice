@@ -162,10 +162,23 @@ public class WebInsightScraperService {
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
-            - superbilar/hypercars, racingbilar eller lyxbilar långt över vanliga konsumentpriser
+            - superbilar/hypercars, racingbilar eller lyxbilar långt över vanliga
+              konsumentpriser. Riktmärke: nybilspris över ca 1,5 miljoner kronor, ELLER en
+              prestandaversion vars enda innehåll är effekt och acceleration. Hit hör även
+              stora V8-SUV:ar och AMG/M/RS-toppversioner (Mercedes-AMG GLE 63 S med 585 hk
+              släpptes felaktigt igenom 2026-07-31). En vanlig familjebil eller elbil under
+              den nivån är däremot RELEVANT hur snabb den än är
             - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
             - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
-            - specialutgåvor där innehållet bara handlar om färger, fälgar och dekor
+            - specialutgåvor, jubileums- och signatureditioner vars innehåll är utseende,
+              namn eller upplaga i stället för egenskaper — färger, fälgar, dekor, emblem,
+              "firar 25 år", "begränsad upplaga om 500 exemplar" (Mini Cooper Oxford Edition
+              släpptes felaktigt igenom 2026-07-31). Handlar texten om utrustning, räckvidd
+              eller pris för utgåvan är den däremot RELEVANT
+            - ren design- och stämningsprosa utan något kontrollerbart: "skalade ytor", "rund
+              central pekskärm", "gokart-känsla", "återger arvet". En insikt måste innehålla
+              minst en sak en köpare kan kontrollera eller jämföra — en siffra, ett
+              testresultat, ett känt fel, en utrustningsdetalj eller ett pris
             - auktioner, fabriks-, försäljnings- eller företagsnyheter, produktions- och
               lagersiffror, marknadsstatistik
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler
