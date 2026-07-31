@@ -140,9 +140,13 @@ public class WebInsightScraperService {
     // upcoming-flagga och hålls utanför prompter och bilkort tills bilen släpps (natten
     // till 07-31 slängdes 13 rader om nya el-GLA:n — innehåll som blir användbart om
     // några månader). Skillnaden mot IRRELEVANT är bekräftad modell + konkret innehåll.
-    private static final String RELEVANCE_PROMPT = """
+    static final String RELEVANCE_PROMPT = """
             Du granskar bilinsikter innan de sparas i en databas vars enda syfte är att
             hjälpa svenska privatpersoner att välja och köpa personbil.
+
+            AVGÖRANDE: anges ett svenskt pris i kronor för modellen är den RELEVANT — då
+            säljs den här. Blockera aldrig en prissatt bil med motiveringen att den är ny
+            eller okänd. (DS N°8 med startpris 849 900 kr stoppades felaktigt 2026-07-31.)
 
             En insikt är IRRELEVANT om den handlar om:
             - en bil som inte går att köpa i Sverige IDAG och inte heller är på väg hit.
@@ -296,12 +300,18 @@ public class WebInsightScraperService {
     @Value("${groq.insight.model:openai/gpt-oss-120b}")
     private String insightModel;
 
-    // Vakterna (relevans, extravakt, parafras-dedup) kör på EN ANNAN modell än extraktionen.
-    // Groq har egen TPM-pott per modell, och extraktionen är den tunga (systemprompt + upp
-    // till 7 000 tecken artikeltext mot 8 000 tokens/min) — låter man vakterna dela pott med
-    // den betalar hela synken i 429-väntor. Uppgiften är smal (klassificera numrerade rader),
-    // så den mindre modellen räcker.
-    @Value("${groq.guard.model:openai/gpt-oss-20b}")
+    // Vakterna (relevans, extravakt, parafras-dedup) körs som eget anrop och kan peka på en
+    // annan modell än extraktionen — Groq har egen TPM-pott per modell.
+    //
+    // PRÖVAT OCH FÖRKASTAT: gpt-oss-20b som vakt (testkörning i prod 2026-07-31 20:18).
+    // Den separata potten fungerade — vaktanropen slutade helt synas bland 429:orna — men
+    // 20b dömde för brusigt åt BÅDA hållen i samma körning: släppte igenom Mini Oxford
+    // Edition (dekorutgåva), europeisk försäljningsstatistik, Teslas produktionsmilstolpe
+    // och en AMG GLE 63 S, samtidigt som den stoppade alla fem DS N°8-raderna trots att
+    // artikeln angav svenskt pris (849 900 kr). Vakterna ÄR kvalitetsspärren mot skräp i
+    // insiktsdatabasen, så de ligger kvar på den stora modellen. Tidsvinsten satt ändå i
+    // retry-after-backoffen och i att vakterna körs per källa, inte i modellvalet.
+    @Value("${groq.guard.model:openai/gpt-oss-120b}")
     private String guardModel;
 
     private final ExpertInsightRepository insightRepo;

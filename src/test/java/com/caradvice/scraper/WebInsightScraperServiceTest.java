@@ -19,6 +19,15 @@ class WebInsightScraperServiceTest {
                 mock(JobStatusService.class), mock(UpcomingInsightService.class));
     }
 
+    @Test
+    void relevanspromptenLaterSvensktPrisAvgora() {
+        // DS N°8 stoppades 2026-07-31 trots startpris 849 900 kr i artikeln — ett svenskt
+        // pris betyder att bilen säljs här, och då får vakten inte blockera den
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("svenskt pris i kronor")
+                .contains("RELEVANT");
+    }
+
     // ── 429-backoff: Groq säger själv hur länge vi ska vänta ───────────────────
 
     @Test
