@@ -50,6 +50,11 @@ public class WebInsightScraperService {
     private static final long DEFAULT_BACKOFF_MS = 10_000;  // bara när Groq inte säger något själv
     private static final long MIN_BACKOFF_MS = 1_000;
     private static final long MAX_BACKOFF_MS = 60_000;
+    // Höjt 3 → 5 den 2026-08-01: en artikel om missljud i en Volvomotor tappades i körningen
+    // 13:31 efter tre 429:or på 15+2+6 s, alltså bara 23 s totalt. Groqs egna väntetider är
+    // korta nu (median ~12 s i den körningen), så tre försök tar slut långt innan gränsen
+    // hinner släppa. Värsta fallet är fortfarande begränsat: MAX_BACKOFF_MS per försök.
+    private static final int GROQ_MAX_ATTEMPTS = 5;
     private static final Pattern RETRY_IN_PATTERN =
             Pattern.compile("try again in (?:(\\d+)m)?([\\d.]+)s", Pattern.CASE_INSENSITIVE);
     // Vakterna körs per källa, men chunkas: gpt-oss-120b är en reasoning-modell och
@@ -975,7 +980,7 @@ public class WebInsightScraperService {
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
                 .build();
 
-        for (int attempt = 0; attempt < 3; attempt++) {
+        for (int attempt = 0; attempt < GROQ_MAX_ATTEMPTS; attempt++) {
             HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 429) {
                 long wait = retryDelayMs(resp.headers().firstValue("retry-after").orElse(null),
@@ -990,7 +995,7 @@ public class WebInsightScraperService {
             }
             return resp.body();
         }
-        log.warn("Web insights: rate limit kvarstår efter 3 försök — hoppar över {}", label);
+        log.warn("Web insights: rate limit kvarstår efter {} försök — hoppar över {}", GROQ_MAX_ATTEMPTS, label);
         return null;
     }
 

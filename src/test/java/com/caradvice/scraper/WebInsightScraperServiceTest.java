@@ -99,6 +99,9 @@ class WebInsightScraperServiceTest {
     void retryDelayFallerTillbakaPaTrappaNarGroqInteSagerNagot() {
         assertThat(WebInsightScraperService.retryDelayMs(null, "inget här", 0)).isEqualTo(10_000);
         assertThat(WebInsightScraperService.retryDelayMs(null, null, 2)).isEqualTo(30_000);
+        // försök 4 och 5 (antalet höjdes till 5 den 2026-08-01) får inte spränga taket
+        assertThat(WebInsightScraperService.retryDelayMs(null, null, 3)).isEqualTo(40_000);
+        assertThat(WebInsightScraperService.retryDelayMs(null, null, 4)).isEqualTo(50_000);
     }
 
     @Test
