@@ -151,6 +151,9 @@ public class WebInsightScraperService {
             AVGÖRANDE: anges ett svenskt pris i kronor för modellen är den RELEVANT — då
             säljs den här. Blockera aldrig en prissatt bil med motiveringen att den är ny
             eller okänd. (DS N°8 med startpris 849 900 kr stoppades felaktigt 2026-07-31.)
+            Undantaget gäller BARA invändningen "ny eller okänd modell". Ett utskrivet pris
+            gör aldrig en bil relevant som faller under någon av uteslutningarna nedan — en
+            sportbil eller lyxbil blir inte köpvägledning för att priset står i texten.
 
             En insikt är IRRELEVANT om den handlar om:
             - en bil som inte går att köpa i Sverige IDAG och inte heller är på väg hit.
@@ -162,12 +165,17 @@ public class WebInsightScraperService {
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
-            - superbilar/hypercars, racingbilar eller lyxbilar långt över vanliga
+            - superbilar/hypercars, racingbilar, sportbilar eller lyxbilar långt över vanliga
               konsumentpriser. Riktmärke: nybilspris över ca 1,5 miljoner kronor, ELLER en
               prestandaversion vars enda innehåll är effekt och acceleration. Hit hör även
               stora V8-SUV:ar och AMG/M/RS-toppversioner (Mercedes-AMG GLE 63 S med 585 hk
-              släpptes felaktigt igenom 2026-07-31). En vanlig familjebil eller elbil under
-              den nivån är däremot RELEVANT hur snabb den än är
+              släpptes felaktigt igenom 2026-07-31). Tvåsitsiga sportbilar och
+              prestandacoupéer (Porsche 911 och Cayman, Chevrolet Corvette, Lotus Emira)
+              hör hit oavsett pris. Gäller texten en begagnad bil är det modellens
+              nybilspris som avgör, inte det begagnade priset — en begagnad Porsche 911
+              vars värdefall angavs i kronor släpptes felaktigt igenom 2026-08-01. En
+              vanlig familjebil eller elbil under den nivån är däremot RELEVANT hur snabb
+              den än är
             - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
             - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
             - specialutgåvor, jubileums- och signatureditioner vars innehåll är utseende,

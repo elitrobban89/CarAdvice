@@ -62,6 +62,19 @@ class WebInsightScraperServiceTest {
                 .contains("kontrollerbart");       // designprosa utan substans
     }
 
+    @Test
+    void relevanspromptenStopparSportbilarTrotsUtskrivetPris() {
+        // En begagnad Porsche 911 ("över en miljon kronor") passerade båda vakterna
+        // 2026-08-01. Två hål: svenskt-pris-regeln var skriven som ett generellt RELEVANT
+        // och slog ut lyxpunkten, och 1,5-Mkr-riktmärket gällde bara nybilspris. Undantaget
+        // är nu låst till invändningen "ny eller okänd" och sportbilar utesluts oavsett pris
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("ny eller okänd modell")   // prisundantaget är avgränsat
+                .contains("Porsche 911")             // namngivet exempel enligt konventionen
+                .contains("oavsett pris")
+                .contains("nybilspris som avgör");   // begagnatpriset får inte rädda bilen
+    }
+
     // ── 429-backoff: Groq säger själv hur länge vi ska vänta ───────────────────
 
     @Test
