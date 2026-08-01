@@ -75,6 +75,16 @@ class WebInsightScraperServiceTest {
                 .contains("nybilspris som avgör");   // begagnatpriset får inte rädda bilen
     }
 
+    @Test
+    void relevanspromptenSkiljerForseningFranKantFel() {
+        // "Polestar 3 har drabbats av buggar som forsenat leveranserna" slapptes igenom
+        // 2026-08-01 fast foretagsnyheter redan var uteslutna — en forsening sager inget om
+        // bilen. Gransen mot kanda fel maste sta kvar: skrivs symtomet ut ska insikten sparas
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("FÖRSENINGAR")
+                .contains("vilket symtom");        // det som skiljer kant fel fran foretagsnyhet
+    }
+
     // ── 429-backoff: Groq säger själv hur länge vi ska vänta ───────────────────
 
     @Test

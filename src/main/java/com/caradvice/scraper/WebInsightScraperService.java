@@ -193,7 +193,12 @@ public class WebInsightScraperService {
               minst en sak en köpare kan kontrollera eller jämföra — en siffra, ett
               testresultat, ett känt fel, en utrustningsdetalj eller ett pris
             - auktioner, fabriks-, försäljnings- eller företagsnyheter, produktions- och
-              lagersiffror, marknadsstatistik
+              lagersiffror, marknadsstatistik. Hit hör även FÖRSENINGAR: att en lansering
+              skjutits upp eller att leveranser dröjt är en företagsnyhet, inte en egenskap
+              hos bilen ("Polestar 3 har drabbats av buggar som försenat leveranserna"
+              släpptes felaktigt igenom 2026-08-01). Skriver texten däremot ut vad som
+              faktiskt går sönder — vilken funktion, vilket symtom, vilken åtgärd — är den
+              RELEVANT som känt fel
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler
             - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
