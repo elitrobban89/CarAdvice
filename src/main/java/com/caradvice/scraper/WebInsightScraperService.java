@@ -21,7 +21,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -191,7 +193,8 @@ public class WebInsightScraperService {
             - ren design- och stämningsprosa utan något kontrollerbart: "skalade ytor", "rund
               central pekskärm", "gokart-känsla", "återger arvet". En insikt måste innehålla
               minst en sak en köpare kan kontrollera eller jämföra — en siffra, ett
-              testresultat, ett känt fel, en utrustningsdetalj eller ett pris
+              testresultat, ett känt fel, en utrustningsdetalj eller ett pris. Ett
+              sammanfattat testomdöme räknas som testresultat, se RELEVANT nedan
             - auktioner, fabriks-, försäljnings- eller företagsnyheter, produktions- och
               lagersiffror, marknadsstatistik. Hit hör även FÖRSENINGAR: att en lansering
               skjutits upp eller att leveranser dröjt är en företagsnyhet, inte en egenskap
@@ -205,6 +208,13 @@ public class WebInsightScraperService {
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
             Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
             "bäst i test", mest sålda bilen i sin klass) — de är köpsignaler, inte företagsnyheter.
+            Sammanfattade testomdömen från motorpressen är RELEVANTA även utan siffror, så
+            länge de namnger vilka egenskaper omdömet gäller: "hyllas i världspressens tester
+            för prestanda och komfort", "beröm för sportig körning, interiör och ljudsystem",
+            "kritiseras för hård fjädring". Ett vägt omdöme från provkörningar är ett
+            testresultat, inte stämningsprosa. Gränsen går vid omdömen om MÄRKET i stället
+            för bilen ("har skadat varumärkets rykte") och vid rena adjektiv utan angiven
+            egenskap ("en riktigt bra bil").
 
             En insikt är KOMMANDE (varken irrelevant eller direkt användbar) om den handlar om
             en namngiven, bekräftad modell eller generation som ska säljas i Sverige men ännu
@@ -241,13 +251,17 @@ public class WebInsightScraperService {
               amerikanska priser i dollar) för en bil som ännu inte säljs här
             - insikten är ett svepande omdöme utan konkret underlag ("en mekaniker tycker
               att den är dyr att reparera", "den är opålitlig") utan att ange vilket fel,
-              vilken motor, vilken årsmodell eller vilken kostnad det handlar om
+              vilken motor, vilken årsmodell eller vilken kostnad det handlar om. Ett
+              sammanfattat testomdöme från motorpressen som namnger vilka egenskaper
+              omdömet gäller ("beröm för sportig körning, interiör och ljudsystem") är
+              INTE svepande — behåll det
             - innehållet är hämtat ur en topplista/video av typen "bilar mekaniker aldrig
               skulle köpa" utan svensk förankring
 
             Behåll insikten om den beskriver ett konkret, kontrollerbart förhållande om en
             bil som en svensk köpare faktiskt kan hitta i marknaden — kända fel med angiven
-            motor/årsmodell, mätvärden, testresultat, utrustning eller prisläge på begagnat.
+            motor/årsmodell, mätvärden, testresultat, sammanfattade testomdömen från
+            motorpressen, utrustning eller prisläge på begagnat.
 
             Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
             Om alla ska behållas: {"irrelevant": []}
@@ -477,8 +491,15 @@ public class WebInsightScraperService {
                     markSeen(url);
                     continue;
                 }
-                collected.addAll(extractInsights(text, source.kind(), url));
-                extracted.add(url);
+                List<JsonNode> found = extractInsights(text, source.kind(), url);
+                if (found == null) {
+                    // Groq svarade aldrig — lämna URL:en omarkerad så nästa körning tar om den
+                    log.warn("Web insights [{}]: ingen extraktion (Groq svarade inte) — {} lämnas för nästa körning",
+                            source.expert(), url);
+                } else {
+                    collected.addAll(found);
+                    extracted.add(url);
+                }
                 Thread.sleep(GROQ_DELAY_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -502,6 +523,10 @@ public class WebInsightScraperService {
             return new SourceResult(0, "FOR LITE TEXT (" + text.length() + " tecken, JS-renderad?)");
         }
         List<JsonNode> insights = extractInsights(text, source.kind(), source.url());
+        if (insights == null) {
+            log.warn("Web insights [{}]: ingen extraktion (Groq svarade inte)", source.expert());
+            return new SourceResult(0, "GROQ SVARADE INTE");
+        }
         int saved = saveInsights(source.expert(), insights, source.expert());
         Thread.sleep(GROQ_DELAY_MS);
         return SourceResult.of(saved);
@@ -570,10 +595,29 @@ public class WebInsightScraperService {
      * Extra vakt för {@link #STRICT_SOURCES}. Körs efter den generella vakten (bara på det
      * som överlevt den — färre tokens) och före dubblettfiltret. Samma fail-closed-regel:
      * hellre en tappad insikt än en oskärskådad från en källa som bevisligen läcker.
+     *
+     * <p>Kommande modeller lämnas oprövade. Extravaktens första regel — "bilen går inte att
+     * köpa i Sverige idag" — är exakt negationen av relevansvaktens KOMMANDE-definition, så
+     * de två vakterna dödade varandras beslut: nattkörningen 2026-08-02 flaggade Audi Q9,
+     * Zeekr 9X, Audi Q6 e-tron och Mercedes GLC Electric som kommande, och extravakten
+     * stoppade alla fyra sekunder senare. Eftersom CarUp är enda strikta källan kunde
+     * insight_upcoming aldrig få en rad. Relevansvakten har redan fällt avgörandet om
+     * säljbarhet — extravakten ska inte pröva det en gång till.
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
         if (!STRICT_SOURCES.contains(expert)) return insights;
-        return runGuard(STRICT_RELEVANCE_PROMPT, insights, "extravakten [" + expert + "]", false);
+        List<JsonNode> toCheck = new ArrayList<>();
+        for (JsonNode ins : insights) {
+            if (!isUpcoming(ins)) toCheck.add(ins);
+        }
+        if (toCheck.isEmpty()) return insights;
+        Set<JsonNode> kept = Collections.newSetFromMap(new IdentityHashMap<>());
+        kept.addAll(runGuard(STRICT_RELEVANCE_PROMPT, toCheck, "extravakten [" + expert + "]", false));
+        List<JsonNode> result = new ArrayList<>();
+        for (JsonNode ins : insights) {
+            if (isUpcoming(ins) || kept.contains(ins)) result.add(ins);
+        }
+        return result;
     }
 
     /**
@@ -642,6 +686,10 @@ public class WebInsightScraperService {
     /** Fältet läses av saveInsights och följer med insikten genom dedupen. */
     private static void markUpcoming(JsonNode ins) {
         if (ins instanceof ObjectNode node) node.put(UPCOMING_FIELD, true);
+    }
+
+    static boolean isUpcoming(JsonNode ins) {
+        return ins.path(UPCOMING_FIELD).asBoolean(false);
     }
 
     static final String UPCOMING_FIELD = "_upcoming";
@@ -955,10 +1003,17 @@ public class WebInsightScraperService {
 
     // ── Groq-extraktion ───────────────────────────────────────────────────────
 
+    /**
+     * Returnerar {@code null} när Groq aldrig svarade (kvarstående 429 eller fel) — det är
+     * inte samma sak som en tom lista, som betyder "svarade, hittade inget". Skillnaden
+     * avgör om artikeln får markeras som läst: tidigare gav båda fallen en tom lista, så en
+     * rate limit-tappad artikel bokfördes som färdigbehandlad och kom aldrig tillbaka
+     * (carup.se/skrackljud-i-volvos-motor... tappades så 2026-08-01 och lästes aldrig om).
+     */
     List<JsonNode> extractInsights(String text, String kind, String label) throws Exception {
         String trimmed = text.length() > MAX_TEXT_CHARS ? text.substring(0, MAX_TEXT_CHARS) : text;
         String body = postGroq(SYSTEM_PROMPT, "Källa: " + kind + "\n\nText:\n\n" + trimmed, 1500, label);
-        return body == null ? List.of() : parseInsightJson(body, label);
+        return body == null ? null : parseInsightJson(body, label);
     }
 
     /** Extraktionen körs på insiktsmodellen. */

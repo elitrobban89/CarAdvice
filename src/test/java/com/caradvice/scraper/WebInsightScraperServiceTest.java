@@ -374,6 +374,34 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void extravaktenProvarInteKommandeModeller() throws Exception {
+        // Extravaktens första regel ("går inte att köpa i Sverige idag") är negationen av
+        // relevansvaktens KOMMANDE-definition. Nattkörningen 2026-08-02 flaggade Audi Q9,
+        // Zeekr 9X, Q6 e-tron och GLC Electric som kommande — extravakten dödade alla fyra,
+        // och eftersom CarUp är enda strikta källan kunde insight_upcoming aldrig få en rad.
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode kommande = mapper.readTree(
+                "{\"car_make\":\"Audi\",\"car_model\":\"Q9\",\"insight\":\"5,31 m lång.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        assertThat(WebInsightScraperService.isUpcoming(kommande)).isTrue();
+        // En batch som bara innehåller kommande modeller ska aldrig nå vakten
+        List<JsonNode> baraKommande = List.of(kommande);
+        assertThat(service().filterStrict("CarUp", baraKommande)).isSameAs(baraKommande);
+    }
+
+    @Test
+    void extravaktenBevararOrdningenNarKommandeBlandas() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode vanlig = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Fem meter lång.\"}");
+        JsonNode kommande = mapper.readTree(
+                "{\"car_make\":\"Audi\",\"car_model\":\"Q9\",\"insight\":\"5,31 m lång.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        // apiKey är null → vakten är passiv, så allt ska tillbaka i oförändrad ordning
+        assertThat(service().filterStrict("CarUp", List.of(vanlig, kommande, vanlig)))
+                .containsExactly(vanlig, kommande, vanlig);
+    }
+
+    @Test
     void striktKallaSparasFortfarandeNarVaktenArPassiv() throws Exception {
         // apiKey är null i testtjänsten → extravakten ska vara passiv, inte blockera CarUp helt
         var repo = mock(ExpertInsightRepository.class);
