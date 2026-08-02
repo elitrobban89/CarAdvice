@@ -155,6 +155,7 @@ var caInitialValues = {};
 var caCurrentRecs = null;
 var caSavedFromServer = [];
 var caCurrentKm = 15000;
+var caCurrentCategory = '';
 var caIsLeasing = false;
 var caKopBudget = 200000;
 var caLeasingBudget = 3000;
@@ -619,10 +620,38 @@ function caFuelChips(fuel, price) {
   return '<div class="ca-ev">' + head + '<div class="ca-ev-chips">' + chips + '</div></div>';
 }
 
+// Kategori-brasklapp för laddhybrider. Visas EN gång ovanför korten, inte per kort — identisk
+// text på tre kort läser som ett renderingsfel, och varningen gäller kategorin och inte den
+// enskilda bilen. Sätts som syskon före #ca-cards eftersom kortlistan är ett grid: en banner
+// som första barn hade tagit en egen kolumnruta.
+function caRenderPhevTaxNotice() {
+  var host = document.getElementById('ca-cards');
+  if (!host) return;
+  var existing = document.getElementById('ca-phev-tax-notice');
+  if (caCurrentCategory !== 'laddhybrid') { if (existing) existing.parentNode.removeChild(existing); return; }
+  if (existing) return;
+  var el = document.createElement('div');
+  el.id = 'ca-phev-tax-notice';
+  el.setAttribute('style', 'margin:0 0 16px;padding:12px 14px;background:rgba(251,191,36,.08);' +
+    'border:1px solid rgba(251,191,36,.35);border-radius:10px;font-size:.82rem;line-height:1.5;' +
+    'color:rgba(255,255,255,.8)');
+  el.innerHTML =
+    '<strong style="color:#fbbf24">&#x26A0; Ny laddhybridsskatt fr\xe5n 2027</strong><br>' +
+    'EU:s ber\xe4kning av laddhybriders koldioxidutsl\xe4pp sk\xe4rps 1 januari 2027 — f\xf6rbrukningen ' +
+    'm\xe4ts d\xe5 med b\xe5de fulladdat och n\xe4stan tomt batteri, s\xe5 samma bil f\xe5r ett h\xf6gre ' +
+    'officiellt CO₂-v\xe4rde och d\xe4rmed h\xf6gre fordonsskatt. Det g\xe4ller <strong>nya</strong> ' +
+    'laddhybrider som registreras fr\xe5n 2027 — en redan registrerad bil beh\xe5ller sin skatt. ' +
+    'Bilar med litet batteri och under ca 5–6 mils elr\xe4ckvidd drabbas h\xe5rdast. ' +
+    '<a href="https://carup.se/chocken-bilskatt-kan-oka-med-1300/" target="_blank" rel="noopener" ' +
+    'style="color:#fbbf24;text-decoration:underline">K\xe4lla: CarUp &#x2192;</a>';
+  host.parentNode.insertBefore(el, host);
+}
+
 function caRenderCards(recommendations) {
   caRestoreResults();
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
+  caRenderPhevTaxNotice();
   setTimeout(function() {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
@@ -1529,6 +1558,7 @@ async function caGetRecommendation() {
 
   var fuelVal = document.getElementById('ca-fuel').value;
   caCurrentKm = parseInt(document.getElementById('ca-km').value) * 10;
+  caCurrentCategory = document.getElementById('ca-category').value;
   var payload = {
     budget:      parseInt(document.getElementById('ca-budget-slider').value),
     carCategory: document.getElementById('ca-category').value,

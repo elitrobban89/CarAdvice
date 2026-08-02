@@ -378,7 +378,7 @@ public class GroqService {
         String prompt = buildPrompt(prefs);
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
-        String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs.fuelType()));
+        String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory()));
         String feedbackContext = getFeedbackContext();
         if (!feedbackContext.isBlank()) systemPrompt = systemPrompt + "\n" + feedbackContext;
 //Här går ett riktigt anrop ifall cachat svar ej finns ovan alltså
@@ -1097,12 +1097,51 @@ public class GroqService {
                 .toList();
     }
 
+    /**
+     * Brasklapp för laddhybrider. EU:s beräkning av laddhybriders CO2 skärps 1 januari 2027:
+     * förbrukningen mäts med både fulladdat och nästan tomt batteri, så samma bil får ett högre
+     * officiellt CO2-värde och därmed högre fordonsskatt (malus tas ut de tre första åren efter
+     * nyregistrering). Gäller NYA laddhybrider registrerade från 2027 — redan registrerade bilar
+     * behåller sin skatt, vilket är avgörande här eftersom appen mest föreslår begagnat.
+     * Siffrorna är hämtade ur carup.se/chocken-bilskatt-kan-oka-med-1300.
+     *
+     * <p>Hårdkodad i stället för skrapad av två skäl: skatteregler är uttryckligen uteslutna ur
+     * relevansvakten, och en kategoribred notis saknar car_make — sådana rader sparas aldrig
+     * (se saveInsights) och skulle inte visas ens om de sparades.
+     */
+    static final String PHEV_TAX_CAVEAT = """
+            LADDHYBRIDSKATT (nämn detta i "con" eller fitSummary för varje laddhybrid): EU:s beräkning av \
+            laddhybriders koldioxidutsläpp skärps 1 januari 2027 — förbrukningen mäts då med både fulladdat \
+            och nästan tomt batteri, så samma bil får ett högre officiellt CO2-värde och därmed högre \
+            fordonsskatt. Regeln gäller NYA laddhybrider som registreras från 2027; en redan registrerad \
+            bil behåller sin skatt, så en begagnad laddhybrid påverkas inte. Exempel: en bil som mätts till \
+            48 g/km kan få 82 g/km och gå från 360 kr/år till ca 3 500 kr/år — ca 9 400 kr mer under de tre \
+            malusåren. Bilar med litet batteri och under ca 5–6 mils elräckvidd drabbas hårdast, medan \
+            10–14 mils räckvidd klarar sig bättre. RÅD: föredra laddhybrider med lång elräckvidd. Skriv \
+            ALDRIG en exakt skattesiffra för en enskild modell — hänvisa till Transportstyrelsen för det \
+            verkliga beloppet.
+            """;
+
     String buildSystemPrompt(String expertContext, String fuelType) {
-        boolean wantsEv = fuelType != null &&
+        return buildSystemPrompt(expertContext, fuelType, null);
+    }
+
+    String buildSystemPrompt(String expertContext, String fuelType, String carCategory) {
+        // "Hybrid (ej laddhybrid)" är en bensinbil med elassistans, inte en elbil. Valet matchade
+        // wantsEv på delsträngen "hybrid" och föll ur wantsIce, vilket gav två fel samtidigt:
+        // systemprompten krävde "ENBART renodlade batterielbilar (BEV)" för en HEV-förfrågan, och
+        // ICE-nypristabellen utelämnades trots att en hybrid prissätts som en bensinbil.
+        boolean wantsHev = "hybrid".equalsIgnoreCase(fuelType == null ? null : fuelType.trim());
+        boolean wantsEv = !wantsHev && fuelType != null &&
                 (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev"));
-        boolean wantsIce = fuelType == null || fuelType.isBlank() ||
+        boolean wantsIce = wantsHev || fuelType == null || fuelType.isBlank() ||
                 fuelType.contains("bensin") || fuelType.contains("diesel") ||
                 fuelType.equals("spelar ingen roll");
+        // Drivmedelslistan i formuläret saknar "laddhybrid" (valen är bensin/diesel/hybrid/el/
+        // spelar ingen roll) — laddhybrid uttrycks som KATEGORI. fuelType testas ändå för
+        // API-anropare som skickar drivmedlet direkt.
+        String ft = fuelType == null ? "" : fuelType.toLowerCase();
+        boolean wantsPhev = "laddhybrid".equals(carCategory) || ft.contains("laddhybrid") || ft.contains("phev");
         String icePrices = (wantsIce && !wantsEv) || wantsIce ? getIcePrices() : "";
         String evPrices  = wantsEv || (!wantsIce) ? getEvPrices() : "";
         // Filter: pure EV/PHEV → no ICE table; pure ICE → no EV table
@@ -1131,7 +1170,8 @@ public class GroqService {
                 Rekommendera ALDRIG en årsmodell före modellens verkliga lansering — nyheter om en modell betyder inte att den finns begagnad. Ex: Kia EV2 lanseras 2026 (finns ALDRIG begagnad), Kia EV3 2024+, EV4/EV5 2025+, Renault 5 E-Tech 2024+, Citroën ë-C3 2024+, Volvo EX30 2023+.
                 Volvos enda EV-modeller: EX30, EX40, EC40, EX60, EX90 — det finns inga andra (ingen C90/C70).
                 Nämn ALDRIG modeller som inte officiellt säljs i Sverige. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är helt säker på finns.
-                """ + (wantsEv && !wantsIce ? "ELBIL OBLIGATORISKT: ENBART renodlade batterielbilar (BEV) — aldrig PHEV, laddhybrid eller bensin/diesel.\n" : "")
+                """ + (wantsEv && !wantsIce && !wantsPhev ? "ELBIL OBLIGATORISKT: ENBART renodlade batterielbilar (BEV) — aldrig PHEV, laddhybrid eller bensin/diesel.\n" : "")
+                    + (wantsPhev ? PHEV_TAX_CAVEAT : "")
                     + (icePrices.isBlank() ? "" : icePrices + "\n")
                     + (evPrices.isBlank()  ? "" : evPrices  + "\n");
         if (expertContext != null && !expertContext.isBlank())

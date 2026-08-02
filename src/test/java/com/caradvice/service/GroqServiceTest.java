@@ -252,6 +252,53 @@ class GroqServiceTest {
     }
 
     @Test
+    void laddhybridskategorinFarSkattebrasklapp() {
+        // Formulärets drivmedelslista saknar "laddhybrid" (bensin/diesel/hybrid/el/spelar ingen
+        // roll) — valet görs som KATEGORI, så brasklappen måste trigga på carCategory
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", "laddhybrid");
+        assertThat(sp)
+                .contains("LADDHYBRIDSKATT")
+                .contains("1 januari 2027")
+                // viktigaste nyansen: appen föreslår mest begagnat, och begagnat påverkas inte
+                .contains("begagnad laddhybrid påverkas inte")
+                .contains("lång elräckvidd");
+    }
+
+    @Test
+    void sjalvladdandeHybridArIngenElbil() {
+        // "Hybrid (ej laddhybrid)" matchade wantsEv på delsträngen "hybrid": förfrågan fick
+        // BEV-tvång OCH blev av med ICE-nypristabellen, trots att en HEV är en bensinbil
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "hybrid");
+        assertThat(sp)
+                .doesNotContain("ELBIL OBLIGATORISKT")
+                .contains("ICE-NYPRISTABELL-MARKÖR")
+                .doesNotContain("EV-PRISTABELL-MARKÖR");
+    }
+
+    @Test
+    void laddhybridskategorinForbjuderInteLaddhybrider() {
+        // Drivmedelsrutan DÖLJS när kategorin är elbil/laddhybrid men skickas ändå med sitt
+        // gamla värde. Ett kvarglömt "el" gav då både BEV-tvång och laddhybridsbrasklapp i
+        // samma prompt — modellen beordrades att aldrig föreslå det användaren bett om.
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el", "laddhybrid");
+        assertThat(sp).contains("LADDHYBRIDSKATT").doesNotContain("ELBIL OBLIGATORISKT");
+        // ren elbilsförfrågan ska fortfarande få BEV-tvånget
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "el", "elbil"))
+                .contains("ELBIL OBLIGATORISKT");
+    }
+
+    @Test
+    void ovrigaKategorierFarIngenSkattebrasklapp() {
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "bensin", "familjebil"))
+                .doesNotContain("LADDHYBRIDSKATT");
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "el", "elbil"))
+                .doesNotContain("LADDHYBRIDSKATT");
+        // tvåargumentsvarianten (utan kategori) ska bete sig som förut
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "bensin"))
+                .doesNotContain("LADDHYBRIDSKATT");
+    }
+
+    @Test
     void systempromptenKraverExaktTreBilarOchForbjuderFabriceradePriser() {
         String sp = serviceMedPristabeller().buildSystemPrompt("", "bensin");
         assertThat(sp)
