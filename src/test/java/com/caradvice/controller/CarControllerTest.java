@@ -187,6 +187,31 @@ class CarControllerTest {
     }
 
     @Test
+    void glomSeenNyckelKraverNyckelOchReturnerarAntalet() throws Exception {
+        mvc.perform(delete("/api/admin/seen-keys").param("key", "https://carup.se/nagot"))
+           .andExpect(status().isForbidden());
+
+        when(webInsightScraper.forgetSeen("https://carup.se/nagot", false)).thenReturn(1);
+
+        mvc.perform(delete("/api/admin/seen-keys").param("key", "https://carup.se/nagot")
+                .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.removed").value(1));
+    }
+
+    @Test
+    void glomSeenNyckelGer400NarTjanstenAvvisarVardet() throws Exception {
+        // ett för kort prefix skulle tömma hela web_insight_seen
+        when(webInsightScraper.forgetSeen("h", true))
+                .thenThrow(new IllegalArgumentException("prefix maaste vara minst 12 tecken (fick 1)"));
+
+        mvc.perform(delete("/api/admin/seen-keys").param("key", "h").param("prefix", "true")
+                .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
     void scrapeStatusListarAllaSchemalagdaJobb() throws Exception {
         when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
         when(jobStatus.allJobs()).thenReturn(Map.of(

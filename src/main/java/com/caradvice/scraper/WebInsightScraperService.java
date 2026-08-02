@@ -6,6 +6,7 @@ import com.caradvice.service.UpcomingInsightService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
@@ -67,6 +68,19 @@ public class WebInsightScraperService {
     private static final int MIN_DISCOVERED_LINKS = 5;   // färre än så = källan håller på att sina
     private static final int MIN_TEXT_CHARS = 400;
     private static final int MAX_TEXT_CHARS = 7_000;
+    // Stoppade insikter sparas aldrig — loggraden är hela underlaget för att i efterhand
+    // avgöra om vakten dömde rätt. Vid 80 tecken gick det inte: utredningen av Polestar 3
+    // och Volvo V70 (2026-08-01) fick i stället A/B-testa hypoteser mot Groq, eftersom
+    // originaltexterna var kapade mitt i meningen. 250 rymmer en hel insikt.
+    static final int LOG_INSIGHT_CHARS = 250;
+    // 404/410 = artikeln är borta för gott. 403 står medvetet INTE här: den är oftast
+    // botblockering som kan släppa igen, och att markera den som läst tappar artikeln tyst.
+    private static final Set<Integer> PERMANENT_HTTP_STATUS = Set.of(404, 410);
+
+    /** Svar som betyder att artikeln aldrig kommer tillbaka, och därför får markeras som läst. */
+    static boolean isPermanentlyGone(int httpStatus) {
+        return PERMANENT_HTTP_STATUS.contains(httpStatus);
+    }
 
     private static final String SYSTEM_PROMPT = """
             Du är en assistent som extraherar bilexpertinsikter ur text från svenska motorsajter.
@@ -414,6 +428,40 @@ public class WebInsightScraperService {
         return added;
     }
 
+    /**
+     * Glömmer en processad nyckel så nästa körning läser om artikeln — motsatsen till
+     * {@link #seedSeen}. Utan den är en tappad artikel förlorad för gott: dedupen ser bara
+     * att nyckeln finns, aldrig varför den kom dit (carup.se/skrackljud-i-volvos-motor...
+     * markerades som läst efter en rate limit 2026-08-01 och kunde inte tas tillbaka).
+     * Dubblar som verktyg för att köra om en enskild artikel mot en ändrad prompt.
+     *
+     * <p>Med {@code prefix} matchas alla nycklar som börjar på värdet, för att ta en hel
+     * artikelserie från samma källa. Kravet på {@link #MIN_FORGET_PREFIX} tecken är till för
+     * att ett tomt eller ettteckens värde inte ska tömma hela tabellen.
+     *
+     * @return antal borttagna rader
+     */
+    public int forgetSeen(String key, boolean prefix) {
+        String k = key == null ? "" : truncateKey(key.trim());
+        if (k.isBlank()) throw new IllegalArgumentException("key saknas");
+        if (prefix && k.length() < MIN_FORGET_PREFIX) {
+            throw new IllegalArgumentException(
+                    "prefix maaste vara minst " + MIN_FORGET_PREFIX + " tecken (fick " + k.length() + ")");
+        }
+        int removed = prefix
+                ? jdbc.update("DELETE FROM web_insight_seen WHERE seen_key LIKE ? ESCAPE '\\'", escapeLike(k) + "%")
+                : jdbc.update("DELETE FROM web_insight_seen WHERE seen_key = ?", k);
+        log.info("Web insights: glömde {} sedd nyckel/nycklar för {}{}", removed, k, prefix ? " (prefix)" : "");
+        return removed;
+    }
+
+    /** URL:er innehåller ofta _ och ibland %, som annars är jokertecken i LIKE. */
+    private static String escapeLike(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    private static final int MIN_FORGET_PREFIX = 12;
+
     private static String truncateKey(String key) {
         return key.length() > 500 ? key.substring(0, 500) : key;
     }
@@ -504,6 +552,19 @@ public class WebInsightScraperService {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (HttpStatusException e) {
+                // En borttagen artikel återkommer aldrig, men den räknas ändå mot
+                // MAX_ARTICLES_PER_SOURCE varje natt så länge den ligger kvar i källans
+                // länklista — en död länk stjäl alltså en plats från en läsbar artikel.
+                // Bara permanenta svar markeras: timeout och 5xx är övergående och ska
+                // få ett nytt försök nästa körning.
+                if (isPermanentlyGone(e.getStatusCode())) {
+                    log.info("Web insights [{}]: {} svarade {} — markeras som färdig, artikeln finns inte längre",
+                            source.expert(), url, e.getStatusCode());
+                    markSeen(url);
+                } else {
+                    log.warn("Web insights [{}]: hoppar över {}: HTTP {}", source.expert(), url, e.getStatusCode());
+                }
             } catch (Exception e) {
                 log.warn("Web insights [{}]: hoppar över {}: {}", source.expert(), url, e.getMessage());
             }
@@ -542,7 +603,7 @@ public class WebInsightScraperService {
             // Insikter utan märke visas aldrig (ExpertInsightService utesluter carMake == null
             // överallt) — spara dem inte.
             if (ins.path("car_make").asText("").isBlank()) {
-                log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, 80));
+                log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
 
@@ -550,7 +611,7 @@ public class WebInsightScraperService {
             // bil av märket — en N47-dieselvarning dyker upp på ett BMW i4-kort. Kuraterade
             // CSV-rader får fortsatt vara märkesbreda; skrapade får inte.
             if (ins.path("car_model").asText("").isBlank()) {
-                log.info("Web insights: hoppar över märkesbred insikt utan modell: {}", truncate(insightText, 80));
+                log.info("Web insights: hoppar över märkesbred insikt utan modell: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
 
@@ -669,14 +730,14 @@ public class WebInsightScraperService {
             if (irrelevant.contains(i)) {
                 log.info("Web insights: {} stoppar {} {}: {}", label,
                         ins.path("car_make").asText(), ins.path("car_model").asText(),
-                        truncate(ins.path("insight").asText(""), 80));
+                        truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
                 continue;
             }
             if (upcoming.contains(i)) {
                 markUpcoming(ins);
                 log.info("Web insights: {} markerar {} {} som kommande modell: {}", label,
                         ins.path("car_make").asText(), ins.path("car_model").asText(),
-                        truncate(ins.path("insight").asText(""), 80));
+                        truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
             }
             kept.add(ins);
         }
@@ -748,7 +809,7 @@ public class WebInsightScraperService {
                 if (dups.contains(i)) {
                     log.info("Web insights: hoppar över parafras-dubblett för {} {}: {}",
                             c.path("car_make").asText(), c.path("car_model").asText(),
-                            truncate(c.path("insight").asText(""), 80));
+                            truncate(c.path("insight").asText(""), LOG_INSIGHT_CHARS));
                 } else {
                     kept.add(c);
                 }
@@ -1117,7 +1178,7 @@ public class WebInsightScraperService {
         }
     }
 
-    private static String truncate(String s, int max) {
+    static String truncate(String s, int max) {
         return s == null ? "" : (s.length() > max ? s.substring(0, max) : s);
     }
 }

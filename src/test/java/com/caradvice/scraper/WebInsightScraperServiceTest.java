@@ -10,7 +10,13 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class WebInsightScraperServiceTest {
 
@@ -462,5 +468,74 @@ class WebInsightScraperServiceTest {
     void carInfoArBorttagenSomKalla() {
         // JS-renderat filterskal utan omdömestext — sparade aldrig en insikt
         assertThat(WebInsightScraperService.sourceByName("Bilägare (car.info)")).isNull();
+    }
+
+    // --- vägen tillbaka för en sedd nyckel ---
+
+    @Test
+    void tappadArtikelKanGlommasOchLasasOm() {
+        // carup.se/skrackljud-i-volvos-motor markerades som läst efter en rate limit
+        // 2026-08-01 och var därmed permanent förlorad — seedSeen kunde bara lägga TILL
+        var jdbc = mock(JdbcTemplate.class);
+        var service = serviceWith(jdbc);
+        when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
+
+        assertThat(service.forgetSeen("https://carup.se/skrackljud-i-volvos-motor", false)).isEqualTo(1);
+        verify(jdbc).update("DELETE FROM web_insight_seen WHERE seen_key = ?",
+                "https://carup.se/skrackljud-i-volvos-motor");
+    }
+
+    @Test
+    void prefixmatchningEskaperarUnderstreckIUrler() {
+        // _ är jokertecken i LIKE och vanligt i URL:er — oeskapat raderar prefixet
+        // "…/volvo_xc90" även raden "…/volvoaxc90" från en helt annan artikel
+        var jdbc = mock(JdbcTemplate.class);
+        var service = serviceWith(jdbc);
+        when(jdbc.update(anyString(), any(Object[].class))).thenReturn(3);
+
+        assertThat(service.forgetSeen("https://carup.se/volvo_xc90", true)).isEqualTo(3);
+        verify(jdbc).update("DELETE FROM web_insight_seen WHERE seen_key LIKE ? ESCAPE '\\'",
+                "https://carup.se/volvo\\_xc90%");
+    }
+
+    @Test
+    void kortPrefixFarInteTommaHelaTabellen() {
+        var service = serviceWith(mock(JdbcTemplate.class));
+        assertThatThrownBy(() -> service.forgetSeen("h", true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.forgetSeen("  ", false)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.forgetSeen(null, false)).isInstanceOf(IllegalArgumentException.class);
+        // exakt matchning har ingen längdgräns — en kort nyckel träffar ändå bara en rad
+        assertThatCode(() -> service.forgetSeen("h", false)).doesNotThrowAnyException();
+    }
+
+    // --- döda länkar och loggbredd ---
+
+    @Test
+    void baraBortagnaArtiklarMarkerasSomLasta() {
+        // en död länk räknas mot MAX_ARTICLES_PER_SOURCE varje natt och stjäl plats från en
+        // läsbar artikel — men 403 (botblockering) och 5xx kan släppa igen och måste få nytt försök
+        assertThat(WebInsightScraperService.isPermanentlyGone(404)).isTrue();
+        assertThat(WebInsightScraperService.isPermanentlyGone(410)).isTrue();
+        assertThat(WebInsightScraperService.isPermanentlyGone(403)).isFalse();
+        assertThat(WebInsightScraperService.isPermanentlyGone(429)).isFalse();
+        assertThat(WebInsightScraperService.isPermanentlyGone(503)).isFalse();
+    }
+
+    @Test
+    void stoppadeInsikterLoggasIHelhet() {
+        // Blockerade insikter sparas aldrig, så loggraden är hela underlaget för att avgöra
+        // om vakten dömde rätt. Vid 80 tecken kapades texten mitt i meningen och utredningen
+        // av Polestar 3/Volvo V70 fick A/B-testa mot Groq i stället för att läsa loggen.
+        String insikt = "Polestar 3 har drabbats av flera mjukvarufel: skärmen fryser vid start och "
+                + "farthållaren slår av sig själv, men tre OTA-uppdateringar har åtgärdat det mesta "
+                + "enligt ägarna.";
+        assertThat(insikt.length()).isBetween(80, WebInsightScraperService.LOG_INSIGHT_CHARS);
+        assertThat(WebInsightScraperService.truncate(insikt, WebInsightScraperService.LOG_INSIGHT_CHARS))
+                .isEqualTo(insikt);
+    }
+
+    private WebInsightScraperService serviceWith(JdbcTemplate jdbc) {
+        return new WebInsightScraperService(mock(ExpertInsightRepository.class), jdbc,
+                mock(JobStatusService.class), mock(UpcomingInsightService.class));
     }
 }

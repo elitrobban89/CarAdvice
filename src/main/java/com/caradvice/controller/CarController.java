@@ -240,6 +240,22 @@ public class CarController {
         return ResponseEntity.ok(Map.of("added", added, "table", "web_insight_seen"));
     }
 
+    // Admin: glöm en processad nyckel så nästa nattkörning läser om artikeln. Motsatsen till
+    // import/seen-keys — en artikel som tappats på rate limit (eller lästs med en gammal prompt)
+    // kom annars aldrig tillbaka. prefix=true tar hela serien som börjar på värdet.
+    @DeleteMapping("/admin/seen-keys")
+    public ResponseEntity<?> forgetSeenKey(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                           @RequestParam("key") String seenKey,
+                                           @RequestParam(value = "prefix", defaultValue = "false") boolean prefix) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        try {
+            int removed = webInsightScraper.forgetSeen(seenKey, prefix);
+            return ResponseEntity.ok(Map.of("removed", removed, "table", "web_insight_seen"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/admin/import/cargospecs")
     public ResponseEntity<?> importCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                               @RequestBody String csv) {
