@@ -340,9 +340,16 @@ public class WebInsightScraperService {
                     "https://elbilen.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
                             + "https://elbilen.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link", null, null,
                     "artikel/test från elbilsmagasinet Elbilen", List.of()),
+            // Extra-URL:en är en engångsräddning: artikeln tappades på rate limit 2026-08-01,
+            // och när dedupnyckeln väl gick att ta bort (dd1ffa8) hade den fallit ur
+            // discover-fönstret — CarUp publicerar flera inlägg om dagen, så de 15 senaste
+            // räcker bara ett dygn bakåt. Efter nästa körning är den markerad som läst och
+            // raden kan tas bort igen. Observera att länkarna saknar www, till skillnad från
+            // wp-json-endpointen: nycklarna i web_insight_seen följer länkarna.
             new Source("CarUp", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.carup.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
-                    "artikel/nyhet från bilsajten CarUp", List.of()),
+                    "artikel/nyhet från bilsajten CarUp",
+                    List.of("https://carup.se/skrackljud-i-volvos-motor-later-verkligen-hemskt/")),
             // car.info är borttagen: /sv-se/user-reviews serverar bara ett filterskal —
             // omdömestexterna hämtas av JS efteråt, så en ren HTTP-hämtning ser inga
             // omdömen och inga länkar till enskilda omdömen. Källan sparade aldrig en
