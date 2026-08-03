@@ -227,8 +227,16 @@ public class WebInsightScraperService {
             för prestanda och komfort", "beröm för sportig körning, interiör och ljudsystem",
             "kritiseras för hård fjädring". Ett vägt omdöme från provkörningar är ett
             testresultat, inte stämningsprosa. Gränsen går vid omdömen om MÄRKET i stället
-            för bilen ("har skadat varumärkets rykte") och vid rena adjektiv utan angiven
-            egenskap ("en riktigt bra bil").
+            för bilen och vid rena adjektiv utan angiven egenskap ("en riktigt bra bil").
+            Märkesomdömet räknas dit oavsett om det är negativt ("har skadat varumärkets
+            rykte") eller smickrande ("fortsätter märkets tradition av starka kombibilar",
+            "trogen märkets arv") — det säger något om tillverkaren, inte om bilen framför
+            köparen. Att räkna upp drivlina, karossform eller teknik som redan följer av
+            modellbeteckningen är inte heller ett testomdöme: "A6 Allroad i
+            laddhybridutförande kombinerar fyrhjulsdrift med hybridteknik" släpptes
+            felaktigt igenom 2026-08-03 — meningen namnger visserligen tekniken, men
+            ingenting i den går att jämföra mot en annan bil. Undantaget gäller omdömen
+            som VÄGER bilens egenskaper, inte meningar som beskriver vad utförandet heter.
 
             En insikt är KOMMANDE (varken irrelevant eller direkt användbar) om den handlar om
             en namngiven, bekräftad modell eller generation som ska säljas i Sverige men ännu
@@ -268,7 +276,11 @@ public class WebInsightScraperService {
               vilken motor, vilken årsmodell eller vilken kostnad det handlar om. Ett
               sammanfattat testomdöme från motorpressen som namnger vilka egenskaper
               omdömet gäller ("beröm för sportig körning, interiör och ljudsystem") är
-              INTE svepande — behåll det
+              INTE svepande — behåll det. Undantaget gäller bara bilen: omdömen om
+              MÄRKET ("fortsätter märkets tradition av starka kombibilar") och meningar
+              som bara räknar upp drivlina eller teknik som redan följer av
+              modellbeteckningen ("i laddhybridutförande kombinerar fyrhjulsdrift med
+              hybridteknik") är svepande och ska bort
             - innehållet är hämtat ur en topplista/video av typen "bilar mekaniker aldrig
               skulle köpa" utan svensk förankring
 
@@ -340,16 +352,15 @@ public class WebInsightScraperService {
                     "https://elbilen.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
                             + "https://elbilen.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link", null, null,
                     "artikel/test från elbilsmagasinet Elbilen", List.of()),
-            // Extra-URL:en är en engångsräddning: artikeln tappades på rate limit 2026-08-01,
-            // och när dedupnyckeln väl gick att ta bort (dd1ffa8) hade den fallit ur
-            // discover-fönstret — CarUp publicerar flera inlägg om dagen, så de 15 senaste
-            // räcker bara ett dygn bakåt. Efter nästa körning är den markerad som läst och
-            // raden kan tas bort igen. Observera att länkarna saknar www, till skillnad från
+            // per_page=15 räcker bara ett dygn bakåt här — CarUp publicerar flera inlägg om
+            // dagen. En artikel som tappas hinner alltså falla ur discover-fönstret innan
+            // nästa körning, och då hjälper det inte att rensa dedupnyckeln: enda vägen
+            // tillbaka är en engångs-URL i extraUrls (senast 2026-08-02, läst 08-03 som
+            // id 1138). Observera att länkarna saknar www, till skillnad från
             // wp-json-endpointen: nycklarna i web_insight_seen följer länkarna.
             new Source("CarUp", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.carup.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
-                    "artikel/nyhet från bilsajten CarUp",
-                    List.of("https://carup.se/skrackljud-i-volvos-motor-later-verkligen-hemskt/")),
+                    "artikel/nyhet från bilsajten CarUp", List.of()),
             // car.info är borttagen: /sv-se/user-reviews serverar bara ett filterskal —
             // omdömestexterna hämtas av JS efteråt, så en ren HTTP-hämtning ser inga
             // omdömen och inga länkar till enskilda omdömen. Källan sparade aldrig en
