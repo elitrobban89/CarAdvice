@@ -380,19 +380,82 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
-    void extravaktenProvarInteKommandeModeller() throws Exception {
+    void kommandePromptenSaknarSaljbarhetsregelnMenArvderResten() {
         // Extravaktens första regel ("går inte att köpa i Sverige idag") är negationen av
         // relevansvaktens KOMMANDE-definition. Nattkörningen 2026-08-02 flaggade Audi Q9,
         // Zeekr 9X, Q6 e-tron och GLC Electric som kommande — extravakten dödade alla fyra,
         // och eftersom CarUp är enda strikta källan kunde insight_upcoming aldrig få en rad.
+        // Kommande-prompten är samma granskning MINUS den regeln.
+        assertThat(WebInsightScraperService.STRICT_RELEVANCE_PROMPT)
+                .contains("bilen går inte att köpa i Sverige idag");
+        assertThat(WebInsightScraperService.STRICT_UPCOMING_PROMPT)
+                .doesNotContain("bilen går inte att köpa i Sverige idag")
+                .contains("REDAN prövat och avgjort")
+                // de två raderna som slank in i kön 2026-08-04
+                .contains("dollarpris för USA-marknaden")
+                .contains("produktionsvolymer")
+                // ...utan att äta upp det som gör en kommande modell värd att spara
+                .contains("plattform");
+    }
+
+    @Test
+    void extravaktenProvarKommandeModellerMotEgenPrompt() throws Exception {
+        // Kön fick sina första fem rader 2026-08-04 och två av dem hörde inte hemma där
+        // (EX50:s pris i dollar, Košice-fabrikens produktionsvolym) — kommande-rader ska
+        // alltså granskas, bara inte mot säljbarhetsregeln.
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        // guardModel är null utan Spring-injektion, och anyString() matchar inte null →
+        // stubben hade fallit igenom till riktig HTTP
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        List<String> prompter = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            prompter.add(inv.getArgument(1));
+            return groqResponse("{\"irrelevant\":[0]}");
+        }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree(
-                "{\"car_make\":\"Audi\",\"car_model\":\"Q9\",\"insight\":\"5,31 m lång.\",\""
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX50\",\"insight\":\"Produktionsvolymen blir 90 000 bilar per år.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
         assertThat(WebInsightScraperService.isUpcoming(kommande)).isTrue();
-        // En batch som bara innehåller kommande modeller ska aldrig nå vakten
-        List<JsonNode> baraKommande = List.of(kommande);
-        assertThat(service().filterStrict("CarUp", baraKommande)).isSameAs(baraKommande);
+
+        // Vakten fäller index 0 → raden ska bort, inte passera oprövad som före fixen
+        assertThat(service.filterStrict("CarUp", List.of(kommande))).isEmpty();
+        assertThat(prompter).containsExactly(WebInsightScraperService.STRICT_UPCOMING_PROMPT);
+    }
+
+    @Test
+    void kommandeOchSaljbaraGranskasVarForSig() throws Exception {
+        // De två grupperna får olika prompt och egna index — en fälld kommande-rad får inte
+        // dra med sig en säljbar rad (eller tvärtom)
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        // guardModel är null utan Spring-injektion, och anyString() matchar inte null →
+        // stubben hade fallit igenom till riktig HTTP
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        List<String> prompter = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            prompter.add(inv.getArgument(1));
+            // fäll index 0 i BÅDA grupperna
+            return groqResponse("{\"irrelevant\":[0]}");
+        }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode saljsFalld = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Fem meter lång.\"}");
+        JsonNode saljsKvar = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC60\",\"insight\":\"Sliten vevaxelremskiva.\"}");
+        JsonNode kommandeFalld = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX50\",\"insight\":\"Fabriken bygger 90 000 per år.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        JsonNode kommandeKvar = mapper.readTree(
+                "{\"car_make\":\"Tesla\",\"car_model\":\"Model Y L\",\"insight\":\"Räckvidden ökar cirka 11 km.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+
+        // ordningen i indatan är medvetet blandad — resultatet ska följa den, inte grupperna
+        assertThat(service.filterStrict("CarUp", List.of(saljsFalld, kommandeFalld, saljsKvar, kommandeKvar)))
+                .containsExactly(saljsKvar, kommandeKvar);
+        assertThat(prompter).containsExactlyInAnyOrder(
+                WebInsightScraperService.STRICT_RELEVANCE_PROMPT, WebInsightScraperService.STRICT_UPCOMING_PROMPT);
     }
 
     @Test
@@ -402,7 +465,8 @@ class WebInsightScraperServiceTest {
         JsonNode kommande = mapper.readTree(
                 "{\"car_make\":\"Audi\",\"car_model\":\"Q9\",\"insight\":\"5,31 m lång.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
-        // apiKey är null → vakten är passiv, så allt ska tillbaka i oförändrad ordning
+        // apiKey är null → båda vakterna är passiva, så allt ska tillbaka i oförändrad ordning
+        // (grupperingen kommande/säljbara får inte kasta om raderna)
         assertThat(service().filterStrict("CarUp", List.of(vanlig, kommande, vanlig)))
                 .containsExactly(vanlig, kommande, vanlig);
     }

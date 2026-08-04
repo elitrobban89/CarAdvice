@@ -261,7 +261,7 @@ public class WebInsightScraperService {
      */
     static final Set<String> STRICT_SOURCES = Set.of("CarUp");
 
-    private static final String STRICT_RELEVANCE_PROMPT = """
+    static final String STRICT_RELEVANCE_PROMPT = """
             Du gör en sista, hård granskning av bilinsikter från en källa som ofta
             publicerar översatt amerikanskt innehåll. Databasen används bara av svenska
             privatpersoner som ska köpa personbil i Sverige.
@@ -288,6 +288,52 @@ public class WebInsightScraperService {
             bil som en svensk köpare faktiskt kan hitta i marknaden — kända fel med angiven
             motor/årsmodell, mätvärden, testresultat, sammanfattade testomdömen från
             motorpressen, utrustning eller prisläge på begagnat.
+
+            Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
+            Om alla ska behållas: {"irrelevant": []}
+            """;
+
+    /**
+     * Extravakten för rader som relevansvakten redan klassat som KOMMANDE. Identisk med
+     * {@link #STRICT_RELEVANCE_PROMPT} sånär som på säljbarhetsregeln — den regeln är
+     * negationen av KOMMANDE-definitionen och dödade hela kön 2026-08-02 när extravakten
+     * fick pröva saken en gång till. Resten av CarUp:s läckor gäller lika mycket för en bil
+     * som inte släppts än: kön fick sina första fem rader natten till 2026-08-04, och två av
+     * dem hörde inte hemma där — EX50:ns pris angivet i dollar för USA-marknaden (id 1152)
+     * och Košice-fabrikens produktionsvolym (id 1154). Fabriksregeln finns i RELEVANCE_PROMPT
+     * men läcker just på kommande modeller, där nästan allt som skrivs ÄR fabriksnyheter.
+     */
+    static final String STRICT_UPCOMING_PROMPT = """
+            Du gör en sista, hård granskning av bilinsikter om modeller som är bekräftade för
+            den svenska marknaden men ännu inte går att köpa här. Källan publicerar ofta
+            översatt amerikanskt innehåll. Databasen används bara av svenska privatpersoner
+            som ska köpa personbil i Sverige.
+
+            Att bilen ännu inte säljs här är REDAN prövat och avgjort — avvisa aldrig en
+            insikt med den motiveringen. Du prövar bara innehållet.
+
+            Markera en insikt som IRRELEVANT om något av detta gäller:
+            - insikten vilar på utländska mätvärden, testcykler eller priser (EPA, miles,
+              mpg, dollarpris för USA-marknaden) i stället för uppgifter som gäller den
+              version som ska säljas här. Ett omräknat dollarpris är fortfarande ett
+              dollarpris
+            - insikten handlar om fabriker, produktionsvolymer, tillverkningskapacitet,
+              leveranser eller lagersiffror. Tekniska uppgifter om bilen själv — plattform,
+              batteri, räckvidd, effekt, mått, utrustning — ska däremot BEHÅLLAS
+            - insikten är ett svepande omdöme utan konkret underlag ("den blir dyr", "den
+              blir riktigt bra") utan att ange vilken egenskap det gäller. Ett sammanfattat
+              testomdöme från motorpressen som namnger vilka egenskaper omdömet gäller
+              ("beröm för sportig körning, interiör och ljudsystem") är INTE svepande —
+              behåll det. Omdömen om MÄRKET ("fortsätter märkets tradition av starka
+              kombibilar") och meningar som bara räknar upp drivlina eller teknik som redan
+              följer av modellbeteckningen ("i laddhybridutförande kombinerar fyrhjulsdrift
+              med hybridteknik") är svepande och ska bort
+            - innehållet är löst rykte om en modell som inte presenterats officiellt: "kan
+              komma att heta", "väntas få", uppgifter utan angiven källa
+
+            Behåll insikten om den beskriver ett konkret, kontrollerbart förhållande om bilen
+            som en svensk köpare kan värdera när den släpps — mått, räckvidd, effekt, batteri,
+            plattform, utrustning, prisläge i kronor, testintryck.
 
             Svara ENDAST med valid JSON: {"irrelevant": [indexen för de irrelevanta insikterna]}
             Om alla ska behållas: {"irrelevant": []}
@@ -675,26 +721,34 @@ public class WebInsightScraperService {
      * som överlevt den — färre tokens) och före dubblettfiltret. Samma fail-closed-regel:
      * hellre en tappad insikt än en oskärskådad från en källa som bevisligen läcker.
      *
-     * <p>Kommande modeller lämnas oprövade. Extravaktens första regel — "bilen går inte att
-     * köpa i Sverige idag" — är exakt negationen av relevansvaktens KOMMANDE-definition, så
-     * de två vakterna dödade varandras beslut: nattkörningen 2026-08-02 flaggade Audi Q9,
-     * Zeekr 9X, Audi Q6 e-tron och Mercedes GLC Electric som kommande, och extravakten
-     * stoppade alla fyra sekunder senare. Eftersom CarUp är enda strikta källan kunde
-     * insight_upcoming aldrig få en rad. Relevansvakten har redan fällt avgörandet om
-     * säljbarhet — extravakten ska inte pröva det en gång till.
+     * <p>Kommande modeller prövas mot en egen prompt i stället för att lämnas oprövade.
+     * Extravaktens första regel — "bilen går inte att köpa i Sverige idag" — är exakt
+     * negationen av relevansvaktens KOMMANDE-definition, så de två vakterna dödade
+     * varandras beslut: nattkörningen 2026-08-02 flaggade Audi Q9, Zeekr 9X, Audi Q6 e-tron
+     * och Mercedes GLC Electric som kommande, och extravakten stoppade alla fyra sekunder
+     * senare. Eftersom CarUp är enda strikta källan kunde insight_upcoming aldrig få en rad.
+     * Att helt hoppa över dem var för trubbigt åt andra hållet: kön fick sina första rader
+     * 2026-08-04 och två av fem var sådant extravakten fångar (dollarpris för USA, fabrikens
+     * produktionsvolym). {@link #STRICT_UPCOMING_PROMPT} är därför samma granskning utan
+     * säljbarhetsregeln — den frågan har relevansvakten redan avgjort.
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
         if (!STRICT_SOURCES.contains(expert)) return insights;
-        List<JsonNode> toCheck = new ArrayList<>();
+        List<JsonNode> saljs = new ArrayList<>();
+        List<JsonNode> kommande = new ArrayList<>();
         for (JsonNode ins : insights) {
-            if (!isUpcoming(ins)) toCheck.add(ins);
+            (isUpcoming(ins) ? kommande : saljs).add(ins);
         }
-        if (toCheck.isEmpty()) return insights;
         Set<JsonNode> kept = Collections.newSetFromMap(new IdentityHashMap<>());
-        kept.addAll(runGuard(STRICT_RELEVANCE_PROMPT, toCheck, "extravakten [" + expert + "]", false));
+        if (!saljs.isEmpty()) {
+            kept.addAll(runGuard(STRICT_RELEVANCE_PROMPT, saljs, "extravakten [" + expert + "]", false));
+        }
+        if (!kommande.isEmpty()) {
+            kept.addAll(runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]", false));
+        }
         List<JsonNode> result = new ArrayList<>();
         for (JsonNode ins : insights) {
-            if (isUpcoming(ins) || kept.contains(ins)) result.add(ins);
+            if (kept.contains(ins)) result.add(ins);
         }
         return result;
     }
@@ -1100,8 +1154,11 @@ public class WebInsightScraperService {
         return postGroq(insightModel, systemPrompt, userContent, maxTokens, label);
     }
 
-    /** Skickar en chat completion till Groq. Returnerar svarskroppen, eller null vid fel/kvarstående 429. */
-    private String postGroq(String model, String systemPrompt, String userContent, int maxTokens, String label) throws Exception {
+    /**
+     * Skickar en chat completion till Groq. Returnerar svarskroppen, eller null vid fel/kvarstående 429.
+     * Paketprivat för att testerna ska kunna spionera på vilken vaktprompt en batch faktiskt får.
+     */
+    String postGroq(String model, String systemPrompt, String userContent, int maxTokens, String label) throws Exception {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "messages", List.of(
