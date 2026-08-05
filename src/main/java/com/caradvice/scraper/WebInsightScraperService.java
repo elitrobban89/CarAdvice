@@ -28,6 +28,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -734,9 +735,19 @@ public class WebInsightScraperService {
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
         if (!STRICT_SOURCES.contains(expert)) return insights;
+        Set<String> kommandeBilar = upcomingCarKeys(insights);
         List<JsonNode> saljs = new ArrayList<>();
         List<JsonNode> kommande = new ArrayList<>();
         for (JsonNode ins : insights) {
+            if (!isUpcoming(ins) && kommandeBilar.contains(carKey(ins))) {
+                markUpcoming(ins);
+                // markUpcoming biter bara på ObjectNode — logga det som faktiskt hände
+                if (isUpcoming(ins)) {
+                    log.info("Web insights: ärver kommande-markering inom batchen för {} {}: {}",
+                            ins.path("car_make").asText(), ins.path("car_model").asText(),
+                            truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                }
+            }
             (isUpcoming(ins) ? kommande : saljs).add(ins);
         }
         Set<JsonNode> kept = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -823,6 +834,34 @@ public class WebInsightScraperService {
 
     static boolean isUpcoming(JsonNode ins) {
         return ins.path(UPCOMING_FIELD).asBoolean(false);
+    }
+
+    /**
+     * Relevansvakten avgör KOMMANDE per rad, och domen är inte stabil: natten 2026-08-05 kom
+     * tre CarUp-rader om samma osläppta bil (Audi A2 e-tron) och bara vikten markerades. De två
+     * andra — cW 0,24 och WLTP-förbrukningen — hamnade därmed i säljbar-gruppen och stoppades av
+     * säljbarhetsregeln, alltså exakt fällan {@link #STRICT_UPCOMING_PROMPT} byggdes för att
+     * undvika. A/B mot samma batch med produktionsparametrar gav fyra olika uppdelningar på sex
+     * observationer, så det går inte att prompta bort: en rad om en bil som redan är klassad som
+     * kommande ärver därför markeringen inom batchen. Bilar utan både märke och modell grupperas
+     * aldrig — en tom nyckel hade dragit ihop orelaterade rader.
+     */
+    private static Set<String> upcomingCarKeys(List<JsonNode> insights) {
+        Set<String> keys = new HashSet<>();
+        for (JsonNode ins : insights) {
+            if (isUpcoming(ins)) {
+                String key = carKey(ins);
+                if (key != null) keys.add(key);
+            }
+        }
+        return keys;
+    }
+
+    /** null när märke eller modell saknas — se {@link #upcomingCarKeys}. */
+    private static String carKey(JsonNode ins) {
+        String make = ins.path("car_make").asText("").trim().toLowerCase(Locale.ROOT);
+        String model = ins.path("car_model").asText("").trim().toLowerCase(Locale.ROOT);
+        return make.isEmpty() || model.isEmpty() ? null : make + " " + model;
     }
 
     static final String UPCOMING_FIELD = "_upcoming";

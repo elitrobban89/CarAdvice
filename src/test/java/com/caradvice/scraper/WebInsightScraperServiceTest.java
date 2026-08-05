@@ -459,6 +459,58 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandeMarkeringenArvsInomBatchenForSammaBil() throws Exception {
+        // Natten 2026-08-05 kom tre CarUp-rader om Audi A2 e-tron och relevansvakten markerade
+        // bara vikten. cW-raden och WLTP-raden hamnade därmed i säljbar-gruppen och stoppades av
+        // säljbarhetsregeln. Domen är inte stabil (fyra olika uppdelningar på sex A/B-observationer
+        // av samma batch), så resten av bilens rader ärver markeringen i stället.
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        List<String> prompter = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            prompter.add(inv.getArgument(1));
+            return groqResponse("{\"irrelevant\":[]}");
+        }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode markerad = mapper.readTree(
+                "{\"car_make\":\"Audi\",\"car_model\":\"A2 e-tron\",\"insight\":\"Väger 1 500–1 650 kg.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        JsonNode omarkerad = mapper.readTree(
+                "{\"car_make\":\"Audi\",\"car_model\":\"A2 e-tron\",\"insight\":\"Luftmotstånd cW 0,24.\"}");
+        JsonNode annanBil = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"XC60\",\"insight\":\"Sliten vevaxelremskiva.\"}");
+
+        assertThat(service.filterStrict("CarUp", List.of(markerad, omarkerad, annanBil)))
+                .containsExactly(markerad, omarkerad, annanBil);
+        // omarkerad ska ha ärvt markeringen — annars hade den prövats mot säljbarhetsregeln
+        assertThat(WebInsightScraperService.isUpcoming(omarkerad)).isTrue();
+        assertThat(WebInsightScraperService.isUpcoming(annanBil)).isFalse();
+        // båda grupperna finns kvar: A2-raderna i kommande-prompten, XC60 i den säljbara
+        assertThat(prompter).containsExactlyInAnyOrder(
+                WebInsightScraperService.STRICT_RELEVANCE_PROMPT, WebInsightScraperService.STRICT_UPCOMING_PROMPT);
+    }
+
+    @Test
+    void kommandeMarkeringenArvsInteViaTomtMarkeEllerModell() throws Exception {
+        // En tom nyckel hade dragit ihop orelaterade rader till en och samma "bil"
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode markeradUtanModell = mapper.readTree(
+                "{\"car_make\":\"Audi\",\"car_model\":\"\",\"insight\":\"Kommande modell.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        JsonNode annanUtanModell = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"\",\"insight\":\"Sliten vevaxelremskiva.\"}");
+        JsonNode heltTom = mapper.readTree("{\"insight\":\"Något om en bil.\"}");
+
+        // apiKey är null → vakterna passiva, men markeringsarvet sker före dem
+        assertThat(service().filterStrict("CarUp", List.of(markeradUtanModell, annanUtanModell, heltTom)))
+                .containsExactly(markeradUtanModell, annanUtanModell, heltTom);
+        assertThat(WebInsightScraperService.isUpcoming(annanUtanModell)).isFalse();
+        assertThat(WebInsightScraperService.isUpcoming(heltTom)).isFalse();
+    }
+
+    @Test
     void extravaktenBevararOrdningenNarKommandeBlandas() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode vanlig = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Fem meter lång.\"}");
