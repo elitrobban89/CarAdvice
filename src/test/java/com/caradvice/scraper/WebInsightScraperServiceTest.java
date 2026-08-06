@@ -370,13 +370,48 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
-    void extravaktenGallerBaraStriktaKallor() throws Exception {
+    void saljbarhetsvaktenGallerBaraStriktaKallor() throws Exception {
         // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
-        // övriga källor ska inte betala för ett extra Groq-anrop
+        // övriga källor ska inte betala för ett extra Groq-anrop på sina säljbara rader.
+        // (Deras KOMMANDE-rader granskas däremot, se nästa test.)
         assertThat(WebInsightScraperService.STRICT_SOURCES).containsExactly("CarUp");
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         List<JsonNode> insikter = List.of(mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}"));
         assertThat(service().filterStrict("Teknikens Värld", insikter)).isSameAs(insikter);
+    }
+
+    @Test
+    void kommandeRaderGranskasAvenFranIckeStriktKalla() throws Exception {
+        // Kön fylls inte av källan vakten byggdes för: natten 2026-08-06 kom alla sex nya
+        // rader från Teknikens Värld och M3, och id 1178 ("Volvo planerar att öka
+        // produktionen av den kommande EX60") mötte aldrig vakten eftersom M3 inte är
+        // strikt källa. Kommande-vakten är därför källoberoende — men säljbara rader från
+        // samma källa ska fortfarande passera oprövade.
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        List<String> prompter = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            prompter.add(inv.getArgument(1));
+            return groqResponse("{\"irrelevant\":[0]}");
+        }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode kommande = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"Volvo planerar att öka produktionen.\",\""
+                        + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
+        JsonNode omarkeradEX60 = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"Räckvidden uppges bli 600 km.\"}");
+        JsonNode saljbar = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Batteribyte kostar över 120 000 kr.\"}");
+
+        // index 0 i kommande-gruppen fälls (produktionsraden), den ärvda raden överlever
+        assertThat(service.filterStrict("M3", List.of(kommande, omarkeradEX60, saljbar)))
+                .containsExactly(omarkeradEX60, saljbar);
+        // arvet gäller nu alla källor, inte bara CarUp
+        assertThat(WebInsightScraperService.isUpcoming(omarkeradEX60)).isTrue();
+        // bara kommande-prompten kördes — säljbarhetsvakten är fortfarande CarUp-only
+        assertThat(prompter).containsExactly(WebInsightScraperService.STRICT_UPCOMING_PROMPT);
     }
 
     @Test

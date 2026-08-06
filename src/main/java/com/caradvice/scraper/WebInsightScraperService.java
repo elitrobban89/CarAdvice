@@ -259,6 +259,9 @@ public class WebInsightScraperService {
      * (2026-07-09, 07-25, 07-26) har visat att den generella vakten släpper igenom det
      * trots att reglerna finns, medan bra rader (VW Arteon begagnat) kommer från samma
      * källa. Att lyfta ut CarUp hade alltså kostat mer än det smakat.
+     *
+     * <p>Gäller bara säljbara rader. Kommande modeller prövas hos alla källor — se
+     * {@link #filterStrict}.
      */
     static final Set<String> STRICT_SOURCES = Set.of("CarUp");
 
@@ -303,12 +306,17 @@ public class WebInsightScraperService {
      * dem hörde inte hemma där — EX50:ns pris angivet i dollar för USA-marknaden (id 1152)
      * och Košice-fabrikens produktionsvolym (id 1154). Fabriksregeln finns i RELEVANCE_PROMPT
      * men läcker just på kommande modeller, där nästan allt som skrivs ÄR fabriksnyheter.
+     *
+     * <p>Till skillnad från {@link #STRICT_RELEVANCE_PROMPT} körs den på ALLA källor, inte
+     * bara {@link #STRICT_SOURCES} — se {@link #filterStrict}. Formuleringen är därför
+     * källneutral: felkällan är ämnet (en bil som ännu inte finns att provköra ger mest
+     * fabriks- och pressmaterial att skriva av), inte vem som skriver.
      */
     static final String STRICT_UPCOMING_PROMPT = """
             Du gör en sista, hård granskning av bilinsikter om modeller som är bekräftade för
-            den svenska marknaden men ännu inte går att köpa här. Källan publicerar ofta
-            översatt amerikanskt innehåll. Databasen används bara av svenska privatpersoner
-            som ska köpa personbil i Sverige.
+            den svenska marknaden men ännu inte går att köpa här. Om en bil ännu inte går att
+            provköra bygger det mesta som skrivs om den på tillverkarens eget pressmaterial.
+            Databasen används bara av svenska privatpersoner som ska köpa personbil i Sverige.
 
             Att bilen ännu inte säljs här är REDAN prövat och avgjort — avvisa aldrig en
             insikt med den motiveringen. Du prövar bara innehållet.
@@ -718,23 +726,38 @@ public class WebInsightScraperService {
     }
 
     /**
-     * Extra vakt för {@link #STRICT_SOURCES}. Körs efter den generella vakten (bara på det
-     * som överlevt den — färre tokens) och före dubblettfiltret. Samma fail-closed-regel:
-     * hellre en tappad insikt än en oskärskådad från en källa som bevisligen läcker.
+     * Extravakterna. Körs efter den generella vakten (bara på det som överlevt den — färre
+     * tokens) och före dubblettfiltret. Samma fail-closed-regel: hellre en tappad insikt än
+     * en oskärskådad.
      *
-     * <p>Kommande modeller prövas mot en egen prompt i stället för att lämnas oprövade.
+     * <p>Två vakter med olika räckvidd:
+     * <ul>
+     *   <li>{@link #STRICT_RELEVANCE_PROMPT} på säljbara rader — bara {@link #STRICT_SOURCES},
+     *       eftersom den prövar säljbarhet i Sverige och det är CarUp:s översatta amerikanska
+     *       innehåll som bevisligen läcker där.</li>
+     *   <li>{@link #STRICT_UPCOMING_PROMPT} på kommande rader — ALLA källor. Kön fylls inte av
+     *       den källa vakten byggdes för: natten 2026-08-06 kom alla sex nya rader från
+     *       Teknikens Värld och M3 medan CarUp inte skrev om en enda osläppt bil, så vakten
+     *       fick noll rader att döma för andra natten i rad. En av de sex (id 1178, "Volvo
+     *       planerar att öka produktionen av den kommande EX60") är exakt en produktionsrad
+     *       som prompten stoppar — men M3 är inte strikt källa, så den mötte aldrig vakten.
+     *       Ämnet avgör felkällan här, inte källan: om en bil inte går att provköra är nästan
+     *       allt som skrivs om den fabriks- och pressmaterial, oavsett vem som skriver.</li>
+     * </ul>
+     *
+     * <p>Kommande modeller prövas alltså mot en egen prompt i stället för att lämnas oprövade.
      * Extravaktens första regel — "bilen går inte att köpa i Sverige idag" — är exakt
      * negationen av relevansvaktens KOMMANDE-definition, så de två vakterna dödade
      * varandras beslut: nattkörningen 2026-08-02 flaggade Audi Q9, Zeekr 9X, Audi Q6 e-tron
      * och Mercedes GLC Electric som kommande, och extravakten stoppade alla fyra sekunder
-     * senare. Eftersom CarUp är enda strikta källan kunde insight_upcoming aldrig få en rad.
+     * senare. Eftersom CarUp var enda strikta källan kunde insight_upcoming aldrig få en rad.
      * Att helt hoppa över dem var för trubbigt åt andra hållet: kön fick sina första rader
      * 2026-08-04 och två av fem var sådant extravakten fångar (dollarpris för USA, fabrikens
      * produktionsvolym). {@link #STRICT_UPCOMING_PROMPT} är därför samma granskning utan
      * säljbarhetsregeln — den frågan har relevansvakten redan avgjort.
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
-        if (!STRICT_SOURCES.contains(expert)) return insights;
+        boolean striktKalla = STRICT_SOURCES.contains(expert);
         Set<String> kommandeBilar = upcomingCarKeys(insights);
         List<JsonNode> saljs = new ArrayList<>();
         List<JsonNode> kommande = new ArrayList<>();
@@ -750,9 +773,14 @@ public class WebInsightScraperService {
             }
             (isUpcoming(ins) ? kommande : saljs).add(ins);
         }
+        // Ingen kommande rad och ingen säljbarhetsvakt att köra: spara ett Groq-anrop i en
+        // körning som redan är ~2/3 väntan.
+        if (kommande.isEmpty() && !striktKalla) return insights;
         Set<JsonNode> kept = Collections.newSetFromMap(new IdentityHashMap<>());
         if (!saljs.isEmpty()) {
-            kept.addAll(runGuard(STRICT_RELEVANCE_PROMPT, saljs, "extravakten [" + expert + "]", false));
+            kept.addAll(striktKalla
+                    ? runGuard(STRICT_RELEVANCE_PROMPT, saljs, "extravakten [" + expert + "]", false)
+                    : saljs);
         }
         if (!kommande.isEmpty()) {
             kept.addAll(runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]", false));
