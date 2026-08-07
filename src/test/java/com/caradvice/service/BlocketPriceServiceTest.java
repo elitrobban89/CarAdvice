@@ -15,6 +15,63 @@ class BlocketPriceServiceTest {
     private final BlocketPriceService service = new BlocketPriceService();
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /** Träfflista med märke och modell, för förväxlingskontrollen. */
+    private JsonNode docsMedModell(String[]... markeModellPris) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < markeModellPris.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(String.format("{\"year\":2023,\"make\":\"%s\",\"model\":\"%s\",\"price\":{\"amount\":%s}}",
+                    markeModellPris[i][0], markeModellPris[i][1], markeModellPris[i][2]));
+        }
+        try {
+            return mapper.readTree(sb.append(']').toString());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // --- fritextsökningen matchar syskonmodeller ---
+
+    @Test
+    void syskonmodellMedAnnanSiffraRaknasInte() {
+        // Live-fynd: q=Volkswagen ID.4 gav ID. Buzz på 699 900 kr, som satte taket för ID.4:s
+        // prisspann. Även ID.5 GTX och Tiguan Allspace kom med i samma träfflista.
+        var traffar = docsMedModell(
+                new String[]{"Volkswagen", "ID.4 GTX", "499800"},
+                new String[]{"Volkswagen", "ID.4 Pro", "329000"},
+                new String[]{"Volkswagen", "ID. Buzz", "699900"},
+                new String[]{"Volkswagen", "ID.5 GTX", "459900"},
+                new String[]{"Volkswagen", "Tiguan Allspace", "389000"});
+
+        var range = service.priceRangeFrom(traffar, 2023, BlocketPriceService.modelDigits("Volkswagen ID.4"));
+
+        assertThat(range.count()).isEqualTo(2);
+        assertThat(range.minKr()).isEqualTo(329_000);
+        assertThat(range.maxKr()).isEqualTo(499_800);
+    }
+
+    @Test
+    void modellnamnUtanSiffraFiltrerasInteAlls() {
+        // Enyaq, Model Y, Leaf — ingen siffra att jämföra, och en gissande regel hade
+        // kostat riktiga annonser. Då är det bättre att inte filtrera.
+        assertThat(BlocketPriceService.modelDigits("Skoda Enyaq iV")).isNull();
+        assertThat(BlocketPriceService.modelDigits("Tesla Model Y")).isNull();
+
+        var traffar = docsMedModell(new String[]{"Skoda", "Enyaq", "349000"},
+                new String[]{"Skoda", "Enyaq Coupé", "419000"});
+
+        assertThat(service.priceRangeFrom(traffar, 2023, null).count()).isEqualTo(2);
+    }
+
+    @Test
+    void forstaSiffranIModellnamnetStyr() {
+        assertThat(BlocketPriceService.modelDigits("Volkswagen ID.4")).isEqualTo("4");
+        assertThat(BlocketPriceService.modelDigits("Volvo XC60")).isEqualTo("60");
+        assertThat(BlocketPriceService.modelDigits("Kia EV3")).isEqualTo("3");
+        // Audi Q4 e-tron 40: modellsiffran kommer först, effektbeteckningen ska inte styra
+        assertThat(BlocketPriceService.modelDigits("Audi Q4 e-tron 40")).isEqualTo("4");
+    }
+
     /** Bygger en träfflista: varje par är (årsmodell, pris). */
     private JsonNode docs(int[]... arsmodellOchPris) {
         StringBuilder sb = new StringBuilder("[");

@@ -104,12 +104,13 @@ public class BlocketPriceService {
             JsonNode billigast = fetchDocs(query, year, leasing, "PRICE_ASC");
             if (billigast == null || billigast.isEmpty()) return null;
 
-            List<Integer> prices = pricesFrom(billigast, year, leasing);
+            String digits = modelDigits(query);
+            List<Integer> prices = pricesFrom(billigast, year, leasing, digits);
             // Full lista = vi såg bara den billigaste änden; dyraste priset finns bortom taket
             boolean kapad = billigast.size() >= PAGE_CAP;
             if (kapad) {
                 JsonNode dyrast = fetchDocs(query, year, leasing, "PRICE_DESC");
-                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing));
+                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits));
             }
 
             PriceRange result = rangeOf(prices, leasing, kapad);
@@ -143,7 +144,11 @@ public class BlocketPriceService {
 
     /** Träfflistan → prisspann. Egen metod för att gå att testa utan HTTP. */
     PriceRange priceRangeFrom(JsonNode docs, Integer year) {
-        return rangeOf(pricesFrom(docs, year, false), false, false);
+        return priceRangeFrom(docs, year, null);
+    }
+
+    PriceRange priceRangeFrom(JsonNode docs, Integer year, String modelDigits) {
+        return rangeOf(pricesFrom(docs, year, false, modelDigits), false, false);
     }
 
     /** Som ovan, för privatleasingens kr/mån. */
@@ -157,6 +162,10 @@ public class BlocketPriceService {
      * beloppets storlek är den enda tillförlitliga skiljelinjen mellan kr och kr/mån.
      */
     private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing) {
+        return pricesFrom(docs, year, leasing, null);
+    }
+
+    private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing, String modelDigits) {
         List<Integer> prices = new ArrayList<>();
         for (JsonNode doc : docs) {
             int amount = doc.path("price").path("amount").asInt(0);
@@ -166,9 +175,35 @@ public class BlocketPriceService {
                 int adYear = doc.path("year").asInt(0);
                 if (adYear < year - 1 || adYear > year + 1) continue;
             }
+            if (!matchesModel(doc, modelDigits)) continue;
             prices.add(amount);
         }
         return prices;
+    }
+
+    /**
+     * Siffran i modellnamnet, t.ex. "4" ur "Volkswagen ID.4". Null när namnet saknar siffror.
+     *
+     * <p>Blockets fritextsökning matchar syskonmodeller: {@code q=Volkswagen ID.4} gav ID. Buzz
+     * (699 900 kr), ID.5 GTX och till och med Tiguan Allspace, och {@code q=Kia EV3} gav en
+     * Kia PV5. Så länge felträffarna låg mitt i relevanslistan syntes de inte, men sedan
+     * dyraste änden hämtas separat satte en ID. Buzz taket för ID.4:s prisspann.
+     */
+    static String modelDigits(String query) {
+        if (query == null) return null;
+        Matcher m = Pattern.compile("\\d+").matcher(query);
+        return m.find() ? m.group() : null;
+    }
+
+    /**
+     * Annonsen får bara räknas om märke + modell bär samma siffra som söktermen. Namn utan
+     * siffror (Enyaq, Model Y, Leaf) filtreras inte alls — där finns ingen sådan förväxling
+     * att skydda mot, och en regel som gissar hade kostat riktiga annonser.
+     */
+    private static boolean matchesModel(JsonNode doc, String modelDigits) {
+        if (modelDigits == null) return true;
+        String makeModel = doc.path("make").asText("") + doc.path("model").asText("");
+        return makeModel.contains(modelDigits);
     }
 
     private PriceRange rangeOf(List<Integer> prices, boolean leasing, boolean kapad) {
