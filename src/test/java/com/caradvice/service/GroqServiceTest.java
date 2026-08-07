@@ -665,6 +665,14 @@ class GroqServiceTest {
         return new BlocketPriceService.PriceRange(minKr, minKr + 80_000, 40, "...");
     }
 
+    /** Bil med verifierat nypris ur ev_spec — referensen som gäller när Blocket är tyst. */
+    private static CarRecommendation bilMedNypris(String titel, int nyprisKr) {
+        var evSpec = new EvSpecDto(572, 486, 400, 12, "ladda var 12:e dag", 78.0, 135, 11,
+                nyprisKr, "Utmärkt prisvärdhet", "EV", "LFP/NMC");
+        return new CarRecommendation(titel, null, null, null, null, null, null, null, evSpec,
+                null, null, null, null, null);
+    }
+
     @Test
     void forDyrBilTasBortAvenNarOmforsoketIntearBattre() {
         // Live-fynd: omförsöket gav ingen förbättring och hela ursprungssvaret behölls, vilket
@@ -694,7 +702,69 @@ class GroqServiceTest {
         assertThat(GroqService.exceedsBudgetCeiling(leaf, 200_000)).isFalse();
     }
 
+    // --- nypriset som referens nar Blocket ar tyst ---
+
+    @Test
+    void nyprisetFallerBilenNarBlocketSaknarAnnonser() {
+        // Live 2026-08-07: Kia EV3 foreslogs for en 200 000-budget med AI-priset
+        // "170 000-190 000 kr" och NOLL annonser. Vart eget ev_spec bar 370 000 kr pa samma
+        // kort, men bade correctedPrice och taket kraver annonser — ingen sparr utloste.
+        var ev3 = bilMedNypris("Kia EV3 (2020)", 370_000);
+        assertThat(GroqService.exceedsBudgetCeiling(ev3, null, 200_000)).isTrue();
+
+        var golv = GroqService.verifiedFloor(ev3, null);
+        assertThat(golv.kr()).isEqualTo(370_000);
+        assertThat(golv.fromBlocket()).isFalse();   // far aldrig presenteras som ett annonspris
+    }
+
+    @Test
+    void blocketVinnerOverNypriset() {
+        // Begagnatmarknaden ar mattstocken: en Leaf som kostade 290 000 ny gar att kopa for
+        // 129 800 idag, och da ar det den siffran som avgor.
+        var leaf = bilMedNypris("Nissan Leaf (2018)", 290_000);
+        assertThat(GroqService.exceedsBudgetCeiling(leaf, range(129_800), 200_000)).isFalse();
+        assertThat(GroqService.verifiedFloor(leaf, range(129_800)).fromBlocket()).isTrue();
+    }
+
+    @Test
+    void enAnnonsRackerInteSomMattstockUtanFallerTillbakaPaNypriset() {
+        // Samma troskel som correctedPrice: en ensam annons ar ingen marknad
+        var ev3 = bilMedNypris("Kia EV3 (2020)", 370_000);
+        var enAnnons = new BlocketPriceService.PriceRange(150_000, 150_000, 1, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(ev3, enAnnons, 200_000)).isTrue();
+    }
+
+    @Test
+    void utanBadeAnnonserOchNyprisFallerIngenBil() {
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Ovanlig Modell (2022)"), null, 200_000)).isFalse();
+        assertThat(GroqService.verifiedFloor(bil("Ovanlig Modell (2022)"), null)).isNull();
+    }
+
+    @Test
+    void bilSomBaraHarNyprisUnderTaketStarKvar() {
+        // Bara ett tak, inget golv — nypriset ska inte kasta ut en bil som ryms i budgeten
+        var billig = bilMedNypris("Dacia Spring (2023)", 190_000);
+        assertThat(GroqService.exceedsBudgetCeiling(billig, null, 200_000)).isFalse();
+    }
+
+    @Test
+    void nyprisfalldBilForsvinnerUrSammanslagningen() {
+        var original = List.of(bilMedNypris("Kia EV3 (2020)", 370_000), bil("MG ZS EV (2020)"));
+        var ranges = Map.of("MG ZS EV (2020)", range(139_900));
+
+        var result = GroqService.mergeWithinBudget(List.of(), Map.of(), original, ranges, 200_000);
+
+        assertThat(result).extracting(CarRecommendation::title).containsExactly("MG ZS EV (2020)");
+    }
+
     // --- cheapest (vad banderollen säger att bilen faktiskt kostar) ---
+
+    @Test
+    void banderollenTarAldrigEttNyprisSomAnnonspris() {
+        // Texten lyder "... pa Blocket just nu" — ett nypris dar vore en ren losning
+        var recs = List.of(bilMedNypris("Kia EV3 (2020)", 370_000));
+        assertThat(GroqService.cheapest(recs, Map.of())).isNull();
+    }
 
     @Test
     void billigasteVerkligaPrisetPlockasUrUrvalet() {

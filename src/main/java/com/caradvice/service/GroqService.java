@@ -265,6 +265,36 @@ public class GroqService {
         return blocket.minKr() > budgetKr + BUDGET_CEILING_MARGIN_KR;
     }
 
+    /** Lägsta pris vi kan belägga för en bil, och om siffran kommer från Blocket eller är ett nypris. */
+    record VerifiedFloor(int kr, boolean fromBlocket) {}
+
+    /**
+     * Blocket är måttstocken — appen handlar om vad som faktiskt går att köpa begagnat idag.
+     * Nypriset ur ev_spec är enbart en referens, och används bara när Blocket är helt tyst.
+     *
+     * Live-fynd 2026-08-07: Kia EV3 föreslogs för en 200 000-budget med AI-priset
+     * "170 000–190 000 kr" och NOLL annonser. Utan annonser kunde varken correctedPrice eller
+     * budgettaket säga emot, trots att vårt eget ev_spec bar 370 000 kr på samma kort. Saknas
+     * annonser finns inget bevis att bilen går att köpa över huvud taget, och då är nypriset
+     * den enda verifierade siffra vi har: ligger den över taket ska bilen inte stå kvar.
+     *
+     * Nypriset får aldrig läcka ut som ett annonspris — banderollen skriver ut sin siffra som
+     * "... på Blocket just nu", därför är {@code cheapest} fortfarande Blocket-only.
+     */
+    static VerifiedFloor verifiedFloor(CarRecommendation r, BlocketPriceService.PriceRange blocket) {
+        if (blocket != null && blocket.count() >= 2 && blocket.minKr() > 0)
+            return new VerifiedFloor(blocket.minKr(), true);
+        if (r != null && r.evSpec() != null && r.evSpec().priceKr() > 0)
+            return new VerifiedFloor(r.evSpec().priceKr(), false);
+        return null;
+    }
+
+    /** Som ovan, men med bilens egen specdata som referens när Blocket inte kan döma. */
+    static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket, int budgetKr) {
+        VerifiedFloor golv = verifiedFloor(r, blocket);
+        return golv != null && golv.kr() > budgetKr + BUDGET_CEILING_MARGIN_KR;
+    }
+
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear) {
         return enrichRecommendations(parsed, kmPerYear, null, false);
     }
@@ -467,12 +497,12 @@ public class GroqService {
         Set<String> models = new LinkedHashSet<>();
         for (CarRecommendation r : retried) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(retryRanges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+            if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
                 out.add(r);
         }
         for (CarRecommendation r : original) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(ranges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
                 out.add(r);
         }
         return out;
@@ -483,13 +513,13 @@ public class GroqService {
         return title == null ? "" : title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim().toLowerCase();
     }
 
-    /** Rekommendationer vars billigaste Blocket-annons ligger över budgettaket. */
+    /** Rekommendationer vars billigaste Blocket-annons — eller nypris när annonser saknas — ligger över taket. */
     private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
                                                       Map<String, BlocketPriceService.PriceRange> ranges,
                                                       int budgetKr) {
         List<CarRecommendation> over = new ArrayList<>();
         for (CarRecommendation r : recs) {
-            if (exceedsBudgetCeiling(ranges.get(r.title()), budgetKr)) over.add(r);
+            if (exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr)) over.add(r);
         }
         return over;
     }
@@ -513,9 +543,13 @@ public class GroqService {
                                             Map<String, BlocketPriceService.PriceRange> ranges) {
         StringBuilder namn = new StringBuilder();
         for (CarRecommendation r : over) {
-            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            VerifiedFloor golv = verifiedFloor(r, ranges.get(r.title()));
             if (namn.length() > 0) namn.append(", ");
-            namn.append(r.title()).append(" (billigaste annons ").append(formatSekSpace(pr.minKr())).append(" kr)");
+            namn.append(r.title());
+            // Utan annonser är siffran ett nypris — säg det, annars ljuger prompten om marknaden
+            if (golv != null) namn.append(golv.fromBlocket()
+                    ? " (billigaste annons " + formatSekSpace(golv.kr()) + " kr)"
+                    : " (nypris fr. " + formatSekSpace(golv.kr()) + " kr, inga annonser på Blocket)");
         }
         log.warn("AI föreslog bil(ar) över budgettaket {} + {} kr: {} — omförsök",
                 prefs.budget(), BUDGET_CEILING_MARGIN_KR, namn);
@@ -625,7 +659,7 @@ public class GroqService {
 
         List<CarRecommendation> inomBudget = new ArrayList<>();
         for (CarRecommendation r : enriched) {
-            if (!exceedsBudgetCeiling(ranges.get(r.title()), prefs.budget())) inomBudget.add(r);
+            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), prefs.budget())) inomBudget.add(r);
         }
         storeAlternatives(key, inomBudget, ranges);
         log.info("Budgetalternativ utan ålderskrav: {} av {} inom taket för budget {} kr",
@@ -653,7 +687,10 @@ public class GroqService {
         return out;
     }
 
-    /** Billigaste kända Blocket-pris i urvalet, null om ingen av bilarna har ett pris. */
+    /**
+     * Billigaste kända Blocket-pris i urvalet, null om ingen av bilarna har ett pris.
+     * Medvetet utan nyprisfallback: siffran hamnar i banderollen som "... på Blocket just nu".
+     */
     static Integer cheapest(List<CarRecommendation> recs, Map<String, BlocketPriceService.PriceRange> ranges) {
         Integer min = null;
         for (CarRecommendation r : recs) {
