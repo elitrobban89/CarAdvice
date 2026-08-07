@@ -772,6 +772,27 @@ class GroqServiceTest {
     }
 
     @Test
+    void enEndaLeasingannonsRackerForAttFallaBilen() {
+        // Live 2026-08-07 pa 468a3da: EV6 GT-Line stod kvar pa 8 295 kr/man mot 5 000-budget
+        // eftersom kravet pa tva annonser arvdes fran koplaget. Leasingannonser laggs av
+        // bilhandlare och utbudet per modell ar tunt — en annons ar ett riktigt prisbesked.
+        var enAnnons = new BlocketPriceService.PriceRange(8_295, 8_295, 1, "...");
+
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Kia EV6 GT-Line (2023)"), enAnnons, 5_000, true)).isTrue();
+        // ... men priset pa kortet skrivs inte om pa en ensam annons
+        assertThat(GroqService.correctedPrice("5 000–5 600 kr/mån", enAnnons, "Kia EV6 GT-Line (2023)", true))
+                .isEqualTo("5 000–5 600 kr/mån");
+    }
+
+    @Test
+    void enEndaAnnonsFallerFortfarandeIngenKopbil() {
+        // Koplaget ar ororet: dar finns privatannonser och scamrisken ar verklig
+        var enAnnons = new BlocketPriceService.PriceRange(900_000, 900_000, 1, "...");
+
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Bil (2022)"), enAnnons, 275_000, false)).isFalse();
+    }
+
+    @Test
     void leasingMarginalenAr500KronorInte30000() {
         // Kopmarginalen hade gjort taket meningslost: en 5 000-budget skulle rymma allt
         var precisPa = new BlocketPriceService.PriceRange(5_500, 6_000, 5, "...");

@@ -315,11 +315,20 @@ public class GroqService {
      * alltså ingen grund att döma på, precis som taket fungerade före nyprisreferensen.
      *
      * <p>Marginalen är 500 kr/mån i stället för 30 000 kr.
+     *
+     * <p>En enda annons räcker här, till skillnad från köp. Tvåannonskravet finns för att en
+     * ensam fel- eller scamannons inte ska fälla en prisvärd bil, men leasingannonser läggs av
+     * bilhandlare (sales_form=5 är företagsannonser) och utbudet per modell är tunt. Live
+     * 2026-08-07 hade Kia EV6 GT-Line exakt en annons — 8 295 kr/mån mot en 5 000-budget — och
+     * kravet på två släppte igenom just det fall taket byggdes för.
+     *
+     * <p>{@code correctedPrice} står kvar på två annonser även i leasingläge: att fälla en bil
+     * på en ensam annons är en mindre risk än att skriva om priset användaren ser till den.
      */
     static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket,
                                         int budgetKr, boolean leasing) {
         if (leasing) {
-            return blocket != null && blocket.count() >= 2
+            return blocket != null && blocket.count() >= 1
                     && blocket.minKr() > budgetKr + LEASING_CEILING_MARGIN_KR;
         }
         VerifiedFloor golv = verifiedFloor(r, blocket);
