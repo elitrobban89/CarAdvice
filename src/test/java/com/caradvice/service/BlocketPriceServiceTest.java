@@ -206,6 +206,17 @@ class BlocketPriceServiceTest {
     }
 
     @Test
+    void koppprisIEnLeasingannonsRaknasInteSomManadskostnad() {
+        // Live-fynd: en ID.4 låg som leasingannons med 539 500 kr i månadsfältet
+        var ev = docs(new int[]{2027, 539_500}, new int[]{2027, 4_495}, new int[]{2026, 4_695});
+
+        var range = service.leasingRangeFrom(ev, null);
+
+        assertThat(range.count()).isEqualTo(2);
+        assertThat(range.maxKr()).isEqualTo(4_695);
+    }
+
+    @Test
     void ingenLeasingannonsGerNull() {
         var barakop = docs(new int[]{2026, 479_000}, new int[]{2026, 509_000});
 

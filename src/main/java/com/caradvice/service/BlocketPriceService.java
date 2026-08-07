@@ -38,7 +38,10 @@ public class BlocketPriceService {
 
     /** Under detta är beloppet en månadsavgift, inte ett köppris. */
     private static final int LOWEST_PLAUSIBLE_CAR_PRICE_KR = 10_000;
-    /** Över detta är beloppet ett köppris, inte en månadsavgift. */
+    /**
+     * Över detta är beloppet ett köppris, inte en månadsavgift — en ID.4 låg som leasingannons
+     * med 539 500 kr i månadsfältet.
+     */
     private static final int HIGHEST_PLAUSIBLE_MONTHLY_KR = 20_000;
 
     public record PriceRange(int minKr, int maxKr, int count, String formatted) {}
@@ -106,9 +109,16 @@ public class BlocketPriceService {
 
             String digits = modelDigits(query);
             List<Integer> prices = pricesFrom(billigast, year, leasing, digits);
-            // Full lista = vi såg bara den billigaste änden; dyraste priset finns bortom taket
             boolean kapad = billigast.size() >= PAGE_CAP;
-            if (kapad) {
+            // Full lista = vi såg bara den billigaste änden; dyraste priset finns bortom taket.
+            //
+            // Leasing hämtar aldrig den änden. Företagsleasing ("Businesslease 1500mil/år"),
+            // månadshyra ("HYR PER MÅNAD", 12 375 kr) och privatleasing ligger i samma
+            // träfflista utan något fält som skiljer dem åt — bindningstid finns varken som
+            // annonsfält eller filter, bara ett prisfilter (leaseprice_month). Privatleasingen
+            // för en modell är däremot ett smalt band som ryms i de 50 billigaste: ID.4 låg på
+            // 3 021-4 695 kr/mån där, mot 12 375 kr/mån när dyraste änden togs med.
+            if (kapad && !leasing) {
                 JsonNode dyrast = fetchDocs(query, year, leasing, "PRICE_DESC");
                 if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits));
             }
