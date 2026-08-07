@@ -520,6 +520,15 @@ public class GroqService {
             // där hade läst som att bilen kostar 8 295 kr att köpa
             shortfall = isLeasing ? null : outcome.shortfallFromKr();
         }
+
+        // Dedupen låg bara i budgetomförsöket, så utan omförsök fanns ingen kontroll alls
+        List<CarRecommendation> unika = distinctModels(result);
+        if (unika.size() < result.size()) {
+            log.warn("AI föreslog samma modell flera gånger: {} — behåller {} av {}",
+                    result.stream().map(CarRecommendation::title).toList(), unika.size(), result.size());
+            result = unika;
+        }
+
         store(key, result, shortfall);
         return new Result(result, false, 0, shortfall);
     }
@@ -546,17 +555,16 @@ public class GroqService {
             List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
             int budgetKr, boolean leasing) {
         List<CarRecommendation> out = new ArrayList<>();
-        Set<String> models = new LinkedHashSet<>();
         for (CarRecommendation r : retried) {
             if (out.size() >= 3) break;
             if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), budgetKr, leasing)
-                    && models.add(modelKey(r.title())))
+                    && out.stream().noneMatch(k -> sameModel(k.title(), r.title())))
                 out.add(r);
         }
         for (CarRecommendation r : original) {
             if (out.size() >= 3) break;
             if (!exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr, leasing)
-                    && models.add(modelKey(r.title())))
+                    && out.stream().noneMatch(k -> sameModel(k.title(), r.title())))
                 out.add(r);
         }
         return out;
@@ -565,6 +573,42 @@ public class GroqService {
     /** Titel utan årtalsparentes, gemener — "Volkswagen ID.4 (2021)" och "(2022)" blir samma nyckel. */
     private static String modelKey(String title) {
         return title == null ? "" : title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim().toLowerCase();
+    }
+
+    /** Modellnyckelns ord i ordning. (Egen metod: modelTokens är upptagen av modellverifieringen.) */
+    private static List<String> modelKeyWords(String title) {
+        String key = modelKey(title);
+        return key.isEmpty() ? List.of() : List.of(key.split("\\s+"));
+    }
+
+    /**
+     * Samma bil när den enas ord är en inledning av den andras: "Volkswagen ID.4" och
+     * "Volkswagen ID.4 Pro" är en modell i två utrustningsnivåer, liksom "Kia EV6" och
+     * "Kia EV6 GT-Line" eller "Škoda Enyaq" och "Škoda Enyaq iV".
+     *
+     * <p>Jämförelsen går på hela ord, aldrig på tecken: "Volvo EX30" är ingen inledning av
+     * "Volvo EX300", och "Tesla Model Y" och "Tesla Model 3" skiljer sig i sista ordet.
+     */
+    static boolean sameModel(String a, String b) {
+        List<String> ta = modelKeyWords(a), tb = modelKeyWords(b);
+        if (ta.isEmpty() || tb.isEmpty()) return false;
+        List<String> kort = ta.size() <= tb.size() ? ta : tb;
+        List<String> lang = ta.size() <= tb.size() ? tb : ta;
+        return lang.subList(0, kort.size()).equals(kort);
+    }
+
+    /**
+     * Tre förslag ska vara tre OLIKA modeller. Promptregeln säger det, men inget höll AI:n till
+     * den utanför budgetomförsöket: live 2026-08-07 kom "Volkswagen ID.4 (2024)" och
+     * "Volkswagen ID.4 Pro (2022)" i samma svar. Dubbletten tas bort i stället för att ersättas
+     * — två olika bilar är mer värt än tre kort där två är samma bil.
+     */
+    static List<CarRecommendation> distinctModels(List<CarRecommendation> recs) {
+        List<CarRecommendation> out = new ArrayList<>();
+        for (CarRecommendation r : recs) {
+            if (out.stream().noneMatch(k -> sameModel(k.title(), r.title()))) out.add(r);
+        }
+        return out;
     }
 
     /** Rekommendationer vars billigaste Blocket-annons — eller nypris när annonser saknas — ligger över taket. */

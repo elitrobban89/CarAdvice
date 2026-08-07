@@ -757,6 +757,43 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("MG ZS EV (2020)");
     }
 
+    // --- tre olika modeller garanteras ---
+
+    @Test
+    void utrustningsnivaGorInteEnBilTillTvaModeller() {
+        // Live 2026-08-07: "Volkswagen ID.4 (2024)" och "Volkswagen ID.4 Pro (2022)" kom i
+        // samma svar. Dedupen fanns bara i budgetomforsoket, som inte kordes.
+        assertThat(GroqService.sameModel("Volkswagen ID.4 (2024)", "Volkswagen ID.4 Pro (2022)")).isTrue();
+        assertThat(GroqService.sameModel("Kia EV6 (2023)", "Kia EV6 GT-Line (2023)")).isTrue();
+        assertThat(GroqService.sameModel("Škoda Enyaq (2021)", "Škoda Enyaq iV (2023)")).isTrue();
+        assertThat(GroqService.sameModel("Volkswagen ID.4 (2021)", "Volkswagen ID.4 (2022)")).isTrue();
+    }
+
+    @Test
+    void olikaModellerFarInteSlasIhop() {
+        assertThat(GroqService.sameModel("Tesla Model Y (2022)", "Tesla Model 3 (2022)")).isFalse();
+        assertThat(GroqService.sameModel("Volvo EX30 (2023)", "Volvo EX40 (2023)")).isFalse();
+        assertThat(GroqService.sameModel("Volkswagen ID.4 (2022)", "Volkswagen ID.5 (2022)")).isFalse();
+        // Jamforelsen gar pa hela ord: EX30 ar ingen inledning av EX300
+        assertThat(GroqService.sameModel("Volvo EX30 (2023)", "Volvo EX300 (2023)")).isFalse();
+    }
+
+    @Test
+    void dubbletterTasBortIOrdning() {
+        var recs = List.of(bil("Volkswagen ID.4 (2024)"), bil("MG4 (2023)"),
+                bil("Volkswagen ID.4 Pro (2022)"));
+
+        assertThat(GroqService.distinctModels(recs)).extracting(CarRecommendation::title)
+                .containsExactly("Volkswagen ID.4 (2024)", "MG4 (2023)");
+    }
+
+    @Test
+    void treOlikaModellerRorsInte() {
+        var recs = List.of(bil("Volkswagen ID.4 (2024)"), bil("MG4 (2023)"), bil("Kia EV6 (2022)"));
+
+        assertThat(GroqService.distinctModels(recs)).hasSize(3);
+    }
+
     // --- leasingtaket (kr/man mot kr/man) ---
 
     @Test
