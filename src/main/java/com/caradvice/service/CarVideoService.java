@@ -77,6 +77,7 @@ public class CarVideoService {
             "auto express");
 
     private final JdbcTemplate jdbc;
+    private final VideoSentimentService sentimentService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5)).build();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -87,11 +88,13 @@ public class CarVideoService {
     private LocalDate quotaDay = LocalDate.now(ZoneOffset.UTC);
     private int lookupsToday = 0;
 
-    public CarVideoService(JdbcTemplate jdbc) {
+    public CarVideoService(JdbcTemplate jdbc, VideoSentimentService sentimentService) {
         this.jdbc = jdbc;
+        this.sentimentService = sentimentService;
     }
 
     public void ensureTable() {
+        sentimentService.ensureTable();
         jdbc.execute("""
             CREATE TABLE IF NOT EXISTS car_video (
                 car_name VARCHAR(200) PRIMARY KEY,
@@ -112,7 +115,7 @@ public class CarVideoService {
         if (car.isEmpty()) return Map.of();
 
         Map<String, Object> cached = readCache(car);
-        if (cached != null) return cached;
+        if (cached != null) return withSentiment(car, cached);
 
         String videoId = null, title = null, channel = null;
         if (canLookUp()) {
@@ -129,7 +132,17 @@ public class CarVideoService {
             // Även en miss skrivs — annars kostar samma bil 100 enheter vid varje visning
             writeCache(car, videoId, title, channel);
         }
-        return toResult(videoId, title, channel);
+        return withSentiment(car, toResult(videoId, title, channel));
+    }
+
+    /** "YouTube-betyg"-rutan är frivillig: saknas underlag levereras videon utan den. */
+    private Map<String, Object> withSentiment(String car, Map<String, Object> video) {
+        if (video.isEmpty()) return video;
+        Map<String, Object> sentiment = sentimentService.forVideo(car, str(video.get("videoId")));
+        if (sentiment.isEmpty()) return video;
+        Map<String, Object> out = new LinkedHashMap<>(video);
+        out.put("sentiment", sentiment);
+        return out;
     }
 
     /**

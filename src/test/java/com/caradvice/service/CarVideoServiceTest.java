@@ -27,7 +27,11 @@ class CarVideoServiceTest {
         SimpleDriverDataSource ds = new SimpleDriverDataSource(new org.h2.Driver(),
                 "jdbc:h2:mem:cv_" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
         jdbc = new JdbcTemplate(ds);
-        CarVideoService s = new CarVideoService(jdbc);
+        VideoSentimentService sentiment = new VideoSentimentService(jdbc);
+        ReflectionTestUtils.setField(sentiment, "youtubeKey", "");
+        ReflectionTestUtils.setField(sentiment, "groqKey", "");
+        ReflectionTestUtils.setField(sentiment, "model", "test-modell");
+        CarVideoService s = new CarVideoService(jdbc, sentiment);
         ReflectionTestUtils.setField(s, "apiKey", apiKey);
         s.ensureTable();
         return s;

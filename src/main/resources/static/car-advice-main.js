@@ -801,10 +801,35 @@ function caFetchVideos(recommendations) {
               (v.channel ? '<span style="display:block;font-size:.68rem;color:rgba(255,255,255,.38);margin-top:1px">' +
                 caEsc(v.channel) + '</span>' : '') +
             '</span>' +
-          '</a>';
+          '</a>' + caSentimentHTML(v.sentiment);
       })
       .catch(function() {});
   });
+}
+
+// YouTube-betyg: vad kommentarerna under recensionen säger om BILEN (inte om videon).
+// Rutan ritas bara när Groq hittat tillräckligt många bilrelaterade kommentarer —
+// ett betyg byggt på en handfull kommentarer är sämre än inget betyg.
+function caSentimentHTML(s) {
+  if (!s || !s.verdict) return '';
+  var tone = s.verdict === 'bra'
+        ? { col: '#6ee7b7', bg: 'rgba(52,211,153,.08)', bd: 'rgba(52,211,153,.28)', icon: '👍' }
+      : s.verdict === 'daligt'
+        ? { col: '#fca5a5', bg: 'rgba(248,113,113,.08)', bd: 'rgba(248,113,113,.28)', icon: '👎' }
+        : { col: '#fcd34d', bg: 'rgba(251,191,36,.07)', bd: 'rgba(251,191,36,.26)', icon: '⚖️' };
+  return '<div style="margin-top:8px;padding:9px 11px;background:' + tone.bg +
+           ';border:1px solid ' + tone.bd + ';border-radius:10px">' +
+      '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">' +
+        '<span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5)">' +
+          'YouTube-betyg</span>' +
+        '<span style="font-size:.82rem;font-weight:700;color:' + tone.col + '">' +
+          tone.icon + ' ' + caEsc(s.label) + '</span>' +
+        '<span style="font-size:.68rem;color:rgba(255,255,255,.35)">' +
+          caEsc(String(s.commentCount)) + ' kommentarer om bilen</span>' +
+      '</div>' +
+      (s.summary ? '<div style="margin-top:4px;font-size:.76rem;line-height:1.45;color:rgba(255,255,255,.6)">' +
+        caEsc(s.summary) + '</div>' : '') +
+    '</div>';
 }
 
 // Tumme upp/ner per bilkort — en röst per bil sparas i localStorage så samma bil inte röstas om
