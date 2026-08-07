@@ -94,6 +94,60 @@ class CarVideoServiceTest {
                 .isBefore(LocalDateTime.now(ZoneOffset.UTC).minusDays(40));
     }
 
+    private static com.fasterxml.jackson.databind.JsonNode items(String... channels) throws Exception {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < channels.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append("{\"id\":{\"videoId\":\"v").append(i).append("\"},\"snippet\":{\"channelTitle\":\"")
+              .append(channels[i]).append("\"}}");
+        }
+        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(sb.append(']').toString());
+    }
+
+    @Test
+    void svenskKanalGarForeEngelskSomGarForeForstaTraffen() throws Exception {
+        // Användarens ordning 2026-08-07: helst svenskt klipp, i andra hand engelskt
+        // (Autotrader), annars YouTubes egen relevansordning.
+        assertThat(pickedId(items("Random Uploads", "Autotrader", "Elbilsmagasinet"))).isEqualTo("v2");
+        assertThat(pickedId(items("Random Uploads", "Autotrader"))).isEqualTo("v1");
+        assertThat(pickedId(items("Random Uploads", "Bilcentralen"))).isEqualTo("v0");
+        // kanalnamnet "Peter Esse " har ett efterföljande mellanslag i verkligheten
+        assertThat(pickedId(items("Autotrader", "Peter Esse "))).isEqualTo("v1");
+        // delsträngsmatchning: kanalen kan byta namn utan att listan slutar fungera
+        assertThat(pickedId(items("carwow", "Elbilsmagasinet Sverige"))).isEqualTo("v1");
+        assertThat(CarVideoService.pickBest(items())).isNull();
+        assertThat(CarVideoService.pickBest(null)).isNull();
+    }
+
+    private static String pickedId(com.fasterxml.jackson.databind.JsonNode items) {
+        return CarVideoService.pickBest(items).path("id").path("videoId").asText();
+    }
+
+    @Test
+    void glomdVideoSlasUppPaNyttNastaGang() {
+        CarVideoService s = service("");
+        jdbc.update("INSERT INTO car_video(car_name, video_id, title, channel, fetched_at) VALUES (?,?,?,?,?)",
+                "Volvo EX30", "gammal", "Gammal träff", "Random Uploads",
+                LocalDateTime.now(ZoneOffset.UTC).toString());
+
+        assertThat(s.forget("Volvo EX30 (2024)")).isEqualTo(1);   // årtalet ska strippas även här
+        assertThat(s.forget("Finns Inte")).isZero();
+        assertThat(s.forget("  ")).isZero();
+        assertThat(s.findForCarTitle("Volvo EX30")).isEmpty();     // cachen är borta
+    }
+
+    @Test
+    void helaCachenGarAttToma() {
+        CarVideoService s = service("");
+        jdbc.update("INSERT INTO car_video(car_name, video_id, title, channel, fetched_at) VALUES (?,?,?,?,?)",
+                "Volvo EX30", "a", "", "", LocalDateTime.now(ZoneOffset.UTC).toString());
+        jdbc.update("INSERT INTO car_video(car_name, video_id, title, channel, fetched_at) VALUES (?,?,?,?,?)",
+                "Kia EV6", "b", "", "", LocalDateTime.now(ZoneOffset.UTC).toString());
+
+        assertThat(s.forgetAll()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM car_video", Integer.class)).isZero();
+    }
+
     @Test
     void dubbeltTabellskapandeArOfarligt() {
         CarVideoService s = service("");

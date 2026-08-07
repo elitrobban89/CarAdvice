@@ -49,6 +49,32 @@ public class CarVideoService {
     private static final int MISS_RETRY_DAYS = 30;
     private static final int MAX_LOOKUPS_PER_DAY = 80;
     private static final int MAX_CAR_NAME = 200;
+    private static final int SEARCH_RESULTS = 5;
+
+    /**
+     * Kanaler som får gå före YouTubes relevansordning, svenska först och engelska som
+     * andrahandsval. Matchas som gemen delsträng mot {@code channelTitle}, så
+     * "Elbilsmagasinet Sverige" träffar lika bra som "Elbilsmagasinet" och kanalen
+     * "Peter Esse " (med efterföljande mellanslag, uppmätt 2026-08-07) inte missas —
+     * kanalnamn ändras, och exakt matchning hade tystnat vid minsta omdöpning.
+     *
+     * <p>Listorna är kurerade, inte uttömmande. Finns ingen av dem bland träffarna tas
+     * första träffen som vanligt.
+     */
+    private static final List<String> SWEDISH_CHANNELS = List.of(
+            "elbilsmagasinet",
+            "peter esse",
+            "teknikens värld",
+            "vi bilägare",
+            "auto motor & sport",
+            "auto motor och sport");
+
+    /** Andrahandsval när ingen svensk kanal finns i träfflistan. */
+    private static final List<String> ENGLISH_CHANNELS = List.of(
+            "autotrader",
+            "carwow",
+            "top gear",
+            "auto express");
 
     private final JdbcTemplate jdbc;
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -90,7 +116,11 @@ public class CarVideoService {
 
         String videoId = null, title = null, channel = null;
         if (canLookUp()) {
-            JsonNode hit = search(car);
+            JsonNode hit = pickBest(search(car, true));
+            // Ingen svensk träff alls — då är en engelsk recension bättre än ingen rad.
+            // Kostar ytterligare 100 enheter, men bara för bilar utan svensk bevakning,
+            // och svaret cachas som alla andra.
+            if (hit == null && canLookUp()) hit = pickBest(search(car, false));
             if (hit != null) {
                 videoId = hit.path("id").path("videoId").asText("");
                 title = hit.path("snippet").path("title").asText("");
@@ -100,6 +130,32 @@ public class CarVideoService {
             writeCache(car, videoId, title, channel);
         }
         return toResult(videoId, title, channel);
+    }
+
+    /**
+     * Glömmer en cachad video så nästa visning slår upp på nytt. Behövs av två skäl:
+     * sökningen eller rankningen har ändrats, eller så fick en bil en video som inte
+     * håller måttet. Kostar 100 kvotenheter nästa gång bilen visas.
+     */
+    public int forget(String carTitle) {
+        String car = normalize(carTitle);
+        if (car.isEmpty()) return 0;
+        try {
+            return jdbc.update("DELETE FROM car_video WHERE car_name = ?", car);
+        } catch (Exception e) {
+            log.warn("car_video: kunde inte glömma {}: {}", car, e.getMessage());
+            return 0;
+        }
+    }
+
+    /** Tömmer hela cachen — nästa visning av varje bil kostar ett nytt uppslag. */
+    public int forgetAll() {
+        try {
+            return jdbc.update("DELETE FROM car_video");
+        } catch (Exception e) {
+            log.warn("car_video: kunde inte tömma cachen: {}", e.getMessage());
+            return 0;
+        }
     }
 
     /** Årtalet i "Volvo EX60 (2024)" hör inte hemma i en recensionssökning. */
@@ -160,12 +216,24 @@ public class CarVideoService {
         return true;
     }
 
-    /** Första träffen, eller null. "recension test" på svenska ger svenska biltester. */
-    private JsonNode search(String car) {
+    /**
+     * Söker på svenska, alltid med märke plus modell i citattecken så träffen garanterat
+     * gäller rätt bil. Recensionsordet är en OR-lista (YouTubes {@code |}-operator):
+     * en nylanserad bil hinner sällan få en färdig "recension", men däremot en första
+     * provkörning — "Första provkörningen: Nya Volvo EX60" är precis vad man vill se på
+     * kortet så länge bilen är ny.
+     *
+     * <p>{@link #SEARCH_RESULTS} träffar hämtas fast bara en används: en sökning kostar
+     * 100 kvotenheter oavsett hur många resultat den returnerar, så urvalet är gratis.
+     */
+    private JsonNode search(String car, boolean swedish) {
         try {
-            String q = URLEncoder.encode(car + " recension test", StandardCharsets.UTF_8);
-            URI uri = URI.create(SEARCH_URL + "?part=snippet&type=video&maxResults=1&safeSearch=strict"
-                    + "&relevanceLanguage=sv&regionCode=SE&q=" + q + "&key=" + apiKey);
+            String q = URLEncoder.encode(swedish
+                    ? "\"" + car + "\" recension|provkörning|test"
+                    : "\"" + car + "\" review", StandardCharsets.UTF_8);
+            URI uri = URI.create(SEARCH_URL + "?part=snippet&type=video&maxResults=" + SEARCH_RESULTS
+                    + "&safeSearch=strict&relevanceLanguage=" + (swedish ? "sv&regionCode=SE" : "en")
+                    + "&q=" + q + "&key=" + apiKey);
             HttpRequest req = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).GET().build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
@@ -173,7 +241,7 @@ public class CarVideoService {
                 return null;
             }
             JsonNode items = mapper.readTree(resp.body()).path("items");
-            return items.isArray() && !items.isEmpty() ? items.get(0) : null;
+            return items.isArray() && !items.isEmpty() ? items : null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
@@ -181,6 +249,30 @@ public class CarVideoService {
             log.warn("car_video: sökning misslyckades för {}: {}", car, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Rankningen i tre steg: känd svensk bilkanal, sedan känd engelsk, annars första
+     * träffen. Relevansordningen ensam gav lika gärna en reklamfilm eller en slumpvis
+     * utländsk kanal som en riktig provkörning, och videon syns lika tydligt på bilkortet
+     * som en expertinsikt.
+     */
+    static JsonNode pickBest(JsonNode items) {
+        if (items == null || !items.isArray() || items.isEmpty()) return null;
+        JsonNode fromPreferred = firstFrom(items, SWEDISH_CHANNELS);
+        if (fromPreferred != null) return fromPreferred;
+        fromPreferred = firstFrom(items, ENGLISH_CHANNELS);
+        return fromPreferred != null ? fromPreferred : items.get(0);
+    }
+
+    private static JsonNode firstFrom(JsonNode items, List<String> channels) {
+        for (JsonNode item : items) {
+            String channel = item.path("snippet").path("channelTitle").asText("").toLowerCase(Locale.ROOT);
+            for (String preferred : channels) {
+                if (channel.contains(preferred)) return item;
+            }
+        }
+        return null;
     }
 
     private static Map<String, Object> toResult(String videoId, String title, String channel) {

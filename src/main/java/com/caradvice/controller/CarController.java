@@ -530,6 +530,19 @@ public class CarController {
         return ResponseEntity.ok(carVideoService.findForCarTitle(car));
     }
 
+    // Admin: glöm cachad YouTube-video så nästa visning slår upp på nytt — efter ändrad
+    // sökning/rankning, eller när en bil fått en video som inte håller måttet.
+    @DeleteMapping("/admin/car-video")
+    public ResponseEntity<?> forgetCarVideo(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                            @RequestParam(required = false) String car,
+                                            @RequestParam(defaultValue = "false") boolean all) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        if (!all && (car == null || car.isBlank()))
+            return ResponseEntity.badRequest().body(Map.of("error", "ange car=<bil> eller all=true"));
+        int deleted = all ? carVideoService.forgetAll() : carVideoService.forget(car);
+        return ResponseEntity.ok(Map.of("deleted", deleted, "table", "car_video"));
+    }
+
     // Övervakas av UptimeRobot mot /api/health — nyckelordsövervakning på "OK" larmar
     // även när databasen är tom/onåbar (status blir då DEGRADED trots HTTP 200)
     @GetMapping("/health")

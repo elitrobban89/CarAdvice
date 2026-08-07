@@ -298,7 +298,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-355 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+358 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -669,6 +669,10 @@ Bilrecension på YouTube för ett bilkort. Hämtas **lazy av frontend** efter at
   "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
 }
 ```
+
+**Sökningen och rankningen.** Frågan är alltid märke plus modell i citattecken så träffen gäller rätt bil, med recensionsordet som OR-lista: `"Volvo EX60" recension|provkörning|test`. En nylanserad bil hinner sällan få en färdig recension men däremot en första provkörning, och den duger gott på kortet. Fem träffar hämtas (samma kostnad som en) och rankas i tre steg: **känd svensk bilkanal** (Elbilsmagasinet, Peter Esse, Teknikens Värld, Vi Bilägare, Auto Motor & Sport), sedan **känd engelsk** (Autotrader, carwow, Top Gear, Auto Express), annars första träffen. Ger den svenska sökningen inga träffar alls görs en engelsk omgång (`"<bil>" review`) — bättre en engelsk recension än ingen rad. Kanalnamn matchas som gemen delsträng, så "Elbilsmagasinet Sverige" och `"Peter Esse "` (med efterföljande mellanslag, så heter kanalen faktiskt) träffar båda.
+
+`DELETE /api/admin/car-video?car=Volvo+EX30` glömmer en cachad video så nästa visning slår upp på nytt — efter ändrad sökning, eller när en bil fått en video som inte håller måttet. `?all=true` tömmer hela cachen.
 
 **Kvoten är den styrande begränsningen.** En sökning mot YouTube Data API v3 kostar 100 av dygnets 10 000 enheter, alltså 100 nya modeller per dygn. Tre spärrar håller den:
 
