@@ -183,7 +183,13 @@ public class WebInsightScraperService {
               pris i kronor) gör INTE en bil relevant om läsaren inte kan köpa den. Hit hör
               modeller som bara säljs på andra marknader (t.ex. Lada eller varianter som
               säljs i Kina/USA), modeller som lämnat den svenska marknaden, samt rykten om
-              kommande namn ("kan heta X"), plattform, teknik eller lanseringsår
+              kommande namn ("kan heta X"), plattform, teknik eller lanseringsår.
+              Nylanserade modeller vars första kunder redan fått sina bilar levererade i
+              Sverige är däremot KÖPBARA — erfarenheter från de allra första exemplaren är
+              RELEVANTA, varken irrelevanta eller kommande. Att bilen kallas ny eller
+              nylanserad, eller att leveranserna nyss börjat, ändrar inget (Volvo EX60,
+              BMW iX3 och Mercedes GLC med eldrift är i det läget 2026; fem EX60-rader
+              från förste ägaren kastades felaktigt 2026-08-07)
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
@@ -245,6 +251,10 @@ public class WebInsightScraperService {
             fram, eller ny generation av en modell som redan säljs här. Insikten måste ha
             konkret innehåll (mått, effekt, räckvidd, utrustning, testintryck) — lösa rykten
             om namn eller lanseringsår är IRRELEVANTA, inte kommande.
+            Gränsen mot KÖPBAR går vid leveranserna, inte vid hur ny bilen är: har svenska
+            kunder redan fått sina bilar är modellen köpbar och insikten direkt användbar.
+            KOMMANDE är bilar längre bort — presenterade utan säljstart, eller med lansering
+            ett år eller mer fram i tiden (Volvo EX50 med säljstart 2027 är arketypen).
 
             Svara ENDAST med valid JSON:
             {"irrelevant": [index...], "upcoming": [index...]}
