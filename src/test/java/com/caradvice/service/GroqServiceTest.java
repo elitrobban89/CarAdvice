@@ -757,6 +757,71 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("MG ZS EV (2020)");
     }
 
+    // --- leasingtaket (kr/man mot kr/man) ---
+
+    @Test
+    void leasingTaketMatsIKronorPerManad() {
+        // Live 2026-08-07: Kia EV6 GT-Line foreslogs pa 8 295 kr/man mot en 5 000-budget
+        // utan att nagon sparr slog till — leasing stod helt utanfor taket
+        var ev6 = new BlocketPriceService.PriceRange(8_295, 8_295, 2, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Kia EV6 GT-Line (2023)"), ev6, 5_000, true)).isTrue();
+
+        // Enyaq pa 4 850-4 980 kr/man ryms i samma budget
+        var enyaq = new BlocketPriceService.PriceRange(4_850, 4_980, 2, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Škoda Enyaq iV 80 (2023)"), enyaq, 5_000, true)).isFalse();
+    }
+
+    @Test
+    void leasingMarginalenAr500KronorInte30000() {
+        // Kopmarginalen hade gjort taket meningslost: en 5 000-budget skulle rymma allt
+        var precisPa = new BlocketPriceService.PriceRange(5_500, 6_000, 5, "...");
+        var precisOver = new BlocketPriceService.PriceRange(5_501, 6_000, 5, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Bil (2023)"), precisPa, 5_000, true)).isFalse();
+        assertThat(GroqService.exceedsBudgetCeiling(bil("Bil (2023)"), precisOver, 5_000, true)).isTrue();
+    }
+
+    @Test
+    void nyprisetFarAldrigDomaILeasinglage() {
+        // ev_spec bar bilens pris i kronor. Mot en manadsbudget hade det fallt varenda bil.
+        var ev3 = bilMedNypris("Kia EV3 (2025)", 370_000);
+
+        assertThat(GroqService.exceedsBudgetCeiling(ev3, null, 5_000, true)).isFalse();
+        assertThat(GroqService.exceedsBudgetCeiling(ev3, null, 5_000, false)).isTrue();
+    }
+
+    @Test
+    void forDyrLeasingbilForsvinnerUrSammanslagningen() {
+        var original = List.of(bil("Kia EV6 GT-Line (2023)"), bil("Škoda Enyaq iV 80 (2023)"));
+        var ranges = Map.of("Kia EV6 GT-Line (2023)", new BlocketPriceService.PriceRange(8_295, 8_295, 2, "..."),
+                "Škoda Enyaq iV 80 (2023)", new BlocketPriceService.PriceRange(4_850, 4_980, 2, "..."));
+
+        var result = GroqService.mergeWithinBudget(List.of(), Map.of(), original, ranges, 5_000, true);
+
+        assertThat(result).extracting(CarRecommendation::title).containsExactly("Škoda Enyaq iV 80 (2023)");
+    }
+
+    @Test
+    void leasingprisetRattasIKronorPerManad() {
+        // Samma jamforelse som for kop, men enheten far inte tappas bort pa vagen
+        var leasing = new BlocketPriceService.PriceRange(4_850, 4_980, 9, "...");
+
+        assertThat(GroqService.correctedPrice("2 500–3 000 kr/mån", leasing, "Enyaq (2023)", true))
+                .isEqualTo("4 850–4 980 kr/mån");
+        assertThat(GroqService.correctedPrice("4 900–5 100 kr/mån", leasing, "Enyaq (2023)", true))
+                .isEqualTo("4 900–5 100 kr/mån");
+    }
+
+    @Test
+    void leasingprompenBerOmManadskostnad() {
+        var leasingPrefs = new CarPreferences(5_000, "elbil", true, 15_000, "familj", 5, true,
+                "el", "spelar ingen roll", "leasing", null);
+        var kopPrefs = new CarPreferences(300_000, "elbil", true, 15_000, "familj", 5, false,
+                "el", "spelar ingen roll", "köp", null);
+
+        assertThat(service().buildPrompt(leasingPrefs)).contains("kr/mån");
+        assertThat(service().buildPrompt(kopPrefs)).doesNotContain("kr/mån");
+    }
+
     // --- cheapest (vad banderollen säger att bilen faktiskt kostar) ---
 
     @Test

@@ -211,6 +211,12 @@ public class GroqService {
      * ≥5 träffar, så en enda annons har noll skydd mot fluktannonser.
      */
     static String correctedPrice(String aiPrice, BlocketPriceService.PriceRange blocket, String title) {
+        return correctedPrice(aiPrice, blocket, title, false);
+    }
+
+    /** leasing=true: samma jämförelse men i kr/mån, mot privatleasingannonserna. */
+    static String correctedPrice(String aiPrice, BlocketPriceService.PriceRange blocket, String title,
+                                 boolean leasing) {
         if (aiPrice == null || blocket == null || blocket.count() < 2) return aiPrice;
         java.util.List<Long> nums = new ArrayList<>();
         Matcher m = Pattern.compile("\\d[\\d\\s\\u00a0]*").matcher(aiPrice);
@@ -220,9 +226,10 @@ public class GroqService {
         if (nums.isEmpty()) return aiPrice;
         long aiMin = nums.get(0), aiMax = nums.get(nums.size() - 1);
         if (aiMax < blocket.minKr() || aiMin > blocket.maxKr()) {
-            log.warn("AI-pris {} för {} utanför Blocket-intervallet {}–{} kr ({} annonser) — ersätter",
-                    aiPrice, title, blocket.minKr(), blocket.maxKr(), blocket.count());
-            return formatSekSpace(blocket.minKr()) + "–" + formatSekSpace(blocket.maxKr()) + " kr";
+            String enhet = leasing ? " kr/mån" : " kr";
+            log.warn("AI-pris {} för {} utanför Blocket-intervallet {}–{}{} ({} annonser) — ersätter",
+                    aiPrice, title, blocket.minKr(), blocket.maxKr(), enhet, blocket.count());
+            return formatSekSpace(blocket.minKr()) + "–" + formatSekSpace(blocket.maxKr()) + enhet;
         }
         return aiPrice;
     }
@@ -291,6 +298,30 @@ public class GroqService {
 
     /** Som ovan, men med bilens egen specdata som referens när Blocket inte kan döma. */
     static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket, int budgetKr) {
+        return exceedsBudgetCeiling(r, blocket, budgetKr, false);
+    }
+
+    /**
+     * Hur långt över en leasingbudget månadskostnaden får ligga. 30 000 kr är räknat för
+     * köpbudgetar och hade gjort taket meningslöst här: en 5 000-budget skulle rymma allt.
+     */
+    static final int LEASING_CEILING_MARGIN_KR = 500;
+
+    /**
+     * Leasingläget mäter kr/mån mot kr/mån och har två skillnader mot köp.
+     *
+     * <p>Nyprisfallbacken stängs av: {@code ev_spec} bär bilens pris i kronor, och en jämförelse
+     * mot en månadsbudget hade fällt varenda bil (370 000 > 5 000). Utan leasingannonser finns
+     * alltså ingen grund att döma på, precis som taket fungerade före nyprisreferensen.
+     *
+     * <p>Marginalen är 500 kr/mån i stället för 30 000 kr.
+     */
+    static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket,
+                                        int budgetKr, boolean leasing) {
+        if (leasing) {
+            return blocket != null && blocket.count() >= 2
+                    && blocket.minKr() > budgetKr + LEASING_CEILING_MARGIN_KR;
+        }
         VerifiedFloor golv = verifiedFloor(r, blocket);
         return golv != null && golv.kr() > budgetKr + BUDGET_CEILING_MARGIN_KR;
     }
@@ -350,9 +381,9 @@ public class GroqService {
             try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             if (rangesOut != null && blocketRange != null) rangesOut.put(r.title(), blocketRange);
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
-            // correctedPrice jämför AI:ns siffror med annonsintervallet — i leasingläge är det
-            // kr/mån mot ett kr-pris, alltså två prislägen som aldrig får mätas mot varandra
-            String price = leasing ? r.price() : correctedPrice(r.price(), blocketRange, r.title());
+            // Samma jämförelse i båda lägena, men aldrig över prislägena: i leasingläge är
+            // både AI:ns siffra och annonsintervallet kr/mån
+            String price = correctedPrice(r.price(), blocketRange, r.title(), leasing);
 
             // Ersätt AI:ns gissade förbrukning med verifierad siffra från ice_consumption om matchning finns.
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
@@ -463,21 +494,22 @@ public class GroqService {
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
                 isLeasing, ranges);
 
-        // Taket gäller allt utom leasing, där budgeten är kr/mån och Blocket inte hämtas alls.
+        // Taket gäller alla lägen. Nybilssök omfattas trots att begagnatpriset är fel måttstock
+        // där, för slutsatsen håller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer
+        // än taket kan en NY omöjligt kosta mindre. Att hoppa över kontrollen helt var den enda
+        // oskyddade vägen — live 2026-08-07 föreslogs MG4 (billigaste annons 249 900 kr) för en
+        // 200 000-budget, alltså 20 000 kr över taket, utan att någon spärr utlöstes.
         //
-        // Nybilssök omfattas trots att begagnatpriset är fel måttstock där, för slutsatsen
-        // håller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer än taket kan en NY
-        // omöjligt kosta mindre. Att hoppa över kontrollen helt var den enda oskyddade vägen —
-        // live 2026-08-07 föreslogs MG4 (billigaste annons 249 900 kr) för en 200 000-budget,
-        // alltså 20 000 kr över taket, utan att någon spärr utlöstes.
+        // Leasing stod utanför så länge Blocket inte hämtades där. Nu finns kr/mån att mäta mot,
+        // och samma natt föreslogs Kia EV6 GT-Line på 8 295 kr/mån mot en 5 000-budget.
         Integer shortfall = null;
-        if (!isLeasing) {
-            List<CarRecommendation> over = overBudget(result, ranges, prefs.budget());
-            if (!over.isEmpty()) {
-                BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges);
-                result = outcome.recommendations();
-                shortfall = outcome.shortfallFromKr();
-            }
+        List<CarRecommendation> over = overBudget(result, ranges, prefs.budget(), isLeasing);
+        if (!over.isEmpty()) {
+            BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges, isLeasing);
+            result = outcome.recommendations();
+            // Banderollen skriver ut siffran som ett Blocket-pris i kronor — en månadskostnad
+            // där hade läst som att bilen kostar 8 295 kr att köpa
+            shortfall = isLeasing ? null : outcome.shortfallFromKr();
         }
         store(key, result, shortfall);
         return new Result(result, false, 0, shortfall);
@@ -497,16 +529,25 @@ public class GroqService {
             List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
             List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
             int budgetKr) {
+        return mergeWithinBudget(retried, retryRanges, original, ranges, budgetKr, false);
+    }
+
+    static List<CarRecommendation> mergeWithinBudget(
+            List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
+            List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
+            int budgetKr, boolean leasing) {
         List<CarRecommendation> out = new ArrayList<>();
         Set<String> models = new LinkedHashSet<>();
         for (CarRecommendation r : retried) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+            if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), budgetKr, leasing)
+                    && models.add(modelKey(r.title())))
                 out.add(r);
         }
         for (CarRecommendation r : original) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr) && models.add(modelKey(r.title())))
+            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr, leasing)
+                    && models.add(modelKey(r.title())))
                 out.add(r);
         }
         return out;
@@ -520,10 +561,10 @@ public class GroqService {
     /** Rekommendationer vars billigaste Blocket-annons — eller nypris när annonser saknas — ligger över taket. */
     private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
                                                       Map<String, BlocketPriceService.PriceRange> ranges,
-                                                      int budgetKr) {
+                                                      int budgetKr, boolean leasing) {
         List<CarRecommendation> over = new ArrayList<>();
         for (CarRecommendation r : recs) {
-            if (exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr)) over.add(r);
+            if (exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr, leasing)) over.add(r);
         }
         return over;
     }
@@ -544,30 +585,47 @@ public class GroqService {
      */
     private BudgetOutcome retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
                                             List<CarRecommendation> original, List<CarRecommendation> over,
-                                            Map<String, BlocketPriceService.PriceRange> ranges) {
+                                            Map<String, BlocketPriceService.PriceRange> ranges, boolean leasing) {
+        int marginal = leasing ? LEASING_CEILING_MARGIN_KR : BUDGET_CEILING_MARGIN_KR;
         StringBuilder namn = new StringBuilder();
         for (CarRecommendation r : over) {
-            VerifiedFloor golv = verifiedFloor(r, ranges.get(r.title()));
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
             if (namn.length() > 0) namn.append(", ");
             namn.append(r.title());
+            if (leasing) {
+                if (pr != null) namn.append(" (billigaste leasing ")
+                        .append(formatSekSpace(pr.minKr())).append(" kr/mån)");
+                continue;
+            }
+            VerifiedFloor golv = verifiedFloor(r, pr);
             // Utan annonser är siffran ett nypris — säg det, annars ljuger prompten om marknaden
             if (golv != null) namn.append(golv.fromBlocket()
                     ? " (billigaste annons " + formatSekSpace(golv.kr()) + " kr)"
                     : " (nypris fr. " + formatSekSpace(golv.kr()) + " kr, inga annonser på Blocket)");
         }
-        log.warn("AI föreslog bil(ar) över budgettaket {} + {} kr: {} — omförsök",
-                prefs.budget(), BUDGET_CEILING_MARGIN_KR, namn);
+        log.warn("AI föreslog bil(ar) över budgettaket {} + {} {}: {} — omförsök",
+                prefs.budget(), marginal, leasing ? "kr/mån" : "kr", namn);
 
-        // "Äldre årsmodell" är fel råd i ett nybilssök — där återstår enklare nivå eller billigare märke
-        String utvagar = prefs.newCar()
-                ? "enklare utrustningsnivå eller ett billigare märke i samma storleksklass"
-                : "äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass";
-        String skarptPrompt = prompt + String.format("""
+        // "Äldre årsmodell" är fel råd i ett nybilssök — där återstår enklare nivå eller billigare
+        // märke. I leasing finns dessutom bindningstiden och milpaketet att skruva på.
+        String utvagar = leasing
+                ? "enklare utrustningsnivå, ett billigare märke i samma storleksklass eller en längre bindningstid"
+                : prefs.newCar()
+                    ? "enklare utrustningsnivå eller ett billigare märke i samma storleksklass"
+                    : "äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass";
+        String skarptPrompt = prompt + (leasing
+                ? String.format("""
 
-                VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr
-                (budget + %,d kr) räknat på BILLIGASTE annonsen på Blocket. Föreslå andra
-                bilar som faktiskt går att köpa för pengarna: %s.
-                """, namn, prefs.budget() + BUDGET_CEILING_MARGIN_KR, BUDGET_CEILING_MARGIN_KR, utvagar);
+                    VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr/mån
+                    (budget + %,d kr/mån) räknat på BILLIGASTE privatleasingannonsen på Blocket.
+                    Föreslå andra bilar som faktiskt går att leasa för pengarna: %s.
+                    """, namn, prefs.budget() + marginal, marginal, utvagar)
+                : String.format("""
+
+                    VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr
+                    (budget + %,d kr) räknat på BILLIGASTE annonsen på Blocket. Föreslå andra
+                    bilar som faktiskt går att köpa för pengarna: %s.
+                    """, namn, prefs.budget() + marginal, marginal, utvagar));
 
         try {
             Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);
@@ -579,10 +637,10 @@ public class GroqService {
             List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)");
             Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
             List<CarRecommendation> retried = enrichRecommendations(
-                    parsed, prefs.kmPerYear(), prefs.fuelType(), false, retryRanges);
+                    parsed, prefs.kmPerYear(), prefs.fuelType(), leasing, retryRanges);
 
             List<CarRecommendation> withinBudget =
-                    mergeWithinBudget(retried, retryRanges, original, ranges, prefs.budget());
+                    mergeWithinBudget(retried, retryRanges, original, ranges, prefs.budget(), leasing);
 
             if (withinBudget.isEmpty()) {
                 // Kriterierna går inte ihop — typiskt låg budget plus hårt ålderskrav. Korten
@@ -1389,11 +1447,18 @@ public class GroqService {
                   (currentYear - prefs.maxAgeYears() - 1) + " eller äldre bil är FELAKTIG och ska ALDRIG rekommenderas." +
                   " Ange ALLTID ett specifikt år i title-fältet, t.ex. \"Dacia Sandero (" + (currentYear - 1) + ")\" — ALDRIG \"(2021+)\" eller liknande generationsnotation." : "";
 
+        // Systemprompten säger att "price" är ett köpprisintervall. I leasingläge är budgeten
+        // kr/mån, och ett köppris på kortet läser då som att bilen kostar så mycket att äga.
+        String leasingPrisLine = isLeasing
+                ? " PRIS I LEASINGLÄGE: fältet \"price\" ska vara MÅNADSKOSTNADEN som intervall,"
+                  + " t.ex. \"4 500–5 200 kr/mån\" — aldrig ett köppris eller listpris." : "";
+
         return """
-                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s
+                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
-                km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine
+                km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
+                leasingPrisLine
         );
     }
 }
