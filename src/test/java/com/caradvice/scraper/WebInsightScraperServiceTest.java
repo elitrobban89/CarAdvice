@@ -370,6 +370,75 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandevaktenArEttEgetAnropEfterRelevansvakten() throws Exception {
+        // Trevägsbeslutet var instabilt på KOMMANDE-gränsen: natten 2026-08-07 kastades fem
+        // EX60-rader som IRRELEVANTA trots att bilen säljs här, och A/B på samma batch gav
+        // KOMMANDE i en körning och direkt användbar i två. Frågorna ställs därför var för sig.
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        List<String> prompter = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            String prompt = inv.getArgument(1);
+            prompter.add(prompt);
+            // relevansvakten fäller index 0; kommandevakten ser bara de två överlevande och
+            // parkerar den andra av dem (EX50)
+            return groqResponse(prompt.equals(WebInsightScraperService.UPCOMING_PROMPT)
+                    ? "{\"upcoming\":[1]}" : "{\"irrelevant\":[0]}");
+        }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode skrot = mapper.readTree(
+                "{\"car_make\":\"Dodge\",\"car_model\":\"Charger\",\"insight\":\"Restomod med 650 hk.\"}");
+        JsonNode ex60 = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"5G-uppkopplingen slutade fungera.\"}");
+        JsonNode ex50 = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX50\",\"insight\":\"Säljstart 2027.\"}");
+
+        assertThat(service.filterIrrelevant(List.of(skrot, ex60, ex50))).containsExactly(ex60, ex50);
+        // EX60 är köpbar och ska INTE parkeras — det var precis förlusten fixen byggdes mot
+        assertThat(WebInsightScraperService.isUpcoming(ex60)).isFalse();
+        assertThat(WebInsightScraperService.isUpcoming(ex50)).isTrue();
+        assertThat(prompter).containsExactly(
+                WebInsightScraperService.RELEVANCE_PROMPT, WebInsightScraperService.UPCOMING_PROMPT);
+    }
+
+    @Test
+    void kommandevaktenParkerarChunkenIStalletForAttTappaDen() throws Exception {
+        // Relevansvakten är fail-closed och kastar hela chunken vid oläsbart svar. Kommande-
+        // vakten får inte göra det: raderna är redan godkända, så ett Groq-hicka skulle
+        // återinföra exakt den förlust fixen finns för. De parkeras i kön i stället.
+        var service = org.mockito.Mockito.spy(service());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "apiKey", "test-nyckel");
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "guardModel", "test-modell");
+        org.mockito.Mockito.doAnswer(inv -> groqResponse(
+                WebInsightScraperService.UPCOMING_PROMPT.equals(inv.getArgument(1))
+                        ? "inte json alls" : "{\"irrelevant\":[]}"))
+                .when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode ins = mapper.readTree(
+                "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"Räckvidden är 55-60 mil.\"}");
+
+        assertThat(service.filterIrrelevant(List.of(ins))).containsExactly(ins);
+        assertThat(WebInsightScraperService.isUpcoming(ins)).isTrue();
+    }
+
+    @Test
+    void relevanspromptenAvgorInteLangreKommande() {
+        // Hela poängen med uppdelningen: relevansprompten ska inte längre resonera om
+        // tillgänglighet, och kommande-prompten ska inte kunna kasta något.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .doesNotContain("\"upcoming\"")
+                .contains("avgörs i ett separat steg");
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .doesNotContain("\"irrelevant\"")
+                // gränsen användaren drog 2026-08-07: leveranser, inte nyhetsvärde
+                .contains("Gränsen går vid leveranserna")
+                .contains("EX50 med säljstart 2027");
+    }
+
+    @Test
     void saljbarhetsvaktenGallerBaraStriktaKallor() throws Exception {
         // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
         // övriga källor ska inte betala för ett extra Groq-anrop på sina säljbara rader.

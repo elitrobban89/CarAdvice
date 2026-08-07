@@ -245,21 +245,53 @@ public class WebInsightScraperService {
             ingenting i den går att jämföra mot en annan bil. Undantaget gäller omdömen
             som VÄGER bilens egenskaper, inte meningar som beskriver vad utförandet heter.
 
-            En insikt är KOMMANDE (varken irrelevant eller direkt användbar) om den handlar om
-            en namngiven, bekräftad modell eller generation som ska säljas i Sverige men ännu
-            inte går att köpa här: presenterad men inte prissatt, annonserad säljstart längre
-            fram, eller ny generation av en modell som redan säljs här. Insikten måste ha
-            konkret innehåll (mått, effekt, räckvidd, utrustning, testintryck) — lösa rykten
-            om namn eller lanseringsår är IRRELEVANTA, inte kommande.
-            Gränsen mot KÖPBAR går vid leveranserna, inte vid hur ny bilen är: har svenska
-            kunder redan fått sina bilar är modellen köpbar och insikten direkt användbar.
-            KOMMANDE är bilar längre bort — presenterade utan säljstart, eller med lansering
-            ett år eller mer fram i tiden (Volvo EX50 med säljstart 2027 är arketypen).
+            En bekräftad modell som är på väg till den svenska marknaden är RELEVANT här,
+            så länge insikten har konkret innehåll (mått, effekt, räckvidd, utrustning,
+            testintryck). Om bilen redan GÅR att köpa avgörs i ett separat steg efteråt —
+            väg inte in den frågan, och håll inte tillbaka en rad för att bilen är ny. Lösa
+            rykten om namn eller lanseringsår är däremot IRRELEVANTA.
 
             Svara ENDAST med valid JSON:
-            {"irrelevant": [index...], "upcoming": [index...]}
-            Ett index får bara stå i en av listorna. Om alla är direkt användbara:
-            {"irrelevant": [], "upcoming": []}
+            {"irrelevant": [index...]}
+            Om alla är relevanta: {"irrelevant": []}
+            """;
+
+    /**
+     * Andra steget i relevansvakten, och avsiktligt ett eget Groq-anrop. Trevägsbeslutet
+     * (irrelevant / kommande / direkt användbar) i en enda prompt visade sig instabilt på
+     * just KOMMANDE-gränsen: samma rader fick olika dom mellan körningar med identiska
+     * produktionsparametrar. Natten 2026-08-05 splittrades tre CarUp-rader om Audi A2
+     * e-tron, och natten 2026-08-07 kastades fem rader från Volvo EX60:s förste svenske
+     * ägare som IRRELEVANTA trots att EX60 säljs här — A/B på samma batch gav KOMMANDE i
+     * en körning och direkt användbar i två, alltså tre olika domar på samma rader.
+     *
+     * <p>Frågan är binär och besvaras därför separat, utan att konkurrera med
+     * relevansbedömningen om modellens uppmärksamhet. Vakten kan bara PARKERA rader, aldrig
+     * kasta dem: relevansen är redan avgjord när den körs.
+     */
+    static final String UPCOMING_PROMPT = """
+            Du avgör en enda sak om varje rad: går bilen att köpa i Sverige idag?
+
+            Raderna är redan godkända som köpvärd information. Du ska INTE bedöma
+            innehållets kvalitet eller nytta — bara modellens tillgänglighet.
+
+            En rad är KOMMANDE om modellen ännu inte går att köpa här: presenterad men inte
+            prissatt, annonserad säljstart längre fram, eller en ny generation som ännu inte
+            nått marknaden (även när föregående generation säljs idag).
+
+            Gränsen går vid leveranserna, inte vid hur ny bilen är. Har svenska kunder redan
+            fått sina bilar är modellen KÖPBAR — även om den kallas ny eller nyss lanserad,
+            och även om texten handlar om barnsjukdomar hos de första exemplaren. Volvo
+            EX60, BMW iX3 och Mercedes GLC med eldrift är i det läget 2026. KOMMANDE är
+            bilar längre bort: utan säljstart, eller med lansering ett år eller mer fram
+            i tiden (Volvo EX50 med säljstart 2027 är arketypen).
+
+            Är du osäker på om leveranserna börjat — svara KOMMANDE. En rad i kön går att
+            släppa fram, en osläppt bil på ett bilkort går inte att ta tillbaka.
+
+            Svara ENDAST med valid JSON:
+            {"upcoming": [index...]}
+            Om alla går att köpa idag: {"upcoming": []}
             """;
 
     /**
@@ -730,9 +762,57 @@ public class WebInsightScraperService {
      * dedup-anrop. Detta är den enda spärren mot att irrelevant/hallucinerat innehåll
      * hamnar i den "verifierade" insiktsdatabasen — därför fail-closed vid fel: hoppar
      * över hela batchen den här körningen hellre än att spara den ofiltrerad.
+     *
+     * <p>Två anrop, inte ett: relevansen avgörs först, därefter frågar
+     * {@link #UPCOMING_PROMPT} binärt vilka av de överlevande raderna som handlar om en bil
+     * man ännu inte kan köpa. Kostnaden är ett extra Groq-anrop per chunk av det som
+     * ÖVERLEVT vakten — se {@link #UPCOMING_PROMPT} för varför trevägsbeslutet inte höll.
      */
     List<JsonNode> filterIrrelevant(List<JsonNode> insights) {
-        return runGuard(RELEVANCE_PROMPT, insights, "relevansvakten", true);
+        return markUpcomingRows(runGuard(RELEVANCE_PROMPT, insights, "relevansvakten"));
+    }
+
+    /**
+     * Kommande-vakten: markerar, kastar aldrig. Raderna har redan passerat relevansvakten,
+     * så ett uteblivet svar får inte kosta dem livet — då vore fixen tillbaka på ruta ett.
+     * Hela chunken parkeras i stället som kommande: kön går att släppa ur med
+     * {@code DELETE /api/admin/insights/{id}/upcoming}, medan en osläppt bil som hamnat på
+     * ett bilkort inte går att ta tillbaka.
+     */
+    private List<JsonNode> markUpcomingRows(List<JsonNode> insights) {
+        if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
+        for (int start = 0; start < insights.size(); start += GUARD_BATCH_SIZE) {
+            markUpcomingChunk(insights.subList(start, Math.min(insights.size(), start + GUARD_BATCH_SIZE)));
+        }
+        return insights;
+    }
+
+    private void markUpcomingChunk(List<JsonNode> insights) {
+        Set<Integer> upcoming = null;
+        try {
+            String body = postGroq(guardModel, UPCOMING_PROMPT, buildRelevanceUserContent(insights),
+                    GUARD_MAX_TOKENS, "kommandevakten");
+            if (body != null) upcoming = parseIndexesOrNull(body, "upcoming");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            log.warn("Web insights: kommandevakten misslyckades ({} insikter): {}",
+                    insights.size(), e.getMessage());
+        }
+        if (upcoming == null) {
+            log.warn("Web insights: kommandevakten svarade inte användbart — parkerar hela chunken ({} insikter) som kommande",
+                    insights.size());
+            insights.forEach(WebInsightScraperService::markUpcoming);
+            return;
+        }
+        for (int i = 0; i < insights.size(); i++) {
+            if (!upcoming.contains(i)) continue;
+            JsonNode ins = insights.get(i);
+            markUpcoming(ins);
+            log.info("Web insights: kommandevakten markerar {} {} som kommande modell: {}",
+                    ins.path("car_make").asText(), ins.path("car_model").asText(),
+                    truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+        }
     }
 
     /**
@@ -789,11 +869,11 @@ public class WebInsightScraperService {
         Set<JsonNode> kept = Collections.newSetFromMap(new IdentityHashMap<>());
         if (!saljs.isEmpty()) {
             kept.addAll(striktKalla
-                    ? runGuard(STRICT_RELEVANCE_PROMPT, saljs, "extravakten [" + expert + "]", false)
+                    ? runGuard(STRICT_RELEVANCE_PROMPT, saljs, "extravakten [" + expert + "]")
                     : saljs);
         }
         if (!kommande.isEmpty()) {
-            kept.addAll(runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]", false));
+            kept.addAll(runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]"));
         }
         List<JsonNode> result = new ArrayList<>();
         for (JsonNode ins : insights) {
@@ -807,19 +887,19 @@ public class WebInsightScraperService {
      * insikter i en prompt kan bli lång, så batchen chunkas. Varje chunk är sitt eget
      * fail-closed-fönster: ett Groq-fel tappar den chunken, inte hela källan.
      */
-    private List<JsonNode> runGuard(String prompt, List<JsonNode> insights, String label, boolean flagUpcoming) {
+    private List<JsonNode> runGuard(String prompt, List<JsonNode> insights, String label) {
         if (insights.isEmpty() || apiKey == null || apiKey.isBlank()) return insights;
         List<JsonNode> kept = new ArrayList<>();
         for (int start = 0; start < insights.size(); start += GUARD_BATCH_SIZE) {
             List<JsonNode> chunk = insights.subList(start, Math.min(insights.size(), start + GUARD_BATCH_SIZE));
-            kept.addAll(runGuardChunk(prompt, chunk, label, flagUpcoming));
+            kept.addAll(runGuardChunk(prompt, chunk, label));
         }
         return kept;
     }
 
-    private List<JsonNode> runGuardChunk(String prompt, List<JsonNode> insights, String label, boolean flagUpcoming) {
+    /** Vakterna stoppar rader; markeringen av kommande modeller sköts av {@link #markUpcomingChunk}. */
+    private List<JsonNode> runGuardChunk(String prompt, List<JsonNode> insights, String label) {
         Set<Integer> irrelevant;
-        Set<Integer> upcoming;
         try {
             String body = postGroq(guardModel, prompt, buildRelevanceUserContent(insights), GUARD_MAX_TOKENS, label);
             if (body == null) {
@@ -835,8 +915,6 @@ public class WebInsightScraperService {
                         label, insights.size());
                 return List.of();
             }
-            Set<Integer> flagged = flagUpcoming ? parseIndexesOrNull(body, "upcoming") : null;
-            upcoming = flagged == null ? Set.of() : flagged;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return List.of();
@@ -853,12 +931,6 @@ public class WebInsightScraperService {
                         ins.path("car_make").asText(), ins.path("car_model").asText(),
                         truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
                 continue;
-            }
-            if (upcoming.contains(i)) {
-                markUpcoming(ins);
-                log.info("Web insights: {} markerar {} {} som kommande modell: {}", label,
-                        ins.path("car_make").asText(), ins.path("car_model").asText(),
-                        truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
             }
             kept.add(ins);
         }
