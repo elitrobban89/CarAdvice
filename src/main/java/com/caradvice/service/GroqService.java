@@ -74,12 +74,15 @@ public class GroqService {
     private final IceConsumptionService iceConsumptionService;
     private final FuelPriceService fuelPriceService;
     private final ElectricityPriceService electricityPriceService;
+    private final LeasingPriceService leasingPriceService;
 
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
                        BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
                        FeedbackService feedbackService, IceConsumptionService iceConsumptionService,
-                       FuelPriceService fuelPriceService, ElectricityPriceService electricityPriceService) {
+                       FuelPriceService fuelPriceService, ElectricityPriceService electricityPriceService,
+                       LeasingPriceService leasingPriceService) {
+        this.leasingPriceService = leasingPriceService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
         this.evSpecService = evSpecService;
@@ -462,6 +465,20 @@ public class GroqService {
             }
             if (nyprisOut != null && nypris != null) nyprisOut.put(r.title(), nypris);
 
+            // Märkets eget listpris går före handlarannonserna i leasingläge: det är siffran
+            // kunden möter på märkets sajt. Saknas modellen i utbudet betyder det att den inte
+            // går att privatleasa — då står Blocket-annonserna kvar som enda uppgift.
+            if (leasing) {
+                LeasingPriceService.LeasingOffer officiellt = null;
+                try { officiellt = leasingPriceService.offerForTitle(r.title()); } catch (Exception ignored) {}
+                if (officiellt != null) {
+                    blocketRange = new BlocketPriceService.PriceRange(officiellt.monthlyKr(),
+                            officiellt.monthlyKr(), 1,
+                            "från " + formatSekSpace(officiellt.monthlyKr()) + " kr/mån ("
+                                    + officiellt.brand() + " privatleasing)");
+                    if (rangesOut != null) rangesOut.put(r.title(), blocketRange);
+                }
+            }
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
             // Samma jämförelse i båda lägena, men aldrig över prislägena: i leasingläge är
             // både AI:ns siffra och annonsintervallet kr/mån
