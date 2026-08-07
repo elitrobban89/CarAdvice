@@ -198,9 +198,9 @@ public class NewCarPriceService {
      */
     public Integer priceForTitle(String title) {
         if (title == null || title.isBlank()) return null;
-        List<String> titleWords = words(title.replaceAll("\\s*\\(\\d{4}\\+?\\)\\s*$", ""));
+        List<String> titleWords = words(CarTitle.stripYear(title));
         if (titleWords.isEmpty()) return null;
-        Integer titleYear = yearOf(title);
+        Integer titleYear = CarTitle.year(title);
 
         Integer bastaPris = null;
         int bastaLangd = 0;
@@ -232,11 +232,6 @@ public class NewCarPriceService {
         int from = Integer.parseInt(m.group(1));
         int to = m.group(2) != null ? Integer.parseInt(m.group(2)) : 9999;
         return new int[]{from, to};
-    }
-
-    private static Integer yearOf(String title) {
-        Matcher m = Pattern.compile("\\((\\d{4})\\+?\\)\\s*$").matcher(title.trim());
-        return m.find() ? Integer.parseInt(m.group(1)) : null;
     }
 
     private static List<String> words(String s) {

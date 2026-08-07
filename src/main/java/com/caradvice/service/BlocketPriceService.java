@@ -231,14 +231,12 @@ public class BlocketPriceService {
     }
 
     private Integer extractYear(String title) {
-        if (title == null) return null;
-        Matcher m = Pattern.compile("\\((\\d{4})\\+?\\)\\s*$").matcher(title.trim());
-        return m.find() ? Integer.parseInt(m.group(1)) : null;
+        return CarTitle.year(title);
     }
 
     private String extractSearchQuery(String title) {
         if (title == null) return null;
-        String s = title.replaceAll("\\s*\\(\\d{4}\\+?\\)\\s*$", "").trim();
+        String s = CarTitle.stripYear(title);
         // Strip engine displacement: "1.0 TSI", "1.5 T-GDI", "2.0 TDI", etc.
         s = s.replaceAll("\\s+\\d+[.,]\\d+.*$", "").trim();
         // Strip battery capacity: "26 kWh", "51 kWh", etc.

@@ -21,9 +21,8 @@ public class SafetyRatingService {
         if (title == null) return null;
         // Blanktecken först: AI:ns titlar kan innehålla hårt/smalt mellanslag (U+00A0/U+202F) som
         // varken \s nedan eller contains-jämförelsen mot "IONIQ 5" hanterar. Se EvSpecService.normalize.
-        String cleaned = title.replaceAll("\\p{Cf}", "")
-                .replaceAll("[\\p{Z}\\s]+", " ")
-                .replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim().toLowerCase();
+        String cleaned = CarTitle.stripYear(title.replaceAll("\\p{Cf}", "")
+                .replaceAll("[\\p{Z}\\s]+", " ")).toLowerCase();
         List<SafetyRating> all = repo.findAll();
         return all.stream()
                 .filter(sr -> sr.getCarMake() != null && sr.getCarModel() != null)

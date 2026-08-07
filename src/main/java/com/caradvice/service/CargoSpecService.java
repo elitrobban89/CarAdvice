@@ -27,7 +27,7 @@ public class CargoSpecService {
 
     public CargoSpecDto formatForTitle(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
+        String cleaned = normalize(CarTitle.stripYear(title));
         String[] titleWords = cleaned.split("\\s+");
         Set<String> titleSet = new HashSet<>(Arrays.asList(titleWords));
 
@@ -296,7 +296,7 @@ public class CargoSpecService {
 
     public Integer getLegroom(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim());
+        String cleaned = normalize(CarTitle.stripYear(title));
         String[] cleanedWords = cleaned.split("\\s+");
         Set<String> cleanedSet = new HashSet<>(Arrays.asList(cleanedWords));
 

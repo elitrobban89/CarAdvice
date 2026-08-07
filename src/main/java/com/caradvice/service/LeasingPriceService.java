@@ -261,8 +261,7 @@ public class LeasingPriceService {
     }
 
     private static List<String> words(String s) {
-        String rensad = s.toLowerCase(new Locale("sv", "SE"))
-                .replaceAll("\\s*\\(\\d{4}\\+?\\)\\s*$", "")
+        String rensad = CarTitle.stripYear(s).toLowerCase(new Locale("sv", "SE"))
                 .replaceAll("[*/]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();

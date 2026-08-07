@@ -174,7 +174,7 @@ public class CarVideoService {
     /** Årtalet i "Volvo EX60 (2024)" hör inte hemma i en recensionssökning. */
     static String normalize(String carTitle) {
         if (carTitle == null) return "";
-        String s = carTitle.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
+        String s = CarTitle.stripYear(carTitle);
         return s.length() > MAX_CAR_NAME ? s.substring(0, MAX_CAR_NAME) : s;
     }
 

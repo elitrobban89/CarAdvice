@@ -46,7 +46,7 @@ public class EvSpecService {
     private EvSpec matchByTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
-                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")   // strip year
+                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
                 .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
                 .trim());
@@ -111,7 +111,7 @@ public class EvSpecService {
     public String verifiedEngineOptions(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
-                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
                 .replaceAll("(?i)\\bElectric\\b", "")
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
                 .trim());
@@ -205,7 +205,7 @@ public class EvSpecService {
     public Integer getSystemPowerHk(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
-                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
                 .replaceAll("(?i)\\bElectric\\b", "")
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
                 .trim());
@@ -549,7 +549,7 @@ public class EvSpecService {
     public String getBatteryChemistry(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
-                .replaceAll("\\s*\\(?\\d{4}\\)?\\s*$", "")
+                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
                 .replaceAll("(?i)\\bElectric\\b", "")
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
                 .trim());

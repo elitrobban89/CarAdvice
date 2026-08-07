@@ -445,9 +445,8 @@ public class GroqService {
                 evSpec = evSpecService.formatForTitle(r.title(), kmPerYear);
                 // Drop EV/PHEV match if the title year predates the technology
                 if (evSpec != null) {
-                    Matcher ym = Pattern.compile("\\((\\d{4})\\)").matcher(r.title());
-                    if (ym.find()) {
-                        int titleYear = Integer.parseInt(ym.group(1));
+                    Integer titleYear = CarTitle.year(r.title());
+                    if (titleYear != null) {
                         boolean isPhev = "PHEV".equals(evSpec.carType());
                         if (isPhev && titleYear < 2014) evSpec = null;       // PHEVs before 2014 don't exist
                         else if (!isPhev && titleYear < 2011) evSpec = null; // consumer EVs before 2011 don't exist
@@ -489,9 +488,8 @@ public class GroqService {
             // för en bil som kostar 370 000 ny)
             boolean harAnnonser = blocketRange != null && blocketRange.count() >= 2;
             if (!leasing && !harAnnonser && nypris != null) {
-                Matcher ym = Pattern.compile("\\((\\d{4})\\)").matcher(r.title());
-                Integer titleYear = ym.find() ? Integer.parseInt(ym.group(1)) : null;
-                String uppskattat = estimatedPrice(nypris, titleYear, java.time.Year.now().getValue(), newCar);
+                String uppskattat = estimatedPrice(nypris, CarTitle.year(r.title()),
+                        java.time.Year.now().getValue(), newCar);
                 if (uppskattat != null && !uppskattat.equals(price)) {
                     log.warn("Inga annonser för {} — AI-priset {} ersätts med {} räknat på nypris {} kr",
                             r.title(), price, uppskattat, nypris);
@@ -686,7 +684,7 @@ public class GroqService {
 
     /** Titel utan årtalsparentes, gemener — "Volkswagen ID.4 (2021)" och "(2022)" blir samma nyckel. */
     private static String modelKey(String title) {
-        return title == null ? "" : title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim().toLowerCase();
+        return title == null ? "" : CarTitle.stripYear(title).toLowerCase();
     }
 
     /** Modellnyckelns ord i ordning. (Egen metod: modelTokens är upptagen av modellverifieringen.) */
@@ -1260,7 +1258,7 @@ public class GroqService {
         List<Set<String>> known = knownModelTokenSets;
         if (known.isEmpty()) return; // whitelisten inte laddad än — släpp igenom hellre än att fälla korrekt
         for (CarRecommendation r : parsed) {
-            String name = r.title() == null ? "" : r.title().replaceAll("\\s*\\(\\d{4}\\)\\s*$", "");
+            String name = r.title() == null ? "" : CarTitle.stripYear(r.title());
             Set<String> titleTokens = modelTokens(name);
             if (titleTokens.size() < 2) continue;
             boolean matched = known.stream().anyMatch(k -> titleTokens.containsAll(k) || k.containsAll(titleTokens));
@@ -1491,7 +1489,7 @@ public class GroqService {
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
             String raw = m.group(1).trim();
-            String name = raw.replaceAll("\\s*\\(\\d{4}\\)\\s*$", "").trim();
+            String name = CarTitle.stripYear(raw);
             Integer legroom = null;
             String chem = null;
             String safety = null;

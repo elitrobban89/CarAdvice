@@ -152,7 +152,7 @@ public class IceConsumptionService {
      */
     public Variant consumptionForTitle(String title, Integer horsepower, String fuelPref) {
         if (title == null || title.isBlank()) return null;
-        String t = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", ""));
+        String t = normalize(CarTitle.stripYear(title));
         java.util.Set<String> tokens = titleTokens(t);
 
         List<Variant> candidates = new ArrayList<>();
@@ -184,7 +184,7 @@ public class IceConsumptionService {
     /** Kompakt förbrukningsrad för jämförelseprompten: median per drivmedel för modellen. */
     public String consumptionSummaryForTitle(String title) {
         if (title == null || title.isBlank()) return null;
-        String t = normalize(title.replaceAll("\\s*\\(\\d{4}\\)\\s*$", ""));
+        String t = normalize(CarTitle.stripYear(title));
         java.util.Set<String> tokens = titleTokens(t);
 
         List<Variant> candidates = new ArrayList<>();
