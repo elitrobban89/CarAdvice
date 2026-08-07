@@ -784,24 +784,28 @@ function caFetchVideos(recommendations) {
       .then(function(res) { return res.ok ? res.json() : null; })
       .then(function(v) {
         if (!v || !v.videoId) return;
+        // Ett block: klickbar videorad överst, betyget som en avdelad rad under. Två
+        // separata rutor tog för mycket höjd längst ned på ett redan innehållstungt kort.
         box.innerHTML =
-          '<a href="' + caEsc(v.url) + '" target="_blank" rel="noopener" ' +
-             'style="display:flex;gap:11px;align-items:center;margin-top:10px;padding:9px 11px;' +
-             'background:rgba(255,0,0,.06);border:1px solid rgba(255,0,0,.22);border-radius:10px;' +
-             'text-decoration:none;transition:background .15s,border-color .15s" ' +
-             'onmouseover="this.style.background=\'rgba(255,0,0,.11)\';this.style.borderColor=\'rgba(255,0,0,.4)\'" ' +
-             'onmouseout="this.style.background=\'rgba(255,0,0,.06)\';this.style.borderColor=\'rgba(255,0,0,.22)\'">' +
-            '<img src="' + caEsc(v.thumbnail) + '" alt="" loading="lazy" width="86" height="48" ' +
-                 'style="width:86px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;background:rgba(255,255,255,.06)">' +
-            '<span style="min-width:0">' +
-              '<span style="display:block;font-size:.74rem;font-weight:700;color:#ff6b6b;text-transform:uppercase;letter-spacing:.05em">' +
-                '&#x25B6; Se bilrecension p\xe5 YouTube</span>' +
-              '<span style="display:block;font-size:.76rem;color:rgba(255,255,255,.62);line-height:1.35;margin-top:2px;' +
-                    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + caEsc(v.title) + '</span>' +
-              (v.channel ? '<span style="display:block;font-size:.68rem;color:rgba(255,255,255,.38);margin-top:1px">' +
-                caEsc(v.channel) + '</span>' : '') +
-            '</span>' +
-          '</a>' + caSentimentHTML(v.sentiment);
+          '<div style="margin-top:10px;background:rgba(255,0,0,.06);border:1px solid rgba(255,0,0,.22);' +
+               'border-radius:10px;overflow:hidden">' +
+            '<a href="' + caEsc(v.url) + '" target="_blank" rel="noopener" ' +
+               'style="display:flex;gap:11px;align-items:center;padding:9px 11px;text-decoration:none;' +
+               'transition:background .15s" ' +
+               'onmouseover="this.style.background=\'rgba(255,0,0,.09)\'" ' +
+               'onmouseout="this.style.background=\'transparent\'">' +
+              '<img src="' + caEsc(v.thumbnail) + '" alt="" loading="lazy" width="86" height="48" ' +
+                   'style="width:86px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;background:rgba(255,255,255,.06)">' +
+              '<span style="min-width:0">' +
+                '<span style="display:block;font-size:.74rem;font-weight:700;color:#ff6b6b;text-transform:uppercase;letter-spacing:.05em">' +
+                  '&#x25B6; Se bilrecension p\xe5 YouTube</span>' +
+                '<span style="display:block;font-size:.76rem;color:rgba(255,255,255,.62);line-height:1.35;margin-top:2px;' +
+                      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + caEsc(v.title) + '</span>' +
+                (v.channel ? '<span style="display:block;font-size:.68rem;color:rgba(255,255,255,.38);margin-top:1px">' +
+                  caEsc(v.channel) + '</span>' : '') +
+              '</span>' +
+            '</a>' + caSentimentHTML(v.sentiment) +
+          '</div>';
       })
       .catch(function() {});
   });
@@ -813,21 +817,22 @@ function caFetchVideos(recommendations) {
 function caSentimentHTML(s) {
   if (!s || !s.verdict) return '';
   var tone = s.verdict === 'bra'
-        ? { col: '#6ee7b7', bg: 'rgba(52,211,153,.08)', bd: 'rgba(52,211,153,.28)', icon: '👍' }
+        ? { col: '#6ee7b7', pill: 'rgba(52,211,153,.14)', icon: '👍' }
       : s.verdict === 'daligt'
-        ? { col: '#fca5a5', bg: 'rgba(248,113,113,.08)', bd: 'rgba(248,113,113,.28)', icon: '👎' }
-        : { col: '#fcd34d', bg: 'rgba(251,191,36,.07)', bd: 'rgba(251,191,36,.26)', icon: '⚖️' };
-  return '<div style="margin-top:8px;padding:9px 11px;background:' + tone.bg +
-           ';border:1px solid ' + tone.bd + ';border-radius:10px">' +
-      '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">' +
-        '<span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5)">' +
-          'YouTube-betyg</span>' +
-        '<span style="font-size:.82rem;font-weight:700;color:' + tone.col + '">' +
-          tone.icon + ' ' + caEsc(s.label) + '</span>' +
-        '<span style="font-size:.68rem;color:rgba(255,255,255,.35)">' +
-          caEsc(String(s.commentCount)) + ' kommentarer om bilen</span>' +
+        ? { col: '#fca5a5', pill: 'rgba(248,113,113,.14)', icon: '👎' }
+        : { col: '#fcd34d', pill: 'rgba(251,191,36,.14)', icon: '⚖️' };
+  // Sitter inuti videoblocket: bara en avdelande linje, ingen egen ram eller bakgrund.
+  // Domen bär färgen som en pill, summaryn får hela bredden och full radhöjd.
+  return '<div style="border-top:1px solid rgba(255,255,255,.09);padding:8px 11px;' +
+              'background:rgba(0,0,0,.13)">' +
+      '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-size:.82rem;font-weight:700;color:' + tone.col + ';background:' + tone.pill +
+              ';border-radius:999px;padding:2px 9px;white-space:nowrap">' +
+          tone.icon + '\xa0' + caEsc(s.label) + '</span>' +
+        '<span style="font-size:.7rem;color:rgba(255,255,255,.42)">' +
+          'i ' + caEsc(String(s.commentCount)) + ' kommentarer om bilen</span>' +
       '</div>' +
-      (s.summary ? '<div style="margin-top:4px;font-size:.76rem;line-height:1.45;color:rgba(255,255,255,.6)">' +
+      (s.summary ? '<div style="margin-top:5px;font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.66)">' +
         caEsc(s.summary) + '</div>' : '') +
     '</div>';
 }
