@@ -313,6 +313,10 @@ public class CarController {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
             }
+            // Satt bara när kriterierna inte gick ihop och korten därför ligger över budget
+            if (result.budgetShortfallFromKr() != null) {
+                body.put("budgetShortfallFromKr", result.budgetShortfallFromKr());
+            }
             return ResponseEntity.ok(body);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(

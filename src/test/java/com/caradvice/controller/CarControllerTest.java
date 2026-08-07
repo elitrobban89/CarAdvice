@@ -242,7 +242,7 @@ class CarControllerTest {
     @Test
     void rekommendationLyckasForAnonymMedKvarvarandeSokningar() throws Exception {
         when(groqService.getRecommendation(any()))
-                .thenReturn(new GroqService.Result(List.of(), false, 0));
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
         mvc.perform(post("/api/recommend")
                 .header("X-Forwarded-For", "10.1.1.1")
@@ -259,7 +259,7 @@ class CarControllerTest {
     @Test
     void cachadRekommendationMarkerasMedAlder() throws Exception {
         when(groqService.getRecommendation(any()))
-                .thenReturn(new GroqService.Result(List.of(), true, 300));
+                .thenReturn(new GroqService.Result(List.of(), true, 300, null));
 
         mvc.perform(post("/api/recommend")
                 .header("X-Forwarded-For", "10.2.2.2")
@@ -271,9 +271,39 @@ class CarControllerTest {
     }
 
     @Test
+    void budgetunderskottFoljerMedISvaret() throws Exception {
+        // Gick kriterierna inte ihop (låg budget + hårt ålderskrav) visas korten ändå, men
+        // frontend måste få veta varför de ligger över budget — annars läser tre bilar till
+        // dubbla priset som en trasig rekommendation. Live-fyndet var 100 000 kr + max 3 år.
+        when(groqService.getRecommendation(any()))
+                .thenReturn(new GroqService.Result(List.of(), false, 0, 249_900));
+
+        mvc.perform(post("/api/recommend")
+                .header("X-Forwarded-For", "10.9.9.9")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"budget\":\"100000\",\"maxAgeYears\":3}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.budgetShortfallFromKr").value(249_900));
+    }
+
+    @Test
+    void utanBudgetunderskottSaknasFaltetHelt() throws Exception {
+        // Fältet får inte finnas i normalfallet — frontend ritar banderollen på dess blotta närvaro
+        when(groqService.getRecommendation(any()))
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
+
+        mvc.perform(post("/api/recommend")
+                .header("X-Forwarded-For", "10.9.9.8")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"budget\":\"400000\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.budgetShortfallFromKr").doesNotExist());
+    }
+
+    @Test
     void rekommendationRateLimitGer429EfterTioSokningar() throws Exception {
         when(groqService.getRecommendation(any()))
-                .thenReturn(new GroqService.Result(List.of(), false, 0));
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
         for (int i = 0; i < 10; i++) {
             mvc.perform(post("/api/recommend")

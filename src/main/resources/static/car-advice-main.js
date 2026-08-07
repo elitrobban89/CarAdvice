@@ -156,6 +156,10 @@ var caCurrentRecs = null;
 var caSavedFromServer = [];
 var caCurrentKm = 15000;
 var caCurrentCategory = '';
+// Sätts av sökningen när servern inte hittade en enda bil inom budgettaket
+var caBudgetShortfall = null;
+var caShortfallBudget = 0;
+var caShortfallMaxAge = null;
 var caIsLeasing = false;
 var caKopBudget = 200000;
 var caLeasingBudget = 3000;
@@ -485,6 +489,7 @@ function caLoadFromHistory(index) {
     document.getElementById('ca-divider').style.display = 'block';
     document.getElementById('ca-results').style.display = 'block';
     document.getElementById('ca-cache-badge').style.display = 'none';
+    caBudgetShortfall = null;   // historikposten bär ingen budgetdom — visa aldrig en gammal
     caRenderCards(entry.recommendations);
     document.getElementById('ca-copy-btn').style.display = 'inline-block';
     document.getElementById('ca-share-result-btn').style.display = 'inline-block';
@@ -647,11 +652,46 @@ function caRenderPhevTaxNotice() {
   host.parentNode.insertBefore(el, host);
 }
 
+// Budgetbanderoll. Servern har redan gjort ett omförsök och ändå inte hittat en enda bil
+// inom taket — då är kriterierna omöjliga, typiskt låg budget plus hårt ålderskrav. Utan
+// den här raden läser tre bilar till dubbla priset som en trasig rekommendation i stället
+// för som ett svar på en omöjlig fråga. Samma placering som laddhybridsnotisen.
+function caRenderBudgetNotice() {
+  var host = document.getElementById('ca-cards');
+  if (!host) return;
+  var existing = document.getElementById('ca-budget-notice');
+  if (existing) existing.parentNode.removeChild(existing);
+  if (!caBudgetShortfall) return;
+
+  var kr = function(n) { return Number(n).toLocaleString('sv-SE') + '\xa0kr'; };
+  var orsak = caShortfallMaxAge
+    ? 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till en bil som \xe4r max ' +
+      caShortfallMaxAge + ' \xe5r gammal.'
+    : 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till n\xe5gon bil i den h\xe4r kategorin.';
+  var rad = caShortfallMaxAge
+    ? 'H\xf6j budgeten, till\xe5t \xe4ldre bilar eller v\xe4lj en billigare kategori.'
+    : 'H\xf6j budgeten eller v\xe4lj en billigare kategori.';
+
+  var el = document.createElement('div');
+  el.id = 'ca-budget-notice';
+  el.setAttribute('style', 'margin:0 0 16px;padding:12px 14px;background:rgba(248,113,113,.08);' +
+    'border:1px solid rgba(248,113,113,.35);border-radius:10px;font-size:.82rem;line-height:1.55;' +
+    'color:rgba(255,255,255,.8)');
+  el.innerHTML =
+    '<strong style="color:#fca5a5">&#x26A0; F\xf6rslagen ligger \xf6ver din budget</strong><br>' +
+    caEsc(orsak) + ' Billigaste bilen som matchar dina \xf6vriga krav b\xf6rjar p\xe5 ' +
+    '<strong>' + caEsc(kr(caBudgetShortfall)) + '</strong> p\xe5 Blocket just nu. ' +
+    'Korten nedan visas \xe4nd\xe5 s\xe5 du ser vad som finns — men de \xe4r allts\xe5 dyrare \xe4n du angav. ' +
+    caEsc(rad);
+  host.parentNode.insertBefore(el, host);
+}
+
 function caRenderCards(recommendations) {
   caRestoreResults();
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
   caRenderPhevTaxNotice();
+  caRenderBudgetNotice();
   setTimeout(function() {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
@@ -1235,6 +1275,7 @@ function caLoadSavedEntry(id) {
       document.getElementById('ca-divider').style.display = 'block';
       document.getElementById('ca-results').style.display = 'block';
       document.getElementById('ca-cache-badge').style.display = 'none';
+      caBudgetShortfall = null;   // sparad sökning bär ingen budgetdom
       caRenderCards(recs);
       caCurrentRecs = recs;
       caShowSaveBtn(true);
@@ -1668,6 +1709,10 @@ async function caGetRecommendation() {
     var d = await r.json();
 
     if (d.success && d.recommendations) {
+      // Sätts före renderingen: caRenderCards ritar banderollen ovanför korten
+      caBudgetShortfall = d.budgetShortfallFromKr || null;
+      caShortfallBudget = payload.budget;
+      caShortfallMaxAge = payload.maxAgeYears;
       caRenderCards(d.recommendations);
       caCurrentRecs = d.recommendations;
       document.getElementById('ca-copy-btn').style.display = 'inline-block';

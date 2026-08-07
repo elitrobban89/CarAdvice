@@ -35,7 +35,13 @@ public class GroqService {
     private static final String DEPRECIATION_RULE =
             "NYPRIS PER GENERATION: Se \"ICE-nypris\"-tabellen nedan. Begagnatpris = nypris (för bilens generation) × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).";
 
-    public record Result(List<CarRecommendation> recommendations, boolean fromCache, long cacheAgeSeconds) {}
+    /**
+     * {@code budgetShortfallFromKr} är null i normalfallet. Är den satt gick ingen bil att
+     * hitta inom budgettaket — korten visas ändå (tomt resultat hjälper ingen), och värdet
+     * är billigaste verkliga marknadspris bland dem så frontend kan säga varför.
+     */
+    public record Result(List<CarRecommendation> recommendations, boolean fromCache, long cacheAgeSeconds,
+                         Integer budgetShortfallFromKr) {}
 
     @Value("${groq.api.key}")
     private String apiKey;
@@ -105,7 +111,15 @@ public class GroqService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
-    private record CacheEntry(List<CarRecommendation> result, long timestamp) {}
+    private record CacheEntry(List<CarRecommendation> result, long timestamp, Integer budgetShortfallFromKr) {}
+
+    /**
+     * Utfallet av budgetkontrollen. {@code shortfallFromKr} är satt bara när INGEN bil gick
+     * att hitta inom taket i någondera omgången — värdet är då billigaste verkliga
+     * Blocket-pris bland de bilar som ändå visas, så användaren får veta vad som faktiskt
+     * krävs i stället för att gissa varför förslagen ligger över budget.
+     */
+    private record BudgetOutcome(List<CarRecommendation> recommendations, Integer shortfallFromKr) {}
 
     public boolean isConfigured() {
         return apiKey != null && !apiKey.isBlank();
@@ -372,7 +386,7 @@ public class GroqService {
         CacheEntry cached = cache.get(key); //Slår upp cachen i lådan av sparade svar (rå post — 429-vägen nedan får använda även en utgången)
         if (isFresh(cached)) { //Fanns det något cachat och isf är det inom 4 timmar?
             long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
-            return new Result(cached.result(), true, ageSeconds); //Ja på båda då returneras det cachade svaret går alltså inte en fråga till LLM
+            return new Result(cached.result(), true, ageSeconds, cached.budgetShortfallFromKr()); //Ja på båda då returneras det cachade svaret går alltså inte en fråga till LLM
         } //Annars blir det alltså en fråga till LLM om cachat svar inte finns --> Sparar alltså tid o pengar
 
         String prompt = buildPrompt(prefs);
@@ -391,7 +405,7 @@ public class GroqService {
         if (response.statusCode() == 429) {
             if (cached != null) {
                 long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
-                return new Result(cached.result(), true, ageSeconds);
+                return new Result(cached.result(), true, ageSeconds, cached.budgetShortfallFromKr());
             }
             throw new RuntimeException(buildRateLimitError(response.body()));
         }
@@ -411,14 +425,17 @@ public class GroqService {
 
         // Budgettaket gäller bara begagnatköp: i leasingläge är budgeten kr/mån och Blocket
         // hämtas inte alls, och för nybilssök är begagnatpriset fel måttstock.
+        Integer shortfall = null;
         if (!isLeasing && !prefs.newCar()) {
             List<CarRecommendation> over = overBudget(result, ranges, prefs.budget());
             if (!over.isEmpty()) {
-                result = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges);
+                BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges);
+                result = outcome.recommendations();
+                shortfall = outcome.shortfallFromKr();
             }
         }
-        store(key, result);
-        return new Result(result, false, 0);
+        store(key, result, shortfall);
+        return new Result(result, false, 0, shortfall);
     }
 
     /**
@@ -480,9 +497,9 @@ public class GroqService {
      * Bara om ingendera omgången gav en enda bil inom budget faller vi tillbaka på
      * ursprungssvaret — tomt resultat hjälper ingen.
      */
-    private List<CarRecommendation> retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
-                                                      List<CarRecommendation> original, List<CarRecommendation> over,
-                                                      Map<String, BlocketPriceService.PriceRange> ranges) {
+    private BudgetOutcome retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
+                                            List<CarRecommendation> original, List<CarRecommendation> over,
+                                            Map<String, BlocketPriceService.PriceRange> ranges) {
         StringBuilder namn = new StringBuilder();
         for (CarRecommendation r : over) {
             BlocketPriceService.PriceRange pr = ranges.get(r.title());
@@ -505,7 +522,7 @@ public class GroqService {
             Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, skarptPrompt);
             Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, skarptPrompt);
             HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
-            if (response.statusCode() != 200) return original;
+            if (response.statusCode() != 200) return new BudgetOutcome(original, cheapest(over, ranges));
 
             List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)");
             Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
@@ -516,18 +533,44 @@ public class GroqService {
                     mergeWithinBudget(retried, retryRanges, original, ranges, prefs.budget());
 
             if (withinBudget.isEmpty()) {
-                log.warn("Budgetomförsök: ingen bil inom budget i någondera omgången — behåller första svaret");
-                return original;
+                // Kriterierna går inte ihop — typiskt låg budget plus hårt ålderskrav. Korten
+                // visas ändå, men frontend måste kunna säga VARFÖR de ligger över budget:
+                // utan det läser tre bilar till dubbla priset som en trasig rekommendation.
+                Map<String, BlocketPriceService.PriceRange> alla = new LinkedHashMap<>(ranges);
+                alla.putAll(retryRanges);
+                Integer from = cheapest(concat(original, retried), alla);
+                log.warn("Budgetomförsök: ingen bil inom budget i någondera omgången — behåller första svaret,"
+                        + " billigaste verkliga pris {} kr mot budget {} kr", from, prefs.budget());
+                return new BudgetOutcome(original, from);
             }
             log.info("Budgettak: {} bil(ar) inom budget efter omförsök (var {} av {} över taket)",
                     withinBudget.size(), over.size(), original.size());
-            return withinBudget;
+            return new BudgetOutcome(withinBudget, null);
         } catch (Exception e) {
             log.warn("Budgetomförsök misslyckades: {} — filtrerar ursprungssvaret", e.getMessage());
             List<CarRecommendation> kept = new ArrayList<>(original);
             kept.removeAll(over);
-            return kept.isEmpty() ? original : kept;
+            return kept.isEmpty()
+                    ? new BudgetOutcome(original, cheapest(over, ranges))
+                    : new BudgetOutcome(kept, null);
         }
+    }
+
+    private static List<CarRecommendation> concat(List<CarRecommendation> a, List<CarRecommendation> b) {
+        List<CarRecommendation> out = new ArrayList<>(a);
+        out.addAll(b);
+        return out;
+    }
+
+    /** Billigaste kända Blocket-pris i urvalet, null om ingen av bilarna har ett pris. */
+    static Integer cheapest(List<CarRecommendation> recs, Map<String, BlocketPriceService.PriceRange> ranges) {
+        Integer min = null;
+        for (CarRecommendation r : recs) {
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            if (pr == null || pr.minKr() <= 0) continue;
+            if (min == null || pr.minKr() < min) min = pr.minKr();
+        }
+        return min;
     }
 
     private synchronized void refreshPricesIfNeeded() {
@@ -599,9 +642,9 @@ public class GroqService {
     }
 
     /** Städa vid behov och lägg in svaret med färsk tidsstämpel. */
-    private void store(String key, List<CarRecommendation> result) {
+    private void store(String key, List<CarRecommendation> result, Integer budgetShortfallFromKr) {
         evictIfNeeded();
-        cache.put(key, new CacheEntry(result, System.currentTimeMillis()));
+        cache.put(key, new CacheEntry(result, System.currentTimeMillis(), budgetShortfallFromKr));
     }
 
     private void evictIfNeeded() {
@@ -649,7 +692,7 @@ public class GroqService {
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "compareSpecific");
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
-        store(compareCacheKey, result);
+        store(compareCacheKey, result, null);   // jämförelsen har ingen budget att bryta mot
         return result;
     }
 

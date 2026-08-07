@@ -678,6 +678,31 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("Kia Niro EV (2022)");
     }
 
+    // --- cheapest (vad banderollen säger att bilen faktiskt kostar) ---
+
+    @Test
+    void billigasteVerkligaPrisetPlockasUrUrvalet() {
+        // Live-fynd 2026-08-07: budget 100 000 kr + max 3 år gav MG4 fr. 249 900, Enyaq fr.
+        // 374 900 och EV6 fr. 349 000. Kriterierna gick inte ihop, omförsöket hittade inget
+        // inom taket, och korten visades utan att någonstans säga varför de var för dyra.
+        var recs = List.of(bil("MG4 (2023)"), bil("Škoda Enyaq (2022)"), bil("Kia EV6 (2022)"));
+        var ranges = Map.of("MG4 (2023)", range(249_900),
+                "Škoda Enyaq (2022)", range(374_900),
+                "Kia EV6 (2022)", range(349_000));
+
+        assertThat(GroqService.cheapest(recs, ranges)).isEqualTo(249_900);
+    }
+
+    @Test
+    void billigastePrisetIgnorerarBilarUtanBlocketData() {
+        var recs = List.of(bil("Okänd bil (2020)"), bil("MG4 (2023)"));
+        var ranges = Map.of("MG4 (2023)", range(249_900));
+
+        assertThat(GroqService.cheapest(recs, ranges)).isEqualTo(249_900);
+        assertThat(GroqService.cheapest(List.of(bil("Okänd bil (2020)")), ranges)).isNull();
+        assertThat(GroqService.cheapest(List.of(), ranges)).isNull();
+    }
+
     @Test
     void omforsoketsBilarKommerForst() {
         var original = List.of(bil("Kia Niro EV (2022)"));
@@ -843,7 +868,7 @@ class GroqServiceTest {
     @Test
     void storeLaeggerInPostenSomIsFreshGodkanner() {
         GroqService s = service();
-        ReflectionTestUtils.invokeMethod(s, "store", "compare|Volvo XC60|BMW X3", List.of());
+        ReflectionTestUtils.invokeMethod(s, "store", "compare|Volvo XC60|BMW X3", List.of(), null);
 
         @SuppressWarnings("unchecked")
         java.util.Map<String, Object> cache =
@@ -857,7 +882,7 @@ class GroqServiceTest {
     @Test
     void isFreshAerFalsktForPostAeldreAenTtl() throws Exception {
         GroqService s = service();
-        ReflectionTestUtils.invokeMethod(s, "store", "nyckel", List.of());
+        ReflectionTestUtils.invokeMethod(s, "store", "nyckel", List.of(), null);
 
         @SuppressWarnings("unchecked")
         java.util.Map<String, Object> cache =
@@ -866,7 +891,7 @@ class GroqServiceTest {
         // Bygg en likadan post men med tidsstämpel 5 timmar tillbaka (TTL:n är 4 h)
         var ctor = cache.get("nyckel").getClass().getDeclaredConstructors()[0];
         ctor.setAccessible(true);
-        Object gammal = ctor.newInstance(List.of(), System.currentTimeMillis() - 5 * 60 * 60 * 1000L);
+        Object gammal = ctor.newInstance(List.of(), System.currentTimeMillis() - 5 * 60 * 60 * 1000L, null);
 
         assertThat((Boolean) ReflectionTestUtils.invokeMethod(GroqService.class, "isFresh", gammal)).isFalse();
     }

@@ -20,6 +20,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
   - **Leasing-läge:** 1 000–15 000 kr/mån, steg 250 kr — AI konverterar till ungefärligt listpris (×70) för kontextuell matchning
   - Köp/Leasing-knappen sitter inline i budget-etiketten; separata värden sparas per läge
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
+- **Säger ifrån när kriterierna inte går ihop:** budgettaket kontrolleras mot riktiga Blocket-annonser och utlöser ett omförsök, men hittar inte heller det någon bil inom taket visas korten ändå med en banderoll som förklarar varför de är för dyra och vad billigaste matchande bil faktiskt kostar. Live-fynd 2026-08-07: 100 000 kr + max 3 år gav MG4 (fr. 249 900 kr), Enyaq (fr. 374 900 kr) och EV6 (fr. 349 000 kr) — helt korrekt givet att inget 3 år gammalt matchar 100 000 kr, men utan förklaring läste det som en trasig rekommendation. Svaret bär då `budgetShortfallFromKr`
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - **Verifierad bränsleförbrukning:** AI:ns gissade l/mil ersätts med verifierad siffra ur `ice_consumption`-tabellen (957 motorvarianter) — närmaste hästkraftstal väljer variant, användarens drivmedelsval filtrerar
 - **Feedback-loop:** bilar med övervägande tummen ner injiceras som undvik-signal i AI-prompten (uppdateras varje timme)
@@ -300,7 +301,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-365 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+369 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
