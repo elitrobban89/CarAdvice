@@ -94,12 +94,13 @@ class CarVideoServiceTest {
                 .isBefore(LocalDateTime.now(ZoneOffset.UTC).minusDays(40));
     }
 
-    private static com.fasterxml.jackson.databind.JsonNode items(String... channels) throws Exception {
+    /** Varje par är kanal + titel, i den ordning YouTube returnerade dem. */
+    private static com.fasterxml.jackson.databind.JsonNode items(String... channelAndTitle) throws Exception {
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < channels.length; i++) {
+        for (int i = 0; i < channelAndTitle.length; i += 2) {
             if (i > 0) sb.append(',');
-            sb.append("{\"id\":{\"videoId\":\"v").append(i).append("\"},\"snippet\":{\"channelTitle\":\"")
-              .append(channels[i]).append("\"}}");
+            sb.append("{\"id\":{\"videoId\":\"v").append(i / 2).append("\"},\"snippet\":{\"channelTitle\":\"")
+              .append(channelAndTitle[i]).append("\",\"title\":\"").append(channelAndTitle[i + 1]).append("\"}}");
         }
         return new com.fasterxml.jackson.databind.ObjectMapper().readTree(sb.append(']').toString());
     }
@@ -108,15 +109,34 @@ class CarVideoServiceTest {
     void svenskKanalGarForeEngelskSomGarForeForstaTraffen() throws Exception {
         // Användarens ordning 2026-08-07: helst svenskt klipp, i andra hand engelskt
         // (Autotrader), annars YouTubes egen relevansordning.
-        assertThat(pickedId(items("Random Uploads", "Autotrader", "Elbilsmagasinet"))).isEqualTo("v2");
-        assertThat(pickedId(items("Random Uploads", "Autotrader"))).isEqualTo("v1");
-        assertThat(pickedId(items("Random Uploads", "Bilcentralen"))).isEqualTo("v0");
+        assertThat(pickedId(items("Random Uploads", "test", "Autotrader", "review", "Elbilsmagasinet", "recension")))
+                .isEqualTo("v2");
+        assertThat(pickedId(items("Random Uploads", "test", "Autotrader", "review"))).isEqualTo("v1");
+        assertThat(pickedId(items("Random Uploads", "test", "Bilcentralen", "test"))).isEqualTo("v0");
         // kanalnamnet "Peter Esse " har ett efterföljande mellanslag i verkligheten
-        assertThat(pickedId(items("Autotrader", "Peter Esse "))).isEqualTo("v1");
+        assertThat(pickedId(items("Autotrader", "review", "Peter Esse ", "recension"))).isEqualTo("v1");
         // delsträngsmatchning: kanalen kan byta namn utan att listan slutar fungera
-        assertThat(pickedId(items("carwow", "Elbilsmagasinet Sverige"))).isEqualTo("v1");
+        assertThat(pickedId(items("carwow", "review", "Elbilsmagasinet Sverige", "test"))).isEqualTo("v1");
         assertThat(CarVideoService.pickBest(items())).isNull();
         assertThat(CarVideoService.pickBest(null)).isNull();
+    }
+
+    @Test
+    void provkorningGarForeNyhetsnotisInomSammaKanalklass() throws Exception {
+        // Skarpt utfall 2026-08-07: "Volvo EX60 levererad – nu gäller det!" valdes före
+        // första provkörningen av samma bil, eftersom bara kanalen vägdes.
+        assertThat(pickedId(items(
+                "Peter Esse ", "Volvo EX60 levererad – nu gäller det!",
+                "Teknikens Värld", "Första provkörningen: Nya Volvo EX60"))).isEqualTo("v1");
+        // men kanalklassen väger tyngre än titeln — en okänd kanal med "recension" i
+        // titeln slår inte en känd svensk kanal
+        assertThat(pickedId(items(
+                "Random Uploads", "Volvo EX60 recension",
+                "Elbilsmagasinet", "Volvo EX60 levererad"))).isEqualTo("v1");
+        // vid lika poäng vinner YouTubes egen ordning
+        assertThat(pickedId(items(
+                "Elbilsmagasinet", "Volvo EX60 recension",
+                "Peter Esse ", "Volvo EX60 provkörning"))).isEqualTo("v0");
     }
 
     private static String pickedId(com.fasterxml.jackson.databind.JsonNode items) {

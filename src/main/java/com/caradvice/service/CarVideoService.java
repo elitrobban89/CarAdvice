@@ -251,28 +251,46 @@ public class CarVideoService {
         }
     }
 
+    /** Titlar som lovar en provkörning snarare än en nyhetsnotis om samma bil. */
+    private static final List<String> REVIEW_WORDS = List.of(
+            "recension", "provkör", "test", "review", "first drive", "körd");
+
     /**
-     * Rankningen i tre steg: känd svensk bilkanal, sedan känd engelsk, annars första
-     * träffen. Relevansordningen ensam gav lika gärna en reklamfilm eller en slumpvis
-     * utländsk kanal som en riktig provkörning, och videon syns lika tydligt på bilkortet
-     * som en expertinsikt.
+     * Rankningen väger två saker: kanalen och vad klippet är. Kanalen väger tyngst —
+     * svensk känd kanal före engelsk känd före okänd — men inom samma kanalklass går ett
+     * klipp vars titel lovar en provkörning före en nyhetsnotis. Utan titelvikten valdes
+     * "Volvo EX60 levererad – nu gäller det!" före den första provkörningen av samma bil,
+     * från samma sorts kanal (uppmätt skarpt 2026-08-07).
+     *
+     * <p>Vid lika poäng vinner YouTubes egen ordning, alltså tidigaste träffen.
      */
     static JsonNode pickBest(JsonNode items) {
         if (items == null || !items.isArray() || items.isEmpty()) return null;
-        JsonNode fromPreferred = firstFrom(items, SWEDISH_CHANNELS);
-        if (fromPreferred != null) return fromPreferred;
-        fromPreferred = firstFrom(items, ENGLISH_CHANNELS);
-        return fromPreferred != null ? fromPreferred : items.get(0);
-    }
-
-    private static JsonNode firstFrom(JsonNode items, List<String> channels) {
+        JsonNode best = null;
+        int bestScore = Integer.MAX_VALUE;
         for (JsonNode item : items) {
-            String channel = item.path("snippet").path("channelTitle").asText("").toLowerCase(Locale.ROOT);
-            for (String preferred : channels) {
-                if (channel.contains(preferred)) return item;
+            int score = score(item);
+            if (score < bestScore) {
+                bestScore = score;
+                best = item;
             }
         }
-        return null;
+        return best;
+    }
+
+    /** Lägre är bättre: kanalklassen dominerar, titeln skiljer inom klassen. */
+    private static int score(JsonNode item) {
+        String channel = item.path("snippet").path("channelTitle").asText("").toLowerCase(Locale.ROOT);
+        String title = item.path("snippet").path("title").asText("").toLowerCase(Locale.ROOT);
+        int tier = matches(channel, SWEDISH_CHANNELS) ? 0 : matches(channel, ENGLISH_CHANNELS) ? 1 : 2;
+        return tier * 10 + (matches(title, REVIEW_WORDS) ? 0 : 1);
+    }
+
+    private static boolean matches(String haystack, List<String> needles) {
+        for (String needle : needles) {
+            if (haystack.contains(needle)) return true;
+        }
+        return false;
     }
 
     private static Map<String, Object> toResult(String videoId, String title, String channel) {
