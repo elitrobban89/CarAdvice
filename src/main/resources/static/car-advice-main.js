@@ -195,6 +195,52 @@ function caStopLoadingText() {
   document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
 }
 
+// Vad budgeten räcker till på den svenska begagnatmarknaden för ELBIL. KURERADE siffror
+// (augusti 2026) — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
+// Gäller medvetet bara kategorin elbil: samma 150 000 kr köper en helt annan bensinbil, så
+// nivåerna vore vilseledande någon annanstans. Modellnamn nämns bara där prisläget är känt.
+var CA_EV_BUDGET_LEVELS = [
+  { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Nissan Leaf fr\xe5n 2016 och Renault Zoe. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
+  { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV ligger kring 100 000 kr, Leaf och Zoe under det.' },
+  { upTo: 199000, txt: 'Ca 5 \xe5r gammal elbil i kompaktklassen — b\xe4ttre r\xe4ckvidd och snabbladdning \xe4n de \xe4ldsta.' },
+  { upTo: 249000, txt: 'Nyare begagnad elbil, ca 3–4 \xe5r. H\xe4r b\xf6rjar r\xe4ckvidd \xf6ver 40 mil bli vanligt.' },
+  { upTo: 299000, txt: 'VW ID.3-klassen — nyare kompaktelbil med full r\xe4ckvidd.' },
+  { upTo: 399000, txt: 'Familjeelbil i begagnat skick — Polestar 2, VW ID.4 och Škoda Enyaq b\xf6rjar bli m\xf6jliga.' },
+  { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjeelbil, eller en st\xf6rre el-SUV n\xe5gra \xe5r gammal.' },
+  { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning.' }
+];
+
+// Elementet skapas från JS, inte i HTML-snippeten: WordPress-sidan är en manuell kopia och
+// hade annars saknat rutan tills snippeten klistrades in på nytt.
+function caRenderEvBudgetHint() {
+  var slider = document.getElementById('ca-budget-slider');
+  if (!slider) return;
+  var cat = document.getElementById('ca-category');
+  var hint = document.getElementById('ca-ev-budget-hint');
+  var show = !caIsLeasing && cat && cat.value === 'elbil';
+  if (!show) { if (hint) hint.style.display = 'none'; return; }
+
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'ca-ev-budget-hint';
+    hint.setAttribute('style', 'margin-top:6px;padding:7px 10px;background:rgba(139,92,246,.09);' +
+      'border:1px solid rgba(139,92,246,.28);border-radius:8px;font-size:.75rem;line-height:1.45;' +
+      'color:rgba(255,255,255,.68)');
+    var ticks = slider.closest('.ca-field');
+    ticks = ticks ? ticks.querySelector('.ca-slider-ticks') : null;
+    if (ticks && ticks.parentNode) ticks.parentNode.insertBefore(hint, ticks.nextSibling);
+    else slider.parentNode.parentNode.appendChild(hint);
+  }
+  hint.style.display = 'block';
+  var val = parseInt(slider.value) || 0;
+  var level = CA_EV_BUDGET_LEVELS[CA_EV_BUDGET_LEVELS.length - 1];
+  for (var i = 0; i < CA_EV_BUDGET_LEVELS.length; i++) {
+    if (val <= CA_EV_BUDGET_LEVELS[i].upTo) { level = CA_EV_BUDGET_LEVELS[i]; break; }
+  }
+  hint.innerHTML = '<strong style="color:#c4b5fd">⚡ ' +
+    caEsc(val.toLocaleString('sv-SE')) + '\xa0kr r\xe4cker till:</strong> ' + caEsc(level.txt);
+}
+
 function caUpdateSliderFill() {
   var slider = document.getElementById('ca-budget-slider');
   if (!slider) return;
@@ -206,6 +252,7 @@ function caUpdateSliderFill() {
   document.getElementById('ca-budget-display').textContent = caIsLeasing
     ? val.toLocaleString('sv-SE') + '\xa0kr/m\xe5n'
     : val.toLocaleString('sv-SE') + '\xa0kr';
+  caRenderEvBudgetHint();
 }
 
 function caSetBudgetMode(mode, value) {
@@ -368,6 +415,7 @@ function caBindChangeListeners() {
   var nc  = document.getElementById('ca-newcar');
   var chg = document.getElementById('ca-charger');
   if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
+  if (cat) cat.addEventListener('change', caRenderEvBudgetHint);
   if (chg) chg.addEventListener('change', caUpdateFuelVisibility);
   if (bud) bud.addEventListener('input', caUpdateSliderFill);
   if (nc)  nc.addEventListener('change', caUpdateMaxAgeVisibility);
