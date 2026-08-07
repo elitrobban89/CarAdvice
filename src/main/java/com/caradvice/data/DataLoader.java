@@ -10,6 +10,7 @@ import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.repository.SafetyRatingRepository;
 import com.caradvice.scraper.EvDatabaseScraperService;
 import com.caradvice.scraper.WebInsightScraperService;
+import com.caradvice.service.CarVideoService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.IceConsumptionService;
 import com.caradvice.service.NewCarPriceService;
@@ -35,12 +36,14 @@ public class DataLoader implements CommandLineRunner {
     private final FeedbackService feedbackService;
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
+    private final CarVideoService carVideoService;
 
     public DataLoader(JdbcTemplate jdbc,
                       ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
                       EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo,
                       NewCarPriceService newCarPriceService, FeedbackService feedbackService,
-                      WebInsightScraperService webInsightScraper, IceConsumptionService iceConsumptionService) {
+                      WebInsightScraperService webInsightScraper, IceConsumptionService iceConsumptionService,
+                      CarVideoService carVideoService) {
         this.jdbc = jdbc;
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
@@ -50,6 +53,7 @@ public class DataLoader implements CommandLineRunner {
         this.feedbackService = feedbackService;
         this.webInsightScraper = webInsightScraper;
         this.iceConsumptionService = iceConsumptionService;
+        this.carVideoService = carVideoService;
     }
 
     @Override
@@ -58,6 +62,7 @@ public class DataLoader implements CommandLineRunner {
         feedbackService.ensureTable();
         webInsightScraper.ensureTable();
         iceConsumptionService.ensureTableAndSeed();
+        carVideoService.ensureTable();
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();
         if (evSpecRepo.count() == 0)  seedEvSpecs();

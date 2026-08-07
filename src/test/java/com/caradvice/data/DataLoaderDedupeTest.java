@@ -28,7 +28,8 @@ class DataLoaderDedupeTest {
                 mock(ExpertInsightRepository.class), mock(SafetyRatingRepository.class),
                 mock(EvSpecRepository.class), mock(CargoSpecRepository.class),
                 mock(NewCarPriceService.class), mock(FeedbackService.class),
-                mock(WebInsightScraperService.class), mock(IceConsumptionService.class));
+                mock(WebInsightScraperService.class), mock(IceConsumptionService.class),
+                mock(com.caradvice.service.CarVideoService.class));
     }
 
     @Test

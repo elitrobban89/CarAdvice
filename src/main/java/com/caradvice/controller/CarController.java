@@ -11,6 +11,7 @@ import com.caradvice.scraper.JobStatusService;
 import com.caradvice.scraper.MobilityStatsSyncService;
 import com.caradvice.scraper.WebInsightScraperService;
 import com.caradvice.service.CargoSpecService;
+import com.caradvice.service.CarVideoService;
 import com.caradvice.service.EvSpecService;
 import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
@@ -69,6 +70,7 @@ public class CarController {
     private final FeedbackService feedbackService;
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
+    private final CarVideoService carVideoService;
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
     private final JobStatusService jobStatus;
@@ -108,7 +110,7 @@ public class CarController {
                          UserService userService, RateLimitLogRepository rateLimitLogRepo,
                          CargoSpecRepository cargoSpecRepo, EvSpecRepository evSpecRepo,
                          FeedbackService feedbackService, WebInsightScraperService webInsightScraper,
-                         IceConsumptionService iceConsumptionService,
+                         IceConsumptionService iceConsumptionService, CarVideoService carVideoService,
                          MobilityStatsSyncService mobilityStatsSyncService,
                          EvSpecService evSpecService, JobStatusService jobStatus,
                          UpcomingInsightService upcomingInsightService) {
@@ -128,6 +130,7 @@ public class CarController {
         this.feedbackService = feedbackService;
         this.webInsightScraper = webInsightScraper;
         this.iceConsumptionService = iceConsumptionService;
+        this.carVideoService = carVideoService;
         this.mobilityStatsSyncService = mobilityStatsSyncService;
     }
 
@@ -517,6 +520,14 @@ public class CarController {
     @GetMapping("/insights")
     public ResponseEntity<?> insightsForCar(@RequestParam String car) {
         return ResponseEntity.ok(expertInsightService.findForCarTitle(car));
+    }
+
+    // Publikt: bilrecension på YouTube för ett bilkort. Hämtas lazy av frontend efter att
+    // korten renderats — YouTube-uppslaget ska aldrig ligga i rekommendationssvarets väg,
+    // och en bil utan recension ska bara sakna raden. Tomt objekt när inget finns.
+    @GetMapping("/car-video")
+    public ResponseEntity<?> carVideo(@RequestParam String car) {
+        return ResponseEntity.ok(carVideoService.findForCarTitle(car));
     }
 
     // Övervakas av UptimeRobot mot /api/health — nyckelordsövervakning på "OK" larmar

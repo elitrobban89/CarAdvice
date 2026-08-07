@@ -298,7 +298,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-349 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+355 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -656,6 +656,28 @@ Returnerar sorterad lista med alla bilnamn (union av CargoSpec + EvSpec). Använ
 ["Audi A3", "Audi Q4 e-tron", "BMW i4", "Dacia Spring", "MG4", "Tesla Model Y Long Range", "Volvo EX30", ...]
 ```
 
+### `GET /api/car-video?car=Volvo+EX60`
+
+Bilrecension på YouTube för ett bilkort. Hämtas **lazy av frontend** efter att korten renderats — YouTube-uppslaget får aldrig ligga i rekommendationssvarets väg, och en bil utan recension ska bara sakna raden. Tomt objekt `{}` när ingen video finns, nyckel saknas eller dygnstaket är nått.
+
+```json
+{
+  "videoId": "dQw4w9WgXcQ",
+  "title": "Volvo EX60 – provkörning",
+  "channel": "Teknikens Värld",
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+}
+```
+
+**Kvoten är den styrande begränsningen.** En sökning mot YouTube Data API v3 kostar 100 av dygnets 10 000 enheter, alltså 100 nya modeller per dygn. Tre spärrar håller den:
+
+1. Träffen cachas permanent per modell i `car_video` — årtalet strippas ur titeln, så `Volvo EX60 (2024)` och `Volvo EX60` delar rad.
+2. **Även en miss cachas** (tom `video_id`). Utan det hade varje visning av en bil utan recension kostat 100 enheter igen. Missar prövas om efter 30 dagar, eftersom en nylanserad bil får recensioner senare.
+3. Tak på 80 nya sökningar per dygn och process — endpointen är publik, så uppräknade bilnamn hade annars kunnat bränna dygnskvoten.
+
+Utan `YOUTUBE_API_KEY` är tjänsten helt passiv: inget nätanrop, inget skrivet till cachen, ingen ruta på kortet.
+
 ### `POST /api/feedback`
 
 Anonym tumme upp/ner på ett rekommenderat bilkort (knappar under varje kort; en röst per bil sparas i webbläsarens `localStorage`). Max 10 röster/min per IP.
@@ -767,6 +789,7 @@ git rev-parse HEAD
 | `new_car_price` | ICE-nyprisar (SEK) per bilmodell och generation (~80 poster) — injiceras i AI-promptarna för korrekt deprecierings-beräkning; seedas vid varje uppstart (portabel `INSERT ... WHERE NOT EXISTS`) |
 | `recommendation_feedback` | Tumme upp/ner per rekommenderad bil (car_title, vote ±1, created_at) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader (ingen JPA-entitet, undviker validate-fällan) |
 | `web_insight_seen` | Dedup-nycklar för insiktsscrapern (processade artikel-URL:er + sedda ägaromdömen) — skapas med `CREATE TABLE IF NOT EXISTS` från DataLoader. `WebInsightScraperService` körs kl **04:00 Stockholm**: hämtar artiklar från Teknikens Värld (sitemap), Vi Bilägare och M3 (RSS), M Sverige och Bytbil (artikellistor), Auto Motor & Sport, Elbilen och CarUp (wp-json) + Folksams krocksäkerhetsstudie, extraherar insikter via Groq (`groq.insight.model`, default `openai/gpt-oss-120b`) och sparar i `expert_insight`. Manuell trigger: `POST /api/admin/sync-web-insights`; seed av redan processade nycklar: `POST /api/admin/import/seen-keys` (text, en nyckel per rad); glöm en nyckel så artikeln läses om: `DELETE /api/admin/seen-keys?key=…` |
+| `car_video` | Cachad YouTube-recension per modell (car_name, video_id, title, channel, fetched_at) — tom `video_id` betyder "sökt, ingen träff" och prövas om efter 30 dagar. Skapas med `CREATE TABLE IF NOT EXISTS` från `CarVideoService` (ingen JPA-entitet, prod kör `ddl-auto=validate`) |
 | `insight_upcoming` | Insikter om ännu ej köpbara modeller (insight_id, marked_at) — raden döljer insikten för prompter och bilkort tills den släpps. Egen tabell i stället för en kolumn på `expert_insight` eftersom prod kör `ddl-auto=validate`; skrivs av `UpcomingInsightService` |
 | `web_scrape_status` | Senaste körningens status per schemalagt jobb (job, started_at, finished_at, new_insights, detail) — en rad per jobb (`ev-specs`, `cargo-specs`, `web-insights`, `mobility-stats`), skrivs om vid varje körning; skrivs av `JobStatusService` och läses av `GET /api/admin/scrape-status` |
 | `ice_consumption` | Verifierade förbrukningssiffror (l/mil) för ~950 bensin/diesel/hybrid/laddhybrid-motorvarianter — seedas från `ice-consumption.csv` (extraherad ur Bilresa-projektets fordonsdatabas). Används av publika `GET /api/ice-consumption` (Bilresas kalkylator, l/mil) och för att ersätta AI:ns gissade `consumptionLiterPerMil` med verifierade värden i rekommendationer (hk-närmaste variant, drivmedelsfiltrerad; **konverteras ×10 till l/100km** — fältets konvention) samt injiceras som förbrukningsrader i jämförelseprompten (l/100km) |

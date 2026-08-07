@@ -704,6 +704,7 @@ function caRenderCards(recommendations) {
             '<a class="ca-blocket-btn" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">Blocket &#x2192;</a>' +
             '<a class="ca-bytbil-btn" href="' + caBytbilUrl(r.title) + '" target="_blank" rel="noopener">Bytbil &#x2192;</a>' +
           '</div>' +
+          '<div id="ca-video-' + i + '"></div>' +
           '<div class="ca-fb" data-title="' + caEsc(r.title) + '" style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
             '<span style="font-size:.8rem;font-weight:600;color:rgba(255,255,255,.7)">Var f\xf6rslaget bra?</span>' +
             '<div style="display:flex;gap:8px">' +
@@ -724,6 +725,7 @@ function caRenderCards(recommendations) {
       '</div>';
     caFetchCarImages(recommendations);
     caFetchInsights(recommendations);
+    caFetchVideos(recommendations);
     caRenderCompare(recommendations);
     caWireFeedback(container);
     container.querySelectorAll('.ca-ask-btn').forEach(function(btn) {
@@ -766,6 +768,40 @@ function caFetchInsights(recommendations) {
             '<span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#fcd34d;display:block;margin-bottom:6px">&#x1F4F0; Vad experterna s\xe4ger</span>' +
             items +
           '</div>';
+      })
+      .catch(function() {});
+  });
+}
+
+// Bilrecension på YouTube, hämtad efter att korten renderats — samma lazy-mönster som
+// insikterna. Saknas video (eller API-nyckel) ritas ingen ruta alls, aldrig en tom platshållare.
+// Thumbnailen ligger på i.ytimg.com och laddas lazy så den inte konkurrerar med bilbilderna.
+function caFetchVideos(recommendations) {
+  recommendations.forEach(function(r, i) {
+    var box = document.getElementById('ca-video-' + i);
+    if (!box || !r.title) return;
+    fetch(CA_API_BASE + '/api/car-video?car=' + encodeURIComponent(r.title))
+      .then(function(res) { return res.ok ? res.json() : null; })
+      .then(function(v) {
+        if (!v || !v.videoId) return;
+        box.innerHTML =
+          '<a href="' + caEsc(v.url) + '" target="_blank" rel="noopener" ' +
+             'style="display:flex;gap:11px;align-items:center;margin-top:10px;padding:9px 11px;' +
+             'background:rgba(255,0,0,.06);border:1px solid rgba(255,0,0,.22);border-radius:10px;' +
+             'text-decoration:none;transition:background .15s,border-color .15s" ' +
+             'onmouseover="this.style.background=\'rgba(255,0,0,.11)\';this.style.borderColor=\'rgba(255,0,0,.4)\'" ' +
+             'onmouseout="this.style.background=\'rgba(255,0,0,.06)\';this.style.borderColor=\'rgba(255,0,0,.22)\'">' +
+            '<img src="' + caEsc(v.thumbnail) + '" alt="" loading="lazy" width="86" height="48" ' +
+                 'style="width:86px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;background:rgba(255,255,255,.06)">' +
+            '<span style="min-width:0">' +
+              '<span style="display:block;font-size:.74rem;font-weight:700;color:#ff6b6b;text-transform:uppercase;letter-spacing:.05em">' +
+                '&#x25B6; Se bilrecension p\xe5 YouTube</span>' +
+              '<span style="display:block;font-size:.76rem;color:rgba(255,255,255,.62);line-height:1.35;margin-top:2px;' +
+                    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + caEsc(v.title) + '</span>' +
+              (v.channel ? '<span style="display:block;font-size:.68rem;color:rgba(255,255,255,.38);margin-top:1px">' +
+                caEsc(v.channel) + '</span>' : '') +
+            '</span>' +
+          '</a>';
       })
       .catch(function() {});
   });
