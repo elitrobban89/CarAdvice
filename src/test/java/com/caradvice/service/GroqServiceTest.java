@@ -757,6 +757,37 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("MG ZS EV (2020)");
     }
 
+    // --- prisraden nar annonser saknas ---
+
+    @Test
+    void utanAnnonserRaknasPrisetUrNypriset() {
+        // Kia EV3 stod pa "170 000-190 000 kr" med noll annonser medan ev_spec bar 370 000 kr.
+        // Utan annonser kan correctedPrice inte saga emot — da raknar vi i stallet.
+        assertThat(GroqService.estimatedPrice(370_000, 2025, 2026, false)).isEqualTo("ca 315 000 kr");
+        assertThat(GroqService.estimatedPrice(370_000, 2022, 2026, false)).isEqualTo("ca 211 000 kr");
+    }
+
+    @Test
+    void nybilssokFarNyprisetRaktAv() {
+        // Ber anvandaren om en ny bil ar nypriset vad hen faktiskt betalar
+        assertThat(GroqService.estimatedPrice(370_000, 2025, 2026, true)).isEqualTo("fr. 370 000 kr");
+        assertThat(GroqService.estimatedPrice(370_000, null, 2026, true)).isEqualTo("fr. 370 000 kr");
+    }
+
+    @Test
+    void aldstaKoefficientenGallerForGamlaBilar() {
+        // Kurvan slutar pa 8+ ar (0,34) — en 15 ar gammal bil skrivs inte ned mer
+        assertThat(GroqService.estimatedPrice(300_000, 2018, 2026, false))
+                .isEqualTo(GroqService.estimatedPrice(300_000, 2011, 2026, false));
+    }
+
+    @Test
+    void utanArsmodellRaknasIngetBegagnatpris() {
+        // Ingen alder att skriva ned med — en oskriven siffra ar battre an en pahittad
+        assertThat(GroqService.estimatedPrice(370_000, null, 2026, false)).isNull();
+        assertThat(GroqService.estimatedPrice(0, 2022, 2026, false)).isNull();
+    }
+
     // --- nybilssok mater mot nypriset, begagnatsok mot annonserna ---
 
     @Test

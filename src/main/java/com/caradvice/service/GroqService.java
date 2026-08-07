@@ -234,6 +234,34 @@ public class GroqService {
         return aiPrice;
     }
 
+    /** Nedskrivningen ur {@link #DEPRECIATION_RULE} — samma kurva som prompten föreskriver för AI:n. */
+    private static final double[] AGE_COEFFICIENTS = {1.0, 0.85, 0.75, 0.65, 0.57, 0.50, 0.44, 0.39, 0.34};
+
+    /**
+     * Prisraden när Blocket inte kan säga emot: räknad ur verifierat nypris i stället för gissad.
+     *
+     * <p>Utan annonser kunde varken {@code correctedPrice} eller budgettaket röra AI:ns siffra.
+     * Live 2026-08-07 stod Kia EV3 på "170 000–190 000 kr" med noll annonser medan vårt eget
+     * {@code ev_spec} bar 370 000 kr — 200 000 kr fel, helt utan täckning. Nyprisreferensen
+     * fäller numera bilen när den ligger över budgettaket, men en bil som ryms i budgeten stod
+     * kvar med samma påhittade intervall.
+     *
+     * <p>Talet är uttryckligen märkt "ca": det är en beräkning, inte marknadsdata. Nybilssök får
+     * nypriset rakt av eftersom det är vad användaren faktiskt betalar.
+     *
+     * @return null när årsmodellen saknas i titeln och sökningen gäller begagnat — då finns
+     *         ingen ålder att skriva ned med, och en oskriven siffra är bättre än en påhittad
+     */
+    static String estimatedPrice(int nyprisKr, Integer titleYear, int currentYear, boolean newCar) {
+        if (nyprisKr <= 0) return null;
+        if (newCar) return "fr. " + formatSekSpace(nyprisKr) + " kr";
+        if (titleYear == null) return null;
+        int alder = Math.max(0, currentYear - titleYear);
+        double koefficient = AGE_COEFFICIENTS[Math.min(alder, AGE_COEFFICIENTS.length - 1)];
+        int uppskattat = (int) Math.round(nyprisKr * koefficient / 1000d) * 1000;
+        return "ca " + formatSekSpace(uppskattat) + " kr";
+    }
+
     private static String formatSekSpace(int amount) {
         String s = String.valueOf(amount);
         StringBuilder sb = new StringBuilder();
@@ -386,6 +414,13 @@ public class GroqService {
                                                           String fuelPref, boolean leasing,
                                                           Map<String, BlocketPriceService.PriceRange> rangesOut,
                                                           Map<String, Integer> nyprisOut) {
+        return enrichRecommendations(parsed, kmPerYear, fuelPref, leasing, rangesOut, nyprisOut, false);
+    }
+
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
+                                                          String fuelPref, boolean leasing,
+                                                          Map<String, BlocketPriceService.PriceRange> rangesOut,
+                                                          Map<String, Integer> nyprisOut, boolean newCar) {
         List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -421,17 +456,31 @@ public class GroqService {
             if (rangesOut != null && blocketRange != null) rangesOut.put(r.title(), blocketRange);
             // Nypris per titel: ev_spec för el/PHEV, new_car_price för bensin/diesel. Behövs
             // separat eftersom kortet bara bär evSpec — en ICE-bil har inget prisfält alls.
-            if (nyprisOut != null) {
-                Integer nypris = evSpec != null && evSpec.priceKr() > 0 ? evSpec.priceKr() : null;
-                if (nypris == null) {
-                    try { nypris = newCarPriceService.priceForTitle(r.title()); } catch (Exception ignored) {}
-                }
-                if (nypris != null) nyprisOut.put(r.title(), nypris);
+            Integer nypris = evSpec != null && evSpec.priceKr() > 0 ? evSpec.priceKr() : null;
+            if (nypris == null) {
+                try { nypris = newCarPriceService.priceForTitle(r.title()); } catch (Exception ignored) {}
             }
+            if (nyprisOut != null && nypris != null) nyprisOut.put(r.title(), nypris);
+
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
             // Samma jämförelse i båda lägena, men aldrig över prislägena: i leasingläge är
             // både AI:ns siffra och annonsintervallet kr/mån
             String price = correctedPrice(r.price(), blocketRange, r.title(), leasing);
+
+            // Utan annonser kan correctedPrice inte säga emot — då räknas priset ur nypriset
+            // i stället för att AI:ns gissning får stå oemotsagd (Kia EV3: "170 000–190 000 kr"
+            // för en bil som kostar 370 000 ny)
+            boolean harAnnonser = blocketRange != null && blocketRange.count() >= 2;
+            if (!leasing && !harAnnonser && nypris != null) {
+                Matcher ym = Pattern.compile("\\((\\d{4})\\)").matcher(r.title());
+                Integer titleYear = ym.find() ? Integer.parseInt(ym.group(1)) : null;
+                String uppskattat = estimatedPrice(nypris, titleYear, java.time.Year.now().getValue(), newCar);
+                if (uppskattat != null && !uppskattat.equals(price)) {
+                    log.warn("Inga annonser för {} — AI-priset {} ersätts med {} räknat på nypris {} kr",
+                            r.title(), price, uppskattat, nypris);
+                    price = uppskattat;
+                }
+            }
 
             // Ersätt AI:ns gissade förbrukning med verifierad siffra från ice_consumption om matchning finns.
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
@@ -541,7 +590,7 @@ public class GroqService {
         Map<String, BlocketPriceService.PriceRange> ranges = new LinkedHashMap<>();
         Map<String, Integer> nypriser = new LinkedHashMap<>();
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
-                isLeasing, ranges, nypriser);
+                isLeasing, ranges, nypriser, prefs.newCar());
 
         // Taket gäller alla lägen. Nybilssök omfattas trots att begagnatpriset är fel måttstock
         // där, för slutsatsen håller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer
@@ -744,7 +793,7 @@ public class GroqService {
             Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
             Map<String, Integer> retryNypriser = new LinkedHashMap<>();
             List<CarRecommendation> retried = enrichRecommendations(
-                    parsed, prefs.kmPerYear(), prefs.fuelType(), leasing, retryRanges, retryNypriser);
+                    parsed, prefs.kmPerYear(), prefs.fuelType(), leasing, retryRanges, retryNypriser, prefs.newCar());
 
             Map<String, Integer> allaNypriser = new LinkedHashMap<>(nypriser);
             allaNypriser.putAll(retryNypriser);
