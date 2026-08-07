@@ -112,6 +112,49 @@ class BlocketPriceServiceTest {
         assertThat(service.priceRangeFrom(bilen, null).count()).isEqualTo(3);
     }
 
+    // --- leasing är ett eget prisläge, inte en billig bil ---
+
+    @Test
+    void leasingRaknasIKronorPerManad() {
+        // Samma sökning, andra annonser: 4 495 kr/mån är inte 4 495 kr för en bil
+        var ev3 = docs(new int[]{2026, 4_495}, new int[]{2026, 4_795}, new int[]{2026, 6_995},
+                new int[]{2026, 479_000});
+
+        var range = service.leasingRangeFrom(ev3, 2026);
+
+        assertThat(range.minKr()).isEqualTo(4_495);
+        assertThat(range.maxKr()).isEqualTo(6_995);
+        assertThat(range.count()).isEqualTo(3);          // köpannonsen räknas inte med
+        assertThat(range.formatted()).contains("kr/mån");
+    }
+
+    @Test
+    void kopochLeasingDelarAldrigSammaSpann() {
+        // Blockets sales_form räcker inte som skiljelinje: mätt 2026-08-07 låg leasingannonser
+        // på 4 495 kr märkta "begagnad till salu". Beloppets storlek är enda tillförlitliga testet.
+        var blandat = docs(new int[]{2026, 4_495}, new int[]{2026, 479_000}, new int[]{2026, 509_000});
+
+        assertThat(service.priceRangeFrom(blandat, 2026).minKr()).isEqualTo(479_000);
+        assertThat(service.leasingRangeFrom(blandat, 2026).maxKr()).isEqualTo(4_495);
+    }
+
+    @Test
+    void leasingBrydSigInteOmArsmodellen() {
+        // Leasingannonserna ligger på 2026-2027 medan AI:n sätter ett begagnat-årtal i titeln.
+        // Med årsfilter hade träfflistan tömts — därför skickas year=null för leasing.
+        var ev3 = docs(new int[]{2026, 4_495}, new int[]{2027, 4_795});
+
+        assertThat(service.leasingRangeFrom(ev3, null)).isNotNull();
+        assertThat(service.leasingRangeFrom(ev3, 2022)).isNull();   // vad årsfiltret hade gjort
+    }
+
+    @Test
+    void ingenLeasingannonsGerNull() {
+        var barakop = docs(new int[]{2026, 479_000}, new int[]{2026, 509_000});
+
+        assertThat(service.leasingRangeFrom(barakop, 2026)).isNull();
+    }
+
     @Test
     void ingenMatchandeAnnonsGerNull() {
         assertThat(service.priceRangeFrom(docs(new int[]{2020, 4_495}), 2020)).isNull();

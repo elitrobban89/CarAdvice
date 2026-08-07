@@ -300,12 +300,13 @@ public class GroqService {
     }
 
     /**
-     * skipBlocket=true i leasingläge: Blocket är begagnatmarknad och irrelevant för leasing —
-     * varken prisrad eller prissnapping ska baseras på den, och skrapanropen sparas in.
+     * leasing=true hämtar privatleasingannonserna i stället för köpannonserna. Tidigare
+     * hoppades Blocket över helt i leasingläge, eftersom begagnatpriserna är fel prisläge —
+     * men annonserna finns, de ligger bara bakom {@code sales_form=5} och räknas i kr/mån.
      */
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
-                                                          String fuelPref, boolean skipBlocket) {
-        return enrichRecommendations(parsed, kmPerYear, fuelPref, skipBlocket, null);
+                                                          String fuelPref, boolean leasing) {
+        return enrichRecommendations(parsed, kmPerYear, fuelPref, leasing, null);
     }
 
     /**
@@ -313,12 +314,13 @@ public class GroqService {
      * siffrorna efteråt (budgettaket) — CarRecommendation bär bara den formaterade strängen.
      */
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
-                                                          String fuelPref, boolean skipBlocket,
+                                                          String fuelPref, boolean leasing,
                                                           Map<String, BlocketPriceService.PriceRange> rangesOut) {
         List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
-                        return skipBlocket ? null : blocketPriceService.fetchPriceRange(r.title());
+                        return leasing ? blocketPriceService.fetchLeasingRange(r.title())
+                                       : blocketPriceService.fetchPriceRange(r.title());
                     } catch (Exception e) { return null; }
                 }))
                 .toList();
@@ -348,7 +350,9 @@ public class GroqService {
             try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             if (rangesOut != null && blocketRange != null) rangesOut.put(r.title(), blocketRange);
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
-            String price = correctedPrice(r.price(), blocketRange, r.title());
+            // correctedPrice jämför AI:ns siffror med annonsintervallet — i leasingläge är det
+            // kr/mån mot ett kr-pris, alltså två prislägen som aldrig får mätas mot varandra
+            String price = leasing ? r.price() : correctedPrice(r.price(), blocketRange, r.title());
 
             // Ersätt AI:ns gissade förbrukning med verifierad siffra från ice_consumption om matchning finns.
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
