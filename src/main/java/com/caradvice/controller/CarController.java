@@ -356,6 +356,31 @@ public class CarController {
         }
     }
 
+    // Publikt: vad räcker budgeten till om ålderskravet lyfts? Anropas lazy av frontend
+    // BARA när rekommendationssvaret bar budgetShortfallFromKr — alltså när kriterierna inte
+    // gick ihop. Egen endpoint för att inte lägga ett tredje Groq-anrop plus Blocket-uppslag
+    // i /api/recommend, som redan har 35 s klienttimeout. Samma timpott som sök och chatt.
+    @PostMapping("/budget-alternatives")
+    public ResponseEntity<?> budgetAlternatives(@RequestBody CarPreferences prefs, HttpServletRequest httpReq,
+                                                @RequestHeader(value = "Authorization", required = false) String auth) {
+        String ip = getClientIp(httpReq);
+        boolean subscriber = userService.isActiveSubscriber(auth);
+        boolean loggedIn = subscriber || userService.isLoggedIn(auth);
+        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
+        if (!subscriber && isRateLimited(ip, limit)) {
+            return ResponseEntity.status(429).body(Map.of("success", false, "rateLimited", true));
+        }
+        if (!subscriber) persistRateLimit(ip);
+        try {
+            return ResponseEntity.ok(Map.of("success", true,
+                    "alternatives", groqService.findBudgetAlternatives(prefs)));
+        } catch (Exception e) {
+            log.warn("Budgetalternativ misslyckades: {}", e.getMessage());
+            // Banderollen står kvar med sin grundtext — raden är en förbättring, inte ett krav
+            return ResponseEntity.ok(Map.of("success", false, "alternatives", List.of()));
+        }
+    }
+
     /** Peek på timpotten UTAN att förbruka en sökning — frontenden synkar demoräknaren
      *  efter en chattfråga (chatt + rekommendationer delar samma pott, se /chat). */
     @GetMapping("/search-status")

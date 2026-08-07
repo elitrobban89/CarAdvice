@@ -301,6 +301,39 @@ class CarControllerTest {
     }
 
     @Test
+    void budgetalternativReturnerarBilarInomBudget() throws Exception {
+        // "100 000 kr räcker inte" är korrekt men torftigt — MG ZS EV kring 100 000 kr och
+        // Nissan Leaf 2016+ finns i prisklassen, de är bara äldre än 3 år.
+        when(groqService.findBudgetAlternatives(any())).thenReturn(List.of(
+                new GroqService.BudgetAlternative("MG ZS EV (2020)", 99_000),
+                new GroqService.BudgetAlternative("Nissan Leaf (2017)", 85_000)));
+
+        mvc.perform(post("/api/budget-alternatives")
+                .header("X-Forwarded-For", "10.7.7.1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"budget\":100000,\"carCategory\":\"elbil\",\"maxAgeYears\":3}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.success").value(true))
+           .andExpect(jsonPath("$.alternatives[0].title").value("MG ZS EV (2020)"))
+           .andExpect(jsonPath("$.alternatives[0].fromKr").value(99_000))
+           .andExpect(jsonPath("$.alternatives[1].title").value("Nissan Leaf (2017)"));
+    }
+
+    @Test
+    void budgetalternativSvararTomtIStalletForAttFallaBanderollen() throws Exception {
+        // Raden är en förbättring av banderollen, inte ett krav — ett fel får inte ge 500
+        when(groqService.findBudgetAlternatives(any())).thenThrow(new RuntimeException("Groq nere"));
+
+        mvc.perform(post("/api/budget-alternatives")
+                .header("X-Forwarded-For", "10.7.7.2")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"budget\":100000}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.success").value(false))
+           .andExpect(jsonPath("$.alternatives").isEmpty());
+    }
+
+    @Test
     void rekommendationRateLimitGer429EfterTioSokningar() throws Exception {
         when(groqService.getRecommendation(any()))
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));

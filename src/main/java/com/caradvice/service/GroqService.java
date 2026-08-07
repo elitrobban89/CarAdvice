@@ -111,7 +111,13 @@ public class GroqService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
-    private record CacheEntry(List<CarRecommendation> result, long timestamp, Integer budgetShortfallFromKr) {}
+    /**
+     * {@code alternativeRanges} används bara av budgetalternativen — de behöver sina
+     * Blocket-priser cachade tillsammans med bilarna, annars hade en cacheträff tappat
+     * priserna som är hela poängen med raden. Null för vanliga poster.
+     */
+    private record CacheEntry(List<CarRecommendation> result, long timestamp, Integer budgetShortfallFromKr,
+                              Map<String, BlocketPriceService.PriceRange> alternativeRanges) {}
 
     /**
      * Utfallet av budgetkontrollen. {@code shortfallFromKr} är satt bara när INGEN bil gick
@@ -556,6 +562,83 @@ public class GroqService {
         }
     }
 
+    /** En bil som faktiskt går att köpa för budgeten, med sitt verkliga lägstapris. */
+    public record BudgetAlternative(String title, int fromKr) {}
+
+    /**
+     * Vad räcker budgeten till om ålderskravet lyfts? Körs bara när den vanliga sökningen
+     * inte hittade en enda bil inom taket, och besvarar frågan användaren egentligen har:
+     * "vad kan jag köpa för pengarna?"
+     *
+     * <p>Bakgrund: 100 000 kr + max 3 år gav MG4 från 249 900 kr — 2,5x budgeten. Men det
+     * finns elbilar i den prisklassen, de är bara äldre: MG ZS EV kring 120 000 kr och
+     * Nissan Leaf ännu billigare. Att svara "kriterierna går inte ihop" är korrekt men
+     * onödigt torftigt när svaret "för 100 000 kr är det 5–10 år gamla elbilar som gäller,
+     * till exempel dessa" går att räkna fram.
+     *
+     * <p>Egen endpoint, inte del av rekommendationssvaret: det hade lagt ett tredje
+     * Groq-anrop plus Blocket-uppslag i en begäran som redan har 35 s klienttimeout.
+     * Frontend hämtar raden efter att korten och banderollen ritats.
+     *
+     * @return upp till tre bilar inom budgettaket, tom lista om ingen hittades
+     */
+    public List<BudgetAlternative> findBudgetAlternatives(CarPreferences prefs) throws Exception {
+        CarPreferences utanAlderskrav = new CarPreferences(
+                prefs.budget(), prefs.carCategory(), prefs.hasCharger(), prefs.kmPerYear(),
+                prefs.usage(), prefs.passengers(), prefs.newCar(), prefs.fuelType(),
+                prefs.transmission(), prefs.budgetType(), null);
+
+        String key = "budgetalt|" + buildCacheKey(utanAlderskrav);
+        CacheEntry cached = cache.get(key);
+        if (isFresh(cached)) return toAlternatives(cached.result(), cached.alternativeRanges());
+
+        String expertContext = "";
+        try { expertContext = expertInsightService.buildExpertContext(utanAlderskrav); } catch (Exception ignored) {}
+        String systemPrompt = withEnergyPrices(
+                buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory()));
+        String prompt = buildPrompt(utanAlderskrav) + String.format("""
+
+                VIKTIGT — VAD RÄCKER BUDGETEN TILL? Bortse HELT från ålderskrav den här
+                gången: årsmodellen får vara hur gammal som helst. Budgettaket är %,d kr
+                räknat på BILLIGASTE annonsen på Blocket, och det är hårt. Föreslå de bilar
+                som faktiskt går att köpa för pengarna, även om de är 5–10 år gamla.
+                """, prefs.budget() + BUDGET_CEILING_MARGIN_KR);
+
+        Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, prompt);
+        Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, prompt);
+        Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, prompt);
+        HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
+        if (response.statusCode() != 200) return List.of();
+
+        List<CarRecommendation> parsed = parseWithRetry(response, reserve, "findBudgetAlternatives");
+        Map<String, BlocketPriceService.PriceRange> ranges = new LinkedHashMap<>();
+        List<CarRecommendation> enriched = enrichRecommendations(
+                parsed, prefs.kmPerYear(), prefs.fuelType(), false, ranges);
+
+        List<CarRecommendation> inomBudget = new ArrayList<>();
+        for (CarRecommendation r : enriched) {
+            if (!exceedsBudgetCeiling(ranges.get(r.title()), prefs.budget())) inomBudget.add(r);
+        }
+        storeAlternatives(key, inomBudget, ranges);
+        log.info("Budgetalternativ utan ålderskrav: {} av {} inom taket för budget {} kr",
+                inomBudget.size(), enriched.size(), prefs.budget());
+        return toAlternatives(inomBudget, ranges);
+    }
+
+    /** Bara bilar med känt Blocket-pris — utan pris kan banderollen inte säga något vettigt. */
+    private static List<BudgetAlternative> toAlternatives(
+            List<CarRecommendation> recs, Map<String, BlocketPriceService.PriceRange> ranges) {
+        if (ranges == null) return List.of();
+        List<BudgetAlternative> out = new ArrayList<>();
+        for (CarRecommendation r : recs) {
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            if (pr == null || pr.minKr() <= 0) continue;
+            out.add(new BudgetAlternative(r.title(), pr.minKr()));
+            if (out.size() == 3) break;
+        }
+        return out;
+    }
+
     private static List<CarRecommendation> concat(List<CarRecommendation> a, List<CarRecommendation> b) {
         List<CarRecommendation> out = new ArrayList<>(a);
         out.addAll(b);
@@ -644,7 +727,14 @@ public class GroqService {
     /** Städa vid behov och lägg in svaret med färsk tidsstämpel. */
     private void store(String key, List<CarRecommendation> result, Integer budgetShortfallFromKr) {
         evictIfNeeded();
-        cache.put(key, new CacheEntry(result, System.currentTimeMillis(), budgetShortfallFromKr));
+        cache.put(key, new CacheEntry(result, System.currentTimeMillis(), budgetShortfallFromKr, null));
+    }
+
+    /** Budgetalternativen cachas med sina Blocket-priser — se {@link CacheEntry}. */
+    private void storeAlternatives(String key, List<CarRecommendation> result,
+                                   Map<String, BlocketPriceService.PriceRange> ranges) {
+        evictIfNeeded();
+        cache.put(key, new CacheEntry(result, System.currentTimeMillis(), null, ranges));
     }
 
     private void evictIfNeeded() {

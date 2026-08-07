@@ -891,7 +891,7 @@ class GroqServiceTest {
         // Bygg en likadan post men med tidsstämpel 5 timmar tillbaka (TTL:n är 4 h)
         var ctor = cache.get("nyckel").getClass().getDeclaredConstructors()[0];
         ctor.setAccessible(true);
-        Object gammal = ctor.newInstance(List.of(), System.currentTimeMillis() - 5 * 60 * 60 * 1000L, null);
+        Object gammal = ctor.newInstance(List.of(), System.currentTimeMillis() - 5 * 60 * 60 * 1000L, null, null);
 
         assertThat((Boolean) ReflectionTestUtils.invokeMethod(GroqService.class, "isFresh", gammal)).isFalse();
     }

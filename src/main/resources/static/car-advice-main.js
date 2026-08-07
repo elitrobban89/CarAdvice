@@ -160,6 +160,7 @@ var caCurrentCategory = '';
 var caBudgetShortfall = null;
 var caShortfallBudget = 0;
 var caShortfallMaxAge = null;
+var caShortfallPayload = null;   // preferenserna sökningen använde, för alternativuppslaget
 var caIsLeasing = false;
 var caKopBudget = 200000;
 var caLeasingBudget = 3000;
@@ -490,6 +491,7 @@ function caLoadFromHistory(index) {
     document.getElementById('ca-results').style.display = 'block';
     document.getElementById('ca-cache-badge').style.display = 'none';
     caBudgetShortfall = null;   // historikposten bär ingen budgetdom — visa aldrig en gammal
+    caShortfallPayload = null;
     caRenderCards(entry.recommendations);
     document.getElementById('ca-copy-btn').style.display = 'inline-block';
     document.getElementById('ca-share-result-btn').style.display = 'inline-block';
@@ -682,8 +684,49 @@ function caRenderBudgetNotice() {
     caEsc(orsak) + ' Billigaste bilen som matchar dina \xf6vriga krav b\xf6rjar p\xe5 ' +
     '<strong>' + caEsc(kr(caBudgetShortfall)) + '</strong> p\xe5 Blocket just nu. ' +
     'Korten nedan visas \xe4nd\xe5 s\xe5 du ser vad som finns — men de \xe4r allts\xe5 dyrare \xe4n du angav. ' +
-    caEsc(rad);
+    caEsc(rad) +
+    '<div id="ca-budget-alts" style="margin-top:9px"></div>';
   host.parentNode.insertBefore(el, host);
+  caFetchBudgetAlternatives();
+}
+
+// Vad räcker budgeten faktiskt till? Hämtas lazy och bara när banderollen visas, eftersom
+// svaret kostar ett eget Groq-anrop plus Blocket-uppslag. Poängen: "100 000 kr räcker inte"
+// är korrekt men torftigt när svaret "för de pengarna är det 5–10 år gamla elbilar, till
+// exempel MG ZS EV från 99 000 kr" går att räkna fram ur riktiga annonser.
+function caFetchBudgetAlternatives() {
+  var box = document.getElementById('ca-budget-alts');
+  if (!box || !caShortfallPayload) return;
+  var headers = { 'Content-Type': 'application/json' };
+  var t = localStorage.getItem('ca_token') || '';
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+
+  fetch(CA_API_BASE + '/api/budget-alternatives', {
+    method: 'POST', headers: headers, body: JSON.stringify(caShortfallPayload)
+  })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .then(function(d) {
+      if (!d || !d.alternatives || !d.alternatives.length) return;
+      var nu = new Date().getFullYear();
+      var alder = [];
+      var items = d.alternatives.map(function(a) {
+        var m = /\((\d{4})\)/.exec(a.title || '');
+        if (m) alder.push(nu - parseInt(m[1], 10));
+        return '<li style="margin:2px 0"><strong>' + caEsc(a.title) + '</strong> fr\xe5n ' +
+               caEsc(Number(a.fromKr).toLocaleString('sv-SE')) + '\xa0kr</li>';
+      }).join('');
+      var spann = '';
+      if (alder.length) {
+        var min = Math.min.apply(null, alder), max = Math.max.apply(null, alder);
+        spann = ' Det \xe4r ' + (min === max ? 'ca ' + min : 'ca ' + min + '–' + max) +
+                ' \xe5r gamla bilar — \xe4ldre \xe4n ditt krav, men de finns i din prisklass.';
+      }
+      box.innerHTML =
+        '<div style="font-weight:600;color:rgba(255,255,255,.85)">Det h\xe4r r\xe4cker budgeten till:</div>' +
+        '<ul style="margin:4px 0 0;padding-left:18px;color:rgba(255,255,255,.72)">' + items + '</ul>' +
+        (spann ? '<div style="margin-top:4px;color:rgba(255,255,255,.6)">' + caEsc(spann.trim()) + '</div>' : '');
+    })
+    .catch(function() {});
 }
 
 function caRenderCards(recommendations) {
@@ -1276,6 +1319,7 @@ function caLoadSavedEntry(id) {
       document.getElementById('ca-results').style.display = 'block';
       document.getElementById('ca-cache-badge').style.display = 'none';
       caBudgetShortfall = null;   // sparad sökning bär ingen budgetdom
+      caShortfallPayload = null;
       caRenderCards(recs);
       caCurrentRecs = recs;
       caShowSaveBtn(true);
@@ -1713,6 +1757,7 @@ async function caGetRecommendation() {
       caBudgetShortfall = d.budgetShortfallFromKr || null;
       caShortfallBudget = payload.budget;
       caShortfallMaxAge = payload.maxAgeYears;
+      caShortfallPayload = payload;
       caRenderCards(d.recommendations);
       caCurrentRecs = d.recommendations;
       document.getElementById('ca-copy-btn').style.display = 'inline-block';
