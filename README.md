@@ -20,6 +20,7 @@ En AI-driven bilrådgivare byggd med Java Spring Boot och Groq AI. Användaren f
   - **Leasing-läge:** 1 000–15 000 kr/mån, steg 250 kr — AI konverterar till ungefärligt listpris (×70) för kontextuell matchning
   - Köp/Leasing-knappen sitter inline i budget-etiketten; separata värden sparas per läge
 - Varnar vid orimliga kombinationer (t.ex. ekonomibil + lyxbudget)
+- **Budgettaket gäller även nybilssök:** kontrollen hoppades tidigare över helt när "Ny" var valt, eftersom begagnatpriset är fel måttstock där. Men slutsatsen håller i **en** riktning — kostar billigaste *begagnade* exemplaret mer än taket kan ett *nytt* omöjligt kosta mindre — och det var den enda oskyddade vägen. Live 2026-08-07 föreslogs MG4 (billigaste annons 249 900 kr) för en 200 000-budget, alltså 20 000 kr över taket, utan att någon spärr utlöstes. Leasing står fortfarande utanför: där är budgeten kr/mån och Blocket hämtas inte alls
 - **Säger ifrån när kriterierna inte går ihop:** budgettaket kontrolleras mot riktiga Blocket-annonser och utlöser ett omförsök, men hittar inte heller det någon bil inom taket visas korten ändå med en banderoll som förklarar varför de är för dyra och vad billigaste matchande bil faktiskt kostar. Live-fynd 2026-08-07: 100 000 kr + max 3 år gav MG4 (fr. 249 900 kr), Enyaq (fr. 374 900 kr) och EV6 (fr. 349 000 kr) — helt korrekt givet att inget 3 år gammalt matchar 100 000 kr, men utan förklaring läste det som en trasig rekommendation. Svaret bär då `budgetShortfallFromKr`, och banderollen fylls på med **vad budgeten faktiskt räcker till** — `POST /api/budget-alternatives` kör samma sökning med ålderskravet lyft och returnerar upp till tre bilar inom taket med verkliga Blocket-priser (MG ZS EV kring 100 000 kr, Nissan Leaf 2016+, Renault Zoe), plus deras åldersspann. "100 000 kr räcker inte" är korrekt men torftigt när svaret "för de pengarna är det 5–10 år gamla elbilar, till exempel dessa" går att räkna fram. Egen endpoint för att inte lägga ett tredje Groq-anrop i `/api/recommend`, som redan har 35 s klienttimeout
 - Anpassar råd efter körsträcka, laddmöjlighet och ny/begagnad
 - **Verifierad bränsleförbrukning:** AI:ns gissade l/mil ersätts med verifierad siffra ur `ice_consumption`-tabellen (957 motorvarianter) — närmaste hästkraftstal väljer variant, användarens drivmedelsval filtrerar
@@ -301,7 +302,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-371 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+372 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|

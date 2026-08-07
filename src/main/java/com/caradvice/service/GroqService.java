@@ -429,10 +429,15 @@ public class GroqService {
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
                 isLeasing, ranges);
 
-        // Budgettaket gäller bara begagnatköp: i leasingläge är budgeten kr/mån och Blocket
-        // hämtas inte alls, och för nybilssök är begagnatpriset fel måttstock.
+        // Taket gäller allt utom leasing, där budgeten är kr/mån och Blocket inte hämtas alls.
+        //
+        // Nybilssök omfattas trots att begagnatpriset är fel måttstock där, för slutsatsen
+        // håller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer än taket kan en NY
+        // omöjligt kosta mindre. Att hoppa över kontrollen helt var den enda oskyddade vägen —
+        // live 2026-08-07 föreslogs MG4 (billigaste annons 249 900 kr) för en 200 000-budget,
+        // alltså 20 000 kr över taket, utan att någon spärr utlöstes.
         Integer shortfall = null;
-        if (!isLeasing && !prefs.newCar()) {
+        if (!isLeasing) {
             List<CarRecommendation> over = overBudget(result, ranges, prefs.budget());
             if (!over.isEmpty()) {
                 BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges);
@@ -515,13 +520,16 @@ public class GroqService {
         log.warn("AI föreslog bil(ar) över budgettaket {} + {} kr: {} — omförsök",
                 prefs.budget(), BUDGET_CEILING_MARGIN_KR, namn);
 
+        // "Äldre årsmodell" är fel råd i ett nybilssök — där återstår enklare nivå eller billigare märke
+        String utvagar = prefs.newCar()
+                ? "enklare utrustningsnivå eller ett billigare märke i samma storleksklass"
+                : "äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass";
         String skarptPrompt = prompt + String.format("""
 
                 VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr
                 (budget + %,d kr) räknat på BILLIGASTE annonsen på Blocket. Föreslå andra
-                bilar som faktiskt går att köpa för pengarna: äldre årsmodell, enklare
-                utrustningsnivå eller ett billigare märke i samma storleksklass.
-                """, namn, prefs.budget() + BUDGET_CEILING_MARGIN_KR, BUDGET_CEILING_MARGIN_KR);
+                bilar som faktiskt går att köpa för pengarna: %s.
+                """, namn, prefs.budget() + BUDGET_CEILING_MARGIN_KR, BUDGET_CEILING_MARGIN_KR, utvagar);
 
         try {
             Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);

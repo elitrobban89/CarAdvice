@@ -678,6 +678,22 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("Kia Niro EV (2022)");
     }
 
+    @Test
+    void taketGallerAvenNybilssokEftersomBegagnatprisetArEnUndreGrans() {
+        // Live 2026-08-07: MG4 (billigaste annons 249 900 kr) foreslogs for en 200 000-budget
+        // utan att nagon sparr utloste. Nybilssok hoppade over kontrollen helt, men slutsatsen
+        // haller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer an taket kan en NY
+        // omojligt kosta mindre. 200 000 + 30 000 = 230 000 < 249 900.
+        var mg4 = new BlocketPriceService.PriceRange(249_900, 307_990, 48, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(mg4, 200_000)).isTrue();
+
+        // och bilarna anvandaren faktiskt kan kopa for pengarna faller inte pa taket
+        var zsEv = new BlocketPriceService.PriceRange(144_900, 234_900, 34, "...");
+        var leaf = new BlocketPriceService.PriceRange(129_800, 189_800, 44, "...");
+        assertThat(GroqService.exceedsBudgetCeiling(zsEv, 200_000)).isFalse();
+        assertThat(GroqService.exceedsBudgetCeiling(leaf, 200_000)).isFalse();
+    }
+
     // --- cheapest (vad banderollen säger att bilen faktiskt kostar) ---
 
     @Test
