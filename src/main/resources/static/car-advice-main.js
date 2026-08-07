@@ -796,13 +796,15 @@ function caRenderCards(recommendations) {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
       var prosHtml = (r.pros || []).map(function(p) { return '<li>' + caEsc(p) + '</li>'; }).join('');
-      // Leasing: uppskattad månadskostnad, aldrig Blocket (begagnatmarknad).
+      // Leasing: verkliga privatleasingannonser (blocketPrice är kr/mån här), annars AI:ns
+      // kr/mån. Saknas båda sägs det rakt ut — förr räknades listpris/85 fram i stället.
       // Köp: Blocket-priset är sanningen när det finns; AI-priset bara som fallback.
       var priceRow;
       if (caIsLeasing) {
-        var monthly = caLeaseMonthlyEstimate(r);
         priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Leasing</span>' +
-          (monthly ? '~' + monthly.toLocaleString('sv-SE') + ' kr/m\xe5n' : caEsc(r.price)) + '</div>';
+          (r.blocketPrice ? '🔵 ' + caEsc(r.blocketPrice)
+            : caParseLeaseMonthly(r.price) ? caEsc(r.price)
+            : '<span style="color:rgba(255,255,255,.45)">ingen leasing hittad</span>') + '</div>';
       } else if (r.blocketPrice) {
         priceRow = '<div class="ca-price"><span style="font-size:.62rem;font-weight:600;color:rgba(255,255,255,.35);margin-right:4px;text-transform:uppercase;letter-spacing:.04em">Pris</span>🔵 ' + caEsc(r.blocketPrice) + '</div>';
       } else {
@@ -1586,12 +1588,20 @@ function caParseLeaseMonthly(priceStr) {
   return m ? parseInt(m[1]) : 0;
 }
 
-/** Månadskostnad för leasing: direkt ur "X kr/mån"-pris, annars listpris/85 (backendens leasingfaktor). */
+/**
+ * Månadskostnad för leasing, i tur och ordning: riktiga leasingannonser (blocketPrice är
+ * kr/mån i leasingläge sedan backend hämtar sales_form=5), annars AI:ns kr/mån-pris.
+ *
+ * Tidigare fanns ett tredje steg: listpris/85, backendens leasingfaktor baklänges. Det var en
+ * påhittad siffra utan källa — en Škoda Enyaq iV 80 (2023) fick "~2 000 kr/mån" räknat på ett
+ * begagnatpris, för en bil som inte ens går att privatleasa. Finns ingen leasinguppgift ska
+ * kortet säga det, inte räkna fram ett tal.
+ */
 function caLeaseMonthlyEstimate(r) {
+  var fromAds = caParseLeaseMonthly(r.blocketPrice);
+  if (fromAds) return Math.round(fromAds / 100) * 100;
   var direct = caParseLeaseMonthly(r.price);
-  if (direct) return Math.round(direct / 100) * 100;
-  var mid = caParsePrice(r.price);
-  return mid ? Math.round(mid / 85 / 100) * 100 : 0;
+  return direct ? Math.round(direct / 100) * 100 : 0;
 }
 
 function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {

@@ -955,6 +955,13 @@ class GroqServiceTest {
 
         assertThat(service().buildPrompt(leasingPrefs)).contains("kr/mån");
         assertThat(service().buildPrompt(kopPrefs)).doesNotContain("kr/mån");
+
+        // Privatleasing tecknas pa en ny bil — "Škoda Enyaq iV 80 (2023)" gar inte att leasa
+        int arIar = java.time.Year.now().getValue();
+        assertThat(service().buildPrompt(leasingPrefs))
+                .contains("PRIVATLEASING GÄLLER NYA BILAR")
+                .contains(String.valueOf(arIar));
+        assertThat(service().buildPrompt(kopPrefs)).doesNotContain("PRIVATLEASING");
     }
 
     // --- cheapest (vad banderollen säger att bilen faktiskt kostar) ---

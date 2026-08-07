@@ -1627,7 +1627,12 @@ public class GroqService {
         // kr/mån, och ett köppris på kortet läser då som att bilen kostar så mycket att äga.
         String leasingPrisLine = isLeasing
                 ? " PRIS I LEASINGLÄGE: fältet \"price\" ska vara MÅNADSKOSTNADEN som intervall,"
-                  + " t.ex. \"4 500–5 200 kr/mån\" — aldrig ett köppris eller listpris." : "";
+                  + " t.ex. \"4 500–5 200 kr/mån\" — aldrig ett köppris eller listpris."
+                  // Privatleasing tecknas på en ny bil ur märkets aktuella utbud. En "Škoda
+                  // Enyaq iV 80 (2023)" går inte att privatleasa alls — den finns bara begagnad.
+                  + " PRIVATLEASING GÄLLER NYA BILAR: föreslå ENDAST modeller som säljs nya i"
+                  + " Sverige idag, med årsmodell " + currentYear + " eller " + (currentYear + 1)
+                  + " i title-fältet. En utgången årsmodell går inte att leasa." : "";
 
         return """
                 Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s
