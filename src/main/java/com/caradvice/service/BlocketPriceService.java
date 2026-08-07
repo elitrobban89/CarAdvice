@@ -39,6 +39,24 @@ public class BlocketPriceService {
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
     private final NumberFormat sekFmt = NumberFormat.getNumberInstance(new Locale("sv", "SE"));
 
+    /**
+     * Billigaste och dyraste annonsen för bilen, årsmodellsfiltrerad ±1 år.
+     *
+     * <p>Undre gränsen var tidigare 20:e percentilen, vilket kastade bort en femtedel av den
+     * verkliga marknadens billigaste annonser: Kia EV3 visades från 434 900 kr när billigaste
+     * annonsen låg på 369 900 kr, Dacia Sandero från 105 000 kr när marknaden börjar på
+     * 42 900 kr. Siffran är inte kosmetisk — budgettaket mäts mot den, så bilar föll som "för
+     * dyra" trots att de gick att köpa. Nu tas i stället bara uppenbara avvikare bort:
+     * medianrelativa gränser (0,4× och 2,5×) fångar fluff- och scamannonser utan att stryka
+     * ett helt prisspann.
+     *
+     * <p>Årsmodellen filtreras på {@code docs[].year} eftersom API:ts egna årsparametrar inte
+     * fungerar. Utan den filtreringen fick varje årsmodell av samma bil identiskt prisspann —
+     * en Leaf 2018 och en Leaf 2022 visades båda 129 900–198 900 kr.
+     *
+     * @return null när ingen annons matchar bilen och årsmodellen — anroparen får då avgöra
+     *         på annan grund (se GroqService.verifiedFloor)
+     */
     public PriceRange fetchPriceRange(String carTitle) {
         String query = extractSearchQuery(carTitle);
         if (query == null || query.isBlank()) return null;
@@ -51,8 +69,10 @@ public class BlocketPriceService {
 
         try {
             String encodedQ = URLEncoder.encode(query, StandardCharsets.UTF_8);
+            // year_min/year_max satt här tidigare — Blockets API IGNORERAR dem (verifierat
+            // 2026-08-07: identiskt svar med och utan, liksom med year=, modelYear_min= och
+            // filter=[{"key":"year"}]). Årsmodellen filtreras därför på docs[].year nedan.
             String url = SEARCH_URL + "?q=" + encodedQ + "&page=0&lim=" + FETCH_LIMIT;
-            if (year != null) url += "&year_min=" + (year - 1) + "&year_max=" + (year + 1);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -67,29 +87,42 @@ public class BlocketPriceService {
             JsonNode docs = mapper.readTree(response.body()).path("docs");
             if (!docs.isArray() || docs.isEmpty()) return null;
 
-            List<Integer> prices = new ArrayList<>();
-            for (JsonNode doc : docs) {
-                int amount = doc.path("price").path("amount").asInt(0);
-                if (amount > 10_000) prices.add(amount);
-            }
-            if (prices.isEmpty()) return null;
-
-            Collections.sort(prices);
-            int n = prices.size();
-            int lo = Math.max(0, n / 5);
-            int hi = Math.min(n - 1, n - 1 - n / 5);
-            int min = prices.get(lo);
-            int max = prices.get(hi);
-            String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)
-                    + " kr (" + n + " annonser)";
-
-            PriceRange result = new PriceRange(min, max, prices.size(), formatted);
+            PriceRange result = priceRangeFrom(docs, year);
+            if (result == null) return null;
             cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));
             return result;
 
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Träfflistan → prisspann. Egen metod för att gå att testa utan HTTP. */
+    PriceRange priceRangeFrom(JsonNode docs, Integer year) {
+        List<Integer> prices = new ArrayList<>();
+        for (JsonNode doc : docs) {
+            int amount = doc.path("price").path("amount").asInt(0);
+            // Privatleasingannonser ligger i samma träfflista med månadsavgiften i
+            // price.amount (3 795–4 495 kr) och samma price_unit "kr" — inget fält skiljer
+            // dem åt, men ingen begagnad bil kostar under 10 000 kr att köpa.
+            if (amount <= 10_000) continue;
+            if (year != null) {
+                int adYear = doc.path("year").asInt(0);
+                if (adYear < year - 1 || adYear > year + 1) continue;
+            }
+            prices.add(amount);
+        }
+        if (prices.isEmpty()) return null;
+
+        Collections.sort(prices);
+        int n = prices.size();
+        int median = prices.get(n / 2);
+        int min = prices.get(0), max = prices.get(n - 1);
+        for (int p : prices) { if (p >= 0.4 * median) { min = p; break; } }
+        for (int p : prices) { if (p <= 2.5 * median) max = p; }
+        String formatted = sekFmt.format(min) + " – " + sekFmt.format(max)
+                + " kr (" + n + " annonser)";
+        return new PriceRange(min, max, n, formatted);
     }
 
     private Integer extractYear(String title) {
