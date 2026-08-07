@@ -160,6 +160,7 @@ var caCurrentCategory = '';
 var caBudgetShortfall = null;
 var caShortfallBudget = 0;
 var caShortfallMaxAge = null;
+var caShortfallNewCar = false;   // nybilssök: siffran är ett nypris, inte ett annonspris
 var caShortfallPayload = null;   // preferenserna sökningen använde, för alternativuppslaget
 var caIsLeasing = false;
 var caKopBudget = 200000;
@@ -714,13 +715,21 @@ function caRenderBudgetNotice() {
   if (!caBudgetShortfall) return;
 
   var kr = function(n) { return Number(n).toLocaleString('sv-SE') + '\xa0kr'; };
-  var orsak = caShortfallMaxAge
-    ? 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till en bil som \xe4r max ' +
-      caShortfallMaxAge + ' \xe5r gammal.'
-    : 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till n\xe5gon bil i den h\xe4r kategorin.';
-  var rad = caShortfallMaxAge
-    ? 'H\xf6j budgeten, till\xe5t \xe4ldre bilar eller v\xe4lj en billigare kategori.'
-    : 'H\xf6j budgeten eller v\xe4lj en billigare kategori.';
+  // Nybilssök mäts mot nypriset, inte mot annonserna — då är "på Blocket just nu" fel besked,
+  // och rådet "tillåt äldre bilar" är meningslöst när användaren bett om en ny bil
+  var nybil = caShortfallNewCar;
+  var orsak = nybil
+    ? 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till en NY bil i den h\xe4r kategorin.'
+    : caShortfallMaxAge
+      ? 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till en bil som \xe4r max ' +
+        caShortfallMaxAge + ' \xe5r gammal.'
+      : 'Din budget p\xe5 ' + kr(caShortfallBudget) + ' r\xe4cker inte till n\xe5gon bil i den h\xe4r kategorin.';
+  var kalla = nybil ? ' som ny. ' : ' p\xe5 Blocket just nu. ';
+  var rad = nybil
+    ? 'H\xf6j budgeten, v\xe4lj en billigare kategori — eller s\xf6k begagnat, d\xe4r r\xe4cker pengarna l\xe4ngre.'
+    : caShortfallMaxAge
+      ? 'H\xf6j budgeten, till\xe5t \xe4ldre bilar eller v\xe4lj en billigare kategori.'
+      : 'H\xf6j budgeten eller v\xe4lj en billigare kategori.';
 
   var el = document.createElement('div');
   el.id = 'ca-budget-notice';
@@ -730,7 +739,7 @@ function caRenderBudgetNotice() {
   el.innerHTML =
     '<strong style="color:#fca5a5">&#x26A0; F\xf6rslagen ligger \xf6ver din budget</strong><br>' +
     caEsc(orsak) + ' Billigaste bilen som matchar dina \xf6vriga krav b\xf6rjar p\xe5 ' +
-    '<strong>' + caEsc(kr(caBudgetShortfall)) + '</strong> p\xe5 Blocket just nu. ' +
+    '<strong>' + caEsc(kr(caBudgetShortfall)) + '</strong>' + kalla +
     'Korten nedan visas \xe4nd\xe5 s\xe5 du ser vad som finns — men de \xe4r allts\xe5 dyrare \xe4n du angav. ' +
     caEsc(rad) +
     '<div id="ca-budget-alts" style="margin-top:9px"></div>';
@@ -1805,6 +1814,7 @@ async function caGetRecommendation() {
       caBudgetShortfall = d.budgetShortfallFromKr || null;
       caShortfallBudget = payload.budget;
       caShortfallMaxAge = payload.maxAgeYears;
+      caShortfallNewCar = !!payload.newCar;
       caShortfallPayload = payload;
       caRenderCards(d.recommendations);
       caCurrentRecs = d.recommendations;

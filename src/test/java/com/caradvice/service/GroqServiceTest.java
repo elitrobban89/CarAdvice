@@ -757,6 +757,52 @@ class GroqServiceTest {
         assertThat(result).extracting(CarRecommendation::title).containsExactly("MG ZS EV (2020)");
     }
 
+    // --- nybilssok mater mot nypriset, begagnatsok mot annonserna ---
+
+    @Test
+    void nybilssokDomerPaNyprisetInteAnnonserna() {
+        // Live 2026-08-07: 200 000 kr + "ny" gav Nissan Leaf 2018-2020 med annonser fran
+        // 129 800 kr. Bilen gick igenom taket pa ett begagnatpris i ett NYBILSSOK, och
+        // anvandaren fick inget besked om att budgeten inte racker till en ny bil.
+        var leaf = bilMedNypris("Nissan Leaf (2020)", 290_000);
+        var annonser = range(129_800);
+
+        assertThat(GroqService.exceedsBudgetCeiling(leaf, annonser, 290_000, 200_000, false, true)).isTrue();
+        // samma bil i ett begagnatsok ar helt korrekt — dar ar annonspriset mattstocken
+        assertThat(GroqService.exceedsBudgetCeiling(leaf, annonser, 290_000, 200_000, false, false)).isFalse();
+    }
+
+    @Test
+    void blocketArSekundartINybilssok() {
+        // Saknas nypris faller nybilssoket tillbaka pa annonserna — battre an ingen dom alls
+        var utanNypris = bil("Ovanlig Modell (2022)");
+
+        assertThat(GroqService.exceedsBudgetCeiling(utanNypris, range(400_000), null, 200_000, false, true)).isTrue();
+        assertThat(GroqService.exceedsBudgetCeiling(utanNypris, range(150_000), null, 200_000, false, true)).isFalse();
+    }
+
+    @Test
+    void nyprisetKanKommaFranIceTabellen() {
+        // Bensinbilar har ingen evSpec — nypriset kommer da ur new_car_price via kartan
+        var golf = bil("Volkswagen Golf (2022)");
+
+        assertThat(GroqService.exceedsBudgetCeiling(golf, range(150_000), 320_000, 200_000, false, true)).isTrue();
+        var golv = GroqService.verifiedFloor(golf, range(150_000), 320_000, true);
+        assertThat(golv.kr()).isEqualTo(320_000);
+        assertThat(golv.fromBlocket()).isFalse();
+    }
+
+    @Test
+    void banderollensSiffraArNyprisINybilssok() {
+        // Texten byter till "som ny" — ett begagnatpris dar hade svarat pa en annan fraga
+        var recs = List.of(bilMedNypris("Nissan Leaf (2020)", 290_000),
+                bilMedNypris("Kia EV3 (2025)", 370_000));
+        var ranges = Map.of("Nissan Leaf (2020)", range(129_800), "Kia EV3 (2025)", range(359_000));
+
+        assertThat(GroqService.cheapest(recs, ranges, Map.of(), true)).isEqualTo(290_000);
+        assertThat(GroqService.cheapest(recs, ranges)).isEqualTo(129_800);   // begagnatsok: oforandrat
+    }
+
     // --- tre olika modeller garanteras ---
 
     @Test

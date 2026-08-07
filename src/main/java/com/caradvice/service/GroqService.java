@@ -289,10 +289,28 @@ public class GroqService {
      * "... på Blocket just nu", därför är {@code cheapest} fortfarande Blocket-only.
      */
     static VerifiedFloor verifiedFloor(CarRecommendation r, BlocketPriceService.PriceRange blocket) {
-        if (blocket != null && blocket.count() >= 2 && blocket.minKr() > 0)
-            return new VerifiedFloor(blocket.minKr(), true);
-        if (r != null && r.evSpec() != null && r.evSpec().priceKr() > 0)
-            return new VerifiedFloor(r.evSpec().priceKr(), false);
+        return verifiedFloor(r, blocket, null, false);
+    }
+
+    /**
+     * Nybilssök vänder på ordningen: nypriset är måttstocken och Blocket sekundärt.
+     *
+     * <p>Ber användaren om en NY bil är begagnatpriset inte vad hen betalar — då är nypriset
+     * det enda relevanta talet, och Blocket bara en nödlösning för modeller vi saknar nypris
+     * för. I begagnatsök gäller det omvända: annonserna är verkligheten och nypriset en
+     * referens för när de saknas.
+     *
+     * @param nyprisKr nypris ur {@code ev_spec} (elbil/PHEV) eller {@code new_car_price} (ICE)
+     */
+    static VerifiedFloor verifiedFloor(CarRecommendation r, BlocketPriceService.PriceRange blocket,
+                                       Integer nyprisKr, boolean newCar) {
+        Integer nypris = nyprisKr != null ? nyprisKr
+                : (r != null && r.evSpec() != null && r.evSpec().priceKr() > 0) ? r.evSpec().priceKr() : null;
+        boolean harBlocket = blocket != null && blocket.count() >= 2 && blocket.minKr() > 0;
+
+        if (newCar && nypris != null) return new VerifiedFloor(nypris, false);
+        if (harBlocket) return new VerifiedFloor(blocket.minKr(), true);
+        if (nypris != null) return new VerifiedFloor(nypris, false);
         return null;
     }
 
@@ -327,11 +345,16 @@ public class GroqService {
      */
     static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket,
                                         int budgetKr, boolean leasing) {
+        return exceedsBudgetCeiling(r, blocket, null, budgetKr, leasing, false);
+    }
+
+    static boolean exceedsBudgetCeiling(CarRecommendation r, BlocketPriceService.PriceRange blocket,
+                                        Integer nyprisKr, int budgetKr, boolean leasing, boolean newCar) {
         if (leasing) {
             return blocket != null && blocket.count() >= 1
                     && blocket.minKr() > budgetKr + LEASING_CEILING_MARGIN_KR;
         }
-        VerifiedFloor golv = verifiedFloor(r, blocket);
+        VerifiedFloor golv = verifiedFloor(r, blocket, nyprisKr, newCar);
         return golv != null && golv.kr() > budgetKr + BUDGET_CEILING_MARGIN_KR;
     }
 
@@ -356,6 +379,13 @@ public class GroqService {
     private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
                                                           String fuelPref, boolean leasing,
                                                           Map<String, BlocketPriceService.PriceRange> rangesOut) {
+        return enrichRecommendations(parsed, kmPerYear, fuelPref, leasing, rangesOut, null);
+    }
+
+    private List<CarRecommendation> enrichRecommendations(List<CarRecommendation> parsed, int kmPerYear,
+                                                          String fuelPref, boolean leasing,
+                                                          Map<String, BlocketPriceService.PriceRange> rangesOut,
+                                                          Map<String, Integer> nyprisOut) {
         List<CompletableFuture<BlocketPriceService.PriceRange>> blocketFutures = parsed.stream()
                 .map(r -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -389,6 +419,15 @@ public class GroqService {
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
             if (rangesOut != null && blocketRange != null) rangesOut.put(r.title(), blocketRange);
+            // Nypris per titel: ev_spec för el/PHEV, new_car_price för bensin/diesel. Behövs
+            // separat eftersom kortet bara bär evSpec — en ICE-bil har inget prisfält alls.
+            if (nyprisOut != null) {
+                Integer nypris = evSpec != null && evSpec.priceKr() > 0 ? evSpec.priceKr() : null;
+                if (nypris == null) {
+                    try { nypris = newCarPriceService.priceForTitle(r.title()); } catch (Exception ignored) {}
+                }
+                if (nypris != null) nyprisOut.put(r.title(), nypris);
+            }
             String blocketPrice = blocketRange != null ? blocketRange.formatted() : null;
             // Samma jämförelse i båda lägena, men aldrig över prislägena: i leasingläge är
             // både AI:ns siffra och annonsintervallet kr/mån
@@ -500,8 +539,9 @@ public class GroqService {
 
         boolean isLeasing = "leasing".equals(prefs.budgetType());
         Map<String, BlocketPriceService.PriceRange> ranges = new LinkedHashMap<>();
+        Map<String, Integer> nypriser = new LinkedHashMap<>();
         List<CarRecommendation> result = enrichRecommendations(parsed, prefs.kmPerYear(), prefs.fuelType(),
-                isLeasing, ranges);
+                isLeasing, ranges, nypriser);
 
         // Taket gäller alla lägen. Nybilssök omfattas trots att begagnatpriset är fel måttstock
         // där, för slutsatsen håller i EN riktning: kostar billigaste BEGAGNADE exemplaret mer
@@ -512,9 +552,10 @@ public class GroqService {
         // Leasing stod utanför så länge Blocket inte hämtades där. Nu finns kr/mån att mäta mot,
         // och samma natt föreslogs Kia EV6 GT-Line på 8 295 kr/mån mot en 5 000-budget.
         Integer shortfall = null;
-        List<CarRecommendation> over = overBudget(result, ranges, prefs.budget(), isLeasing);
+        List<CarRecommendation> over = overBudget(result, ranges, nypriser, prefs.budget(), isLeasing, prefs.newCar());
         if (!over.isEmpty()) {
-            BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges, isLeasing);
+            BudgetOutcome outcome = retryWithinBudget(prefs, systemPrompt, prompt, result, over, ranges,
+                    nypriser, isLeasing);
             result = outcome.recommendations();
             // Banderollen skriver ut siffran som ett Blocket-pris i kronor — en månadskostnad
             // där hade läst som att bilen kostar 8 295 kr att köpa
@@ -554,16 +595,23 @@ public class GroqService {
             List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
             List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
             int budgetKr, boolean leasing) {
+        return mergeWithinBudget(retried, retryRanges, original, ranges, Map.of(), budgetKr, leasing, false);
+    }
+
+    static List<CarRecommendation> mergeWithinBudget(
+            List<CarRecommendation> retried, Map<String, BlocketPriceService.PriceRange> retryRanges,
+            List<CarRecommendation> original, Map<String, BlocketPriceService.PriceRange> ranges,
+            Map<String, Integer> nypriser, int budgetKr, boolean leasing, boolean newCar) {
         List<CarRecommendation> out = new ArrayList<>();
         for (CarRecommendation r : retried) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), budgetKr, leasing)
+            if (!exceedsBudgetCeiling(r, retryRanges.get(r.title()), nypriser.get(r.title()), budgetKr, leasing, newCar)
                     && out.stream().noneMatch(k -> sameModel(k.title(), r.title())))
                 out.add(r);
         }
         for (CarRecommendation r : original) {
             if (out.size() >= 3) break;
-            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr, leasing)
+            if (!exceedsBudgetCeiling(r, ranges.get(r.title()), nypriser.get(r.title()), budgetKr, leasing, newCar)
                     && out.stream().noneMatch(k -> sameModel(k.title(), r.title())))
                 out.add(r);
         }
@@ -614,10 +662,12 @@ public class GroqService {
     /** Rekommendationer vars billigaste Blocket-annons — eller nypris när annonser saknas — ligger över taket. */
     private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
                                                       Map<String, BlocketPriceService.PriceRange> ranges,
-                                                      int budgetKr, boolean leasing) {
+                                                      Map<String, Integer> nypriser,
+                                                      int budgetKr, boolean leasing, boolean newCar) {
         List<CarRecommendation> over = new ArrayList<>();
         for (CarRecommendation r : recs) {
-            if (exceedsBudgetCeiling(r, ranges.get(r.title()), budgetKr, leasing)) over.add(r);
+            if (exceedsBudgetCeiling(r, ranges.get(r.title()), nypriser.get(r.title()), budgetKr, leasing, newCar))
+                over.add(r);
         }
         return over;
     }
@@ -638,7 +688,8 @@ public class GroqService {
      */
     private BudgetOutcome retryWithinBudget(CarPreferences prefs, String systemPrompt, String prompt,
                                             List<CarRecommendation> original, List<CarRecommendation> over,
-                                            Map<String, BlocketPriceService.PriceRange> ranges, boolean leasing) {
+                                            Map<String, BlocketPriceService.PriceRange> ranges,
+                                            Map<String, Integer> nypriser, boolean leasing) {
         int marginal = leasing ? LEASING_CEILING_MARGIN_KR : BUDGET_CEILING_MARGIN_KR;
         StringBuilder namn = new StringBuilder();
         for (CarRecommendation r : over) {
@@ -650,11 +701,11 @@ public class GroqService {
                         .append(formatSekSpace(pr.minKr())).append(" kr/mån)");
                 continue;
             }
-            VerifiedFloor golv = verifiedFloor(r, pr);
-            // Utan annonser är siffran ett nypris — säg det, annars ljuger prompten om marknaden
+            VerifiedFloor golv = verifiedFloor(r, pr, nypriser.get(r.title()), prefs.newCar());
+            // Säg alltid vilken sorts pris siffran är, annars ljuger prompten om marknaden
             if (golv != null) namn.append(golv.fromBlocket()
                     ? " (billigaste annons " + formatSekSpace(golv.kr()) + " kr)"
-                    : " (nypris fr. " + formatSekSpace(golv.kr()) + " kr, inga annonser på Blocket)");
+                    : " (nypris fr. " + formatSekSpace(golv.kr()) + " kr)");
         }
         log.warn("AI föreslog bil(ar) över budgettaket {} + {} {}: {} — omförsök",
                 prefs.budget(), marginal, leasing ? "kr/mån" : "kr", namn);
@@ -676,24 +727,29 @@ public class GroqService {
                 : String.format("""
 
                     VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT BUDGETEN: %s. Budgettaket är %,d kr
-                    (budget + %,d kr) räknat på BILLIGASTE annonsen på Blocket. Föreslå andra
-                    bilar som faktiskt går att köpa för pengarna: %s.
-                    """, namn, prefs.budget() + marginal, marginal, utvagar));
+                    (budget + %,d kr) räknat på %s. Föreslå andra bilar som faktiskt går att
+                    köpa för pengarna: %s.
+                    """, namn, prefs.budget() + marginal, marginal,
+                        prefs.newCar() ? "NYPRISET" : "BILLIGASTE annonsen på Blocket", utvagar));
 
         try {
             Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);
             Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, skarptPrompt);
             Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, skarptPrompt);
             HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
-            if (response.statusCode() != 200) return new BudgetOutcome(original, cheapest(over, ranges));
+            if (response.statusCode() != 200)
+                return new BudgetOutcome(original, cheapest(over, ranges, nypriser, prefs.newCar()));
 
             List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)");
             Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
+            Map<String, Integer> retryNypriser = new LinkedHashMap<>();
             List<CarRecommendation> retried = enrichRecommendations(
-                    parsed, prefs.kmPerYear(), prefs.fuelType(), leasing, retryRanges);
+                    parsed, prefs.kmPerYear(), prefs.fuelType(), leasing, retryRanges, retryNypriser);
 
-            List<CarRecommendation> withinBudget =
-                    mergeWithinBudget(retried, retryRanges, original, ranges, prefs.budget(), leasing);
+            Map<String, Integer> allaNypriser = new LinkedHashMap<>(nypriser);
+            allaNypriser.putAll(retryNypriser);
+            List<CarRecommendation> withinBudget = mergeWithinBudget(retried, retryRanges, original, ranges,
+                    allaNypriser, prefs.budget(), leasing, prefs.newCar());
 
             if (withinBudget.isEmpty()) {
                 // Kriterierna går inte ihop — typiskt låg budget plus hårt ålderskrav. Korten
@@ -701,7 +757,7 @@ public class GroqService {
                 // utan det läser tre bilar till dubbla priset som en trasig rekommendation.
                 Map<String, BlocketPriceService.PriceRange> alla = new LinkedHashMap<>(ranges);
                 alla.putAll(retryRanges);
-                Integer from = cheapest(concat(original, retried), alla);
+                Integer from = cheapest(concat(original, retried), alla, allaNypriser, prefs.newCar());
                 log.warn("Budgetomförsök: ingen bil inom budget i någondera omgången — behåller första svaret,"
                         + " billigaste verkliga pris {} kr mot budget {} kr", from, prefs.budget());
                 return new BudgetOutcome(original, from);
@@ -714,7 +770,7 @@ public class GroqService {
             List<CarRecommendation> kept = new ArrayList<>(original);
             kept.removeAll(over);
             return kept.isEmpty()
-                    ? new BudgetOutcome(original, cheapest(over, ranges))
+                    ? new BudgetOutcome(original, cheapest(over, ranges, nypriser, prefs.newCar()))
                     : new BudgetOutcome(kept, null);
         }
     }
@@ -807,11 +863,29 @@ public class GroqService {
      * Medvetet utan nyprisfallback: siffran hamnar i banderollen som "... på Blocket just nu".
      */
     static Integer cheapest(List<CarRecommendation> recs, Map<String, BlocketPriceService.PriceRange> ranges) {
+        return cheapest(recs, ranges, Map.of(), false);
+    }
+
+    /**
+     * I nybilssök är siffran billigaste NYPRIS i stället — banderollen säger då "som ny" och
+     * inte "på Blocket just nu". Ett begagnatpris där hade svarat på en fråga användaren inte
+     * ställde: att en ny bil inte får plats i budgeten blir inte sant för att en begagnad gör det.
+     */
+    static Integer cheapest(List<CarRecommendation> recs, Map<String, BlocketPriceService.PriceRange> ranges,
+                            Map<String, Integer> nypriser, boolean newCar) {
         Integer min = null;
         for (CarRecommendation r : recs) {
-            BlocketPriceService.PriceRange pr = ranges.get(r.title());
-            if (pr == null || pr.minKr() <= 0) continue;
-            if (min == null || pr.minKr() < min) min = pr.minKr();
+            Integer pris = null;
+            if (newCar) {
+                Integer nypris = nypriser.get(r.title());
+                if (nypris == null && r.evSpec() != null && r.evSpec().priceKr() > 0) nypris = r.evSpec().priceKr();
+                pris = nypris;
+            } else {
+                BlocketPriceService.PriceRange pr = ranges.get(r.title());
+                if (pr != null && pr.minKr() > 0) pris = pr.minKr();
+            }
+            if (pris == null || pris <= 0) continue;
+            if (min == null || pris < min) min = pris;
         }
         return min;
     }

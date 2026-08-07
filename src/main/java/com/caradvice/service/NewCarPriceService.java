@@ -7,13 +7,18 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class NewCarPriceService {
 
     private static final Logger log = LoggerFactory.getLogger(NewCarPriceService.class);
+    private static final long ROWS_TTL_MS = 30 * 60 * 1_000L;
     private final JdbcTemplate jdbc;
+    private volatile List<Map<String, Object>> cachedRows;
+    private volatile long rowsCachedAt;
 
     public NewCarPriceService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -176,6 +181,79 @@ public class NewCarPriceService {
                 .map(r -> r.get("car_name") + " fr. " + formatSek(((Number) r.get("price_kr")).intValue()))
                 .collect(Collectors.joining(", "));
         return "ICE-nypris Sverige (SEK): " + prices;
+    }
+
+    /**
+     * Nypriset för en AI-titel, eller null när modellen inte finns i tabellen.
+     *
+     * <p>Tabellnamnen bär generation som årsspann ("Volkswagen Polo 2018-2021",
+     * "Toyota Yaris 2020+"), så matchningen sker i två steg: modellnamnet måste vara en
+     * inledning av titeln ord för ord — "Volkswagen Golf" matchar "Volkswagen Golf (2022)"
+     * men inte "Volkswagen Golf GTE" mot en vanlig Golf — och årsmodellen måste rymmas i
+     * generationens spann. Ord för ord, aldrig tecken: annars hade "Kia Ceed" svalt "Kia Ceed
+     * SW" lika gärna som "Kia Ceedx".
+     *
+     * <p>Finns flera generationer av samma modell vinner den vars årsspann innehåller
+     * titelns årtal; utan årtal i titeln väljs den dyraste, som är den nyaste generationen.
+     */
+    public Integer priceForTitle(String title) {
+        if (title == null || title.isBlank()) return null;
+        List<String> titleWords = words(title.replaceAll("\\s*\\(\\d{4}\\+?\\)\\s*$", ""));
+        if (titleWords.isEmpty()) return null;
+        Integer titleYear = yearOf(title);
+
+        Integer bastaPris = null;
+        int bastaLangd = 0;
+        for (Map<String, Object> row : cachedRows()) {
+            String carName = String.valueOf(row.get("car_name"));
+            int priceKr = ((Number) row.get("price_kr")).intValue();
+
+            int[] span = generationSpan(carName);
+            List<String> nameWords = words(carName.replaceAll("\\s+\\d{4}(-\\d{4}|\\+)?(\\s|$).*", " ")
+                    .replaceAll("\\(Gen\\d\\)", "").trim());
+            if (nameWords.isEmpty() || nameWords.size() > titleWords.size()) continue;
+            if (!titleWords.subList(0, nameWords.size()).equals(nameWords)) continue;
+            if (titleYear != null && span != null && (titleYear < span[0] || titleYear > span[1])) continue;
+
+            // Längsta modellnamnet vinner: "Toyota RAV4 PHEV" före "Toyota RAV4"
+            if (nameWords.size() > bastaLangd || (nameWords.size() == bastaLangd
+                    && bastaPris != null && priceKr > bastaPris)) {
+                bastaLangd = nameWords.size();
+                bastaPris = priceKr;
+            }
+        }
+        return bastaPris;
+    }
+
+    /** Generationens årsspann ur namnet: "2018-2021" → [2018, 2021], "2020+" → [2020, 9999]. */
+    private static int[] generationSpan(String carName) {
+        Matcher m = Pattern.compile("(\\d{4})\\s*(?:-\\s*(\\d{4})|(\\+))").matcher(carName);
+        if (!m.find()) return null;
+        int from = Integer.parseInt(m.group(1));
+        int to = m.group(2) != null ? Integer.parseInt(m.group(2)) : 9999;
+        return new int[]{from, to};
+    }
+
+    private static Integer yearOf(String title) {
+        Matcher m = Pattern.compile("\\((\\d{4})\\+?\\)\\s*$").matcher(title.trim());
+        return m.find() ? Integer.parseInt(m.group(1)) : null;
+    }
+
+    private static List<String> words(String s) {
+        String rensad = s.toLowerCase().replaceAll("\\s+", " ").trim();
+        return rensad.isEmpty() ? List.of() : List.of(rensad.split(" "));
+    }
+
+    private List<Map<String, Object>> cachedRows() {
+        if (System.currentTimeMillis() - rowsCachedAt > ROWS_TTL_MS || cachedRows == null) {
+            try {
+                cachedRows = jdbc.queryForList("SELECT car_name, price_kr FROM new_car_price");
+                rowsCachedAt = System.currentTimeMillis();
+            } catch (Exception e) {
+                return cachedRows != null ? cachedRows : List.of();
+            }
+        }
+        return cachedRows;
     }
 
     public int upsert(String carName, int priceKr) {
