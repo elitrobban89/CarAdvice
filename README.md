@@ -730,7 +730,7 @@ Tar bort alla röster för en bil (exakt titelmatchning) — städning av test-/
 Hälsokontroll med datastatus — rapporterar antal EV-specs i databasen och senaste insiktsscrape-körningens status. `status` blir `DEGRADED` (fortfarande HTTP 200) om EV-spec-tabellen är tom eller databasen är onåbar, så UptimeRobot-nyckelordsövervakning på `"status":"OK"` larmar vid dataproblem — samma mönster som Bilresas `warm`-nyckelord.
 
 ```json
-{ "status": "OK", "evSpecs": 1243, "lastScrape": "OK", "lastScrapeFinishedAt": "2026-07-14 04:11:50" }
+{ "status": "OK", "evSpecs": 1243, "lastScrape": "OK", "lastScrapeFinishedAt": "2026-07-14 04:11:50", "commit": "e6fbecb" }
 ```
 
 | Fält | Betydelse |
@@ -739,6 +739,7 @@ Hälsokontroll med datastatus — rapporterar antal EV-specs i databasen och sen
 | `evSpecs` | Antal rader i `ev_spec`-tabellen |
 | `lastScrape` | Insiktsscraperns senaste körning: `OK` / `RUNNING` / `NEVER_RUN` / `ERROR` |
 | `lastScrapeFinishedAt` | När senaste körningen blev klar |
+| `commit` | Kort commit-hash för koden som kör (`unknown` lokalt) — samma värde som `commit` i [`/api/version`](#get-apiversion), så ett anrop räcker för både hälsa och deploy-läge |
 
 ### `GET /api/health/groq`
 
@@ -781,6 +782,8 @@ Kör man lokalt saknas Render-variablerna: `commit` blir `unknown` och `branch` 
 curl -s https://caradvice.onrender.com/api/version | jq -r .commitFull
 git rev-parse HEAD
 ```
+
+Den korta hashen finns även i [`/api/health`](#get-apihealth) — vill man bara veta "lever den, och är det senaste koden?" räcker det anropet. Hit för full sha, starttid och branch.
 
 ### Auth-endpoints
 

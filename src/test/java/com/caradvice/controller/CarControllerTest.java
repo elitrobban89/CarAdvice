@@ -107,6 +107,32 @@ class CarControllerTest {
            .andExpect(jsonPath("$.lastScrape").value("ERROR"));
     }
 
+    // Ett anrop ska räcka för "lever den, och vilken kod kör den?" — UptimeRobot pekar bara hit
+    @Test
+    void healthVisarKortCommitFranRender() throws Exception {
+        when(evSpecRepo.count()).thenReturn(42L);
+        when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                controller, "appCommit", "6754daf0123456789abcdef");
+        try {
+            mvc.perform(get("/api/health"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.status").value("OK"))
+               .andExpect(jsonPath("$.commit").value("6754daf"));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(controller, "appCommit", "");
+        }
+    }
+
+    @Test
+    void healthGerUnknownCommitUtanRendervariabler() throws Exception {
+        when(evSpecRepo.count()).thenReturn(42L);
+        when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
+        mvc.perform(get("/api/health"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.commit").value("unknown"));
+    }
+
     // --- version (svarar på "hann deployen ut?") ---
 
     @Test

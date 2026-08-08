@@ -592,7 +592,13 @@ public class CarController {
         } catch (Exception e) {
             out.put("lastScrape", "ERROR");
         }
+        out.put("commit", shortCommit());
         return ResponseEntity.ok(out);
+    }
+
+    // Kort commit-hash som matchar git log --oneline; tom lokalt → "unknown"
+    private String shortCommit() {
+        return appCommit.isBlank() ? "unknown" : appCommit.substring(0, Math.min(7, appCommit.length()));
     }
 
     // Vilken kod som faktiskt kör — svarar på "hann deployen ut?" utan Render-dashboarden.
@@ -602,7 +608,7 @@ public class CarController {
     public ResponseEntity<?> version() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("version", appVersion);
-        out.put("commit", appCommit.isBlank() ? "unknown" : appCommit.substring(0, Math.min(7, appCommit.length())));
+        out.put("commit", shortCommit());
         out.put("commitFull", appCommit.isBlank() ? "unknown" : appCommit);
         out.put("branch", appBranch.isBlank() ? "local" : appBranch);
         out.put("startedAt", startedAt.toString());
