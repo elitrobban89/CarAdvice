@@ -72,6 +72,55 @@ class BlocketPriceServiceTest {
         assertThat(BlocketPriceService.modelDigits("Audi Q4 e-tron 40")).isEqualTo("4");
     }
 
+    // --- milgränsen: billigaste annonsen får inte vara marknadens mest slitna bil ---
+
+    @Test
+    void slitnaExemplarSatterInteGolvet() {
+        // Live 2026-08-08: en 200 000-budget fick Skoda Enyaq med prisraden "från 229 900 kr".
+        // Den annonsen hade gått 21 091 mil, och eftersom budgettaket mäts mot billigaste
+        // annonsen slank bilen under taket — billigaste exemplaret under 10 000 mil kostade
+        // 339 900 kr. Samma bild för ID.4 (249 000 mot 309 900) och EV6 (279 900 mot 316 990).
+        var enyaq = docsMedMil(new int[]{2024, 229_900, 21_091}, new int[]{2024, 269_900, 15_100},
+                new int[]{2024, 339_900, 7_010}, new int[]{2024, 359_000, 4_200});
+
+        var utan = service.priceRangeFrom(enyaq, 2024, null);
+        var med = service.priceRangeFrom(enyaq, 2024, null, BlocketPriceService.MAX_MILEAGE_MIL);
+
+        assertThat(utan.minKr()).isEqualTo(229_900);
+        assertThat(med.minKr()).isEqualTo(339_900);
+        assertThat(med.count()).isEqualTo(2);
+    }
+
+    @Test
+    void saknadKorstrackaSlappsIgenom() {
+        // Fältet är tomt på just de leasingannonser som ändå faller på prisgolvet. Att kasta
+        // okända hade strukit riktiga annonser den dagen Blocket slutar fylla i fältet.
+        var blandat = docsMedMil(new int[]{2024, 289_900, -1}, new int[]{2024, 319_900, 5_000},
+                new int[]{2024, 259_900, 18_000});
+
+        var range = service.priceRangeFrom(blandat, 2024, null, BlocketPriceService.MAX_MILEAGE_MIL);
+
+        assertThat(range.minKr()).isEqualTo(289_900);
+        assertThat(range.count()).isEqualTo(2);
+    }
+
+    /** Bygger en träfflista med körsträcka: (årsmodell, pris, mil). Negativ mil = fältet saknas. */
+    private JsonNode docsMedMil(int[]... arsmodellPrisMil) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < arsmodellPrisMil.length; i++) {
+            if (i > 0) sb.append(',');
+            int[] rad = arsmodellPrisMil[i];
+            sb.append(String.format("{\"year\":%d,\"price\":{\"amount\":%d,\"price_unit\":\"kr\"}", rad[0], rad[1]));
+            if (rad[2] >= 0) sb.append(String.format(",\"mileage\":%d,\"mileage_unit\":\"SCANDINAVIAN_MILE\"", rad[2]));
+            sb.append('}');
+        }
+        try {
+            return mapper.readTree(sb.append(']').toString());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /** Bygger en träfflista: varje par är (årsmodell, pris). */
     private JsonNode docs(int[]... arsmodellOchPris) {
         StringBuilder sb = new StringBuilder("[");

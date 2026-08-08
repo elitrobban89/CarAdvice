@@ -38,6 +38,31 @@ public class BlocketPriceService {
 
     /** Under detta är beloppet en månadsavgift, inte ett köppris. */
     private static final int LOWEST_PLAUSIBLE_CAR_PRICE_KR = 10_000;
+
+    /**
+     * Milgräns på köpsökningen, i skandinaviska mil ({@code mileage_unit} är alltid
+     * {@code SCANDINAVIAN_MILE}).
+     *
+     * <p>Utan gräns sätts golvet av marknadens mest slitna exemplar, och eftersom budgettaket
+     * mäts mot billigaste annonsen blev bilar "köpbara" på en bil ingen tänkt sig. Mätt
+     * 2026-08-08 för en 200 000-budget: Enyaq visades från 229 900 kr — en bil som gått
+     * 21 091 mil (210 000 km) — och slank därmed under taket, medan billigaste exemplaret
+     * under 10 000 mil kostade 339 900 kr. Samma bild för ID.4 (249 000 kr / 15 742 mil mot
+     * 309 900 kr) och EV6 (279 900 kr / 18 735 mil mot 316 990 kr).
+     *
+     * <p>Gränsen gör inte utbudet magrare, tvärtom: träfflistan kapas vid 50 annonser, så
+     * slitna bilar tar platser från de köpbara. ID.4 gav 42 användbara annonser utan gränsen
+     * och 46 med den. Äldre billiga elbilar överlever också — Leaf 2018 från 79 800 kr (15 kvar),
+     * Zoe 2019 från 79 900 kr (30 kvar), e-Golf 2019 från 144 900 kr (12 kvar).
+     */
+    static final int MAX_MILEAGE_MIL = 10_000;
+
+    /**
+     * Så många annonser måste den milfiltrerade sökningen ge för att duga som prisrad. Under
+     * det tas hela marknaden in i stället — {@code GroqService.exceedsBudgetCeiling} kräver
+     * två annonser för att fälla en bil, så en tunn lista hade tyst avväpnat budgettaket.
+     */
+    private static final int MIN_ADS_FOR_RANGE = 2;
     /**
      * Över detta är beloppet ett köppris, inte en månadsavgift — en ID.4 låg som leasingannons
      * med 539 500 kr i månadsfältet.
@@ -104,11 +129,27 @@ public class BlocketPriceService {
             return cached.result();
 
         try {
-            JsonNode billigast = fetchDocs(query, year, leasing, "PRICE_ASC");
+            // Leasingannonser gäller nya bilar och saknar körsträcka — milgränsen är en
+            // begagnatregel och hade bara tömt den träfflistan.
+            Integer milTak = leasing ? null : MAX_MILEAGE_MIL;
+
+            JsonNode billigast = fetchDocs(query, year, leasing, "PRICE_ASC", milTak);
             if (billigast == null || billigast.isEmpty()) return null;
 
             String digits = modelDigits(query);
-            List<Integer> prices = pricesFrom(billigast, year, leasing, digits);
+            List<Integer> prices = pricesFrom(billigast, year, leasing, digits, milTak);
+
+            // Milgränsen får aldrig kosta hela prisraden: finns för få lågmilade exemplar
+            // mäts bilen mot hela marknaden i stället för att tappa sin prisrad helt.
+            if (milTak != null && prices.size() < MIN_ADS_FOR_RANGE) {
+                JsonNode allt = fetchDocs(query, year, leasing, "PRICE_ASC", null);
+                if (allt != null && !allt.isEmpty()) {
+                    milTak = null;
+                    billigast = allt;
+                    prices = pricesFrom(billigast, year, leasing, digits, null);
+                }
+            }
+
             boolean kapad = billigast.size() >= PAGE_CAP;
             // Full lista = vi såg bara den billigaste änden; dyraste priset finns bortom taket.
             //
@@ -119,8 +160,8 @@ public class BlocketPriceService {
             // för en modell är däremot ett smalt band som ryms i de 50 billigaste: ID.4 låg på
             // 3 021-4 695 kr/mån där, mot 12 375 kr/mån när dyraste änden togs med.
             if (kapad && !leasing) {
-                JsonNode dyrast = fetchDocs(query, year, leasing, "PRICE_DESC");
-                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits));
+                JsonNode dyrast = fetchDocs(query, year, leasing, "PRICE_DESC", milTak);
+                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits, milTak));
             }
 
             PriceRange result = rangeOf(prices, leasing, kapad);
@@ -133,11 +174,16 @@ public class BlocketPriceService {
         }
     }
 
-    private JsonNode fetchDocs(String query, Integer year, boolean leasing, String sort) throws Exception {
+    private JsonNode fetchDocs(String query, Integer year, boolean leasing, String sort, Integer mileageTo)
+            throws Exception {
         String url = SEARCH_URL + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
                 + "&page=0&lim=" + FETCH_LIMIT + "&sort=" + sort
                 + (leasing ? SALES_FORM_LEASING : SALES_FORM_KOP);
         if (year != null) url += "&year_from=" + (year - 1) + "&year_to=" + (year + 1);
+        // Parametern heter mileage_to. Mätt 2026-08-08 ignorerar API:t både milage_to och
+        // mileage_max tyst och svarar med hela marknaden — samma fälla som year_min/year_max,
+        // därför filtreras docs[].mileage om i pricesFrom.
+        if (mileageTo != null) url += "&mileage_to=" + mileageTo;
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -161,6 +207,11 @@ public class BlocketPriceService {
         return rangeOf(pricesFrom(docs, year, false, modelDigits), false, false);
     }
 
+    /** Som ovan, med milgränsen på — samma seam för att testa filtret utan HTTP. */
+    PriceRange priceRangeFrom(JsonNode docs, Integer year, String modelDigits, Integer mileageTo) {
+        return rangeOf(pricesFrom(docs, year, false, modelDigits, mileageTo), false, false);
+    }
+
     /** Som ovan, för privatleasingens kr/mån. */
     PriceRange leasingRangeFrom(JsonNode docs, Integer year) {
         return rangeOf(pricesFrom(docs, year, true), true, false);
@@ -172,10 +223,15 @@ public class BlocketPriceService {
      * beloppets storlek är den enda tillförlitliga skiljelinjen mellan kr och kr/mån.
      */
     private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing) {
-        return pricesFrom(docs, year, leasing, null);
+        return pricesFrom(docs, year, leasing, null, null);
     }
 
     private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing, String modelDigits) {
+        return pricesFrom(docs, year, leasing, modelDigits, null);
+    }
+
+    private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing, String modelDigits,
+                                     Integer mileageTo) {
         List<Integer> prices = new ArrayList<>();
         for (JsonNode doc : docs) {
             int amount = doc.path("price").path("amount").asInt(0);
@@ -184,6 +240,13 @@ public class BlocketPriceService {
             if (year != null) {
                 int adYear = doc.path("year").asInt(0);
                 if (adYear < year - 1 || adYear > year + 1) continue;
+            }
+            // Saknad körsträcka släpps igenom: fältet är tomt på just de leasingannonser som
+            // ändå faller på prisgolvet, och att kasta okända hade strukit riktiga annonser
+            // om Blocket slutar fylla fältet.
+            if (mileageTo != null) {
+                int mil = doc.path("mileage").asInt(-1);
+                if (mil > mileageTo) continue;
             }
             if (!matchesModel(doc, modelDigits)) continue;
             prices.add(amount);
