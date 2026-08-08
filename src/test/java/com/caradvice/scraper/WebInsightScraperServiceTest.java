@@ -439,6 +439,31 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void relevanspromptenUtesluterInteLangrePaTillganglighet() {
+        // Natten 2026-08-08 gav NOLL insikter: uppdelningen i bb6a4e4 flyttade
+        // tillgängligheten till steg 2 men lät steg 1 behålla sin egen hårda regel
+        // ("Kravet är hårt: konkreta uppgifter gör INTE en bil relevant om läsaren inte
+        // kan köpa den"). Tre Audi A2 e-tron-rader kastades därför innan kommande-vakten
+        // ens kördes — markUpcomingRows returnerar direkt på tom lista, så kön kunde
+        // aldrig växa. Kommer meningen tillbaka svälter kön igen.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .doesNotContain("Kravet är hårt")
+                .contains("INGEN uteslutningsgrund")
+                // A/B 2026-08-08: osäkerhetsregeln pekar åt behåll-hållet, kön är reversibel
+                .contains("BEHÅLL raden");
+    }
+
+    @Test
+    void relevanspromptenSkiljerKonceptbilFranPresenteradModell() {
+        // A/B 2026-08-08: A2 e-tron-raderna stoppades 3/3 även ensamma i sin batch tills
+        // gränsen skrevs ut — "preliminär energiförbrukning" lästes som konceptbil av
+        // prototypregeln, alltså en andra väg till samma bortfall
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("studie utan produktionsbeslut")
+                .contains("ingen konceptbil");
+    }
+
+    @Test
     void saljbarhetsvaktenGallerBaraStriktaKallor() throws Exception {
         // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
         // övriga källor ska inte betala för ett extra Groq-anrop på sina säljbara rader.

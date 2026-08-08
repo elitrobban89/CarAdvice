@@ -178,18 +178,18 @@ public class WebInsightScraperService {
             sportbil eller lyxbil blir inte köpvägledning för att priset står i texten.
 
             En insikt är IRRELEVANT om den handlar om:
-            - en bil som inte går att köpa i Sverige IDAG och inte heller är på väg hit.
-              Kravet är hårt: konkreta uppgifter (effekt, vikt, räckvidd, mått, testvärden,
-              pris i kronor) gör INTE en bil relevant om läsaren inte kan köpa den. Hit hör
-              modeller som bara säljs på andra marknader (t.ex. Lada eller varianter som
-              säljs i Kina/USA), modeller som lämnat den svenska marknaden, samt rykten om
-              kommande namn ("kan heta X"), plattform, teknik eller lanseringsår.
-              Nylanserade modeller vars första kunder redan fått sina bilar levererade i
-              Sverige är däremot KÖPBARA — erfarenheter från de allra första exemplaren är
-              RELEVANTA, varken irrelevanta eller kommande. Att bilen kallas ny eller
-              nylanserad, eller att leveranserna nyss börjat, ändrar inget (Volvo EX60,
-              BMW iX3 och Mercedes GLC med eldrift är i det läget 2026; fem EX60-rader
-              från förste ägaren kastades felaktigt 2026-08-07)
+            - en bil som aldrig blir tillgänglig för en svensk köpare: modeller som bara
+              säljs på andra marknader (t.ex. Lada eller varianter som säljs i Kina/USA)
+              och modeller som lämnat den svenska marknaden. Hit hör också lösa rykten
+              utan något kontrollerbart: "kan heta X", "väntas komma om några år".
+              Att bilen ännu inte går att köpa här är däremot INGEN uteslutningsgrund.
+              Konkreta uppgifter om en bekräftad modell — mått, effekt, räckvidd, batteri,
+              plattform, teknik, testvärden, pris — är RELEVANTA oavsett när den når
+              marknaden. Om bilen går att köpa idag avgörs i ett separat steg efteråt:
+              väg aldrig in den frågan här, varken hur ny modellen är eller om
+              leveranserna hunnit börja. (Tre rader om Audi A2 e-tron — cW 0,24,
+              61 kWh LFP, kiselkarbidhalvledarna — kastades felaktigt 2026-08-08, och
+              fem Volvo EX60-rader från förste ägaren 2026-08-07.)
             - kuriosa, rekordförsök och bragder (längsta sträcka på en tank, extremt låg
               förbrukning med specialdäck/körstil), eller retrospektiva jämförelsetester av
               utgångna prestandabilar — underhållande, men ingen köpvägledning
@@ -205,7 +205,11 @@ public class WebInsightScraperService {
               vanlig familjebil eller elbil under den nivån är däremot RELEVANT hur snabb
               den än är
             - lastbilar, bussar, yrkesfordon, A-traktorer eller mopedbilar
-            - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar
+            - prototyper, konceptbilar, entusiastombyggnader eller veteran-/samlarbilar.
+              En konceptbil är en studie utan produktionsbeslut. En modell tillverkaren
+              officiellt presenterat för marknaden är däremot ingen konceptbil, även om
+              siffrorna är preliminära och säljstarten inte är satt — Audi A2 e-trons
+              preliminära förbrukning lästes felaktigt som en konceptbil 2026-08-08
             - specialutgåvor, jubileums- och signatureditioner vars innehåll är utseende,
               namn eller upplaga i stället för egenskaper — färger, fälgar, dekor, emblem,
               "firar 25 år", "begränsad upplaga om 500 exemplar" (Mini Cooper Oxford Edition
@@ -245,11 +249,13 @@ public class WebInsightScraperService {
             ingenting i den går att jämföra mot en annan bil. Undantaget gäller omdömen
             som VÄGER bilens egenskaper, inte meningar som beskriver vad utförandet heter.
 
-            En bekräftad modell som är på väg till den svenska marknaden är RELEVANT här,
-            så länge insikten har konkret innehåll (mått, effekt, räckvidd, utrustning,
-            testintryck). Om bilen redan GÅR att köpa avgörs i ett separat steg efteråt —
-            väg inte in den frågan, och håll inte tillbaka en rad för att bilen är ny. Lösa
-            rykten om namn eller lanseringsår är däremot IRRELEVANTA.
+            En bekräftad modell på väg till den svenska marknaden bedöms alltså som vilken
+            bil som helst här: har insikten konkret innehåll (mått, effekt, räckvidd,
+            batteri, utrustning, testintryck) är den RELEVANT. Lösa rykten om namn eller
+            lanseringsår är däremot IRRELEVANTA — de saknar kontrollerbart innehåll, inte
+            säljstart. Är du osäker på om en presenterad modell når Sverige: BEHÅLL raden.
+            Tillgängligheten prövas i nästa steg, och en bil som ännu inte går att köpa
+            parkeras där utan att synas för köparen — en kastad rad är däremot borta.
 
             Svara ENDAST med valid JSON:
             {"irrelevant": [index...]}
