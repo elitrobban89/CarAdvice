@@ -196,28 +196,56 @@ function caStopLoadingText() {
   document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
 }
 
-// Vad budgeten räcker till på den svenska begagnatmarknaden för ELBIL. KURERADE siffror
+// Vad budgeten räcker till på den svenska begagnatmarknaden, per kategori. KURERADE siffror
 // — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
-// Gäller medvetet bara kategorin elbil: samma 150 000 kr köper en helt annan bensinbil, så
-// nivåerna vore vilseledande någon annanstans. Modellnamn nämns bara där prisläget är känt.
+// Nivåerna är kategorispecifika av nödvändighet: samma 150 000 kr köper en helt annan bil
+// som elbil, kombi och SUV. Kategorier utan egna nivåer (ekonomibil, laddhybrid, småbil)
+// får ingen ruta alls — hellre tyst än en gissning. Modellnamn nämns bara där prisläget
+// är mätt.
 //
-// Ommätta 2026-08-08 mot Blocket med SAMMA underlag som prisraden på korten: högst
+// Mätta 2026-08-08 mot Blocket med SAMMA underlag som prisraden på korten: högst
 // 10 000 mil och medianrelativ outlier-trimning (0,4×), annars lovar rutan en bil som
-// bara finns som utsliten. Texterna låg då systematiskt en nivå efter marknaden — "MG ZS EV
+// bara finns som utsliten. Elbilstexterna låg då en nivå efter marknaden — "MG ZS EV
 // kring 100 000 kr" var 129 900, ID.3 låg kvar på 299 000-nivån trots att den börjar vid
 // 198 900, och Polestar 2/ID.4/Enyaq "börjar bli möjliga" först vid 399 000 fast de går att
-// köpa för 209 000/229 500/279 000. Mät om med Blockets API (gratis, ingen Groq-kvot):
-// sales_form=1&2, mileage_to=10000, sort=PRICE_ASC, utan årsfilter.
-var CA_EV_BUDGET_LEVELS = [
-  { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
-  { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV fr\xe5n ca 130 000 kr och e-Golf kring 139 000 — Leaf och Zoe ligger under det.' },
-  { upTo: 199000, txt: 'Kompaktelbil med riktig r\xe4ckvidd — Kia Niro EV fr\xe5n ca 175 000 kr, Hyundai Kona Electric och MG4 kring 195 000, VW ID.3 knappt 199 000.' },
-  { upTo: 249000, txt: 'Nyare begagnad elbil, ca 3–5 \xe5r. Polestar 2 fr\xe5n ca 209 000 kr, Tesla Model 3 kring 215 000 och VW ID.4 fr\xe5n 229 500.' },
-  { upTo: 299000, txt: 'Familjeelbil i begagnat skick — Škoda Enyaq fr\xe5n ca 279 000 kr, och b\xe4ttre exemplar av ID.4 och Polestar 2.' },
-  { upTo: 399000, txt: 'Nyare familjeelbil eller el-SUV — Enyaq, ID.4 och Polestar 2 med l\xe5g m\xe4tarst\xe4llning och full r\xe4ckvidd.' },
-  { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjeelbil, eller en st\xf6rre el-SUV n\xe5gra \xe5r gammal.' },
-  { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning.' }
-];
+// köpa för 209 000/229 500/279 000.
+//
+// Mät om med Blockets API (gratis, ingen Groq-kvot): sales_form=1&2, mileage_to=10000,
+// sort=PRICE_ASC. Använd årsfönster per modell (year_from/year_to, ±1) — utan det matchar
+// fritextsökningen fel bilar och ger orimliga golv: en Škoda Octavia 2025 för 75 600 kr och
+// en "Volvo V90 från 2013", en modell som inte fanns då.
+var CA_BUDGET_LEVELS = {
+  elbil: { ikon: '⚡', nivaer: [
+    { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
+    { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV fr\xe5n ca 130 000 kr och e-Golf kring 139 000 — Leaf och Zoe ligger under det.' },
+    { upTo: 199000, txt: 'Kompaktelbil med riktig r\xe4ckvidd — Kia Niro EV fr\xe5n ca 175 000 kr, Hyundai Kona Electric och MG4 kring 195 000, VW ID.3 knappt 199 000.' },
+    { upTo: 249000, txt: 'Nyare begagnad elbil, ca 3–5 \xe5r. Polestar 2 fr\xe5n ca 209 000 kr, Tesla Model 3 kring 215 000 och VW ID.4 fr\xe5n 229 500.' },
+    { upTo: 299000, txt: 'Familjeelbil i begagnat skick — Škoda Enyaq fr\xe5n ca 279 000 kr, och b\xe4ttre exemplar av ID.4 och Polestar 2.' },
+    { upTo: 399000, txt: 'Nyare familjeelbil eller el-SUV — Enyaq, ID.4 och Polestar 2 med l\xe5g m\xe4tarst\xe4llning och full r\xe4ckvidd.' },
+    { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjeelbil, eller en st\xf6rre el-SUV n\xe5gra \xe5r gammal.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning.' }
+  ] },
+  familjebil: { ikon: '🚗', nivaer: [
+    { upTo:  99000, txt: 'De \xe4ldsta kombibilarna, ca 10–12 \xe5r. Ford Focus kombi fr\xe5n ca 60 000 kr och Peugeot 308 SW kring 75 000.' },
+    { upTo: 149000, txt: 'Kombi kring 8–10 \xe5r. Škoda Octavia kombi fr\xe5n ca 130 000 kr, Kia Ceed SW kring 140 000.' },
+    { upTo: 199000, txt: 'Rymlig kombi, ca 6–9 \xe5r. VW Passat och Volvo V60 fr\xe5n ca 150 000 kr.' },
+    { upTo: 249000, txt: 'Nyare kombi, ca 5–7 \xe5r. Toyota Corolla Touring Sports fr\xe5n ca 209 000 kr, Volvo V90 kring 220 000 och Škoda Superb kombi 239 000.' },
+    { upTo: 299000, txt: 'Volvo V60 av nyare \xe5rsmodell, eller b\xe4ttre exemplar av V90 och Superb.' },
+    { upTo: 399000, txt: 'N\xe4stan ny kombi — l\xe5g m\xe4tarst\xe4llning, ofta laddhybrid.' },
+    { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjebil i mellanklassen.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora kombibilar med full utrustning.' }
+  ] },
+  suv: { ikon: '🚙', nivaer: [
+    { upTo:  99000, txt: 'De \xe4ldsta SUV:arna, ca 10 \xe5r. Nissan Qashqai fr\xe5n ca 69 000 kr.' },
+    { upTo: 149000, txt: 'Kompakt-SUV kring 8–9 \xe5r. Kia Sportage fr\xe5n ca 135 000 kr och Hyundai Tucson kring 139 000.' },
+    { upTo: 199000, txt: 'VW Tiguan fr\xe5n ca 172 000 kr och Volvo XC60 kring 190 000 — b\xe5da ca 8 \xe5r gamla.' },
+    { upTo: 249000, txt: 'Volvo XC40 fr\xe5n ca 232 000 kr, Toyota RAV4 och Škoda Kodiaq kring 249 000.' },
+    { upTo: 299000, txt: 'Nyare exemplar av XC40, RAV4 och Kodiaq — l\xe4gre m\xe4tarst\xe4llning och mer utrustning.' },
+    { upTo: 399000, txt: 'Volvo XC60 fr\xe5n ca 308 000 kr och Toyota RAV4 kring 329 000, b\xe5da n\xe5gra \xe5r gamla.' },
+    { upTo: 549000, txt: 'Ny eller n\xe4stan ny mellanklass-SUV.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora SUV:ar med full utrustning.' }
+  ] }
+};
 
 // Elementet skapas från JS, inte i HTML-snippeten: WordPress-sidan är en manuell kopia och
 // hade annars saknat rutan tills snippeten klistrades in på nytt.
@@ -226,8 +254,10 @@ function caRenderEvBudgetHint() {
   if (!slider) return;
   var cat = document.getElementById('ca-category');
   var hint = document.getElementById('ca-ev-budget-hint');
-  var show = !caIsLeasing && cat && cat.value === 'elbil';
-  if (!show) { if (hint) hint.style.display = 'none'; return; }
+  // Kategorier utan egna nivåer får ingen ruta alls — hellre tyst än en gissning.
+  // Leasing är undantaget överallt: där är budgeten kr/mån och nivåerna är köppriser.
+  var niva = !caIsLeasing && cat ? CA_BUDGET_LEVELS[cat.value] : null;
+  if (!niva) { if (hint) hint.style.display = 'none'; return; }
 
   if (!hint) {
     hint = document.createElement('div');
@@ -242,11 +272,11 @@ function caRenderEvBudgetHint() {
   }
   hint.style.display = 'block';
   var val = parseInt(slider.value) || 0;
-  var level = CA_EV_BUDGET_LEVELS[CA_EV_BUDGET_LEVELS.length - 1];
-  for (var i = 0; i < CA_EV_BUDGET_LEVELS.length; i++) {
-    if (val <= CA_EV_BUDGET_LEVELS[i].upTo) { level = CA_EV_BUDGET_LEVELS[i]; break; }
+  var level = niva.nivaer[niva.nivaer.length - 1];
+  for (var i = 0; i < niva.nivaer.length; i++) {
+    if (val <= niva.nivaer[i].upTo) { level = niva.nivaer[i]; break; }
   }
-  hint.innerHTML = '<strong style="color:#c4b5fd">⚡ ' +
+  hint.innerHTML = '<strong style="color:#c4b5fd">' + caEsc(niva.ikon) + ' ' +
     caEsc(val.toLocaleString('sv-SE')) + '\xa0kr r\xe4cker till:</strong> ' + caEsc(level.txt);
 }
 
