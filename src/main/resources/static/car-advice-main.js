@@ -199,9 +199,9 @@ function caStopLoadingText() {
 // Vad budgeten räcker till på den svenska begagnatmarknaden, per kategori. KURERADE siffror
 // — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
 // Nivåerna är kategorispecifika av nödvändighet: samma 150 000 kr köper en helt annan bil
-// som elbil, kombi och SUV. Kategorier utan egna nivåer (ekonomibil, laddhybrid, småbil)
+// som elbil, kombi, SUV och laddhybrid. Kategorier utan egna nivåer (ekonomibil, småbil)
 // får ingen ruta alls — hellre tyst än en gissning. Modellnamn nämns bara där prisläget
-// är mätt.
+// är mätt, och bara där annonsunderlaget räcker (minst ca 10 träffar).
 //
 // Mätta 2026-08-08 mot Blocket med SAMMA underlag som prisraden på korten: högst
 // 10 000 mil och medianrelativ outlier-trimning (0,4×), annars lovar rutan en bil som
@@ -234,6 +234,19 @@ var CA_BUDGET_LEVELS = {
     { upTo: 399000, txt: 'N\xe4stan ny kombi — l\xe5g m\xe4tarst\xe4llning, ofta laddhybrid.' },
     { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjebil i mellanklassen.' },
     { upTo: Infinity, txt: 'Premiumsegmentet — stora kombibilar med full utrustning.' }
+  ] },
+  // Laddhybrid har ett tydligt golv: under ca 160 000 kr finns nästan inga annonser med
+  // låg mätarställning. Mätt med fuel-fältet "Plug-in Bensin"/"Plug-in Diesel", eftersom
+  // fritextsökningen på modellnamnet annars blandar in bensin- och dieselvarianterna.
+  // Modeller med tunt underlag (Audi A3 e-tron n=2, Ioniq n=3) namnges inte.
+  laddhybrid: { ikon: '🔌', nivaer: [
+    { upTo: 149000, txt: 'F\xf6r lite f\xf6r en laddhybrid med l\xe5g m\xe4tarst\xe4llning — de b\xf6rjar kring 160 000 kr. F\xf6r pengarna f\xe5r du en nyare bensin- eller dieselbil i st\xe4llet.' },
+    { upTo: 199000, txt: 'De f\xf6rsta laddhybriderna — Kia Niro plug-in fr\xe5n ca 166 000 kr, BMW 330e kring 189 000 och Ford Kuga PHEV 190 000.' },
+    { upTo: 249000, txt: 'VW Passat GTE fr\xe5n ca 199 000 kr och Volvo V60 Twin Engine kring 209 000.' },
+    { upTo: 299000, txt: 'Škoda Superb iV fr\xe5n ca 255 000 kr, och b\xe4ttre exemplar av Passat GTE och V60.' },
+    { upTo: 399000, txt: 'Volvo V90 T8 kring 300 000 kr, XC60 T8 fr\xe5n 330 000 och Toyota RAV4 plug-in 335 000.' },
+    { upTo: 549000, txt: 'Ny eller n\xe4stan ny laddhybrid-SUV.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora laddhybrider med l\xe5ng elr\xe4ckvidd.' }
   ] },
   suv: { ikon: '🚙', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta SUV:arna, ca 10 \xe5r. Nissan Qashqai fr\xe5n ca 69 000 kr.' },
