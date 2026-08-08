@@ -197,16 +197,24 @@ function caStopLoadingText() {
 }
 
 // Vad budgeten räcker till på den svenska begagnatmarknaden för ELBIL. KURERADE siffror
-// (augusti 2026) — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
+// — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
 // Gäller medvetet bara kategorin elbil: samma 150 000 kr köper en helt annan bensinbil, så
 // nivåerna vore vilseledande någon annanstans. Modellnamn nämns bara där prisläget är känt.
+//
+// Ommätta 2026-08-08 mot Blocket med SAMMA underlag som prisraden på korten: högst
+// 10 000 mil och medianrelativ outlier-trimning (0,4×), annars lovar rutan en bil som
+// bara finns som utsliten. Texterna låg då systematiskt en nivå efter marknaden — "MG ZS EV
+// kring 100 000 kr" var 129 900, ID.3 låg kvar på 299 000-nivån trots att den börjar vid
+// 198 900, och Polestar 2/ID.4/Enyaq "börjar bli möjliga" först vid 399 000 fast de går att
+// köpa för 209 000/229 500/279 000. Mät om med Blockets API (gratis, ingen Groq-kvot):
+// sales_form=1&2, mileage_to=10000, sort=PRICE_ASC, utan årsfilter.
 var CA_EV_BUDGET_LEVELS = [
-  { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Nissan Leaf fr\xe5n 2016 och Renault Zoe. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
-  { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV ligger kring 100 000 kr, Leaf och Zoe under det.' },
-  { upTo: 199000, txt: 'Ca 5 \xe5r gammal elbil i kompaktklassen — b\xe4ttre r\xe4ckvidd och snabbladdning \xe4n de \xe4ldsta.' },
-  { upTo: 249000, txt: 'Nyare begagnad elbil, ca 3–4 \xe5r. H\xe4r b\xf6rjar r\xe4ckvidd \xf6ver 40 mil bli vanligt.' },
-  { upTo: 299000, txt: 'VW ID.3-klassen — nyare kompaktelbil med full r\xe4ckvidd.' },
-  { upTo: 399000, txt: 'Familjeelbil i begagnat skick — Polestar 2, VW ID.4 och Škoda Enyaq b\xf6rjar bli m\xf6jliga.' },
+  { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
+  { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV fr\xe5n ca 130 000 kr och e-Golf kring 139 000 — Leaf och Zoe ligger under det.' },
+  { upTo: 199000, txt: 'Kompaktelbil med riktig r\xe4ckvidd — Kia Niro EV fr\xe5n ca 175 000 kr, Hyundai Kona Electric och MG4 kring 195 000, VW ID.3 knappt 199 000.' },
+  { upTo: 249000, txt: 'Nyare begagnad elbil, ca 3–5 \xe5r. Polestar 2 fr\xe5n ca 209 000 kr, Tesla Model 3 kring 215 000 och VW ID.4 fr\xe5n 229 500.' },
+  { upTo: 299000, txt: 'Familjeelbil i begagnat skick — Škoda Enyaq fr\xe5n ca 279 000 kr, och b\xe4ttre exemplar av ID.4 och Polestar 2.' },
+  { upTo: 399000, txt: 'Nyare familjeelbil eller el-SUV — Enyaq, ID.4 och Polestar 2 med l\xe5g m\xe4tarst\xe4llning och full r\xe4ckvidd.' },
   { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjeelbil, eller en st\xf6rre el-SUV n\xe5gra \xe5r gammal.' },
   { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning.' }
 ];
