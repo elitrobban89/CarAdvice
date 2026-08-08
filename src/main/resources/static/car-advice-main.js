@@ -199,9 +199,10 @@ function caStopLoadingText() {
 // Vad budgeten räcker till på den svenska begagnatmarknaden, per kategori. KURERADE siffror
 // — de åldras och behöver ses över, precis som tågprojektets resolveModel-lager.
 // Nivåerna är kategorispecifika av nödvändighet: samma 150 000 kr köper en helt annan bil
-// som elbil, kombi, SUV och laddhybrid. Kategorier utan egna nivåer (ekonomibil, småbil)
-// får ingen ruta alls — hellre tyst än en gissning. Modellnamn nämns bara där prisläget
-// är mätt, och bara där annonsunderlaget räcker (minst ca 10 träffar).
+// som elbil, kombi, SUV, laddhybrid och stadsbil. Alla sex kategorier i väljaren har egna
+// nivåer. Modellnamn nämns bara där prisläget är mätt, och bara där annonsunderlaget
+// räcker (minst ca 10 träffar). Nyckeln måste matcha option-värdet i snippeten exakt —
+// småbil heter "smaabil" där.
 //
 // Mätta 2026-08-08 mot Blocket med SAMMA underlag som prisraden på korten: högst
 // 10 000 mil och medianrelativ outlier-trimning (0,4×), annars lovar rutan en bil som
@@ -215,6 +216,23 @@ function caStopLoadingText() {
 // fritextsökningen fel bilar och ger orimliga golv: en Škoda Octavia 2025 för 75 600 kr och
 // en "Volvo V90 från 2013", en modell som inte fanns då.
 var CA_BUDGET_LEVELS = {
+  // Ekonomibil och småbil är de enda kategorierna där budgeten kan gå FÖRBI segmentet:
+  // en fabriksny Picanto kostar ca 150 000 kr, så 400 000 köper inte en bättre småbil
+  // utan bara fel bil. Toppnivåerna pekar därför vidare till en annan kategori i stället
+  // för att hitta på en dyrare modell.
+  ekonomibil: { ikon: '💰', nivaer: [
+    { upTo:  99000, txt: 'Prisv\xe4rda sm\xe5bilar, ca 8–12 \xe5r. Dacia Sandero fr\xe5n ca 45 000 kr, Ford Fiesta 60 000, Škoda Fabia och VW Polo kring 75–80 000.' },
+    { upTo: 149000, txt: 'Nyare exemplar, ca 3–8 \xe5r. Dacia Sandero fr\xe5n ca 100 000 kr, Toyota Yaris och Kia Rio kring 100–125 000.' },
+    { upTo: 199000, txt: 'N\xe4stan ny — Suzuki Swift fr\xe5n ca 155 000 kr och Toyota Yaris kring 180 000.' },
+    { upTo: 249000, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
+    { upTo: Infinity, txt: 'L\xe5ngt \xf6ver vad kategorin kostar — byt till familjebil, SUV eller elbil f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+  ] },
+  smaabil: { ikon: '🚘', nivaer: [
+    { upTo:  99000, txt: 'Stadsbilar, ca 8–12 \xe5r. VW up! fr\xe5n ca 45 000 kr, Citro\xebn C1 och Peugeot 108 kring 59 000, Fiat 500 63 000 och Kia Picanto 68 000.' },
+    { upTo: 149000, txt: 'Nyare stadsbil, ca 2–5 \xe5r. Kia Picanto fr\xe5n ca 84 000 kr och Toyota Aygo X 100–135 000.' },
+    { upTo: 199000, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
+    { upTo: Infinity, txt: 'L\xe5ngt \xf6ver vad en sm\xe5bil kostar — byt till ekonomibil, familjebil eller elbil f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+  ] },
   elbil: { ikon: '⚡', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
     { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV fr\xe5n ca 130 000 kr och e-Golf kring 139 000 — Leaf och Zoe ligger under det.' },
