@@ -424,6 +424,106 @@ class GroqServiceTest {
         assertThat(parsed).hasSize(2);
     }
 
+    // --- requirePureEvCars (ELBIL OBLIGATORISKT i kod, inte bara i prompten) ---
+
+    private List<CarRecommendation> parsatSvarMed(String titel) throws Exception {
+        return service().parseRecommendations(
+                "{\"recommendations\":[" + GILTIG_BIL.replace("Volvo EX30 (2024)", titel) + "]}");
+    }
+
+    @Test
+    void hybridITitelnAvvisasIRentElbilssok() throws Exception {
+        // Skarpt fall 2026-08-09: 350 000-budgeten gav Prius + Niro Hybrid + CR-V Hybrid
+        List<CarRecommendation> parsed = parsatSvarMed("Kia Niro Hybrid (2021)");
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("inte är elbil");
+    }
+
+    @Test
+    void forbranningsbilUtanDrivlineordFangasViaIceConsumption() throws Exception {
+        // "Toyota Prius (2015)" säger ingenting om drivlinan i titeln — databasen får avgöra
+        when(evSpecService.isKnownEv(anyString())).thenReturn(false);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Toyota", "Prius 2.5 Hybrid 223 hk", "hybrid", 0.44));
+        List<CarRecommendation> parsed = parsatSvarMed("Toyota Prius (2015)");
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void elbilUtanDrivlineordSlapsIgenomViaEvSpec() throws Exception {
+        // "Volvo EX30" innehåller inget drivlineord — utan ev_spec-uppslaget hade vakten fällt den
+        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
+        List<CarRecommendation> parsed = parsatSvarMed("Volvo EX30 (2024)");
+        service().requirePureEvCars(parsed); // ska inte kasta
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void okandBilSlapsIgenomFailOpen() throws Exception {
+        // Varken i ev_spec eller ice_consumption: inget bevis för förbränning ⇒ ingen fällning.
+        // Vakten får aldrig kasta en riktig elbil bara för att whitelisten är ofullständig.
+        when(evSpecService.isKnownEv(anyString())).thenReturn(false);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+        List<CarRecommendation> parsed = parsatSvarMed("Leapmotor B10 (2025)");
+        service().requirePureEvCars(parsed);
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void elbilstitelMedEgetDrivlineordBehoverIngenDatabas() throws Exception {
+        // "ev" i titeln räcker — inga stubbar, alltså rörs varken ev_spec eller ice_consumption
+        List<CarRecommendation> parsed = parsatSvarMed("Kia Niro EV (2019)");
+        service().requirePureEvCars(parsed);
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void regelbrottetBarMedDeElbilarSomFannsISvaret() throws Exception {
+        // Mjuka vägen: hellre ett kort som stämmer med sökningen än ett felmeddelande.
+        // MG4 saknar drivlineord i titeln och släpps igenom av ev_spec; Niro Hybrid fälls
+        // redan på titelordet och når aldrig databasen.
+        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
+        String mg4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "MG4 (2021)");
+        String niro = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia Niro Hybrid (2021)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + mg4 + "," + niro + "]}");
+
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .isInstanceOf(GroqService.NonEvSuggestedException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.NonEvSuggestedException.class))
+                .satisfies(e -> assertThat(e.elbilar()).hasSize(1)
+                        .allSatisfy(r -> assertThat(r.title()).isEqualTo("MG4 (2021)")));
+    }
+
+    @Test
+    void heltHybridsvarLamnarIngaElbilarAttVisa() throws Exception {
+        // Inget att falla tillbaka på ⇒ felet är det enda ärliga svaret, och getRecommendation
+        // kastar vidare i stället för att visa tre hybrider på ett elbilssök.
+        String prius = GILTIG_BIL.replace("Volvo EX30 (2024)", "Toyota Prius Hybrid (2020)");
+        String niro = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia Niro Hybrid (2021)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + prius + "," + niro + "]}");
+
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .isInstanceOf(GroqService.NonEvSuggestedException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.NonEvSuggestedException.class))
+                .satisfies(e -> assertThat(e.elbilar()).isEmpty());
+    }
+
+    @Test
+    void vaktenGallerBaraRentElbilssok() {
+        // Delsträngsfällan: både "diesel" och "spelar ingen roll" innehåller "el"
+        assertThat(GroqService.fuelIntent("el", "elbil").pureEv()).isTrue();
+        assertThat(GroqService.fuelIntent("diesel", "suv").pureEv()).isFalse();
+        assertThat(GroqService.fuelIntent("spelar ingen roll", "suv").pureEv()).isFalse();
+        assertThat(GroqService.fuelIntent("hybrid", "suv").pureEv()).isFalse();
+        assertThat(GroqService.fuelIntent("bensin", "smaabil").pureEv()).isFalse();
+        // Kvarglömt "el" i den dolda drivmedelsrutan får inte ge BEV-tvång åt en laddhybrid
+        assertThat(GroqService.fuelIntent("el", "laddhybrid").pureEv()).isFalse();
+    }
+
     // --- requireKnownModels (modellhallucinationsvakt mot cargo_spec/ev_spec/ice_consumption) ---
 
     @SuppressWarnings("unchecked")

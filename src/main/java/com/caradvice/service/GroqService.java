@@ -200,6 +200,10 @@ public class GroqService {
                 if (validator != null) validator.accept(parsed);
                 return parsed;
             } catch (RuntimeException second) {
+                // Bröt BÅDA omgångarna mot elbilsregeln vinner den som gav flest elbilar —
+                // annars kastas omförsökets bättre svar bort bara för att det kom sist.
+                if (first instanceof NonEvSuggestedException f && second instanceof NonEvSuggestedException s
+                        && s.elbilar().size() > f.elbilar().size()) throw s;
                 throw first;
             }
         }
@@ -597,9 +601,18 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
-        java.util.function.Consumer<List<CarRecommendation>> validator = this::requireKnownModels;
-        if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
-        List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "getRecommendation", validator);
+        List<CarRecommendation> parsed;
+        try {
+            parsed = parseWithRetry(response, reserveBody, "getRecommendation", validatorFor(prefs));
+        } catch (NonEvSuggestedException e) {
+            // Både första svaret och omförsöket innehöll icke-elbilar. Samma avvägning som
+            // budgettaket gör: en kortare lista med bilar som stämmer med sökningen är mer värd
+            // än ett felmeddelande. Föreslog AI:n inte en enda elbil finns inget att visa —
+            // då är felet det enda ärliga svaret.
+            if (e.elbilar().isEmpty()) throw e;
+            log.warn("Elbilssök: visar {} av 3 kort — resten var inte elbilar", e.elbilar().size());
+            parsed = e.elbilar();
+        }
 
         boolean isLeasing = "leasing".equals(prefs.budgetType());
         Map<String, BlocketPriceService.PriceRange> ranges = new LinkedHashMap<>();
@@ -804,7 +817,8 @@ public class GroqService {
             if (response.statusCode() != 200)
                 return new BudgetOutcome(original, cheapest(over, ranges, nypriser, prefs.newCar()));
 
-            List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)");
+            List<CarRecommendation> parsed = parseWithRetry(response, reserve, "getRecommendation (budgettak)",
+                    validatorFor(prefs));
             Map<String, BlocketPriceService.PriceRange> retryRanges = new LinkedHashMap<>();
             Map<String, Integer> retryNypriser = new LinkedHashMap<>();
             List<CarRecommendation> retried = enrichRecommendations(
@@ -1245,6 +1259,82 @@ public class GroqService {
     }
 
     /**
+     * Skarpt läge: ELBIL OBLIGATORISKT i kod. Regeln fanns bara som prompttext och höll inte —
+     * live 2026-08-09 gav ett rent elbilssök (fuelType "el", kategori elbil) Toyota Prius,
+     * Kia Niro Hybrid och Honda CR-V Hybrid på 150 000-budgeten, och Kia Niro Hybrid tillsammans
+     * med två elbilar på 200 000. Familjekravet fick kodstöd 2026-07-19; drivmedelskravet stod
+     * kvar oskyddat trots samma sorts brott.
+     *
+     * <p>Fäller bara på POSITIVT bevis för förbränning eller hybrid. Att sakna rad i ev_spec
+     * duger inte som bevis: whitelisten är inte komplett, och en riktig elbil som saknas där
+     * ska inte kastas ut. Ett regelbrott triggar bara omförsöket i parseWithRetry, precis som
+     * de andra regelvakterna.
+     */
+    void requirePureEvCars(List<CarRecommendation> parsed) {
+        List<CarRecommendation> elbilar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            if (isNonEv(r.title())) avvisade.add(r.title());
+            else elbilar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog icke-elbil(ar) till rent elbilssök: {} — {} elbil(ar) kvar",
+                String.join(", ", avvisade), elbilar.size());
+        throw new NonEvSuggestedException(elbilar);
+    }
+
+    /**
+     * Regelbrottet som går att städa bort i efterhand: bär med sig de bilar som FAKTISKT var
+     * elbilar, så att den mjuka vägen i getRecommendation kan visa dem i stället för att svara
+     * med ett felmeddelande. Fällningen triggar först omförsöket precis som de andra vakterna —
+     * listan används bara när även omförsöket bröt mot regeln.
+     */
+    static class NonEvSuggestedException extends RuntimeException {
+        private final transient List<CarRecommendation> elbilar;
+
+        NonEvSuggestedException(List<CarRecommendation> elbilar) {
+            super("AI:n föreslog en bil som inte är elbil. Försök igen.");
+            this.elbilar = List.copyOf(elbilar);
+        }
+
+        /** De godkända bilarna ur svaret — tom när AI:n inte föreslog en enda elbil. */
+        List<CarRecommendation> elbilar() { return elbilar; }
+    }
+
+    /**
+     * Är titeln bevisligen något annat än en ren elbil? Titelns egna drivlineord först — de
+     * flesta elbilstitlar saknar sådana helt ("EV6", "EX30" är ETT ord var), så ordlöst svar
+     * betyder inget i sig. Då avgör databaserna: finns bilen i ev_spec är den en elbil, annars
+     * fäller en träff i ice_consumption ("Toyota Prius 2.5 Hybrid", "Honda HR-V 1.5 e:HEV").
+     * Fail open vid DB-fel — en trasig uppslagning får inte fälla korrekta bilar.
+     */
+    private boolean isNonEv(String title) {
+        String drivetrain = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title == null ? "" : title));
+        if ("hev".equals(drivetrain) || "phev".equals(drivetrain) || "ice".equals(drivetrain)) return true;
+        if (drivetrain != null) return false; // "ev" — titeln säger det själv
+        try {
+            if (evSpecService.isKnownEv(title)) return false;
+            return iceConsumptionService.consumptionForTitle(title, null, null) != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Regelvakterna för ett rekommendationssvar, byggda på ETT ställe. Budgetomförsöket var
+     * annars en oskyddad andra dörr: dess svar går rakt in i det sammanslagna resultatet utan
+     * att ha mött någon vakt, och det är just vid låg budget — där omförsöket utlöses — som
+     * drivmedelsbrotten dök upp.
+     */
+    private java.util.function.Consumer<List<CarRecommendation>> validatorFor(CarPreferences prefs) {
+        java.util.function.Consumer<List<CarRecommendation>> validator = this::requireKnownModels;
+        if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
+        if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
+            validator = validator.andThen(this::requirePureEvCars);
+        return validator;
+    }
+
+    /**
      * Skarpt läge: kräver att varje rekommenderad titel matchar minst en känd modell ur
      * cargo_spec/ev_spec/ice_consumption (~700+ modeller, byggda av buildKnownModelTokenSets).
      * Matchning är ordmängd-delmängd i endera riktningen — samma mönster som
@@ -1557,22 +1647,47 @@ public class GroqService {
         return buildSystemPrompt(expertContext, fuelType, null);
     }
 
-    String buildSystemPrompt(String expertContext, String fuelType, String carCategory) {
-        // "Hybrid (ej laddhybrid)" är en bensinbil med elassistans, inte en elbil. Valet matchade
-        // wantsEv på delsträngen "hybrid" och föll ur wantsIce, vilket gav två fel samtidigt:
-        // systemprompten krävde "ENBART renodlade batterielbilar (BEV)" för en HEV-förfrågan, och
-        // ICE-nypristabellen utelämnades trots att en hybrid prissätts som en bensinbil.
-        boolean wantsHev = "hybrid".equalsIgnoreCase(fuelType == null ? null : fuelType.trim());
-        boolean wantsEv = !wantsHev && fuelType != null &&
+    /**
+     * Vad användaren vill ha för drivlina, tolkat ur formulärets drivmedel och kategori.
+     * {@code pureEv()} är villkoret bakom ELBIL OBLIGATORISKT i systemprompten.
+     */
+    record FuelIntent(boolean ev, boolean ice, boolean phev, boolean hev) {
+        /** Ren batterielbil: el önskat, inget förbränningsinslag och ingen laddhybrid. */
+        boolean pureEv() { return ev && !ice && !phev; }
+    }
+
+    /**
+     * Enda stället drivmedelssträngen tolkas. Egen metod eftersom regelvakten
+     * {@link #requirePureEvCars} måste pröva EXAKT samma villkor som prompten ställer —
+     * delsträngsmatchningen nedan är full av fällor ("diesel" och "spelar ingen roll"
+     * innehåller båda "el"), och två kopior av villkoret hade glidit isär vid första
+     * ändringen.
+     *
+     * <p>"Hybrid (ej laddhybrid)" är en bensinbil med elassistans, inte en elbil. Valet
+     * matchade {@code ev} på delsträngen "hybrid" och föll ur {@code ice}, vilket gav två fel
+     * samtidigt: systemprompten krävde "ENBART renodlade batterielbilar (BEV)" för en
+     * HEV-förfrågan, och ICE-nypristabellen utelämnades trots att en hybrid prissätts som en
+     * bensinbil. Därför testas {@code hev} på exakt "hybrid", före allt annat.
+     *
+     * <p>Drivmedelslistan i formuläret saknar "laddhybrid" (valen är bensin/diesel/hybrid/el/
+     * spelar ingen roll) — laddhybrid uttrycks som KATEGORI. fuelType testas ändå för
+     * API-anropare som skickar drivmedlet direkt.
+     */
+    static FuelIntent fuelIntent(String fuelType, String carCategory) {
+        boolean hev = "hybrid".equalsIgnoreCase(fuelType == null ? null : fuelType.trim());
+        boolean ev = !hev && fuelType != null &&
                 (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev"));
-        boolean wantsIce = wantsHev || fuelType == null || fuelType.isBlank() ||
+        boolean ice = hev || fuelType == null || fuelType.isBlank() ||
                 fuelType.contains("bensin") || fuelType.contains("diesel") ||
                 fuelType.equals("spelar ingen roll");
-        // Drivmedelslistan i formuläret saknar "laddhybrid" (valen är bensin/diesel/hybrid/el/
-        // spelar ingen roll) — laddhybrid uttrycks som KATEGORI. fuelType testas ändå för
-        // API-anropare som skickar drivmedlet direkt.
         String ft = fuelType == null ? "" : fuelType.toLowerCase();
-        boolean wantsPhev = "laddhybrid".equals(carCategory) || ft.contains("laddhybrid") || ft.contains("phev");
+        boolean phev = "laddhybrid".equals(carCategory) || ft.contains("laddhybrid") || ft.contains("phev");
+        return new FuelIntent(ev, ice, phev, hev);
+    }
+
+    String buildSystemPrompt(String expertContext, String fuelType, String carCategory) {
+        FuelIntent intent = fuelIntent(fuelType, carCategory);
+        boolean wantsEv = intent.ev(), wantsIce = intent.ice(), wantsPhev = intent.phev();
         String icePrices = (wantsIce && !wantsEv) || wantsIce ? getIcePrices() : "";
         String evPrices  = wantsEv || (!wantsIce) ? getEvPrices() : "";
         // Filter: pure EV/PHEV → no ICE table; pure ICE → no EV table
