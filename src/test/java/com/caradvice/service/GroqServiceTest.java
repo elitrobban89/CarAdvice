@@ -474,7 +474,6 @@ class GroqServiceTest {
     @Test
     void forbranningsbilUtanDrivlineordFangasViaIceConsumption() throws Exception {
         // "Toyota Prius (2015)" säger ingenting om drivlinan i titeln — databasen får avgöra
-        when(evSpecService.isKnownEv(anyString())).thenReturn(false);
         when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
                 .thenReturn(new IceConsumptionService.Variant("Toyota", "Prius 2.5 Hybrid 223 hk", "hybrid", 0.44));
         List<CarRecommendation> parsed = parsatSvarMed("Toyota Prius (2015)");
@@ -483,9 +482,32 @@ class GroqServiceTest {
     }
 
     @Test
-    void elbilUtanDrivlineordSlapsIgenomViaEvSpec() throws Exception {
-        // "Volvo EX30" innehåller inget drivlineord — utan ev_spec-uppslaget hade vakten fällt den
-        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
+    void tvetydigtModellnamnFallsAvenOmDetFinnsSomElbil() throws Exception {
+        // Live 2026-08-09: elbilssök gav "Kia Niro (2021)". Namnet finns som HEV, PHEV OCH
+        // elbil, och ev_spec:s fuzzy-matchning slog mot "Kia Niro EV" innan hybridträffen
+        // provades. Utan drivlineord i titeln pekar namnet inte ut någon variant — och
+        // tvetydigheten är skadlig i sig, Blocket-uppslaget matchar då hybridannonser.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Kia", "Niro 1.6 GDI HEV 141 hk", "hybrid", 0.45));
+        List<CarRecommendation> parsed = parsatSvarMed("Kia Niro (2021)");
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .isInstanceOf(GroqService.RuleViolationException.class);
+    }
+
+    @Test
+    void sammaModellMedEvITitelnSlapsIgenom() throws Exception {
+        // "Kia Niro EV" har drivlineordet och når aldrig databasuppslaget — inga stubbar
+        List<CarRecommendation> parsed = parsatSvarMed("Kia Niro EV (2021)");
+        service().requirePureEvCars(parsed);
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void elbilUtanDrivlineordSlapsIgenomNarNamnetInteDelasMedForbranningsbil() throws Exception {
+        // "Volvo EX30" har inget drivlineord i titeln och finns inte som bensin/diesel/hybrid,
+        // alltså ingen tvetydighet att fälla på. ev_spec konsulteras inte längre här — se
+        // tvetydigtModellnamnFallsAvenOmDetFinnsSomElbil för varför.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
         List<CarRecommendation> parsed = parsatSvarMed("Volvo EX30 (2024)");
         service().requirePureEvCars(parsed); // ska inte kasta
         assertThat(parsed).hasSize(1);
@@ -493,9 +515,8 @@ class GroqServiceTest {
 
     @Test
     void okandBilSlapsIgenomFailOpen() throws Exception {
-        // Varken i ev_spec eller ice_consumption: inget bevis för förbränning ⇒ ingen fällning.
+        // Ingen träff i ice_consumption: inget bevis för förbränning ⇒ ingen fällning.
         // Vakten får aldrig kasta en riktig elbil bara för att whitelisten är ofullständig.
-        when(evSpecService.isKnownEv(anyString())).thenReturn(false);
         when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
         List<CarRecommendation> parsed = parsatSvarMed("Leapmotor B10 (2025)");
         service().requirePureEvCars(parsed);
@@ -513,9 +534,8 @@ class GroqServiceTest {
     @Test
     void regelbrottetBarMedDeElbilarSomFannsISvaret() throws Exception {
         // Mjuka vägen: hellre ett kort som stämmer med sökningen än ett felmeddelande.
-        // MG4 saknar drivlineord i titeln och släpps igenom av ev_spec; Niro Hybrid fälls
-        // redan på titelordet och når aldrig databasen.
-        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
+        // MG4 saknar drivlineord men finns inte som förbränningsbil, så den släpps igenom;
+        // Niro Hybrid fälls redan på titelordet och når aldrig databasen.
         String mg4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "MG4 (2021)");
         String niro = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia Niro Hybrid (2021)");
         List<CarRecommendation> parsed = service().parseRecommendations(

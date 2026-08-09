@@ -1395,7 +1395,9 @@ public class GroqService {
                 String.join(", ", avvisade), elbilar.size());
         throw new RuleViolationException("AI:n föreslog en bil som inte är elbil. Försök igen.", elbilar, avvisade,
                 "Alla tre bilar måste vara RENA batterielbilar (BEV). ALDRIG hybrid, laddhybrid,"
-                + " bensin eller diesel — en bil med förbränningsmotor är aldrig ett giltigt svar här.");
+                + " bensin eller diesel — en bil med förbränningsmotor är aldrig ett giltigt svar här."
+                + " Skriv ut elbilsvarianten i titeln när modellnamnet delas med en hybrid:"
+                + " \"Kia Niro EV\", inte \"Kia Niro\"; \"Volvo XC40 Recharge\", inte \"Volvo XC40\".");
     }
 
     /**
@@ -1444,8 +1446,17 @@ public class GroqService {
         if ("hev".equals(drivetrain) || "phev".equals(drivetrain) || "ice".equals(drivetrain)) return true;
         if (drivetrain != null) return false; // "ev" — titeln säger det själv
         try {
-            if (evSpecService.isKnownEv(title)) return false;
-            return iceConsumptionService.consumptionForTitle(title, null, null) != null;
+            // ice_consumption prövas FÖRE ev_spec. Omvänd ordning släppte igenom tvetydiga
+            // namn: live 2026-08-09 gav ett elbilssök "Kia Niro (2021)", som finns som HEV,
+            // PHEV och elbil. ev_spec:s fuzzy-matchning slog mot "Kia Niro EV" och godkände
+            // raden innan hybridträffen ens provades.
+            //
+            // Ett namn som finns som förbränning eller hybrid fälls därför även om det OCKSÅ
+            // finns som elbil. En titel utan drivlineord pekar inte ut någon av varianterna,
+            // och tvetydigheten är skadlig i sig: Blocket-uppslaget matchar då hybridannonser
+            // och kortet får fel prisbild. Rätt svar är "Kia Niro EV", inte "Kia Niro".
+            if (iceConsumptionService.consumptionForTitle(title, null, null) != null) return true;
+            return false;   // varken drivlineord eller förbränningsträff — inget bevis, släpp igenom
         } catch (Exception e) {
             return false;
         }
