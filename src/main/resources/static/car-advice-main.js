@@ -186,9 +186,11 @@ var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
 // att den räckte till precis rätt bil ("Ekonomibil brukar kosta max 200 000 kr" ovanför
 // "Här räcker budgeten till en fabriksny småbil"), och de pekade dessutom vidare till olika
 // kategorier — varningen till laddhybrid, rutan till elbil.
+// Taket ligger PÅ reglagets rutnät (steg om 25 000 kr): 249 000 gick aldrig att ställa in och
+// hade bara visats som en udda siffra i varningstexten.
 var CA_OVER_CATEGORY = {
-  ekonomibil: { over: 249000, byt: 'familjebil, SUV eller elbil' },
-  smaabil:    { over: 199000, byt: 'ekonomibil, familjebil eller elbil' }
+  ekonomibil: { over: 250000, byt: 'familjebil, SUV eller elbil' },
+  smaabil:    { over: 200000, byt: 'ekonomibil, familjebil eller elbil' }
 };
 
 function caStartLoadingText() {
@@ -233,16 +235,14 @@ var CA_BUDGET_LEVELS = {
     { upTo:  99000, txt: 'Prisv\xe4rda sm\xe5bilar, ca 8–12 \xe5r. Dacia Sandero fr\xe5n ca 45 000 kr, Ford Fiesta 60 000, Škoda Fabia och VW Polo kring 75–80 000.' },
     { upTo: 149000, txt: 'Nyare exemplar, ca 3–8 \xe5r. Dacia Sandero fr\xe5n ca 100 000 kr, Toyota Yaris och Kia Rio kring 100–125 000.' },
     { upTo: 199000, txt: 'N\xe4stan ny — Suzuki Swift fr\xe5n ca 155 000 kr och Toyota Yaris kring 180 000.' },
-    { upTo: 249000, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
-    { upTo: Infinity, rubrik: '\xe4r mer \xe4n kategorin kostar:',
-      txt: 'Byt till ' + CA_OVER_CATEGORY.ekonomibil.byt + ' f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+    { upTo: CA_OVER_CATEGORY.ekonomibil.over, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
+    { upTo: Infinity, overCategory: true }
   ] },
   smaabil: { ikon: '🚘', nivaer: [
     { upTo:  99000, txt: 'Stadsbilar, ca 8–12 \xe5r. VW up! fr\xe5n ca 45 000 kr, Citro\xebn C1 och Peugeot 108 kring 59 000, Fiat 500 63 000 och Kia Picanto 68 000.' },
     { upTo: 149000, txt: 'Nyare stadsbil, ca 2–5 \xe5r. Kia Picanto fr\xe5n ca 84 000 kr och Toyota Aygo X 100–135 000.' },
-    { upTo: 199000, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
-    { upTo: Infinity, rubrik: '\xe4r mer \xe4n en sm\xe5bil kostar:',
-      txt: 'Byt till ' + CA_OVER_CATEGORY.smaabil.byt + ' f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+    { upTo: CA_OVER_CATEGORY.smaabil.over, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
+    { upTo: Infinity, overCategory: true }
   ] },
   elbil: { ikon: '⚡', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
@@ -338,20 +338,29 @@ function caRenderEvBudgetHint() {
     if (ticks && ticks.parentNode) ticks.parentNode.insertBefore(hint, ticks.nextSibling);
     else slider.parentNode.parentNode.appendChild(hint);
   }
-  hint.style.display = 'block';
   var val = parseInt(slider.value) || 0;
   var level = niva.nivaer[niva.nivaer.length - 1];
   for (var i = 0; i < niva.nivaer.length; i++) {
     if (val <= niva.nivaer[i].upTo) { level = niva.nivaer[i]; break; }
   }
+  // Över kategorins tak talar varningen redan, med samma råd ur CA_OVER_CATEGORY och med
+  // varningens egen gula stil. Rutan hade upprepat meningen ordagrant direkt under den —
+  // två identiska råd på rad läser som ett renderingsfel, inte som eftertryck.
+  if (level.overCategory) { hint.style.display = 'none'; return; }
+  hint.style.display = 'block';
   // Rubriken hörde förut ihop med texten bara när nivån svarade på "vad får jag". Nivåer som
   // svarar "fel budget" gav självmotsägelser: "150 000 kr räcker till: För lite för en
   // laddhybrid" och "600 000 kr räcker till: Långt över vad kategorin kostar". Nivån bär
   // därför sin egen rubrik när standardformuleringen inte passar.
   var enhet = caIsLeasing ? '\xa0kr/m\xe5n ' : '\xa0kr ';
+  // Tusentalsavgränsaren i nivåtexterna är ett vanligt mellanslag, så "MG4 kring 195 000"
+  // kunde brytas mitt i talet vid radslut ("...kring 195" / "000, VW ID.3"). Hårdmellanslag
+  // vid rendering i stället för i varje sträng: en regel att minnas i stället för fyrtio.
+  // Reglagets egen siffra behöver det inte, toLocaleString('sv-SE') ger redan U+00A0.
+  var txt = level.txt.replace(/(\d) (?=\d{3}(\D|$))/g, '$1\xa0');
   hint.innerHTML = '<strong style="color:#c4b5fd">' + caEsc(niva.ikon) + ' ' +
     caEsc(val.toLocaleString('sv-SE')) + enhet + caEsc(level.rubrik || 'r\xe4cker till:') +
-    '</strong> ' + caEsc(level.txt);
+    '</strong> ' + caEsc(txt);
 }
 
 function caUpdateSliderFill() {
