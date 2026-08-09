@@ -223,7 +223,7 @@ function caBurnoutBox() {
     '<div style="position:absolute;left:12%;right:12%;bottom:9px;height:2px;border-radius:2px;' +
       'z-index:0;background:linear-gradient(90deg,transparent,rgba(139,92,246,.5) 30%,' +
       'rgba(139,92,246,.5) 70%,transparent)"></div>' +
-    '<div id="ca-glass" style="position:relative;z-index:1;width:64px;height:64px;' +
+    '<div id="ca-glass" style="position:relative;z-index:1;width:72px;height:72px;' +
       'border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden;' +
       'background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));' +
       '-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);' +
@@ -231,23 +231,38 @@ function caBurnoutBox() {
       'box-shadow:0 6px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.22)">' +
       // Däcket: gummit måste ha MÖNSTER, annars är en roterande ring omöjlig att skilja från
       // en stillastående. Klackarna sitter som streck runt slitbanan och gör varvet synligt.
-      '<svg id="ca-wheel" width="42" height="42" viewBox="0 0 42 42" aria-hidden="true">' +
-        '<circle cx="21" cy="21" r="19.5" fill="#0d0b14"/>' +
-        '<circle cx="21" cy="21" r="16.5" fill="none" stroke="#1c1828" stroke-width="6"/>' +
-        '<g stroke="#39324d" stroke-width="2.6" stroke-linecap="butt">' +
-          '<line x1="21" y1="2.5" x2="21" y2="8"/><line x1="30.5" y1="5" x2="27.8" y2="9.8"/>' +
-          '<line x1="37.5" y1="11.5" x2="32.7" y2="14.2"/><line x1="39.5" y1="21" x2="34" y2="21"/>' +
-          '<line x1="37.5" y1="30.5" x2="32.7" y2="27.8"/><line x1="30.5" y1="37" x2="27.8" y2="32.2"/>' +
-          '<line x1="21" y1="39.5" x2="21" y2="34"/><line x1="11.5" y1="37" x2="14.2" y2="32.2"/>' +
-          '<line x1="4.5" y1="30.5" x2="9.3" y2="27.8"/><line x1="2.5" y1="21" x2="8" y2="21"/>' +
-          '<line x1="4.5" y1="11.5" x2="9.3" y2="14.2"/><line x1="11.5" y1="5" x2="14.2" y2="9.8"/>' +
+      // Ritat efter en Continental PremiumContact 7: tjock sidovägg med präglad text och en
+      // blankpolerad flerekrad alufälg. Däcket är dock sett RAKT FRAMIFRÅN, inte i 3/4 som
+      // produktbilden — en snedställd ellips som roterar kring sin mitt vinglar som ett mynt
+      // på ett bord i stället för att snurra, och rotationen är hela poängen här.
+      '<svg id="ca-wheel" width="48" height="48" viewBox="0 0 42 42" aria-hidden="true">' +
+        '<defs>' +
+          '<linearGradient id="ca-rim" x1="0" y1="0" x2="0.7" y2="1">' +
+            '<stop offset="0" stop-color="#e8eaef"/><stop offset="0.45" stop-color="#a9aeba"/>' +
+            '<stop offset="1" stop-color="#6f7482"/></linearGradient>' +
+        '</defs>' +
+        '<circle cx="21" cy="21" r="20.4" fill="#0a0810"/>' +          // slitbanans kant
+        '<circle cx="21" cy="21" r="19.4" fill="#191521"/>' +          // gummi
+        // Klackarna gör varvet synligt — en jämn ring går inte att skilja från en stillastående.
+        // Fina och täta: grova streck läser som kugghjul, inte som slitbana.
+        '<circle cx="21" cy="21" r="19.9" fill="none" stroke="#37304a" stroke-width="1.2" ' +
+          'stroke-dasharray="1 1.7"/>' +
+        // Präglad text på sidoväggen, antydd som streck
+        '<circle cx="21" cy="21" r="16" fill="none" stroke="#282235" stroke-width="1" ' +
+          'stroke-dasharray="1.2 2.4"/>' +
+        '<circle cx="21" cy="21" r="13" fill="url(#ca-rim)"/>' +       // alufälg
+        '<circle cx="21" cy="21" r="13" fill="none" stroke="#0f0d16" stroke-width="1.1"/>' +
+        // Fem ekrar: fönstren skärs ut ur fälgen och är BREDA och kilformade, smalast mot navet.
+        // Runda fönster gav en blomma i stället för ekrar — det är kilformen som gör det till fälg.
+        '<g fill="#120f1a">' +
+          '<path id="ca-eker" d="M17.4 10.1 Q21 8.1 24.6 10.1 L22 16.3 Q21 17.1 20 16.3 Z"/>' +
+          '<use href="#ca-eker" transform="rotate(72 21 21)"/>' +
+          '<use href="#ca-eker" transform="rotate(144 21 21)"/>' +
+          '<use href="#ca-eker" transform="rotate(216 21 21)"/>' +
+          '<use href="#ca-eker" transform="rotate(288 21 21)"/>' +
         '</g>' +
-        '<circle cx="21" cy="21" r="10" fill="#17141f" stroke="#8b5cf6" stroke-width="2"/>' +
-        '<g stroke="#a78bfa" stroke-width="2.4" stroke-linecap="round">' +
-          '<line x1="21" y1="21" x2="21" y2="12.5"/><line x1="21" y1="21" x2="28.4" y2="25.2"/>' +
-          '<line x1="21" y1="21" x2="13.6" y2="25.2"/>' +
-        '</g>' +
-        '<circle cx="21" cy="21" r="3" fill="#c4b5fd"/>' +
+        '<circle cx="21" cy="21" r="4.2" fill="#1c1727" stroke="#8b5cf6" stroke-width="1.1"/>' +
+        '<circle cx="21" cy="21" r="1.4" fill="#c4b5fd"/>' +
       '</svg>' +
       // Blixten: en smal ljusstrimma som sveper snett över glaset med jämna mellanrum
       '<div id="ca-flash" style="position:absolute;top:-40%;left:-75%;width:60%;height:180%;' +
