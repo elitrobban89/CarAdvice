@@ -624,6 +624,7 @@ public class GroqService {
             // än ett felmeddelande. Klarade ingen bil regeln finns inget att visa — då är felet
             // det enda ärliga svaret.
             parsed = keepPassingCars(e, validator);
+            if (parsed.isEmpty()) parsed = retryAfterRuleViolation(systemPrompt, prompt, e, validator);
             if (parsed.isEmpty()) throw medRadOmKriterier(e);
             log.warn("Visar {} av 3 kort — resten bröt mot en regel ({})", parsed.size(), e.getMessage());
         } catch (RuntimeException e) {
@@ -1316,7 +1317,8 @@ public class GroqService {
         log.warn("AI föreslog årsmodell(er) före modellens lansering: {} — {} bil(ar) kvar",
                 String.join(", ", avvisade), kvar.size());
         throw new RuleViolationException(
-                "AI:n föreslog en årsmodell som inte finns. Försök igen.", kvar);
+                "AI:n föreslog en årsmodell som inte finns. Försök igen.", kvar, avvisade,
+                "Årsmodellen måste finnas: föreslå ALDRIG en årsmodell före modellens lansering.");
     }
 
     /**
@@ -1350,7 +1352,9 @@ public class GroqService {
         if (avvisade.isEmpty()) return;
         log.warn("AI föreslog småbil(ar) till familjeprofil: {} — {} bil(ar) kvar",
                 String.join(", ", avvisade), kvar.size());
-        throw new RuleViolationException("AI:n föreslog en för liten bil för profilen. Försök igen.", kvar);
+        throw new RuleViolationException("AI:n föreslog en för liten bil för profilen. Försök igen.", kvar, avvisade,
+                "Alla tre bilar måste vara familjestora: kombi, SUV eller rymlig halvkombi/sedan"
+                + " i storleksklass MG4/VW ID.4 eller större. ALDRIG småbil eller stadsbil.");
     }
 
     /**
@@ -1375,7 +1379,9 @@ public class GroqService {
         if (avvisade.isEmpty()) return;
         log.warn("AI föreslog icke-elbil(ar) till rent elbilssök: {} — {} elbil(ar) kvar",
                 String.join(", ", avvisade), elbilar.size());
-        throw new RuleViolationException("AI:n föreslog en bil som inte är elbil. Försök igen.", elbilar);
+        throw new RuleViolationException("AI:n föreslog en bil som inte är elbil. Försök igen.", elbilar, avvisade,
+                "Alla tre bilar måste vara RENA batterielbilar (BEV). ALDRIG hybrid, laddhybrid,"
+                + " bensin eller diesel — en bil med förbränningsmotor är aldrig ett giltigt svar här.");
     }
 
     /**
@@ -1391,14 +1397,25 @@ public class GroqService {
      */
     static class RuleViolationException extends RuntimeException {
         private final transient List<CarRecommendation> kvar;
+        private final transient List<String> avvisade;
+        private final transient String rattelse;
 
-        RuleViolationException(String message, List<CarRecommendation> kvar) {
+        RuleViolationException(String message, List<CarRecommendation> kvar,
+                               List<String> avvisade, String rattelse) {
             super(message);
             this.kvar = List.copyOf(kvar);
+            this.avvisade = List.copyOf(avvisade);
+            this.rattelse = rattelse;
         }
 
         /** De godkända bilarna ur svaret — tom när ingen bil klarade regeln. */
         List<CarRecommendation> kvar() { return kvar; }
+
+        /** Bilarna som fälldes, vid namn — de pekas ut för AI:n i rättelseförsöket. */
+        List<String> avvisade() { return avvisade; }
+
+        /** Regeln formulerad som en instruktion till AI:n, inte som ett felmeddelande. */
+        String rattelse() { return rattelse; }
     }
 
     /**
@@ -1417,6 +1434,49 @@ public class GroqService {
             return iceConsumptionService.consumptionForTitle(title, null, null) != null;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * Ett sista försök där de fällda bilarna pekas ut vid namn och regeln upprepas som en
+     * instruktion. Exakt samma grepp som budgetomförsöket (`retryWithinBudget`), och skälet är
+     * detsamma: omförsöket i {@code parseWithRetry} skickar bara om SAMMA prompt till
+     * reservmodellen utan att säga vad som var fel, och får därför ofta samma fel igen.
+     *
+     * <p>Görs bara när alternativet är ett felmeddelande — alltså när ingen bil alls klarade
+     * regeln i vare sig första svaret eller omförsöket. Skarpt fall 2026-08-09: elbil för
+     * 175 000 kr gav enbart hybrider i båda omgångarna, och användaren fick HTTP 500 fast det
+     * finns gott om elbilar i det prisläget.
+     *
+     * <p>Fail open: misslyckas även det här returneras tom lista och felet går ut som förut.
+     */
+    private List<CarRecommendation> retryAfterRuleViolation(
+            String systemPrompt, String prompt, RuleViolationException violation,
+            java.util.function.Consumer<List<CarRecommendation>> validator) {
+        if (violation.avvisade().isEmpty() || violation.rattelse() == null) return List.of();
+        log.warn("Regelbrott utan räddningsbara bilar ({}) — rättelseförsök", violation.getMessage());
+        String skarptPrompt = prompt + String.format("""
+
+                VIKTIGT — FÖRRA FÖRSÖKET BRÖT MOT KRAVEN: %s. %s
+                Föreslå tre ANDRA bilar som uppfyller kravet.
+                """, String.join(", ", violation.avvisade()), violation.rattelse());
+        try {
+            Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, skarptPrompt,
+                    RETRY_MAX_TOKENS);
+            HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
+            if (response.statusCode() != 200) return List.of();
+            List<CarRecommendation> parsed = extractAndParse(response, "getRecommendation (rättelse)");
+            try {
+                validator.accept(parsed);
+                return parsed;
+            } catch (RuleViolationException e) {
+                return keepPassingCars(e, validator);
+            }
+        } catch (Exception e) {
+            log.warn("Rättelseförsöket misslyckades: {}", e.getMessage());
+            return List.of();
         }
     }
 
@@ -1495,7 +1555,10 @@ public class GroqService {
         if (avvisade.isEmpty()) return;
         log.warn("AI föreslog modell(er) som inte kunde verifieras mot databasen: {} — {} bil(ar) kvar",
                 String.join(", ", avvisade), kvar.size());
-        throw new RuleViolationException("AI:n föreslog en bilmodell som inte kunde verifieras. Försök igen.", kvar);
+        throw new RuleViolationException("AI:n föreslog en bilmodell som inte kunde verifieras. Försök igen.",
+                kvar, avvisade,
+                "Föreslå bara modeller som verkligen finns på den svenska marknaden."
+                + " Hitta ALDRIG på modellnamn eller versioner.");
     }
 
     private List<CarRecommendation> convertRecommendations(JsonNode node) {

@@ -605,6 +605,35 @@ class GroqServiceTest {
     }
 
     @Test
+    void regelbrottetBarMedSigRattelsenTillAin() throws Exception {
+        // Rättelseförsöket behöver två saker som felmeddelandet inte innehåller: bilarna vid
+        // namn och regeln formulerad som en INSTRUKTION. Skarpt fall 2026-08-09: elbil för
+        // 175 000 kr gav enbart hybrider i båda omgångarna och därmed HTTP 500.
+        String prius = GILTIG_BIL.replace("Volvo EX30 (2024)", "Toyota Prius Hybrid (2020)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + prius + "]}");
+
+        assertThatThrownBy(() -> service().requirePureEvCars(parsed))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> {
+                    assertThat(e.kvar()).isEmpty();
+                    assertThat(e.avvisade()).containsExactly("Toyota Prius Hybrid (2020)");
+                    assertThat(e.rattelse()).contains("RENA batterielbilar");
+                });
+    }
+
+    @Test
+    void allaRegelvakterFormulerarSinRattelse() throws Exception {
+        // Utan rättelsetext hoppas rättelseförsöket över — då hade vakten tystnat i det tysta
+        assertThatThrownBy(() -> GroqService.requireFamilySizedCars(parsatSvarMed("Renault Zoe (2023)")))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.rattelse()).contains("familjestora"));
+        assertThatThrownBy(() -> GroqService.requireRealisticModelYears(parsatSvarMed("Kia EV3 (2022)")))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.rattelse()).contains("årsmodell före modellens lansering"));
+    }
+
+    @Test
     void felmeddelandetSagerVadSomGarAttAndra() {
         // "Försök igen" är ett dåligt råd när samma sökning misslyckas varje gång
         RuntimeException ut = GroqService.medRadOmKriterier(
