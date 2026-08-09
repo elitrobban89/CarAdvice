@@ -212,9 +212,10 @@ function caBurnoutBox() {
   box.id = 'ca-burnout';
   // Glöden ligger i BAKGRUNDSLAGRET på rutan, inte som ett absolut lager ovanpå. Ett överlagt
   // sken tvättar ur det som ligger under — samma fälla som kortens ::before-glow gick i.
+  // Glöden är förskjuten åt vänster så den inte konkurrerar med rökplymen till höger
   box.setAttribute('style', 'position:relative;display:flex;justify-content:center;' +
     'padding:12px 0 14px;overflow:hidden;' +
-    'background:radial-gradient(ellipse at center,rgba(139,92,246,.20),transparent 65%)');
+    'background:radial-gradient(ellipse at 42% 50%,rgba(139,92,246,.18),transparent 60%)');
   // Röken ligger BAKOM glaskortet (z-index 0 mot kortets 1) så puffarna ser ut att välla fram
   // under däcket i stället för att ligga som dis framför det.
   box.innerHTML =
@@ -264,17 +265,21 @@ function caSpawnSmoke() {
   if (!smoke) return;
   var size = 16 + Math.random() * 18;
   var puff = document.createElement('div');
-  puff.setAttribute('style', 'position:absolute;left:50%;bottom:6px;margin-left:' +
+  // Föds vid däckets högra kant, inte i mitten — annars ser puffarna ut att komma ur navet
+  puff.setAttribute('style', 'position:absolute;left:calc(50% + 14px);bottom:6px;margin-left:' +
     (-size / 2) + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:50%;' +
     'background:radial-gradient(circle,rgba(222,217,238,.7),rgba(222,217,238,0) 70%)');
   smoke.appendChild(puff);
-  // Puffarna går åt båda hållen — bara åt vänster ser ut som fartvind, inte som burnout
-  var hall = Math.random() < 0.5 ? -1 : 1;
+  // Röken går åt ETT håll, bakåt från däcket — som på en riktig burnout där bilen står still
+  // och gummiröken vräker ut bakom hjulet. Symmetriska puffar åt båda hållen läser som en
+  // dimmaskin, inte som ett däck som sliter.
+  // Plymen ska ligga LÅGT och långt: en puff som stiger rakt upp läser som ånga, inte som
+  // gummirök som vräker ut bakom ett däck.
   var anim = puff.animate(
-    [{ transform: 'translate(0,0) scale(.35)', opacity: .8 },
-     { transform: 'translate(' + (hall * (26 + Math.random() * 52)) + 'px,' +
-        (-10 - Math.random() * 20) + 'px) scale(2)', opacity: 0 }],
-    { duration: 950 + Math.random() * 500, easing: 'ease-out' });
+    [{ transform: 'translate(0,0) scale(.35)', opacity: .85 },
+     { transform: 'translate(' + (52 + Math.random() * 96) + 'px,' +
+        (-3 - Math.random() * 13) + 'px) scale(2.3)', opacity: 0 }],
+    { duration: 1000 + Math.random() * 550, easing: 'ease-out' });
   anim.onfinish = function() { puff.remove(); };
 }
 
