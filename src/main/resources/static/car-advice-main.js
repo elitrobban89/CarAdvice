@@ -180,7 +180,16 @@ var CA_HISTORY_MAX = 5;
 var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Sm\xe5bil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
 var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
 var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
-var CA_MAX_BUDGET = { ekonomibil: 200000, smaabil: 150000, familjebil: 999999, elbil: 999999, suv: 999999, laddhybrid: 999999 };
+// Kategorierna där budgeten kan gå FÖRBI segmentet — gränsen OCH rådet står på ett ställe.
+// Varningen läste förut sitt eget tak (200 000/150 000) medan budgetrutan bytte nivå först vid
+// 249 000/199 000. I glappet varnade den ena för att budgeten var för hög medan den andra sa
+// att den räckte till precis rätt bil ("Ekonomibil brukar kosta max 200 000 kr" ovanför
+// "Här räcker budgeten till en fabriksny småbil"), och de pekade dessutom vidare till olika
+// kategorier — varningen till laddhybrid, rutan till elbil.
+var CA_OVER_CATEGORY = {
+  ekonomibil: { over: 249000, byt: 'familjebil, SUV eller elbil' },
+  smaabil:    { over: 199000, byt: 'ekonomibil, familjebil eller elbil' }
+};
 
 function caStartLoadingText() {
   var i = 0;
@@ -225,13 +234,15 @@ var CA_BUDGET_LEVELS = {
     { upTo: 149000, txt: 'Nyare exemplar, ca 3–8 \xe5r. Dacia Sandero fr\xe5n ca 100 000 kr, Toyota Yaris och Kia Rio kring 100–125 000.' },
     { upTo: 199000, txt: 'N\xe4stan ny — Suzuki Swift fr\xe5n ca 155 000 kr och Toyota Yaris kring 180 000.' },
     { upTo: 249000, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
-    { upTo: Infinity, txt: 'L\xe5ngt \xf6ver vad kategorin kostar — byt till familjebil, SUV eller elbil f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+    { upTo: Infinity, rubrik: '\xe4r mer \xe4n kategorin kostar:',
+      txt: 'Byt till ' + CA_OVER_CATEGORY.ekonomibil.byt + ' f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
   ] },
   smaabil: { ikon: '🚘', nivaer: [
     { upTo:  99000, txt: 'Stadsbilar, ca 8–12 \xe5r. VW up! fr\xe5n ca 45 000 kr, Citro\xebn C1 och Peugeot 108 kring 59 000, Fiat 500 63 000 och Kia Picanto 68 000.' },
     { upTo: 149000, txt: 'Nyare stadsbil, ca 2–5 \xe5r. Kia Picanto fr\xe5n ca 84 000 kr och Toyota Aygo X 100–135 000.' },
     { upTo: 199000, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
-    { upTo: Infinity, txt: 'L\xe5ngt \xf6ver vad en sm\xe5bil kostar — byt till ekonomibil, familjebil eller elbil f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
+    { upTo: Infinity, rubrik: '\xe4r mer \xe4n en sm\xe5bil kostar:',
+      txt: 'Byt till ' + CA_OVER_CATEGORY.smaabil.byt + ' f\xf6r att f\xe5 ut n\xe5got av pengarna.' }
   ] },
   elbil: { ikon: '⚡', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
@@ -241,42 +252,68 @@ var CA_BUDGET_LEVELS = {
     { upTo: 299000, txt: 'Familjeelbil i begagnat skick — Škoda Enyaq fr\xe5n ca 279 000 kr, och b\xe4ttre exemplar av ID.4 och Polestar 2.' },
     { upTo: 399000, txt: 'Nyare familjeelbil eller el-SUV — Enyaq, ID.4 och Polestar 2 med l\xe5g m\xe4tarst\xe4llning och full r\xe4ckvidd.' },
     { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjeelbil, eller en st\xf6rre el-SUV n\xe5gra \xe5r gammal.' },
-    { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning.' }
+    { upTo: 749000, txt: 'Stor el-SUV eller premiumsedan, ny eller n\xe5got \xe5r gammal.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora elbilar med l\xe5ng r\xe4ckvidd och snabb laddning. H\xe4r styr utrustningsniv\xe5n priset mer \xe4n modellvalet.' }
   ] },
   familjebil: { ikon: '🚗', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta kombibilarna, ca 10–12 \xe5r. Ford Focus kombi fr\xe5n ca 60 000 kr och Peugeot 308 SW kring 75 000.' },
-    { upTo: 149000, txt: 'Kombi kring 8–10 \xe5r. Škoda Octavia kombi fr\xe5n ca 130 000 kr, Kia Ceed SW kring 140 000.' },
+    { upTo: 149000, txt: 'Kombi, ca 8–10 \xe5r. Škoda Octavia kombi fr\xe5n ca 130 000 kr, Kia Ceed SW kring 140 000.' },
     { upTo: 199000, txt: 'Rymlig kombi, ca 6–9 \xe5r. VW Passat och Volvo V60 fr\xe5n ca 150 000 kr.' },
     { upTo: 249000, txt: 'Nyare kombi, ca 5–7 \xe5r. Toyota Corolla Touring Sports fr\xe5n ca 209 000 kr, Volvo V90 kring 220 000 och Škoda Superb kombi 239 000.' },
     { upTo: 299000, txt: 'Volvo V60 av nyare \xe5rsmodell, eller b\xe4ttre exemplar av V90 och Superb.' },
     { upTo: 399000, txt: 'N\xe4stan ny kombi — l\xe5g m\xe4tarst\xe4llning, ofta laddhybrid.' },
     { upTo: 549000, txt: 'Ny eller n\xe4stan ny familjebil i mellanklassen.' },
-    { upTo: Infinity, txt: 'Premiumsegmentet — stora kombibilar med full utrustning.' }
+    { upTo: 749000, txt: 'Stor kombi eller premiummellanklass, ny eller n\xe5got \xe5r gammal.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora kombibilar med full utrustning. H\xe4r styr utrustningsniv\xe5n priset mer \xe4n modellvalet.' }
   ] },
   // Laddhybrid har ett tydligt golv: under ca 160 000 kr finns nästan inga annonser med
   // låg mätarställning. Mätt med fuel-fältet "Plug-in Bensin"/"Plug-in Diesel", eftersom
   // fritextsökningen på modellnamnet annars blandar in bensin- och dieselvarianterna.
   // Modeller med tunt underlag (Audi A3 e-tron n=2, Ioniq n=3) namnges inte.
   laddhybrid: { ikon: '🔌', nivaer: [
-    { upTo: 149000, txt: 'F\xf6r lite f\xf6r en laddhybrid med l\xe5g m\xe4tarst\xe4llning — de b\xf6rjar kring 160 000 kr. F\xf6r pengarna f\xe5r du en nyare bensin- eller dieselbil i st\xe4llet.' },
+    { upTo: 149000, rubrik: 'r\xe4cker inte till en laddhybrid:',
+      txt: 'De med l\xe5g m\xe4tarst\xe4llning b\xf6rjar kring 160 000 kr. F\xf6r pengarna f\xe5r du en nyare bensin- eller dieselbil i st\xe4llet.' },
     { upTo: 199000, txt: 'De f\xf6rsta laddhybriderna — Kia Niro plug-in fr\xe5n ca 166 000 kr, BMW 330e kring 189 000 och Ford Kuga PHEV 190 000.' },
     { upTo: 249000, txt: 'VW Passat GTE fr\xe5n ca 199 000 kr och Volvo V60 Twin Engine kring 209 000.' },
     { upTo: 299000, txt: 'Škoda Superb iV fr\xe5n ca 255 000 kr, och b\xe4ttre exemplar av Passat GTE och V60.' },
     { upTo: 399000, txt: 'Volvo V90 T8 kring 300 000 kr, XC60 T8 fr\xe5n 330 000 och Toyota RAV4 plug-in 335 000.' },
     { upTo: 549000, txt: 'Ny eller n\xe4stan ny laddhybrid-SUV.' },
-    { upTo: Infinity, txt: 'Premiumsegmentet — stora laddhybrider med l\xe5ng elr\xe4ckvidd.' }
+    { upTo: 749000, txt: 'Stor laddhybrid-SUV, ny eller n\xe5got \xe5r gammal.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora laddhybrider med l\xe5ng elr\xe4ckvidd. H\xe4r styr utrustningsniv\xe5n priset mer \xe4n modellvalet.' }
   ] },
   suv: { ikon: '🚙', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta SUV:arna, ca 10 \xe5r. Nissan Qashqai fr\xe5n ca 69 000 kr.' },
-    { upTo: 149000, txt: 'Kompakt-SUV kring 8–9 \xe5r. Kia Sportage fr\xe5n ca 135 000 kr och Hyundai Tucson kring 139 000.' },
+    { upTo: 149000, txt: 'Kompakt-SUV, ca 8–9 \xe5r. Kia Sportage fr\xe5n ca 135 000 kr och Hyundai Tucson kring 139 000.' },
     { upTo: 199000, txt: 'VW Tiguan fr\xe5n ca 172 000 kr och Volvo XC60 kring 190 000 — b\xe5da ca 8 \xe5r gamla.' },
     { upTo: 249000, txt: 'Volvo XC40 fr\xe5n ca 232 000 kr, Toyota RAV4 och Škoda Kodiaq kring 249 000.' },
     { upTo: 299000, txt: 'Nyare exemplar av XC40, RAV4 och Kodiaq — l\xe4gre m\xe4tarst\xe4llning och mer utrustning.' },
     { upTo: 399000, txt: 'Volvo XC60 fr\xe5n ca 308 000 kr och Toyota RAV4 kring 329 000, b\xe5da n\xe5gra \xe5r gamla.' },
     { upTo: 549000, txt: 'Ny eller n\xe4stan ny mellanklass-SUV.' },
-    { upTo: Infinity, txt: 'Premiumsegmentet — stora SUV:ar med full utrustning.' }
+    { upTo: 749000, txt: 'Stor SUV med tre s\xe4tesrader eller premiummodell, ny eller n\xe5got \xe5r gammal.' },
+    { upTo: Infinity, txt: 'Premiumsegmentet — stora SUV:ar med full utrustning. H\xe4r styr utrustningsniv\xe5n priset mer \xe4n modellvalet.' }
   ] }
 };
+
+// Leasingreglaget (1 000–15 000 kr/mån) hade ingen ruta alls — nivåerna ovan är köppriser och
+// gick inte att återanvända, så det läge där siffran är SVÅRAST att översätta till en bil fick
+// minst hjälp. En gemensam stege räcker: månadskostnaden skiljer sig långt mindre mellan
+// kategorierna än köppriset gör, eftersom avtalstid och milpaket väger tyngre än karossen.
+//
+// OBS: de här nivåerna är INTE mätta mot annonser, till skillnad från köpnivåerna ovan. Därför
+// nämns inga modellnamn — samma regel som gäller där. De två hållpunkter som finns i koden
+// stämmer: Škoda Enyaq låg på 4 850–4 980 kr/mån (BlocketPriceServiceTest) och Kia EV6 GT-Line
+// på 8 295 kr/mån. Mät resten med BlocketPriceService i leasingläge (årsfiltret av, annars töms
+// träfflistan) innan någon skriver in modellnamn här.
+var CA_LEASING_LEVELS = { ikon: '📄', nivaer: [
+  { upTo:  1999, rubrik: 'r\xe4cker s\xe4llan till privatleasing:',
+    txt: 'De flesta avtal b\xf6rjar kring 2 500 kr/m\xe5n. Under det handlar det om kampanjer p\xe5 de minsta stadsbilarna.' },
+  { upTo:  2999, txt: 'De minsta stadsbilarna, korta avtal och l\xe5ga milpaket.' },
+  { upTo:  3999, txt: 'Sm\xe5bil eller kompakt bensinbil, ibland en liten elbil p\xe5 kampanj.' },
+  { upTo:  4499, txt: 'Kompakt elbil eller v\xe4lutrustad sm\xe5bil — h\xe4r b\xf6rjar utbudet bli brett.' },
+  { upTo:  6999, txt: 'Familjebil, kombi eller familjeelbil.' },
+  { upTo:  9999, txt: 'Mellanklass-SUV eller st\xf6rre elbil, ofta med generösare milpaket.' },
+  { upTo: Infinity, txt: 'Premiumsegmentet — stora SUV:ar och premiumelbilar. Kolla milpaketet, det styr m\xe5nadskostnaden lika mycket som bilen.' }
+] };
 
 // Elementet skapas från JS, inte i HTML-snippeten: WordPress-sidan är en manuell kopia och
 // hade annars saknat rutan tills snippeten klistrades in på nytt.
@@ -286,8 +323,8 @@ function caRenderEvBudgetHint() {
   var cat = document.getElementById('ca-category');
   var hint = document.getElementById('ca-ev-budget-hint');
   // Kategorier utan egna nivåer får ingen ruta alls — hellre tyst än en gissning.
-  // Leasing är undantaget överallt: där är budgeten kr/mån och nivåerna är köppriser.
-  var niva = !caIsLeasing && cat ? CA_BUDGET_LEVELS[cat.value] : null;
+  // Leasing har en egen stege: samma för alla kategorier, och i kr/mån i stället för köppris.
+  var niva = caIsLeasing ? CA_LEASING_LEVELS : (cat ? CA_BUDGET_LEVELS[cat.value] : null);
   if (!niva) { if (hint) hint.style.display = 'none'; return; }
 
   if (!hint) {
@@ -307,8 +344,14 @@ function caRenderEvBudgetHint() {
   for (var i = 0; i < niva.nivaer.length; i++) {
     if (val <= niva.nivaer[i].upTo) { level = niva.nivaer[i]; break; }
   }
+  // Rubriken hörde förut ihop med texten bara när nivån svarade på "vad får jag". Nivåer som
+  // svarar "fel budget" gav självmotsägelser: "150 000 kr räcker till: För lite för en
+  // laddhybrid" och "600 000 kr räcker till: Långt över vad kategorin kostar". Nivån bär
+  // därför sin egen rubrik när standardformuleringen inte passar.
+  var enhet = caIsLeasing ? '\xa0kr/m\xe5n ' : '\xa0kr ';
   hint.innerHTML = '<strong style="color:#c4b5fd">' + caEsc(niva.ikon) + ' ' +
-    caEsc(val.toLocaleString('sv-SE')) + '\xa0kr r\xe4cker till:</strong> ' + caEsc(level.txt);
+    caEsc(val.toLocaleString('sv-SE')) + enhet + caEsc(level.rubrik || 'r\xe4cker till:') +
+    '</strong> ' + caEsc(level.txt);
 }
 
 function caUpdateSliderFill() {
@@ -340,6 +383,8 @@ function caSetBudgetMode(mode, value) {
     if (ticks) ticks.innerHTML = '<span>50k</span><span>200k</span><span>400k</span><span>700k</span><span>1M</span>';
   }
   caUpdateSliderFill();
+  // Utan den här hängde varningen kvar från köpläget efter ett byte till leasing
+  caCheckMismatch();
   var kopBtn = document.getElementById('ca-mode-kop');
   var leaseBtn = document.getElementById('ca-mode-leasing');
   if (kopBtn) kopBtn.classList.toggle('ca-mode-active', !caIsLeasing);
@@ -492,15 +537,18 @@ function caBindChangeListeners() {
 }
 
 function caCheckMismatch() {
-  var cat = document.getElementById('ca-category').value;
-  var budget = parseInt(document.getElementById('ca-budget-slider').value) || 0;
-  var max = CA_MAX_BUDGET[cat] || 999999;
   var warn = document.getElementById('ca-warning');
   if (!warn) return;
-  if (budget > max) {
+  var cat = document.getElementById('ca-category').value;
+  var budget = parseInt(document.getElementById('ca-budget-slider').value) || 0;
+  // Leasing undantas: där är budgeten kr/mån och taket är ett köppris, så jämförelsen
+  // hade varnat för fel sak (eller aldrig utlöst, vilket den inte gjorde i praktiken).
+  var over = caIsLeasing ? null : CA_OVER_CATEGORY[cat];
+  if (over && budget > over.over) {
     warn.style.display = 'block';
-    warn.textContent = '⚠️ ' + (CA_CAT_NAMES[cat] || cat) + ' brukar kosta max ' +
-      max.toLocaleString('sv-SE') + ' kr. \xd6verv\xe4g att v\xe4lja Familjebil, SUV eller Laddhybrid f\xf6r denna budget.';
+    warn.textContent = '⚠️ ' + (CA_CAT_NAMES[cat] || cat) + ' kostar s\xe4llan mer \xe4n ' +
+      over.over.toLocaleString('sv-SE') + ' kr. Byt till ' + over.byt +
+      ' f\xf6r att f\xe5 ut n\xe5got av pengarna.';
   } else {
     warn.style.display = 'none';
   }
