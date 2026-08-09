@@ -1500,12 +1500,27 @@ public class GroqService {
 
     private List<CarRecommendation> convertRecommendations(JsonNode node) {
         try {
-            return mapper.convertValue(
+            List<CarRecommendation> raw = mapper.convertValue(
                     node, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
+            return raw == null ? null : raw.stream().map(GroqService::withNormalizedTitle).toList();
         } catch (IllegalArgumentException e) {
             log.warn("AI recommendations did not match expected schema: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Titeln städad till "Märke Modell (år)" innan något annat rör den. Enda stället — allt
+     * nedströms (Blockets årsfilter, dedupen, nyprisuppslaget, leasingmatchningen och
+     * årsmodellvakten) läser årtalet ur titeln och tappade det tyst när AI:n skrev det i mitten.
+     */
+    private static CarRecommendation withNormalizedTitle(CarRecommendation r) {
+        String stadad = CarTitle.normalize(r.title());
+        if (stadad == null || stadad.equals(r.title())) return r;
+        log.info("Titeln städad: \"{}\" → \"{}\"", r.title(), stadad);
+        return new CarRecommendation(stadad, r.price(), r.whyRecommended(), r.pros(), r.con(),
+                r.fitSummary(), r.expertOpinion(), r.safetyRating(), r.evSpec(), r.cargoSpec(),
+                r.fuelSpec(), r.blocketPrice(), r.horsepower(), r.engineOptions());
     }
 //Ettikettskaparen pipe sammanslagen sträng
     String buildCacheKey(CarPreferences prefs) {

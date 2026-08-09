@@ -8,6 +8,44 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CarTitleTest {
 
     @Test
+    void artalMittITitelnFlyttasTillSlutet() {
+        // Live 2026-08-09: AI:n skrev "Nissan Leaf 2019 60 kWh". year() är ankrad i slutet av
+        // strängen och gav null, så Blockets årsfilter, dedupen, nyprisuppslaget,
+        // leasingmatchningen och årsmodellvakten tappade årsmodellen tyst.
+        assertThat(CarTitle.normalize("Nissan Leaf 2019 60 kWh")).isEqualTo("Nissan Leaf (2019)");
+        assertThat(CarTitle.year(CarTitle.normalize("Nissan Leaf 2019 60 kWh"))).isEqualTo(2019);
+    }
+
+    @Test
+    void teknikuppgifterITitelnStadasBort() {
+        // "1.3 kWh" är dessutom påhittat — Zoe har 41 eller 52 kWh batteri
+        assertThat(CarTitle.normalize("Renault Zoe 2019 1.3 kWh")).isEqualTo("Renault Zoe (2019)");
+        assertThat(CarTitle.normalize("Kia EV6 GT-Line 239 hk (2022)")).isEqualTo("Kia EV6 GT-Line (2022)");
+    }
+
+    @Test
+    void redanKorrektTitelLamnasOrord() {
+        assertThat(CarTitle.normalize("Volkswagen ID.4 (2023)")).isEqualTo("Volkswagen ID.4 (2023)");
+        assertThat(CarTitle.normalize("MG4 (2022)")).isEqualTo("MG4 (2022)");
+    }
+
+    @Test
+    void trimnamnOchModellnamnMedSiffrorOverlever() {
+        // "Long Range"/"Extended Range" är modellnamn, inte brus. Peugeot 2008 och BMW 2002 är
+        // bilar — därför måste ett bart årtal vara 2010 eller senare för att räknas som årsmodell.
+        assertThat(CarTitle.normalize("Kia EV4 Long Range (2026)")).isEqualTo("Kia EV4 Long Range (2026)");
+        assertThat(CarTitle.normalize("MG4 Extended Range 2023")).isEqualTo("MG4 Extended Range (2023)");
+        assertThat(CarTitle.normalize("Peugeot 2008 (2021)")).isEqualTo("Peugeot 2008 (2021)");
+        assertThat(CarTitle.normalize("BMW 2002")).isEqualTo("BMW 2002");
+    }
+
+    @Test
+    void titelUtanArtalBehallerSittNamn() {
+        assertThat(CarTitle.normalize("Nissan Leaf")).isEqualTo("Nissan Leaf");
+        assertThat(CarTitle.normalize(null)).isNull();
+    }
+
+    @Test
     void parentesformenArKvar() {
         assertThat(CarTitle.stripYear("Volkswagen ID.4 (2026)")).isEqualTo("Volkswagen ID.4");
         assertThat(CarTitle.year("Volkswagen ID.4 (2026)")).isEqualTo(2026);
