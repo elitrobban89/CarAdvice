@@ -193,6 +193,86 @@ var CA_OVER_CATEGORY = {
   smaabil:    { over: 200000, byt: 'ekonomibil, familjebil eller elbil' }
 };
 
+// Burnout-hjulet under laddtexten. Elementen skapas från JS, inte i HTML-snippeten: sidan på
+// WordPress är en manuell kopia och hade annars saknat effekten tills snippeten klistrats in på
+// nytt — samma skäl som budgetrutan byggs så.
+//
+// Rörelsen körs med Web Animations API i stället för @keyframes. Ett <style>-element hade varit
+// kortare men CSP:n på sidan är stram, och en blockerad stilregel ger ett stillastående hjul som
+// ser trasigt ut. element.animate() är ett JS-API och berörs inte.
+var caBurnoutAnims = [];
+
+function caBurnoutBox() {
+  var box = document.getElementById('ca-burnout');
+  if (box) return box;
+  var loader = document.getElementById('ca-loader');
+  if (!loader) return null;
+  box = document.createElement('div');
+  box.id = 'ca-burnout';
+  // Glöden ligger i BAKGRUNDSLAGRET på rutan, inte som ett absolut lager ovanpå. Ett överlagt
+  // sken tvättar ur det som ligger under — samma fälla som kortens ::before-glow gick i.
+  box.setAttribute('style', 'display:flex;justify-content:center;padding:10px 0 2px;' +
+    'background:radial-gradient(ellipse at center,rgba(139,92,246,.20),transparent 65%)');
+  box.innerHTML =
+    '<div id="ca-glass" style="position:relative;width:64px;height:64px;border-radius:18px;' +
+      'display:flex;align-items:center;justify-content:center;overflow:hidden;' +
+      'background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));' +
+      '-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);' +
+      'border:1px solid rgba(255,255,255,.16);' +
+      'box-shadow:0 6px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.22)">' +
+      '<svg id="ca-wheel" width="38" height="38" viewBox="0 0 42 42" aria-hidden="true">' +
+        '<circle cx="21" cy="21" r="19" fill="rgba(10,8,20,.55)" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/>' +
+        '<circle cx="21" cy="21" r="11.5" fill="none" stroke="#8b5cf6" stroke-width="2.5"/>' +
+        '<circle cx="21" cy="21" r="3.5" fill="#c4b5fd"/>' +
+        '<g stroke="#a78bfa" stroke-width="2" stroke-linecap="round">' +
+          '<line x1="21" y1="21" x2="21" y2="10.5"/><line x1="21" y1="21" x2="30" y2="26.5"/>' +
+          '<line x1="21" y1="21" x2="12" y2="26.5"/>' +
+        '</g>' +
+      '</svg>' +
+      // Blixten: en smal ljusstrimma som sveper snett över glaset med jämna mellanrum
+      '<div id="ca-flash" style="position:absolute;top:-40%;left:-75%;width:60%;height:180%;' +
+        'transform:rotate(18deg);opacity:0;pointer-events:none;' +
+        'background:linear-gradient(90deg,rgba(196,181,253,0),rgba(255,255,255,.95) 45%,' +
+        'rgba(196,181,253,.85) 60%,rgba(196,181,253,0))"></div>' +
+    '</div>';
+  loader.appendChild(box);
+  return box;
+}
+
+function caBurnoutStart() {
+  var box = caBurnoutBox();
+  if (!box) return;
+  box.style.display = 'flex';
+  // Ikonen visas stilla för den som bett om mindre rörelse — samma regel som splash-skärmarna
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var wheel = document.getElementById('ca-wheel');
+  var glass = document.getElementById('ca-glass');
+  var flash = document.getElementById('ca-flash');
+  caBurnoutAnims.push(wheel.animate(
+    [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+    { duration: 900, iterations: Infinity, easing: 'linear' }));
+  // Glaset andas svagt så rutan inte står helt död mellan blixtarna
+  caBurnoutAnims.push(glass.animate(
+    [{ boxShadow: '0 6px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.22)' },
+     { boxShadow: '0 6px 30px rgba(139,92,246,.42),inset 0 1px 0 rgba(255,255,255,.30)' }],
+    { duration: 1400, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' }));
+  caBurnoutAnims.push(flash.animate(
+    [{ transform: 'translateX(0) rotate(18deg)', opacity: 0, offset: 0 },
+     { opacity: .95, offset: .08 },
+     { opacity: .95, offset: .16 },
+     { transform: 'translateX(420%) rotate(18deg)', opacity: 0, offset: .28 },
+     { transform: 'translateX(420%) rotate(18deg)', opacity: 0, offset: 1 }],
+    { duration: 2600, iterations: Infinity, easing: 'ease-out' }));
+}
+
+function caBurnoutStop() {
+  caBurnoutAnims.forEach(function(a) { a.cancel(); });
+  caBurnoutAnims = [];
+  var box = document.getElementById('ca-burnout');
+  if (box) box.style.display = 'none';
+}
+
 function caStartLoadingText() {
   var i = 0;
   document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
@@ -200,11 +280,13 @@ function caStartLoadingText() {
     i = (i + 1) % caLoadingMessages.length;
     document.getElementById('ca-loader-text').textContent = caLoadingMessages[i];
   }, 2200);
+  caBurnoutStart();
 }
 function caStopLoadingText() {
   clearInterval(caLoadingInterval);
   caLoadingInterval = null;
   document.getElementById('ca-loader-text').textContent = caLoadingMessages[0];
+  caBurnoutStop();
 }
 
 // Vad budgeten räcker till på den svenska begagnatmarknaden, per kategori. KURERADE siffror
