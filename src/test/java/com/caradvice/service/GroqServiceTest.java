@@ -559,6 +559,51 @@ class GroqServiceTest {
                         .allSatisfy(r -> assertThat(r.title()).isEqualTo("VW ID.4 (2023)")));
     }
 
+    // --- requireRealisticModelYears (årsmodellvakten) ---
+
+    @Test
+    void arsmodellForeLanseringAvvisas() throws Exception {
+        // Skarpt fall 2026-08-09: "Kia EV3 (2022)" — EV3 lanserades 2024
+        List<CarRecommendation> parsed = parsatSvarMed("Kia EV3 (2022)");
+        assertThatThrownBy(() -> GroqService.requireRealisticModelYears(parsed))
+                .isInstanceOf(GroqService.RuleViolationException.class)
+                .hasMessageContaining("årsmodell som inte finns");
+    }
+
+    @Test
+    void arsmodellEfterLanseringSlapsIgenom() throws Exception {
+        List<CarRecommendation> parsed = parsatSvarMed("Kia EV3 (2025)");
+        GroqService.requireRealisticModelYears(parsed); // ska inte kasta
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void modellUtanforListanOchTitelUtanArtalSlapsIgenom() throws Exception {
+        // Fail open: vakten kräver positivt bevis, annars faller riktiga bilar
+        GroqService.requireRealisticModelYears(parsatSvarMed("Volkswagen Golf (2009)"));
+        GroqService.requireRealisticModelYears(parsatSvarMed("Kia EV3"));
+    }
+
+    @Test
+    void arsmodellvaktenBarMedDeGiltigaBilarna() throws Exception {
+        String ev3 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia EV3 (2022)");
+        String mg4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "MG4 (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + ev3 + "," + mg4 + "]}");
+        assertThatThrownBy(() -> GroqService.requireRealisticModelYears(parsed))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.kvar()).hasSize(1)
+                        .allSatisfy(r -> assertThat(r.title()).isEqualTo("MG4 (2022)")));
+    }
+
+    @Test
+    void lanseringsaretLasesAvenUrTrimvariantOchUtanParentes() {
+        assertThat(GroqService.launchYearFor("Kia EV4 Long Range (2026)")).isEqualTo(2025);
+        assertThat(GroqService.launchYearFor("Volvo EX30 2024")).isEqualTo(2023);
+        assertThat(GroqService.launchYearFor("Volkswagen Passat GTE (2018)")).isEqualTo(2015);
+        assertThat(GroqService.launchYearFor("Nissan Leaf (2018)")).isNull();
+    }
+
     @Test
     void felmeddelandetSagerVadSomGarAttAndra() {
         // "Försök igen" är ett dåligt råd när samma sökning misslyckas varje gång

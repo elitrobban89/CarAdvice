@@ -1255,6 +1255,71 @@ public class GroqService {
             "picanto", "i10", "e-up", "up!", "mii", "citigo");
 
     /**
+     * Lanseringsår per modell — spegel av årsmodellregeln i systemprompten ("Rekommendera ALDRIG
+     * en årsmodell före modellens verkliga lansering").
+     *
+     * <p>Bara modeller vars lanseringsår faktiskt är kontrollerat står här, och listan är
+     * medvetet densamma som promptens. En gissad siffra fäller riktiga bilar: hade tabellen
+     * fyllts ur {@code new_car_price} — som ser ut att bära årtal i generationsnamnen — hade
+     * "Volkswagen Polo 2018-2021" gjort 2015 års Polo till en påhittad bil, fast tabellen bara
+     * saknar äldre generationer. Utökas listan måste årtalet vara verifierat, inte härlett.
+     *
+     * <p>Nycklarna matchas mot titeln utan årtal, gemener. Modellhallucinationsvakten fångar
+     * inte det här: {@code requireKnownModels} godkänner "Kia EV3 (2022)" eftersom modellen
+     * finns i databasen — det är bara årsmodellen som inte existerar. Skarpt fall 2026-08-09.
+     */
+    private static final Map<String, Integer> MODEL_LAUNCH_YEAR = Map.ofEntries(
+            Map.entry("kia ev2", 2026),
+            Map.entry("kia ev3", 2024),
+            Map.entry("kia ev4", 2025),
+            Map.entry("kia ev5", 2025),
+            Map.entry("renault 5 e-tech", 2024),
+            Map.entry("citroën ë-c3", 2024),
+            Map.entry("citroen e-c3", 2024),
+            Map.entry("volvo ex30", 2023),
+            Map.entry("golf gte", 2014),
+            Map.entry("outlander phev", 2013),
+            Map.entry("passat gte", 2015));
+
+    /** Kontrollerat lanseringsår för titelns modell, eller null när modellen inte står i listan. */
+    static Integer launchYearFor(String title) {
+        if (title == null) return null;
+        String utanAr = CarTitle.stripYear(title).toLowerCase();
+        Integer tidigast = null;
+        for (Map.Entry<String, Integer> e : MODEL_LAUNCH_YEAR.entrySet()) {
+            // Längsta träffen vinner så "Kia EV4 Long Range" inte råkar matcha en kortare nyckel
+            if (utanAr.contains(e.getKey()) && (tidigast == null || e.getValue() > tidigast))
+                tidigast = e.getValue();
+        }
+        return tidigast;
+    }
+
+    /**
+     * Skarpt läge: årsmodellregeln i kod. Live 2026-08-09 föreslogs "Kia EV3 (2022)" — EV3
+     * lanserades 2024, så den årsmodellen finns inte att köpa. Regeln stod bara i prompten och
+     * modellvakten släppte igenom bilen eftersom EV3 finns i databasen.
+     *
+     * <p>Fäller bara på POSITIVT bevis: en modell utanför listan, eller en titel utan årtal,
+     * går alltid igenom.
+     */
+    static void requireRealisticModelYears(List<CarRecommendation> parsed) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            Integer lansering = launchYearFor(r.title());
+            Integer arsmodell = CarTitle.year(r.title());
+            if (lansering != null && arsmodell != null && arsmodell < lansering)
+                avvisade.add(r.title() + " (lanserad " + lansering + ")");
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog årsmodell(er) före modellens lansering: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException(
+                "AI:n föreslog en årsmodell som inte finns. Försök igen.", kvar);
+    }
+
+    /**
      * Kategori familjebil eller 5+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln.
      * Användning "familj" täcks också: äldre inklistrade WordPress-snippets skickar den fortfarande.
      *
@@ -1397,6 +1462,7 @@ public class GroqService {
      */
     private java.util.function.Consumer<List<CarRecommendation>> validatorFor(CarPreferences prefs) {
         java.util.function.Consumer<List<CarRecommendation>> validator = this::requireKnownModels;
+        validator = validator.andThen(GroqService::requireRealisticModelYears);
         if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
             validator = validator.andThen(this::requirePureEvCars);
