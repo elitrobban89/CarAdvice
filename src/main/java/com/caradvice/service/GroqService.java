@@ -1226,20 +1226,32 @@ public class GroqService {
         return parsed;
     }
 
-    /** Småbilsmarkörer — spegel av FAMILJEBIL-regelns förbudslista i systemprompten. */
+    /**
+     * Småbilsmarkörer — spegel av FAMILJEBIL-regelns förbudslista i systemprompten.
+     *
+     * <p>VW ID.3 stod här men är borttagen: den är Golf-klass med fem säten, alltså samma
+     * storleksklass som MG4 — som prompten samtidigt rekommenderar som familjeelbil. Att
+     * förbjuda den ena och föreslå den andra var en motsägelse i regeln, inte en gräns.
+     */
     private static final List<String> SMALL_CAR_MARKERS = List.of(
             "zoe", "renault 5", "clio", "twingo", "dacia spring", "spring electric",
             "ë-c3", "e-c3", "fiat 500", "500e", "panda", "corsa", "aygo",
-            "id.3", "picanto", "i10", "e-up", "up!", "mii", "citigo");
+            "picanto", "i10", "e-up", "up!", "mii", "citigo");
 
     /**
-     * Kategori familjebil eller 4+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln.
+     * Kategori familjebil eller 5+ passagerare kräver familjestor bil — speglar FAMILJEBIL-regeln.
      * Användning "familj" täcks också: äldre inklistrade WordPress-snippets skickar den fortfarande.
+     *
+     * <p>Gränsen gick vid 4 och det var formulärets DEFAULTVÄRDE, så det strängaste läget var
+     * påslaget för alla som inte rörde fältet. Skarpt fall 2026-08-09: ett elbilssök på
+     * 225 000 kr gav två kort, medan samma sökning med två passagerare gav tre — Renault Zoe,
+     * Nissan Leaf och MG ZS EV, alltså precis det billiga elbilsutbudet som spärren höll ute.
+     * Fyra personer får plats i en Golf-klassad bil; först vid fem börjar storleken avgöra.
      */
     static boolean requiresFamilySizedCar(CarPreferences prefs) {
         return (prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("familj"))
                 || (prefs.usage() != null && prefs.usage().toLowerCase().contains("familj"))
-                || prefs.passengers() >= 4;
+                || prefs.passengers() >= 5;
     }
 
     /**
@@ -1700,7 +1712,7 @@ public class GroqService {
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                FAMILJEBIL (kategori "familjebil", användning "familj" eller 4+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, VW ID.3, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4.
+                FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4.
                 SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).
                 SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.

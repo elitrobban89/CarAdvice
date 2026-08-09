@@ -181,6 +181,34 @@ class GroqServiceTest {
     }
 
     @Test
+    void fyraPassagerareArInteFamiljeprofil() {
+        // Fyra är formulärets DEFAULTVÄRDE — gick gränsen där var strängaste läget påslaget för
+        // alla som inte rörde fältet. Live 2026-08-09: elbil/225 000 kr gav två kort med fyra
+        // passagerare men tre med två (Zoe, Leaf, MG ZS EV), alltså just det billiga utbudet.
+        CarPreferences fyra = new CarPreferences(225_000, "elbil", false, 15_000, "pendling",
+                4, false, "el", null, "köp", null);
+        assertThat(GroqService.requiresFamilySizedCar(fyra)).isFalse();
+        assertThat(service().buildPrompt(fyra)).doesNotContain("FAMILJEBIL");
+    }
+
+    @Test
+    void femPassagerareArFamiljeprofil() {
+        CarPreferences fem = new CarPreferences(225_000, "elbil", false, 15_000, "pendling",
+                5, false, "el", null, "köp", null);
+        assertThat(GroqService.requiresFamilySizedCar(fem)).isTrue();
+    }
+
+    @Test
+    void id3RaknasInteSomSmabil() throws Exception {
+        // Golf-klass med fem säten — samma storleksklass som MG4, som prompten samtidigt
+        // rekommenderar som familjeelbil. Förbudet var en motsägelse, inte en gräns.
+        // Promptens sida av samma regel kollas i promptenForbjuderSmabilarSomFamiljebil...
+        List<CarRecommendation> id3 = parsatSvarMed("Volkswagen ID.3 (2021)");
+        GroqService.requireFamilySizedCars(id3); // ska inte kasta
+        assertThat(id3).hasSize(1);
+    }
+
+    @Test
     void tvaPassagerarePendlingArInteFamiljeprofil() {
         CarPreferences pendlare = new CarPreferences(300_000, "elbil", true, 15_000, "pendling",
                 2, false, "el", null, "köp", null);
@@ -201,9 +229,12 @@ class GroqServiceTest {
         // 300k-familjebilssökning gav Dacia Spring för 150k — storleks- och budgetregler krävs
         String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
         assertThat(sp)
-                .contains("FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 4+ passagerare)")
+                .contains("FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 5+ passagerare)")
                 .contains("Dacia Spring")
-                .contains("UTNYTTJA BUDGETEN");
+                .contains("UTNYTTJA BUDGETEN")
+                // ID.3 är Golf-klass med fem säten och stod på förbudslistan medan MG4 — samma
+                // storleksklass — rekommenderades som familjeelbil längre ned i samma stycke
+                .doesNotContain("VW ID.3");
     }
 
     @Test
