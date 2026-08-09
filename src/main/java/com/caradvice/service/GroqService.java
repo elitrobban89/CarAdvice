@@ -98,18 +98,22 @@ public class GroqService {
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
     /**
-     * Tokentaket för ett rekommendationssvar. Höjt från 3000 2026-08-09: tre bilar med pros,
-     * fitSummary, expertOpinion och motoralternativ på svenska ryms inte alltid, och "AI-svaret
-     * blev ofullständigt" slog två gånger av tre på ett elbilssök för 175 000 kr.
+     * Tokentaket för ett rekommendationssvar. Får INTE höjas utan att prompten krymps först.
      *
-     * <p>Taket är inte gratis. Reserverade tokens räknas mot Groqs dygnstak (200 000 per
-     * organisation), som **delas med nattscrapern** — 1 000 extra per sökning syns i den budgeten
-     * om söktrycket blir högt. Blir nattskörden tunn en dag med många sökningar är det här en
-     * kandidat att titta på.
+     * <p>Höjdes till 4000 2026-08-09 för att komma åt "AI-svaret blev ofullständigt", och gav
+     * inom minuter <b>HTTP 413</b> live. Groq mäter en enskild förfrågan som
+     * {@code prompt + reserverade max_tokens} mot per-minut-taket på 8 000 tokens, och avvisar
+     * hela anropet med 413 "request too large" när summan går över — det är alltså inte svarets
+     * längd som räknas utan takets. Systemprompten (nypristabeller, expertkontext,
+     * feedback-kontext) är stor nog att 4 000 reserverade tokens spränger gränsen.
+     *
+     * <p>Vill man åt trunkeringen är vägen att korta systemprompten, inte att höja taket.
+     * Reserverade tokens räknas dessutom mot dygnstaket (200 000 per organisation) som delas
+     * med nattscrapern.
      */
-    private static final int RECOMMENDATION_MAX_TOKENS = 4000;
+    private static final int RECOMMENDATION_MAX_TOKENS = 3000;
     /** Omförsökets tokentak — se jsonCallBody(…, maxTokens) för varför det är högre än ordinarie. */
-    private static final int RETRY_MAX_TOKENS = 4500;
+    private static final int RETRY_MAX_TOKENS = 3400;
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
     private static final long PRICES_TTL_MS = 60 * 60 * 1000;
