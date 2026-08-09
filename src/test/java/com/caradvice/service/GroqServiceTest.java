@@ -522,9 +522,9 @@ class GroqServiceTest {
                 "{\"recommendations\":[" + mg4 + "," + niro + "]}");
 
         assertThatThrownBy(() -> service().requirePureEvCars(parsed))
-                .isInstanceOf(GroqService.NonEvSuggestedException.class)
-                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.NonEvSuggestedException.class))
-                .satisfies(e -> assertThat(e.elbilar()).hasSize(1)
+                .isInstanceOf(GroqService.RuleViolationException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.kvar()).hasSize(1)
                         .allSatisfy(r -> assertThat(r.title()).isEqualTo("MG4 (2021)")));
     }
 
@@ -538,9 +538,36 @@ class GroqServiceTest {
                 "{\"recommendations\":[" + prius + "," + niro + "]}");
 
         assertThatThrownBy(() -> service().requirePureEvCars(parsed))
-                .isInstanceOf(GroqService.NonEvSuggestedException.class)
-                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.NonEvSuggestedException.class))
-                .satisfies(e -> assertThat(e.elbilar()).isEmpty());
+                .isInstanceOf(GroqService.RuleViolationException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.kvar()).isEmpty());
+    }
+
+    @Test
+    void familjesparrenBarMedDeRymligaBilarna() throws Exception {
+        // Generaliserat mönster: varje regelvakt bär med sig det som klarade regeln, inte bara
+        // drivmedelsvakten. Ett brott bland tre bilar kostade förut hela svaret.
+        String zoe = GILTIG_BIL.replace("Volvo EX30 (2024)", "Renault Zoe (2023)");
+        String id4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "VW ID.4 (2023)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + zoe + "," + id4 + "]}");
+
+        assertThatThrownBy(() -> GroqService.requireFamilySizedCars(parsed))
+                .isInstanceOf(GroqService.RuleViolationException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(GroqService.RuleViolationException.class))
+                .satisfies(e -> assertThat(e.kvar()).hasSize(1)
+                        .allSatisfy(r -> assertThat(r.title()).isEqualTo("VW ID.4 (2023)")));
+    }
+
+    @Test
+    void felmeddelandetSagerVadSomGarAttAndra() {
+        // "Försök igen" är ett dåligt råd när samma sökning misslyckas varje gång
+        RuntimeException ut = GroqService.medRadOmKriterier(
+                new RuntimeException("AI-svaret blev ofullständigt. Försök igen."));
+        assertThat(ut.getMessage())
+                .contains("AI-svaret blev ofullständigt.")
+                .contains("högre budget")
+                .contains("färre passagerare");
     }
 
     @Test

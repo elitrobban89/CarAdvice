@@ -97,6 +97,8 @@ public class GroqService {
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
+    /** Omförsökets tokentak — se jsonCallBody(…, maxTokens) för varför det är högre än 3000. */
+    private static final int RETRY_MAX_TOKENS = 4500;
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
     private static final long PRICES_TTL_MS = 60 * 60 * 1000;
@@ -158,8 +160,19 @@ public class GroqService {
     }
 
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt, String userPrompt) {
+        return jsonCallBody(modelName, temperature, systemPrompt, userPrompt, 3000);
+    }
+
+    /**
+     * Med eget takvärde. Reservmodellen får mer utrymme: "AI-svaret blev ofullständigt" betyder
+     * att resonemanget åt upp budgeten innan JSON:en hann skrivas färdig, och att göra om
+     * försöket med samma tak upprepar oftast samma trunkering. Taket kostar bara när det
+     * används, och omförsöket görs bara när första svaret redan misslyckats.
+     */
+    private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt,
+                                             String userPrompt, int maxTokens) {
         return Map.of(
-                "model", modelName, "max_tokens", 3000, "temperature", temperature,
+                "model", modelName, "max_tokens", maxTokens, "temperature", temperature,
                 "reasoning_effort", reasoningEffortFor(modelName),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
@@ -200,10 +213,10 @@ public class GroqService {
                 if (validator != null) validator.accept(parsed);
                 return parsed;
             } catch (RuntimeException second) {
-                // Bröt BÅDA omgångarna mot elbilsregeln vinner den som gav flest elbilar —
+                // Bröt BÅDA omgångarna mot en regel vinner den som lämnade flest godkända bilar —
                 // annars kastas omförsökets bättre svar bort bara för att det kom sist.
-                if (first instanceof NonEvSuggestedException f && second instanceof NonEvSuggestedException s
-                        && s.elbilar().size() > f.elbilar().size()) throw s;
+                if (first instanceof RuleViolationException f && second instanceof RuleViolationException s
+                        && s.kvar().size() > f.kvar().size()) throw s;
                 throw first;
             }
         }
@@ -585,7 +598,7 @@ public class GroqService {
 //Här går ett riktigt anrop ifall cachat svar ej finns ovan alltså
         Map<String, Object> primaryBody = jsonCallBody(model, 0.3, systemPrompt, prompt);
         Map<String, Object> fallbackBody = jsonCallBody(chatModel, 0.3, systemPrompt, prompt);
-        Map<String, Object> reserveBody = jsonCallBody(reserveModel, 0.3, systemPrompt, prompt);
+        Map<String, Object> reserveBody = jsonCallBody(reserveModel, 0.3, systemPrompt, prompt, RETRY_MAX_TOKENS);
 
         HttpResponse<String> response = callGroqWithFallback(primaryBody, fallbackBody, reserveBody);
 
@@ -601,17 +614,20 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
         }
 
+        java.util.function.Consumer<List<CarRecommendation>> validator = validatorFor(prefs);
         List<CarRecommendation> parsed;
         try {
-            parsed = parseWithRetry(response, reserveBody, "getRecommendation", validatorFor(prefs));
-        } catch (NonEvSuggestedException e) {
-            // Både första svaret och omförsöket innehöll icke-elbilar. Samma avvägning som
+            parsed = parseWithRetry(response, reserveBody, "getRecommendation", validator);
+        } catch (RuleViolationException e) {
+            // Både första svaret och omförsöket bröt mot en regel. Samma avvägning som
             // budgettaket gör: en kortare lista med bilar som stämmer med sökningen är mer värd
-            // än ett felmeddelande. Föreslog AI:n inte en enda elbil finns inget att visa —
-            // då är felet det enda ärliga svaret.
-            if (e.elbilar().isEmpty()) throw e;
-            log.warn("Elbilssök: visar {} av 3 kort — resten var inte elbilar", e.elbilar().size());
-            parsed = e.elbilar();
+            // än ett felmeddelande. Klarade ingen bil regeln finns inget att visa — då är felet
+            // det enda ärliga svaret.
+            parsed = keepPassingCars(e, validator);
+            if (parsed.isEmpty()) throw medRadOmKriterier(e);
+            log.warn("Visar {} av 3 kort — resten bröt mot en regel ({})", parsed.size(), e.getMessage());
+        } catch (RuntimeException e) {
+            throw medRadOmKriterier(e);
         }
 
         boolean isLeasing = "leasing".equals(prefs.budgetType());
@@ -1259,15 +1275,17 @@ public class GroqService {
      * promptregeln — ett regelbrott triggar omförsöket med reservmodellen i parseWithRetry.
      */
     static void requireFamilySizedCars(List<CarRecommendation> parsed) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
         for (CarRecommendation r : parsed) {
             String t = r.title() == null ? "" : r.title().toLowerCase();
-            for (String marker : SMALL_CAR_MARKERS) {
-                if (t.contains(marker)) {
-                    log.warn("AI föreslog småbil till familjeprofil: {}", r.title());
-                    throw new RuntimeException("AI:n föreslog en för liten bil för profilen. Försök igen.");
-                }
-            }
+            if (SMALL_CAR_MARKERS.stream().anyMatch(t::contains)) avvisade.add(r.title());
+            else kvar.add(r);
         }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog småbil(ar) till familjeprofil: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException("AI:n föreslog en för liten bil för profilen. Försök igen.", kvar);
     }
 
     /**
@@ -1292,25 +1310,30 @@ public class GroqService {
         if (avvisade.isEmpty()) return;
         log.warn("AI föreslog icke-elbil(ar) till rent elbilssök: {} — {} elbil(ar) kvar",
                 String.join(", ", avvisade), elbilar.size());
-        throw new NonEvSuggestedException(elbilar);
+        throw new RuleViolationException("AI:n föreslog en bil som inte är elbil. Försök igen.", elbilar);
     }
 
     /**
-     * Regelbrottet som går att städa bort i efterhand: bär med sig de bilar som FAKTISKT var
-     * elbilar, så att den mjuka vägen i getRecommendation kan visa dem i stället för att svara
-     * med ett felmeddelande. Fällningen triggar först omförsöket precis som de andra vakterna —
-     * listan används bara när även omförsöket bröt mot regeln.
+     * Regelbrott som går att städa bort i efterhand: bär med sig de bilar som FAKTISKT klarade
+     * regeln, så att den mjuka vägen i getRecommendation kan visa dem i stället för att svara
+     * med ett felmeddelande. Fällningen triggar först omförsöket precis som förut — listan
+     * används bara när även omförsöket bröt mot regeln.
+     *
+     * <p>Alla tre regelvakter kastar den här. Förut hade var och en sin egen hårda väg ut, och
+     * ett enda regelbrott bland tre bilar kostade hela svaret: live 2026-08-09 gav elbil +
+     * 225 000 kr + 5 passagerare HTTP 500 i tre försök av tre, dels på en overifierbar modell,
+     * dels på avhuggen JSON. Två riktiga bilar är ett bättre svar än noll.
      */
-    static class NonEvSuggestedException extends RuntimeException {
-        private final transient List<CarRecommendation> elbilar;
+    static class RuleViolationException extends RuntimeException {
+        private final transient List<CarRecommendation> kvar;
 
-        NonEvSuggestedException(List<CarRecommendation> elbilar) {
-            super("AI:n föreslog en bil som inte är elbil. Försök igen.");
-            this.elbilar = List.copyOf(elbilar);
+        RuleViolationException(String message, List<CarRecommendation> kvar) {
+            super(message);
+            this.kvar = List.copyOf(kvar);
         }
 
-        /** De godkända bilarna ur svaret — tom när AI:n inte föreslog en enda elbil. */
-        List<CarRecommendation> elbilar() { return elbilar; }
+        /** De godkända bilarna ur svaret — tom när ingen bil klarade regeln. */
+        List<CarRecommendation> kvar() { return kvar; }
     }
 
     /**
@@ -1330,6 +1353,40 @@ public class GroqService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Samma fel, men med vad användaren faktiskt kan ändra. "Försök igen" är ett dåligt råd när
+     * samma sökning misslyckas varje gång: elbil + 225 000 kr + 5 passagerare gav HTTP 500 i tre
+     * försök av tre 2026-08-09, medan fyra passagerare gick igenom direkt. Orsaken skrivs inte
+     * om — den varierar mellan avhuggen JSON och overifierbar modell, och gissas inte här.
+     */
+    static RuntimeException medRadOmKriterier(RuntimeException e) {
+        return new RuntimeException(e.getMessage()
+                + " Kriterierna kan vara för snäva — prova högre budget, färre passagerare"
+                + " eller ett annat drivmedel.");
+    }
+
+    /**
+     * De bilar som klarar ALLA regler, ur ett svar som brutit mot minst en.
+     *
+     * <p>Vakterna körs i kedja och den första som fäller avbryter resten, så listan i undantaget
+     * är bara rensad från det regelbrottet. En overifierbar modell kan alltså plockas bort medan
+     * en hybrid står kvar i ett elbilssök. Därför körs kedjan om på det som blev kvar tills den
+     * går ren — varje varv tar bort minst en bil, så loopen avslutas alltid.
+     */
+    private static List<CarRecommendation> keepPassingCars(
+            RuleViolationException violation, java.util.function.Consumer<List<CarRecommendation>> validator) {
+        List<CarRecommendation> kvar = violation.kvar();
+        while (!kvar.isEmpty()) {
+            try {
+                validator.accept(kvar);
+                return kvar;
+            } catch (RuleViolationException e) {
+                kvar = e.kvar();
+            }
+        }
+        return List.of();
     }
 
     /**
@@ -1359,16 +1416,20 @@ public class GroqService {
     private void requireKnownModels(List<CarRecommendation> parsed) {
         List<Set<String>> known = knownModelTokenSets;
         if (known.isEmpty()) return; // whitelisten inte laddad än — släpp igenom hellre än att fälla korrekt
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
         for (CarRecommendation r : parsed) {
             String name = r.title() == null ? "" : CarTitle.stripYear(r.title());
             Set<String> titleTokens = modelTokens(name);
-            if (titleTokens.size() < 2) continue;
-            boolean matched = known.stream().anyMatch(k -> titleTokens.containsAll(k) || k.containsAll(titleTokens));
-            if (!matched) {
-                log.warn("AI föreslog en modell som inte kunde verifieras mot databasen: {}", r.title());
-                throw new RuntimeException("AI:n föreslog en bilmodell som inte kunde verifieras. Försök igen.");
-            }
+            boolean matched = titleTokens.size() < 2
+                    || known.stream().anyMatch(k -> titleTokens.containsAll(k) || k.containsAll(titleTokens));
+            if (matched) kvar.add(r);
+            else avvisade.add(r.title());
         }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog modell(er) som inte kunde verifieras mot databasen: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException("AI:n föreslog en bilmodell som inte kunde verifieras. Försök igen.", kvar);
     }
 
     private List<CarRecommendation> convertRecommendations(JsonNode node) {
