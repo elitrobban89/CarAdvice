@@ -97,7 +97,18 @@ public class GroqService {
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
-    /** Omförsökets tokentak — se jsonCallBody(…, maxTokens) för varför det är högre än 3000. */
+    /**
+     * Tokentaket för ett rekommendationssvar. Höjt från 3000 2026-08-09: tre bilar med pros,
+     * fitSummary, expertOpinion och motoralternativ på svenska ryms inte alltid, och "AI-svaret
+     * blev ofullständigt" slog två gånger av tre på ett elbilssök för 175 000 kr.
+     *
+     * <p>Taket är inte gratis. Reserverade tokens räknas mot Groqs dygnstak (200 000 per
+     * organisation), som **delas med nattscrapern** — 1 000 extra per sökning syns i den budgeten
+     * om söktrycket blir högt. Blir nattskörden tunn en dag med många sökningar är det här en
+     * kandidat att titta på.
+     */
+    private static final int RECOMMENDATION_MAX_TOKENS = 4000;
+    /** Omförsökets tokentak — se jsonCallBody(…, maxTokens) för varför det är högre än ordinarie. */
     private static final int RETRY_MAX_TOKENS = 4500;
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
@@ -160,14 +171,13 @@ public class GroqService {
     }
 
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt, String userPrompt) {
-        return jsonCallBody(modelName, temperature, systemPrompt, userPrompt, 3000);
+        return jsonCallBody(modelName, temperature, systemPrompt, userPrompt, RECOMMENDATION_MAX_TOKENS);
     }
 
     /**
-     * Med eget takvärde. Reservmodellen får mer utrymme: "AI-svaret blev ofullständigt" betyder
-     * att resonemanget åt upp budgeten innan JSON:en hann skrivas färdig, och att göra om
-     * försöket med samma tak upprepar oftast samma trunkering. Taket kostar bara när det
-     * används, och omförsöket görs bara när första svaret redan misslyckats.
+     * Med eget takvärde. Reservmodellen får mer utrymme än ordinarie: "AI-svaret blev
+     * ofullständigt" betyder att svaret inte hann skrivas färdigt inom taket, och att göra om
+     * försöket med samma tak upprepar oftast samma trunkering.
      */
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt,
                                              String userPrompt, int maxTokens) {
