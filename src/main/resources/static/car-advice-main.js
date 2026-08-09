@@ -201,6 +201,7 @@ var CA_OVER_CATEGORY = {
 // kortare men CSP:n på sidan är stram, och en blockerad stilregel ger ett stillastående hjul som
 // ser trasigt ut. element.animate() är ett JS-API och berörs inte.
 var caBurnoutAnims = [];
+var caSmokeInterval = null;
 
 function caBurnoutBox() {
   var box = document.getElementById('ca-burnout');
@@ -211,23 +212,41 @@ function caBurnoutBox() {
   box.id = 'ca-burnout';
   // Glöden ligger i BAKGRUNDSLAGRET på rutan, inte som ett absolut lager ovanpå. Ett överlagt
   // sken tvättar ur det som ligger under — samma fälla som kortens ::before-glow gick i.
-  box.setAttribute('style', 'display:flex;justify-content:center;padding:10px 0 2px;' +
+  box.setAttribute('style', 'position:relative;display:flex;justify-content:center;' +
+    'padding:12px 0 14px;overflow:hidden;' +
     'background:radial-gradient(ellipse at center,rgba(139,92,246,.20),transparent 65%)');
+  // Röken ligger BAKOM glaskortet (z-index 0 mot kortets 1) så puffarna ser ut att välla fram
+  // under däcket i stället för att ligga som dis framför det.
   box.innerHTML =
-    '<div id="ca-glass" style="position:relative;width:64px;height:64px;border-radius:18px;' +
-      'display:flex;align-items:center;justify-content:center;overflow:hidden;' +
+    '<div id="ca-smoke" style="position:absolute;inset:0;z-index:0;pointer-events:none"></div>' +
+    '<div style="position:absolute;left:12%;right:12%;bottom:9px;height:2px;border-radius:2px;' +
+      'z-index:0;background:linear-gradient(90deg,transparent,rgba(139,92,246,.5) 30%,' +
+      'rgba(139,92,246,.5) 70%,transparent)"></div>' +
+    '<div id="ca-glass" style="position:relative;z-index:1;width:64px;height:64px;' +
+      'border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden;' +
       'background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));' +
       '-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);' +
       'border:1px solid rgba(255,255,255,.16);' +
       'box-shadow:0 6px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.22)">' +
-      '<svg id="ca-wheel" width="38" height="38" viewBox="0 0 42 42" aria-hidden="true">' +
-        '<circle cx="21" cy="21" r="19" fill="rgba(10,8,20,.55)" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/>' +
-        '<circle cx="21" cy="21" r="11.5" fill="none" stroke="#8b5cf6" stroke-width="2.5"/>' +
-        '<circle cx="21" cy="21" r="3.5" fill="#c4b5fd"/>' +
-        '<g stroke="#a78bfa" stroke-width="2" stroke-linecap="round">' +
-          '<line x1="21" y1="21" x2="21" y2="10.5"/><line x1="21" y1="21" x2="30" y2="26.5"/>' +
-          '<line x1="21" y1="21" x2="12" y2="26.5"/>' +
+      // Däcket: gummit måste ha MÖNSTER, annars är en roterande ring omöjlig att skilja från
+      // en stillastående. Klackarna sitter som streck runt slitbanan och gör varvet synligt.
+      '<svg id="ca-wheel" width="42" height="42" viewBox="0 0 42 42" aria-hidden="true">' +
+        '<circle cx="21" cy="21" r="19.5" fill="#0d0b14"/>' +
+        '<circle cx="21" cy="21" r="16.5" fill="none" stroke="#1c1828" stroke-width="6"/>' +
+        '<g stroke="#39324d" stroke-width="2.6" stroke-linecap="butt">' +
+          '<line x1="21" y1="2.5" x2="21" y2="8"/><line x1="30.5" y1="5" x2="27.8" y2="9.8"/>' +
+          '<line x1="37.5" y1="11.5" x2="32.7" y2="14.2"/><line x1="39.5" y1="21" x2="34" y2="21"/>' +
+          '<line x1="37.5" y1="30.5" x2="32.7" y2="27.8"/><line x1="30.5" y1="37" x2="27.8" y2="32.2"/>' +
+          '<line x1="21" y1="39.5" x2="21" y2="34"/><line x1="11.5" y1="37" x2="14.2" y2="32.2"/>' +
+          '<line x1="4.5" y1="30.5" x2="9.3" y2="27.8"/><line x1="2.5" y1="21" x2="8" y2="21"/>' +
+          '<line x1="4.5" y1="11.5" x2="9.3" y2="14.2"/><line x1="11.5" y1="5" x2="14.2" y2="9.8"/>' +
         '</g>' +
+        '<circle cx="21" cy="21" r="10" fill="#17141f" stroke="#8b5cf6" stroke-width="2"/>' +
+        '<g stroke="#a78bfa" stroke-width="2.4" stroke-linecap="round">' +
+          '<line x1="21" y1="21" x2="21" y2="12.5"/><line x1="21" y1="21" x2="28.4" y2="25.2"/>' +
+          '<line x1="21" y1="21" x2="13.6" y2="25.2"/>' +
+        '</g>' +
+        '<circle cx="21" cy="21" r="3" fill="#c4b5fd"/>' +
       '</svg>' +
       // Blixten: en smal ljusstrimma som sveper snett över glaset med jämna mellanrum
       '<div id="ca-flash" style="position:absolute;top:-40%;left:-75%;width:60%;height:180%;' +
@@ -237,6 +256,26 @@ function caBurnoutBox() {
     '</div>';
   loader.appendChild(box);
   return box;
+}
+
+/** Rökpuff under däcket — driver ut åt sidan och uppåt medan den tunnas ut. */
+function caSpawnSmoke() {
+  var smoke = document.getElementById('ca-smoke');
+  if (!smoke) return;
+  var size = 16 + Math.random() * 18;
+  var puff = document.createElement('div');
+  puff.setAttribute('style', 'position:absolute;left:50%;bottom:6px;margin-left:' +
+    (-size / 2) + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:50%;' +
+    'background:radial-gradient(circle,rgba(222,217,238,.7),rgba(222,217,238,0) 70%)');
+  smoke.appendChild(puff);
+  // Puffarna går åt båda hållen — bara åt vänster ser ut som fartvind, inte som burnout
+  var hall = Math.random() < 0.5 ? -1 : 1;
+  var anim = puff.animate(
+    [{ transform: 'translate(0,0) scale(.35)', opacity: .8 },
+     { transform: 'translate(' + (hall * (26 + Math.random() * 52)) + 'px,' +
+        (-10 - Math.random() * 20) + 'px) scale(2)', opacity: 0 }],
+    { duration: 950 + Math.random() * 500, easing: 'ease-out' });
+  anim.onfinish = function() { puff.remove(); };
 }
 
 function caBurnoutStart() {
@@ -249,9 +288,15 @@ function caBurnoutStart() {
   var wheel = document.getElementById('ca-wheel');
   var glass = document.getElementById('ca-glass');
   var flash = document.getElementById('ca-flash');
+  // Burnout: däcket spinner loss, alltså snabbt. 260 ms per varv är precis under gränsen där
+  // mönstret blir ett suddigt band och rotationen slutar gå att uppfatta.
   caBurnoutAnims.push(wheel.animate(
     [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
-    { duration: 900, iterations: Infinity, easing: 'linear' }));
+    { duration: 260, iterations: Infinity, easing: 'linear' }));
+  // Skakningen säljer att däcket sliter mot underlaget i stället för att rulla fritt
+  caBurnoutAnims.push(glass.animate(
+    [{ transform: 'translateX(-1px)' }, { transform: 'translateX(1px)' }],
+    { duration: 80, direction: 'alternate', iterations: Infinity }));
   // Glaset andas svagt så rutan inte står helt död mellan blixtarna
   caBurnoutAnims.push(glass.animate(
     [{ boxShadow: '0 6px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.22)' },
@@ -264,11 +309,17 @@ function caBurnoutStart() {
      { transform: 'translateX(420%) rotate(18deg)', opacity: 0, offset: .28 },
      { transform: 'translateX(420%) rotate(18deg)', opacity: 0, offset: 1 }],
     { duration: 2600, iterations: Infinity, easing: 'ease-out' }));
+  caSpawnSmoke();
+  caSmokeInterval = setInterval(caSpawnSmoke, 95);
 }
 
 function caBurnoutStop() {
+  clearInterval(caSmokeInterval);
+  caSmokeInterval = null;
   caBurnoutAnims.forEach(function(a) { a.cancel(); });
   caBurnoutAnims = [];
+  var smoke = document.getElementById('ca-smoke');
+  if (smoke) smoke.innerHTML = '';   // annars ligger halvfärdiga puffar kvar till nästa sökning
   var box = document.getElementById('ca-burnout');
   if (box) box.style.display = 'none';
 }
