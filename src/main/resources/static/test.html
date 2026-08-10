@@ -838,7 +838,17 @@
     </div>
   </div>
 
-  <script>window.CA_API_URL = "http://localhost:8080";</script>
+  <script>
+    // Sidan serveras från BÅDA hållen: lokalt under utveckling och från Render i drift. Hårdkodad
+    // localhost gjorde den oanvändbar som röktest i produktion — då försökte den prata med
+    // besökarens egen dator, så caradvice.onrender.com/test.html aldrig kunde klickas igenom.
+    // Egen host avgör: localhost/127.0.0.1 (och file://, där origin är "null") behåller port 8080,
+    // allt annat pratar med sitt eget origin.
+    window.CA_API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+                         || location.protocol === 'file:')
+      ? 'http://localhost:8080'
+      : location.origin;
+  </script>
   <script src="/car-advice-splash.js" defer></script>
   <script src="/car-advice-main.js" defer></script>
   <script src="/car-advice-chat.js" defer></script>
