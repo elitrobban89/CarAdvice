@@ -117,4 +117,61 @@ class EvDatabaseScraperServiceMatchTest {
         var db = db(utan);
         assertThat(service.findMatch("Kia EV6 Long Range 2WD", 582, db)).isNull();
     }
+
+    // ── Steg 2: oavgjort mellan två lika långa DB-namn ──────────────────────────
+
+    @Test
+    void steg2_tva_lika_langa_dbnamn_ger_ingen_traff() {
+        // Båda DB-namnen är tre ord och båda ryms i det skrapade namnet. Utan spärren avgjorde
+        // nameMap:ens iterationsordning vem som fick siffrorna.
+        var awd = spec("Tesla Model 3 AWD", 566);
+        var rwd = spec("Tesla Model 3 RWD", 513);
+        assertThat(service.findMatch("Tesla Model 3 AWD RWD Dual", 566, db(awd, rwd))).isNull();
+    }
+
+    @Test
+    void steg2_langre_dbnamn_slar_kortare_utan_att_rakna_som_oavgjort() {
+        // Olika längd är inte oavgjort — det längsta (mest specifika) namnet ska fortfarande vinna
+        var kort = spec("Tesla Model 3", 500);
+        var lang = spec("Tesla Model 3 Long Range", 566);
+        assertThat(service.findMatch("Tesla Model 3 Long Range AWD", 566, db(kort, lang))).isSameAs(lang);
+    }
+
+    // ── Kollisionsspärren: flera skrapade bilar om samma DB-rad ─────────────────
+
+    @Test
+    void forsta_ansprakstagaren_far_raden() {
+        Map<String, String> claims = new LinkedHashMap<>();
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range"))
+                .isNull();
+    }
+
+    @Test
+    void andra_bilen_om_samma_rad_blockeras() {
+        // Skarpt fall 2026-08-10: tre andra generationens MG4-sidor pekade var för sig entydigt
+        // ut samma rad "MG4 Long Range" — den sist processade vann, tyst.
+        Map<String, String> claims = new LinkedHashMap<>();
+        EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range");
+
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Urban Premium Long Range"))
+                .isEqualTo("MG MG4 Premium Long Range");
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Urban Comfort Long Range"))
+                .isEqualTo("MG MG4 Premium Long Range");
+    }
+
+    @Test
+    void samma_bil_tva_ganger_ar_ingen_kollision() {
+        // Dubblettrader på cheatsheeten ska inte larma — det är samma bil, inte två varianter
+        Map<String, String> claims = new LinkedHashMap<>();
+        EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range");
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range"))
+                .isNull();
+    }
+
+    @Test
+    void olika_rader_stor_inte_varandra() {
+        Map<String, String> claims = new LinkedHashMap<>();
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range")).isNull();
+        assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 standard range", "MG MG4 Urban Standard Range")).isNull();
+    }
 }

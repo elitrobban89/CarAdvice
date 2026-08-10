@@ -78,6 +78,8 @@ public class EvDatabaseScraperService {
         int updated = 0;
         int created = 0;
         int failed = 0;
+        int collisions = 0;
+        Map<String, String> claims = new LinkedHashMap<>();   // DB-rad → första skrapade bilen, se claimRow
         for (String path : carUrls) {
             int hour = ZonedDateTime.now(STOCKHOLM).getHour();
             if (hour >= 8 && hour < 17) {
@@ -124,6 +126,16 @@ public class EvDatabaseScraperService {
                     continue;
                 }
 
+                String firstClaimant = claimRow(claims, normalize(match.getCarName()), scraped.name());
+                if (firstClaimant != null) {
+                    log.error("SCRAPER ALERT: '{}' matchar DB-raden '{}' som redan tagits av '{}' i samma "
+                            + "körning — troligen olika varianter eller generationer som delar namnord. "
+                            + "Bilen hoppas över; raden behöver antagligen en egen post.",
+                            scraped.name(), match.getCarName(), firstClaimant);
+                    collisions++;
+                    continue;
+                }
+
                 boolean changed = false;
                 if (scraped.rangeKm() > 0 && !Objects.equals(match.getRangeKm(), scraped.rangeKm())) {
                     match.setRangeKm(scraped.rangeKm());
@@ -165,7 +177,12 @@ public class EvDatabaseScraperService {
         }
 
         int total = carUrls.size();
-        log.info("Sync complete — updated={} created={} failed={} total={}", updated, created, failed, total);
+        log.info("Sync complete — updated={} created={} failed={} collisions={} total={}",
+                updated, created, failed, collisions, total);
+        if (collisions > 0) {
+            log.warn("Scraper: {} bilar hoppades över för att de pekade på en redan tagen DB-rad — "
+                    + "se SCRAPER ALERT-raderna ovan", collisions);
+        }
         if (failed > total / 2) {
             log.error("SCRAPER ALERT: {}/{} pages failed — ev-database.org may have changed its HTML structure. Manual inspection needed.", failed, total);
         } else if (failed > 0) {
@@ -311,8 +328,13 @@ public class EvDatabaseScraperService {
         if (nameMap.containsKey(normScraped)) return nameMap.get(normScraped);
 
         // 2. All DB-name words appear in scraped name (longest DB name wins)
+        //
+        // Samma oavgjort-spärr som steg 3: står två lika långa DB-namn kvar på slutet finns det
+        // ingen grund att välja mellan dem, och utan spärren avgjorde nameMap:ens iterationsordning
+        // vilken rad som fick den skrapade bilens siffror — tyst.
         EvSpec best = null;
         int bestLen = 0;
+        boolean ambiguous = false;
         for (Map.Entry<String, EvSpec> entry : nameMap.entrySet()) {
             String[] dbWords = entry.getKey().split("\\s+");
             Set<String> scrapedWords = new HashSet<>(Arrays.asList(normScraped.split("\\s+")));
@@ -320,11 +342,16 @@ public class EvDatabaseScraperService {
             for (String w : dbWords) {
                 if (!scrapedWords.contains(w) && !normScraped.contains(w)) { allMatch = false; break; }
             }
-            if (allMatch && dbWords.length > bestLen) {
+            if (!allMatch) continue;
+            if (dbWords.length > bestLen) {
                 best = entry.getValue();
                 bestLen = dbWords.length;
+                ambiguous = false;
+            } else if (dbWords.length == bestLen && entry.getValue() != best) {
+                ambiguous = true;
             }
         }
+        if (ambiguous) return null;
         if (best != null) return best;
 
         // 3. Omvänt: DB-namnet är MER specifikt än det skrapade.
@@ -360,6 +387,28 @@ public class EvDatabaseScraperService {
         // Lika nära två varianter = ingen aning om vilken. Hellre ingen träff (och en ny rad
         // som syns) än att skriva över fel variants data i tysthet.
         return tie ? null : closest;
+    }
+
+    /**
+     * Anspråksliggare för en synkkörning: vilken skrapad bil som redan skrivit till en DB-rad.
+     *
+     * <p>Steg 2 i {@link #findMatch} kan mycket väl vara entydigt varje gång och ändå ge fel
+     * resultat, för tvetydigheten ligger mellan anropen och inte inuti dem. Skarpt fall 2026-08-10:
+     * ev-database listar sex MG4-poster av andra generationen, och TRE av dem ("Premium Long
+     * Range", "Urban Comfort Long Range", "Urban Premium Long Range") pekar var för sig entydigt
+     * ut vår enda rad "MG4 Long Range". Den sist processade vann, tyst — vilken bils siffror raden
+     * fick berodde på cheatsheetens ordning.
+     *
+     * <p>Samma hållning som steg 3:s oavgjort-spärr: när flera bilar gör anspråk på samma rad
+     * finns det ingen grund att välja mellan dem, så den andra och alla följande hoppas över och
+     * loggas högljutt. Den första skrivningen står kvar — den var redan gjord när kollisionen
+     * upptäcktes, och att rulla tillbaka mitt i en nattkörning är värre än en synlig varning.
+     *
+     * @return null när anspråket beviljas, annars namnet på den bil som tog raden först
+     */
+    static String claimRow(Map<String, String> claims, String dbKey, String scrapedName) {
+        String first = claims.putIfAbsent(dbKey, scrapedName);
+        return first == null || first.equals(scrapedName) ? null : first;
     }
 
     private static String normalize(String s) {
