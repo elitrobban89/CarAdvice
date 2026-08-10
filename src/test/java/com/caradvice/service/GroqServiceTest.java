@@ -589,7 +589,7 @@ class GroqServiceTest {
 
         assertThat(GroqService.activeConstraints(snav))
                 .containsExactly("ren elbil", "minst 400 liter bagage", "familjestor bil",
-                                 "högst 5 år gammal", "högst 230000 kr");
+                                 "högst 5 år gammal", "högst 230 000 kr");
     }
 
     @Test
@@ -598,7 +598,7 @@ class GroqServiceTest {
         CarPreferences bred = new CarPreferences(300_000, "ekonomibil", false, 15_000, "pendling",
                 4, false, "spelar ingen roll", "spelar ingen roll", "köp", null, null);
 
-        assertThat(GroqService.activeConstraints(bred)).containsExactly("högst 330000 kr");
+        assertThat(GroqService.activeConstraints(bred)).containsExactly("högst 330 000 kr");
     }
 
     // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---

@@ -1173,7 +1173,9 @@ function caRenderNarrowNotice() {
     'border:1px solid rgba(251,191,36,.35);border-radius:10px;font-size:.82rem;line-height:1.55;' +
     'color:rgba(255,255,255,.8)');
   el.innerHTML =
-    '<strong style="color:#fcd34d">&#x2139; ' + caEsc(rubrik) + '</strong><br>' +
+    // &#x2139; ensamt renderas som ett vanligt serif-"i" och läser som en stray bokstav —
+    // variantväljaren FE0F tvingar emojiformen, samma som budgetrutans &#x26A0; får gratis
+    '<strong style="color:#fcd34d">&#x2139;&#xFE0F; ' + caEsc(rubrik) + '</strong><br>' +
     'Vi visar hellre f\xe4rre bilar som st\xe4mmer \xe4n tre d\xe4r n\xe5gra inte g\xf6r det. ' +
     'Kraven som gallrade: ' + caEsc(caNarrowCriteria.krav.join(' \xb7 ')) + '. ' +
     'L\xe4tta p\xe5 ett av dem f\xf6r fler alternativ.';

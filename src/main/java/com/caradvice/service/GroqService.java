@@ -1688,7 +1688,10 @@ public class GroqService {
         if (prefs.transmission() != null && !prefs.transmission().isBlank()
                 && !"spelar ingen roll".equals(prefs.transmission()))
             krav.add(prefs.transmission());
-        krav.add("högst " + (prefs.budget() + BUDGET_CEILING_MARGIN_KR) + " kr");
+        // Tusentalsavgränsare som överallt annars i appen — "230000 kr" läser som ett fel.
+        // Locale.ROOT av samma skäl som i golvlistan: svensk locale ger hårt mellanslag.
+        krav.add("högst " + String.format(java.util.Locale.ROOT, "%,d",
+                prefs.budget() + BUDGET_CEILING_MARGIN_KR).replace(',', ' ') + " kr");
         return krav;
     }
 
