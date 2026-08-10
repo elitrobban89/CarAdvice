@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class EvSpecService {
@@ -134,6 +136,7 @@ public class EvSpecService {
                     GENERATION.get(normalize(ev.getCarName()))));
         }
         if (variants.isEmpty()) return null;
+        variants = keepGenerationForYear(variants, modelYear(title));
         variants.sort(java.util.Comparator.comparingDouble(Variant::kwh).thenComparingInt(Variant::km));
         return groupByBattery(variants).stream()
                 .map(EvSpecService::formatGroup)
@@ -141,7 +144,59 @@ public class EvSpecService {
     }
 
     /** En matchad ev_spec-rad: batteri, räckvidd (0 = okänd), trimnamn och modellgeneration. */
-    private record Variant(double kwh, int km, String trim, String generation) {}
+    private record Variant(double kwh, int km, String trim, Generation generation) {}
+
+    /**
+     * Årsmodellen ur en AI-titel ("MG4 Long Range (2023)" → 2023), eller 0 om den saknas.
+     * Samma mönster som strippningen i {@link #verifiedEngineOptions}, men året behålls i stället
+     * för att kastas. "2024+" räknas som 2024.
+     */
+    static int modelYear(String title) {
+        if (title == null) return 0;
+        Matcher m = Pattern.compile("\\(?((?:19|20)\\d{2})\\+?\\)?\\s*$").matcher(title.trim());
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    /**
+     * Behåller bara den generation som faktiskt såldes annonsens årsmodell.
+     *
+     * <p>En MG4 från 2023 är första generationen och har 51/64/77 kWh; en från 2025 är den andra
+     * och har 41,9/52,8/61,7/74,4. Utan filtret listade kortet alla sju batterierna för båda —
+     * sant men obrukbart, och för en begagnatannons dessutom vilseledande: siffrorna för en bil
+     * som inte fanns när annonsbilen tillverkades.
+     *
+     * <p>Filtret slår bara till när det finns något att välja mellan. Har titeln ingen årsmodell,
+     * eller bär ingen av modellens rader en generation (alltså alla modeller utom MG4 i dag),
+     * lämnas listan orörd. Väljer året bort precis allt behålls listan också — hellre för mycket
+     * information än ett tomt fält, och det inträffar om årsmodellen är äldre än vår äldsta rad.
+     *
+     * @param year annonsens årsmodell, 0 om okänd
+     */
+    private static List<Variant> keepGenerationForYear(List<Variant> variants, int year) {
+        if (year == 0) return variants;
+        boolean någonTaggad = variants.stream().anyMatch(v -> v.generation() != null);
+        if (!någonTaggad) return variants;
+
+        int vald = generationForYear(variants, year);
+        List<Variant> kvar = variants.stream()
+                .filter(v -> fromYear(v) == vald)
+                .collect(java.util.stream.Collectors.toList());
+        return kvar.isEmpty() ? variants : kvar;
+    }
+
+    /** Startåret för den nyaste generationen som hunnit börja säljas årsmodell {@code year}. */
+    private static int generationForYear(List<Variant> variants, int year) {
+        return variants.stream()
+                .mapToInt(EvSpecService::fromYear)
+                .filter(from -> from <= year)
+                .max()
+                .orElse(0);
+    }
+
+    /** Generationens startår, 0 för otaggade rader (den äldre generationen). */
+    private static int fromYear(Variant v) {
+        return v.generation() == null ? 0 : v.generation().fromYear();
+    }
 
     /**
      * Rader som tillhör en annan modellgeneration än de omärkta i samma modell.
@@ -158,16 +213,26 @@ public class EvSpecService {
      * {@code ddl-auto=validate}: ett nytt fält på entiteten hade fällt uppstarten innan någon
      * migrering hann köra. Raderna skapas i {@code DataLoader.seedEvSpecExtras}.
      */
-    private static final Map<String, String> GENERATION = Map.of(
-            "mg4 urban standard range",     "MG4 gen 2",
-            "mg4 urban comfort long range", "MG4 gen 2",
-            "mg4 urban premium long range", "MG4 gen 2",
-            "mg4 premium long range",       "MG4 gen 2",
-            "mg4 premium extended range",   "MG4 gen 2",
-            "mg mg4 xpower",                "MG4 gen 2");
+    /**
+     * En modellgeneration och året den började säljas. {@code fromYear} väljer rätt generation åt
+     * en annons med årsmodell — se {@link #generationForYear}. Otaggade rader är per definition
+     * den äldre generationen och behandlas som {@code fromYear = 0}.
+     */
+    private record Generation(String label, int fromYear) {}
+
+    private static final Generation MG4_GEN2 = new Generation("MG4 gen 2", 2025);
+
+    private static final Map<String, Generation> GENERATION = Map.of(
+            "mg4 urban standard range",     MG4_GEN2,
+            "mg4 urban comfort long range", MG4_GEN2,
+            "mg4 urban premium long range", MG4_GEN2,
+            "mg4 premium long range",       MG4_GEN2,
+            "mg4 premium extended range",   MG4_GEN2,
+            "mg mg4 xpower",                MG4_GEN2);
+
 
     /** En grupp hopslagna varianter: bruttobatteri, räckviddsspann, trimnamn och generation. */
-    private record Group(double kwh, int minKm, int maxKm, String trim, String generation) {}
+    private record Group(double kwh, int minKm, int maxKm, String trim, Generation generation) {}
 
     private static java.util.Set<String> titleSetOf(String[] titleWords) {
         return new java.util.HashSet<>(java.util.Arrays.asList(titleWords));

@@ -320,6 +320,47 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void arsmodellenIAnnonsenValjerGeneration() {
+        // En MG4 från 2023 är gen 1 och en från 2025 är gen 2 — kortet ska visa den generation
+        // annonsbilen faktiskt är, inte alla sju batterierna för båda.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG4 Standard Range", 11.0, 117.0, 51.0, 350, 295_000),
+                new EvSpec("MG4 Extended Range", 11.0, 150.0, 77.0, 520, 375_000),
+                new EvSpec("MG4 Urban Standard Range", 11.0, 82.0, 41.9, 325, 0),
+                new EvSpec("MG4 Premium Extended Range", 11.0, 144.0, 74.4, 545, 0)));
+
+        assertThat(service().verifiedEngineOptions("MG4 (2023)"))
+                .isEqualTo("51 kWh (350 km) · Standard Range, 77 kWh (520 km) · Extended Range");
+        assertThat(service().verifiedEngineOptions("MG4 (2025)"))
+                .isEqualTo("41.9 kWh (325 km) · Urban Standard Range, "
+                         + "74.4 kWh (545 km) · Premium Extended Range");
+        // Utan årsmodell finns inget att välja på — då visas båda generationerna som förut
+        assertThat(service().verifiedEngineOptions("MG4"))
+                .contains("51 kWh").contains("41.9 kWh");
+    }
+
+    @Test
+    void arsmodellPaverkarInteModellerUtanGenerationer() {
+        // Filtret får bara slå till där generationer är uppgivna — alla andra modeller orörda
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Kia EV6 Standard", 11.0, 180.0, 58.0, 394, 400_000),
+                new EvSpec("Kia EV6 Long Range", 11.0, 240.0, 77.0, 528, 480_000)));
+
+        assertThat(service().verifiedEngineOptions("Kia EV6 (2023)"))
+                .isEqualTo("58 kWh (394 km) · Standard, 77 kWh (528 km) · Long Range");
+    }
+
+    @Test
+    void arsmodellAldreAnAllaRaderTommerIngenLista() {
+        // 2019 är före båda generationerna — hellre för mycket information än ett tomt fält
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG4 Urban Standard Range", 11.0, 82.0, 41.9, 325, 0)));
+
+        assertThat(service().verifiedEngineOptions("MG4 (2019)"))
+                .isEqualTo("41.9 kWh (325 km) · Urban Standard Range");
+    }
+
+    @Test
     void basmodellenUtanTrimFarIngenEtikett() {
         // Raden ar modellen sjalv ("MG4") — inget blir kvar nar titelorden tagits bort
         when(repo.findAll()).thenReturn(List.of(
