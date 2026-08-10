@@ -577,6 +577,28 @@ class GroqServiceTest {
         assertThat(GroqService.harGolvvakt(begagnat)).isTrue();
     }
 
+    // --- utanMarknadspastaende (AI:ns påhittade Blocket-siffror i whyRecommended) ---
+
+    @Test
+    void aiPastaendeOmBlocketTasBort() {
+        // Live 2026-08-10: kortet visade "Blocket-annonser visar begagnatgolv 199 000 kr för
+        // 2021-modell med 11 800 km" i KURSIV direkt under den verifierade prisraden, som sa
+        // 239 900–469 900 kr ur riktiga annonser. Två motstridiga Blocket-siffror med två
+        // centimeters mellanrum, varav den påhittade ser mest specifik ut.
+        String why = "Teknikens Värld: toppbetyg. Blocket-annonser visar begagnatgolv 199 000 kr.";
+
+        assertThat(GroqService.utanMarknadspastaende(why, "Volkswagen ID.4 (2021)"))
+                .isEqualTo("Teknikens Värld: toppbetyg.");
+    }
+
+    @Test
+    void kallhanvisningenOverleverStadningen() {
+        // Bara meningen med marknadspåståendet faller — källan är fortfarande värd att visa
+        String rent = "Vi Bilägare: prisvärd och rymlig familjebil";
+        assertThat(GroqService.utanMarknadspastaende(rent, "Kia Niro EV (2020)")).isEqualTo(rent);
+        assertThat(GroqService.utanMarknadspastaende(null, "x")).isNull();
+    }
+
     // --- rate limit vs trunkering (två olika fel som såg identiska ut) ---
 
     @Test

@@ -663,10 +663,41 @@ public class GroqService {
             }
 
             result.add(new CarRecommendation(
-                    r.title(), price, r.whyRecommended(), r.pros(), r.con(),
+                    r.title(), price, utanMarknadspastaende(r.whyRecommended(), r.title()), r.pros(), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, horsepower, engineOptions));
         }
         return result;
+    }
+
+    /**
+     * Tar bort AI:ns egna marknadspåståenden ur {@code whyRecommended}.
+     *
+     * <p>Fältet ska bära en källa ("Teknikens Värld: toppbetyg"), men live 2026-08-10 skrev
+     * modellen "Blocket-annonser visar begagnatgolv 199 000 kr för 2021-modell med 11 800 km"
+     * — en påhittad siffra som renderas i kursiv stil direkt UNDER kortets verifierade prisrad,
+     * där det stod 239 900–469 900 kr ur riktiga annonser. Två motstridiga Blocket-siffror med
+     * två centimeters mellanrum, varav den påhittade ser mest specifik ut.
+     *
+     * <p>Samma skäl som bakom "FABRICERA ALDRIG PRISER": en gissad siffra bredvid en verifierad
+     * är värre än ingen siffra alls. Prompten säger nu ifrån, men prompttext har visat sig vara
+     * en svag garanti i det här projektet — därför tas påståendet bort i kod också. Bara den
+     * meningen faller, inte hela fältet: källhänvisningen är fortfarande värd att visa.
+     */
+    static String utanMarknadspastaende(String why, String title) {
+        if (why == null || why.isBlank()) return why;
+        String[] meningar = why.split("(?<=[.!?])\\s+");
+        StringBuilder kvar = new StringBuilder();
+        boolean tappat = false;
+        for (String m : meningar) {
+            String lower = m.toLowerCase();
+            boolean marknad = lower.contains("blocket") || lower.contains("annons")
+                    || lower.contains("begagnatgolv") || lower.contains("mätarställning");
+            if (marknad) { tappat = true; continue; }
+            if (kvar.length() > 0) kvar.append(' ');
+            kvar.append(m);
+        }
+        if (tappat) log.info("Tog bort AI:ns marknadspåstående ur whyRecommended för \"{}\": {}", title, why);
+        return kvar.toString().trim();
     }
 
     public Result getRecommendation(CarPreferences prefs) throws Exception {
@@ -2212,6 +2243,7 @@ public class GroqService {
                 SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
+                "whyRecommended" är en KÄLLA eller ett omdöme ("Teknikens Värld: toppbetyg", "Vi Bilägare: prisvärd och rymlig") — ALDRIG pris- eller marknadsuppgifter. Skriv aldrig meningar om Blocket, antal annonser, begagnatgolv eller mätarställningar där: de siffrorna räknas fram ur riktiga annonser och står redan på kortet, så en gissning bredvid dem blir en synlig motsägelse.
                 FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.
                 Ange motorbeteckning (TDI/TSI/MPI/volym) bara om du är säker på att varianten finns — annars bara hk + 'manuell'/'automat'.
                 Rekommendera ALDRIG BYD Dolphin eller Hyundai INSTER. Håll dig till dessa märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai, Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är bensinbil, INTE elbil. Aldrig bensin/diesel när användaren efterfrågar elbil.
