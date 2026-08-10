@@ -284,7 +284,7 @@ class GroqServiceTest {
         assertThat(sp)
                 .contains("UPPMÄTTA BEGAGNATGOLV")
                 .contains("högst 10 000 mil")   // utan milgränsen sätter vraken golvet
-                .contains("MG4 och Hyundai Kona Electric fr. ca 195 000")
+                .contains("MG4 fr. ca 195 000")
                 .contains("Kia EV6 fr. ca 317 000");
     }
 
@@ -507,6 +507,74 @@ class GroqServiceTest {
                 "{\"recommendations\":[" + id4 + "," + mg4 + "]}");
         GroqService.requireFamilySizedCars(parsed); // ska inte kasta
         assertThat(parsed).hasSize(2);
+    }
+
+    // --- requireAffordableModels (begagnatgolven i kod, inte bara i prompten) ---
+
+    @Test
+    void bilOverBudgetgolvetAvvisas() throws Exception {
+        // Live 2026-08-10, BÅDA körningarna: elbil + 200 000 kr gav Kia EV6, vars golv 317 000
+        // står utskrivet i samma prompt tio rader ovanför regeln som förbjuder det. Prompttext
+        // räcker inte — samma lärdom som familjespärren och drivmedelsvakten gav.
+        List<CarRecommendation> parsed = parsatSvarMed("Kia EV6 (2023)");
+        assertThatThrownBy(() -> GroqService.requireAffordableModels(parsed, 200_000))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("inte går att köpa för budgeten");
+    }
+
+    @Test
+    void bilInomGolvetSlappsIgenom() throws Exception {
+        // MG4:s golv är 195 000 — ryms under 200 000 + 30 000
+        List<CarRecommendation> mg4 = parsatSvarMed("MG4 (2023)");
+        GroqService.requireAffordableModels(mg4, 200_000);   // ska inte kasta
+        assertThat(mg4).hasSize(1);
+    }
+
+    @Test
+    void omattModellSlappsIgenom() throws Exception {
+        // Tabellen är en handfull mätta modeller, inte en marknadsöversikt
+        List<CarRecommendation> okand = parsatSvarMed("Cupra Born (2022)");
+        GroqService.requireAffordableModels(okand, 150_000);   // ska inte kasta
+        assertThat(okand).hasSize(1);
+    }
+
+    @Test
+    void rattelsenRaknarUppModellerSomRyms() throws Exception {
+        // Samma mönster som de andra vakterna: omförsöket ska veta vad det SKA välja, inte bara
+        // vad som var fel. Utan listan föreslår modellen ofta en lika dyr bil igen.
+        List<CarRecommendation> parsed = parsatSvarMed("Kia EV6 (2023)");
+        assertThatThrownBy(() -> GroqService.requireAffordableModels(parsed, 150_000))
+                .isInstanceOfSatisfying(GroqService.RuleViolationException.class, e -> {
+                    assertThat(e.rattelse()).contains("Renault Zoe").contains("Nissan Leaf")
+                                            .contains("MG ZS EV");
+                    assertThat(e.rattelse()).doesNotContain("Kia EV6");
+                    assertThat(e.avvisade()).anyMatch(a -> a.contains("317000"));
+                });
+    }
+
+    @Test
+    void golvenIPromptenByggsUrSammaTabellSomVakten() {
+        // Två kopior av samma siffror glider isär vid nästa mätning — texten genereras därför
+        // ur EV_PRICE_FLOOR_KR
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(GroqService.EV_PRICE_FLOOR_KR.get("Kia EV6")).isEqualTo(317_000);
+        assertThat(sp).contains("Kia EV6 fr. ca 317 000");
+        assertThat(sp).contains("MG4 fr. ca 195 000");
+    }
+
+    @Test
+    void golvvaktenGallerInteNybilssokEllerLeasing() {
+        // Golven är BEGAGNATpriser: ett nybilssök eller en leasingförfrågan mäts mot fel tal
+        CarPreferences nybil = new CarPreferences(200_000, "elbil", false, 15_000, "pendling",
+                4, true, "el", null, "köp", null, null);
+        CarPreferences leasing = new CarPreferences(5_000, "elbil", false, 15_000, "pendling",
+                4, false, "el", null, "leasing", null, null);
+        CarPreferences begagnat = new CarPreferences(200_000, "elbil", false, 15_000, "pendling",
+                4, false, "el", null, "köp", null, null);
+
+        assertThat(GroqService.harGolvvakt(nybil)).isFalse();
+        assertThat(GroqService.harGolvvakt(leasing)).isFalse();
+        assertThat(GroqService.harGolvvakt(begagnat)).isTrue();
     }
 
     // --- requireCargoCapacity (bagagekravet i kod, inte bara i prompten) ---

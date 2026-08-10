@@ -53,10 +53,51 @@ public class GroqService {
      * som prisraden på korten; utan milgränsen sätts golvet av marknadens mest slitna exemplar.
      * Siffrorna åldras: mät om båda listorna samtidigt, aldrig bara den ena.
      */
-    private static final String EV_PRICE_FLOORS = """
-            ELBIL (kategori "elbil") — UPPMÄTTA BEGAGNATGOLV på svenska marknaden (billigaste annons med högst 10 000 mil, augusti 2026). Använd dem som prisankare i stället för att räkna fram priset ur nypriset:
-            Renault Zoe fr. ca 58 000, Nissan Leaf fr. ca 70 000, MG ZS EV fr. ca 130 000, VW e-Golf fr. ca 139 000, Kia Niro EV fr. ca 175 000, MG5 fr. ca 180 000 (elkombi), MG4 och Hyundai Kona Electric fr. ca 195 000, VW ID.3 fr. ca 199 000, Polestar 2 fr. ca 209 000, Tesla Model 3 fr. ca 215 000, VW ID.4 fr. ca 229 500, Škoda Enyaq fr. ca 279 000, Kia EV6 fr. ca 317 000.
-            En modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en modell vars golv ligger nära budgeten. Golvet är billigaste exemplaret: ett välutrustat eller lågmilat exemplar kostar mer.""";
+    /**
+     * Uppmätta begagnatgolv, som DATA och inte bara som prompttext.
+     *
+     * <p>Första versionen stod bara i prompten, och två live-sökningar 2026-08-10 visade att det
+     * inte räcker: Kia EV6 föreslogs för en 200 000-budget i BÅDA körningarna, med sitt eget golv
+     * på 317 000 utskrivet tio rader ovanför regeln som förbjuder det. Samma lärdom som
+     * familjespärren, drivmedelsvakten, årsmodellvakten och bagagekravet gav — en regel som bara
+     * står i prompten är ingen regel. {@link #requireAffordableModels} läser den här tabellen.
+     *
+     * <p>Golven är billigaste annons med högst 10 000 mil (samma underlag som prisraden på
+     * korten) och speglar {@code CA_BUDGET_LEVELS.elbil} i car-advice-main.js — mät om båda
+     * samtidigt. Nyckeln matchas ord för ord mot titeln, mest specifika namnet vinner.
+     */
+    static final Map<String, Integer> EV_PRICE_FLOOR_KR = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("Renault Zoe",           58_000),
+            Map.entry("Nissan Leaf",           70_000),
+            Map.entry("MG ZS EV",             130_000),
+            Map.entry("Volkswagen e-Golf",    139_000),
+            Map.entry("Kia Niro EV",          175_000),
+            Map.entry("MG5",                  180_000),
+            Map.entry("MG4",                  195_000),
+            Map.entry("Hyundai Kona Electric",195_000),
+            Map.entry("Volkswagen ID.3",      199_000),
+            Map.entry("Polestar 2",           209_000),
+            Map.entry("Tesla Model 3",        215_000),
+            Map.entry("Volkswagen ID.4",      229_500),
+            Map.entry("Hyundai Ioniq 5",      269_000),
+            Map.entry("Skoda Enyaq",          279_000),
+            Map.entry("Kia EV6",              317_000)));
+
+    /** Promptraden byggs UR tabellen — annars glider text och vakt isär vid nästa mätning. */
+    private static final String EV_PRICE_FLOORS =
+            "ELBIL (kategori \"elbil\") — UPPMÄTTA BEGAGNATGOLV på svenska marknaden (billigaste annons"
+            + " med högst 10 000 mil, augusti 2026). Använd dem som prisankare i stället för att räkna"
+            + " fram priset ur nypriset:\n"
+            // Locale.ROOT med flit: svensk locale ger HÅRT mellanslag (U+00A0) som
+            // grupperingstecken, och då matchar varken testet eller en sökning i prompten det
+            // som står där. Samma familj av fälla som U+202F i AI-titlarna 2026-08-10.
+            + EV_PRICE_FLOOR_KR.entrySet().stream()
+                    .map(e -> e.getKey() + " fr. ca "
+                            + String.format(java.util.Locale.ROOT, "%,d", e.getValue()).replace(',', ' '))
+                    .collect(java.util.stream.Collectors.joining(", "))
+            + ".\nEn modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en"
+            + " modell vars golv ligger nära budgeten. Golvet är billigaste exemplaret: ett välutrustat"
+            + " eller lågmilat exemplar kostar mer.";
 
     /**
      * {@code budgetShortfallFromKr} är null i normalfallet. Är den satt gick ingen bil att
@@ -1578,7 +1619,68 @@ public class GroqService {
             int krav = prefs.minCargoLiters();
             validator = validator.andThen(p -> requireCargoCapacity(p, krav));
         }
+        if (harGolvvakt(prefs)) {
+            int budget = prefs.budget();
+            validator = validator.andThen(p -> requireAffordableModels(p, budget));
+        }
         return validator;
+    }
+
+    /**
+     * Skarpt läge: fäller bilar vars UPPMÄTTA begagnatgolv ligger över budgettaket.
+     *
+     * <p>Byggd efter två live-sökningar 2026-08-10 där prompttexten inte räckte: elbil +
+     * 200 000 kr gav Kia EV6 (golv 317 000) båda gångerna, tillsammans med Ioniq 5 och Enyaq —
+     * alla långt över taket, och alla med sitt golv utskrivet i samma prompt. Vakten är alltså
+     * inte en dubblett av {@code exceedsBudgetCeiling}: den kör FÖRE Blocket-uppslaget, på ren
+     * kunskap om modellen, och hinner därför utlösa ett omförsök som pekar ut både de fällda
+     * bilarna och vilka modeller som faktiskt ryms.
+     *
+     * <p>Gäller bara begagnatsök: golven är begagnatpriser, så ett nybilssök eller en
+     * leasingförfrågan mäts mot fel tal och lämnas åt {@code exceedsBudgetCeiling}. Okänd modell
+     * släpps igenom — tabellen är en handfull mätta modeller, inte en marknadsöversikt.
+     */
+    static void requireAffordableModels(List<CarRecommendation> parsed, int budgetKr) {
+        int tak = budgetKr + BUDGET_CEILING_MARGIN_KR;
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            Integer golv = floorForTitle(r.title());
+            if (golv != null && golv > tak) avvisade.add(r.title() + " (golv " + golv + " kr)");
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+
+        String raryms = EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() <= tak)
+                .map(Map.Entry::getKey)
+                .collect(java.util.stream.Collectors.joining(", "));
+        log.warn("AI föreslog bil(ar) vars begagnatgolv överstiger {} kr: {} — {} bil(ar) kvar",
+                tak, String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException(
+                "AI:n föreslog bilar som inte går att köpa för budgeten. Försök igen.", kvar, avvisade,
+                "Modellens billigaste exemplar måste rymmas under " + tak + " kr."
+                + (raryms.isBlank() ? "" : " Modeller som gör det: " + raryms + "."));
+    }
+
+    /**
+     * Golvvakten gäller bara begagnatsök — golven är begagnatpriser, så ett nybilssök eller en
+     * leasingförfrågan mäts mot fel tal och lämnas åt {@code exceedsBudgetCeiling}, som redan
+     * hanterar båda lägena med egna referenser (nypris respektive kr/mån).
+     */
+    static boolean harGolvvakt(CarPreferences prefs) {
+        return !prefs.newCar() && !"leasing".equals(prefs.budgetType());
+    }
+
+    /** Golvet för titelns modell, eller null när modellen inte är mätt. Mest specifika namnet vinner. */
+    static Integer floorForTitle(String title) {
+        if (title == null) return null;
+        Set<String> ord = modelTokens(CarTitle.stripYear(title));
+        return EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> ord.containsAll(modelTokens(e.getKey())))
+                .max(java.util.Comparator.comparingInt(e -> modelTokens(e.getKey()).size()))
+                .map(Map.Entry::getValue)
+                .orElse(null);
     }
 
     /**
