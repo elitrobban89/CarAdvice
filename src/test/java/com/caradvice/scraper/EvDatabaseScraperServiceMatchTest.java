@@ -39,6 +39,27 @@ class EvDatabaseScraperServiceMatchTest {
         return m;
     }
 
+    @Test
+    void evDatabasesEgnaDrivlinenamnBlockeras() {
+        // P3/P5/P8 är ev-databases namn på EX30:s drivlinor, som vi redan har under Volvos
+        // egna namn — och de anger nettokapacitet där vi har brutto (49 mot 51, 65 mot 69).
+        // Utan spärren i synken återskapas raderna vid nästa 02:00 efter varje radering.
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 P3")).isTrue();
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 P5 Long Range")).isTrue();
+        assertThat(EvDatabaseScraperService.isAliasName("volvo ex30 p8 awd")).isTrue();
+    }
+
+    @Test
+    void riktigaEx30NamnPasserarAliasSparren() {
+        // Spärren får bara ta "P" följt av en siffra — allt annat är bilar vi vill ha kvar
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 Single Motor")).isFalse();
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 Twin Motor Performance")).isFalse();
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 Cross Country")).isFalse();
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX30 Plus")).isFalse();
+        assertThat(EvDatabaseScraperService.isAliasName("Volvo EX90 P3")).isFalse();
+        assertThat(EvDatabaseScraperService.isAliasName(null)).isFalse();
+    }
+
     // ── EV6-fallet: DB-namnet är mer specifikt än ev-databases ──────────────────
 
     @Test

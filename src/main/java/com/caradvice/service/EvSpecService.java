@@ -231,8 +231,12 @@ public class EvSpecService {
             "mg mg4 xpower",                MG4_GEN2);
 
 
-    /** En grupp hopslagna varianter: bruttobatteri, räckviddsspann, trimnamn och generation. */
-    private record Group(double kwh, int minKm, int maxKm, String trim, Generation generation) {}
+    /**
+     * En grupp hopslagna varianter: brutto- och nettobatteri, räckviddsspann, trimnamn och
+     * generation. {@code minKwh} behövs för att toleransen ska mätas mot gruppens minsta
+     * kapacitet — annars kan en kedja av närliggande värden växa ihop till en enda grupp.
+     */
+    private record Group(double kwh, double minKwh, int minKm, int maxKm, String trim, Generation generation) {}
 
     private static java.util.Set<String> titleSetOf(String[] titleWords) {
         return new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
@@ -280,6 +284,21 @@ public class EvSpecService {
     private static final double SAME_BATTERY_TOLERANCE = 1.08;
 
     /**
+     * Räckvidder inom 2 % räknas som samma siffra.
+     *
+     * <p>Andra halvan av "samma bil"-testet, och den som gör att varianter blir egna rader.
+     * Netto- och bruttokapacitet för samma bil har olika kWh men <b>samma</b> räckvidd (EV6
+     * Standard Range: 60 kWh/428 km och 63 kWh/428 km är en bil listad två gånger). Två
+     * verkliga varianter har tvärtom samma eller nära kapacitet men olika räckvidd — MG4:s
+     * 52,8 kWh finns som Urban Comfort (416 km) och Urban Premium (405 km), och 61,7 kWh som
+     * Premium Long Range (452 km) och XPOWER (405 km).
+     *
+     * <p>Toleransen ligger på 2 % för att den ska stänga just avrundningsglapp mellan källor,
+     * inte äta upp en verklig skillnad: MG4:s tätaste par ligger 2,6 % isär.
+     */
+    private static final double SAME_RANGE_TOLERANCE = 0.02;
+
+    /**
      * Slår ihop varianter som beskriver samma batteri. Databasen innehåller samma bil under
      * flera namn (EX30 finns både som "Single Motor"/"Twin Motor Performance" och som
      * ev-database.orgs "P3"/"P5"/"P8 AWD") och samma batteri både som netto- och
@@ -289,37 +308,71 @@ public class EvSpecService {
      * <p>Jämförelsen görs mot gruppens MINSTA kWh, inte den största, så en lång kedja av
      * närliggande värden inte kan växa ihop till en enda grupp.
      *
-     * <p>Trimnamnet följer bara med när ALLA rader i gruppen bär samma namn. En hopslagen grupp
-     * beskriver per definition flera varianter (EX30:s 51 kWh är P3, P5 och Single Motor), och
-     * ett av namnen godtyckligt utvalt hade pekat ut fel bil — hellre ingen etikett än en som
-     * ljuger. I praktiken betyder det att etiketten syns just när den behövs: när en variant
-     * står ensam på sin rad.
+     * <p><b>Bara dubbletten slås ihop, inte varianten.</b> Kapaciteten ensam räcker inte som
+     * test: MG4:s 52,8 kWh finns som två olika bilar (Urban Comfort 416 km, Urban Premium
+     * 405 km) och 61,7 kWh som två till (Premium Long Range 452 km, XPOWER 405 km) — de slogs
+     * ihop till "52.8 kWh (405–416 km)" och användaren såg inte vilken version som var vilken,
+     * vilket var hela poängen med kortet. Räckvidden avgör därför: samma bil under två namn
+     * har olika kWh men samma räckvidd, två varianter har samma kWh men olika räckvidd.
      *
-     * @param sorted varianter sorterade på kWh stigande (km = 0 om okänt)
+     * <p>Trimnamnet följer bara med när ALLA rader i gruppen bär samma namn. Efter ändringen
+     * ovan är en hopslagen grupp nästan alltid netto/brutto av samma bil under två källors
+     * namn, och där hade ett godtyckligt utvalt namn pekat ut fel rad — hellre ingen etikett
+     * än en som ljuger.
+     *
+     * @param sorted varianter sorterade på kWh stigande, därefter km (km = 0 om okänt)
      * @return grupper med bruttokapacitet, räckviddsspann (0 = saknas) och ev. gemensamt trim
      */
     private static List<Group> groupByBattery(List<Variant> sorted) {
         List<Group> groups = new java.util.ArrayList<>();
-        double groupMinKwh = 0;
         for (Variant v : sorted) {
-            Group current = groups.isEmpty() ? null : groups.get(groups.size() - 1);
-            boolean sammaGeneration = current != null
-                    && java.util.Objects.equals(current.generation(), v.generation());
-            if (current == null || !sammaGeneration || v.kwh() > groupMinKwh * SAME_BATTERY_TOLERANCE) {
-                groups.add(new Group(v.kwh(), v.km(), v.km(), v.trim(), v.generation()));
-                groupMinKwh = v.kwh();
+            // Leta i ALLA grupper, inte bara den senaste: listan är sorterad på kapacitet, så
+            // en bils netto- och bruttorad hamnar inte nödvändigtvis bredvid varandra. EV6
+            // Long Range 2WD ligger som 80 kWh/582 km och 84 kWh/582 km med tre andra rader
+            // emellan, och visades därför som två bilar när bara grannen jämfördes.
+            int träff = -1;
+            for (int i = 0; i < groups.size(); i++) {
+                if (sammaBil(groups.get(i), v)) { träff = i; break; }
+            }
+            if (träff < 0) {
+                groups.add(new Group(v.kwh(), v.kwh(), v.km(), v.km(), v.trim(), v.generation()));
                 continue;
             }
-            int minKm = current.minKm(), maxKm = current.maxKm();
+            Group g = groups.get(träff);
+            int minKm = g.minKm(), maxKm = g.maxKm();
             if (v.km() > 0) {
                 minKm = minKm == 0 ? v.km() : Math.min(minKm, v.km());
                 maxKm = Math.max(maxKm, v.km());
             }
-            String trim = java.util.Objects.equals(current.trim(), v.trim()) ? current.trim() : null;
-            groups.set(groups.size() - 1,                                    // visa bruttokapaciteten
-                    new Group(Math.max(current.kwh(), v.kwh()), minKm, maxKm, trim, current.generation()));
+            String trim = java.util.Objects.equals(g.trim(), v.trim()) ? g.trim() : null;
+            groups.set(träff, new Group(Math.max(g.kwh(), v.kwh()),          // visa bruttokapaciteten
+                    Math.min(g.minKwh(), v.kwh()), minKm, maxKm, trim, g.generation()));
         }
+        // Ihopslagningen kan höja en grupps kapacitet, så ordningen sätts efter den
+        groups.sort(java.util.Comparator.comparingDouble(Group::kwh).thenComparingInt(Group::minKm));
         return groups;
+    }
+
+    /**
+     * Är {@code v} samma bil som gruppen redan beskriver — alltså en dubblett att slå ihop?
+     *
+     * <p>Tre villkor, alla nödvändiga: samma modellgeneration, kapaciteter inom
+     * {@link #SAME_BATTERY_TOLERANCE} av gruppens minsta, och <b>olika</b> kapacitet med
+     * <b>samma</b> räckvidd. Det sista paret är det som skiljer en dubblett från en variant:
+     * exakt samma kWh betyder att raderna kommer från samma källa och beskriver olika bilar,
+     * medan olika kWh + samma räckvidd är netto och brutto för en och samma bil.
+     *
+     * <p>Saknas räckvidden på någon av raderna finns inget att skilja dem åt med, och då slås
+     * de ihop som förut — en rad utan siffror säger ändå ingenting om vilken variant den är.
+     */
+    private static boolean sammaBil(Group g, Variant v) {
+        if (!java.util.Objects.equals(g.generation(), v.generation())) return false;
+        if (v.kwh() > g.minKwh() * SAME_BATTERY_TOLERANCE) return false;
+        if (v.kwh() == g.kwh()) return false;                       // samma kapacitet = egen variant
+        if (g.maxKm() == 0 || v.km() == 0) return true;             // okänd räckvidd skiljer inget
+        int närmast = Math.abs(v.km() - g.maxKm()) <= Math.abs(v.km() - g.minKm())
+                ? g.maxKm() : g.minKm();
+        return Math.abs(v.km() - närmast) <= närmast * SAME_RANGE_TOLERANCE;
     }
 
     /** → "69 kWh (436–480 km)", "52.8 kWh (405 km) · Long Range" eller "51 kWh". */

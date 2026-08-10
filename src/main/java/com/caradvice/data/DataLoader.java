@@ -330,6 +330,18 @@ public class DataLoader implements CommandLineRunner {
             int n = jdbc.update("DELETE FROM ev_spec WHERE LOWER(car_name) LIKE LOWER(?)", brand + "%");
             if (n > 0) log.warn("ev_spec: tog bort {} rader för uteslutet märke {}", n, brand);
         }
+
+        // Aliasrader: samma bilar som våra egna, under ev-databases namn och med nettokapacitet.
+        // Filtreras i Java och inte i SQL — mönstret är "P" följt av en siffra, och en portabel
+        // LIKE kan inte uttrycka det utan att också träffa t.ex. "EX30 Plus".
+        List<EvSpec> alias = evSpecRepo.findAll().stream()
+                .filter(s -> EvDatabaseScraperService.isAliasName(s.getCarName()))
+                .toList();
+        if (!alias.isEmpty()) {
+            evSpecRepo.deleteAll(alias);
+            log.warn("ev_spec: tog bort {} aliasrader: {}", alias.size(),
+                    alias.stream().map(EvSpec::getCarName).toList());
+        }
     }
 
     private void seedEvSpecExtras() {

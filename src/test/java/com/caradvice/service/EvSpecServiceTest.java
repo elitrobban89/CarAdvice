@@ -183,30 +183,57 @@ class EvSpecServiceTest {
         EvSpec twinPerformance = new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 153.0, 65.0, 450, 460_000);
         when(repo.findAll()).thenReturn(List.of(extendedRange, twinPerformance, singleMotor));
 
-        // 51 kWh star ensam pa sin rad och far darfor sitt trimnamn; 65 kWh-gruppen ar tva
-        // varianter och lamnas omarkt (se trimnamnetVisasBaraNarGruppenArEnEndaVariant)
+        // Samma kapacitet men olika rackvidd = tva riktiga varianter, alltsa var sin rad med
+        // sitt namn. Forut blev de "65 kWh (450–480 km)" och anvandaren kunde inte se vilken
+        // version raden gallde — det var hela poangen med faltet.
         assertThat(service().verifiedEngineOptions("Volvo EX30 (2024)"))
-                .isEqualTo("51 kWh (344 km) · Single Motor, 65 kWh (450–480 km)");
+                .isEqualTo("51 kWh (344 km) · Single Motor, "
+                         + "65 kWh (450 km) · Twin Motor Performance, "
+                         + "65 kWh (480 km) · Single Motor Extended Range");
     }
 
     @Test
     void nettoOchBruttokapacitetForSammaBatteriBlirEnRad() {
-        // Produktionsfallet: 19 EX30-rader under tva namngenerationer (Single Motor/Twin Motor
-        // och ev-databases P3/P5/P8) gav nio rader pa kortet. Bilen har tva batterier.
-        // 49/51 ar samma batteri (netto/brutto), likasa 65/69.
+        // Samma bil listad av tva kallor: EV6 Standard Range ligger inne bade som 60 kWh
+        // (netto) och 63 kWh (brutto) — OLIKA kapacitet men SAMMA rackvidd, vilket ar
+        // signaturen for en dubblett. Utan ihopslagningen visas bilen tva ganger.
         when(repo.findAll()).thenReturn(List.of(
-                new EvSpec("Volvo EX30 P3", 11.0, 153.0, 49.0, 337, 320_000),
-                new EvSpec("Volvo EX30 P5", 11.0, 153.0, 49.0, 339, 330_000),
-                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 370_000),
-                new EvSpec("Volvo EX30 P8 AWD", 11.0, 200.0, 65.0, 450, 430_000),
-                new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 463, 400_000),
-                new EvSpec("Volvo EX30 P5 Long Range", 11.0, 153.0, 65.0, 476, 410_000),
-                new EvSpec("Volvo EX30 Cross Country", 11.0, 153.0, 69.0, 436, 395_000),
-                new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 200.0, 69.0, 460, 430_000),
-                new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000)));
+                new EvSpec("Kia EV6 Standard Range 2WD", 11.0, 180.0, 60.0, 428, 400_000),
+                new EvSpec("Kia EV6 Standard Range 63 kWh", 11.0, 180.0, 63.0, 428, 400_000)));
 
-        assertThat(service().verifiedEngineOptions("Volvo EX30 (2024)"))
-                .isEqualTo("51 kWh (337–344 km), 69 kWh (436–480 km)");
+        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km)");
+    }
+
+    @Test
+    void sammaKapacitetMedOlikaRackviddArTvaVarianter() {
+        // Motsatsen till testet ovan och skalet till att regeln bytte form 2026-08-10: MG4:s
+        // 52,8 kWh finns som tva olika bilar (Urban Comfort 416 km, Urban Premium 405 km) och
+        // 61,7 kWh som tva till (Premium Long Range 452 km, XPOWER 405 km). Enbart pa
+        // kapaciteten sags de som ett batteri och slogs ihop till "52.8 kWh (405–416 km)" —
+        // utan namn, eftersom en hopslagen grupp lamnas omarkt. Anvandaren sag da inte vilken
+        // version raden gallde. Rackvidden ar det som skiljer variant fran dubblett.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0),
+                new EvSpec("MG4 Urban Premium Long Range", 11.0, 87.0, 52.8, 405, 0),
+                new EvSpec("MG4 Premium Long Range", 11.0, 154.0, 61.7, 452, 0),
+                new EvSpec("MG MG4 XPOWER", 11.0, 140.0, 61.7, 405, 471_000)));
+
+        assertThat(service().verifiedEngineOptions("MG4 (2025)"))
+                .isEqualTo("52.8 kWh (405 km) · Urban Premium Long Range, "
+                         + "52.8 kWh (416 km) · Urban Comfort Long Range, "
+                         + "61.7 kWh (405 km) · XPOWER, "
+                         + "61.7 kWh (452 km) · Premium Long Range");
+    }
+
+    @Test
+    void variantUtanRackviddSlasIhopSomForut() {
+        // Saknas rackvidden finns inget att skilja raderna at med — da galler den gamla
+        // regeln, annars hade en rad utan siffror blivit en egen tom variant
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Kia EV6 Long Range", 11.0, 233.0, 77.4, 0, 0),
+                new EvSpec("Kia EV6 Long Range 2WD", 11.0, 233.0, 80.0, 582, 0)));
+
+        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("80 kWh (582 km)");
     }
 
     @Test
@@ -221,7 +248,10 @@ class EvSpecServiceTest {
                 new EvSpec("Kia EV6 Long Range AWD 84 kWh", 11.0, 263.0, 84.0, 546, 0)));
 
         assertThat(service().verifiedEngineOptions("Kia EV6"))
-                .isEqualTo("77.4 kWh (424–528 km), 84 kWh (546–582 km)");
+                .isEqualTo("77.4 kWh (424 km) · GT 77.4 kWh, "
+                         + "77.4 kWh (528 km) · Long Range 2WD 77.4 kWh, "
+                         + "84 kWh (546 km) · Long Range AWD 84 kWh, "
+                         + "84 kWh (582 km) · Long Range 2WD 84 kWh");
     }
 
     @Test
@@ -246,10 +276,11 @@ class EvSpecServiceTest {
     @Test
     void duplicerandeDbRaderMedSammaVariantDedupas() {
         // Samma modell kan finnas i flera identiska rader (skett i produktion) — ska bara visas en gång
-        EvSpec dup1 = new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 480, 420_000);
-        EvSpec dup2 = new EvSpec("Volvo EX30 P3 Long Range", 11.0, 153.0, 65.0, 480, 420_000);
+        EvSpec dup1 = new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 200.0, 69.0, 460, 430_000);
+        EvSpec dup2 = new EvSpec("Volvo EX30 Twin Motor Performance", 11.0, 200.0, 69.0, 460, 430_000);
         when(repo.findAll()).thenReturn(List.of(dup1, dup2));
-        assertThat(service().verifiedEngineOptions("Volvo EX30")).isEqualTo("65 kWh (480 km) · P3 Long Range");
+        assertThat(service().verifiedEngineOptions("Volvo EX30"))
+                .isEqualTo("69 kWh (460 km) · Twin Motor Performance");
     }
 
     @Test
@@ -283,14 +314,13 @@ class EvSpecServiceTest {
 
     @Test
     void trimnamnetVisasBaraNarGruppenArEnEndaVariant() {
-        // En hopslagen grupp beskriver flera bilar — 49/51 kWh ar P3, P5 OCH Single Motor.
-        // Ett godtyckligt utvalt namn hade pekat ut fel bil, sa gruppen lamnas omarkt.
+        // En hopslagen grupp beskriver samma bil under tva kallors namn — vilket av dem som
+        // skrivs ut vore godtyckligt, sa gruppen lamnas omarkt
         when(repo.findAll()).thenReturn(List.of(
-                new EvSpec("Volvo EX30 P3", 11.0, 153.0, 49.0, 337, 320_000),
-                new EvSpec("Volvo EX30 P5", 11.0, 153.0, 49.0, 339, 330_000),
-                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 370_000)));
+                new EvSpec("Kia EV6 Standard Range 2WD", 11.0, 180.0, 60.0, 428, 400_000),
+                new EvSpec("Kia EV6 Standard Range 63 kWh", 11.0, 180.0, 63.0, 428, 400_000)));
 
-        assertThat(service().verifiedEngineOptions("Volvo EX30")).isEqualTo("51 kWh (337–344 km)");
+        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km)");
     }
 
     @Test
@@ -310,13 +340,14 @@ class EvSpecServiceTest {
     }
 
     @Test
-    void varianterInomSammaGenerationSlasFortfarandeIhop() {
-        // Spärren får inte slå sönder den vanliga ihopslagningen: båda raderna är gen 2
+    void dubbletterInomSammaGenerationSlasFortfarandeIhop() {
+        // Generationsspärren får inte slå sönder den vanliga ihopslagningen: båda raderna är
+        // gen 2, olika kapacitet och samma räckvidd, alltså samma bil netto och brutto
         when(repo.findAll()).thenReturn(List.of(
                 new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0),
-                new EvSpec("MG4 Urban Premium Long Range", 11.0, 87.0, 52.8, 405, 0)));
+                new EvSpec("MG4 Urban Premium Long Range", 11.0, 87.0, 54.0, 416, 0)));
 
-        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("52.8 kWh (405–416 km)");
+        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("54 kWh (416 km)");
     }
 
     @Test

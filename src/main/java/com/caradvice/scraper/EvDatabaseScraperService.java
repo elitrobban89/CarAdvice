@@ -47,6 +47,26 @@ public class EvDatabaseScraperService {
         return EXCLUDED_BRANDS.stream().anyMatch(b -> n.regionMatches(true, 0, b, 0, b.length()));
     }
 
+    /**
+     * ev-databases egna beteckningar på drivlinor vi redan har under tillverkarens namn.
+     *
+     * <p>Volvo EX30 ligger hos oss som Single Motor, Single Motor Extended Range, Twin Motor
+     * Performance och Cross Country. ev-database kallar samma bilar P3, P5 och P8 AWD — och
+     * anger dessutom NETTOkapacitet där vi har brutto (49 mot 51 kWh, 65 mot 69). Raderna är
+     * alltså inte fler varianter utan samma varianter en gång till, med ett annat tal i
+     * kWh-kolumnen. Så länge motoralternativen slog ihop närliggande batterier syntes det
+     * inte; när varje variant fick en egen rad blev EX30 nio rader för fyra bilar.
+     *
+     * <p>Spärren sitter i synken av samma skäl som {@link #EXCLUDED_BRANDS}: en radering
+     * ensam hade återskapats vid nästa körning 02:00.
+     */
+    private static final Pattern ALIAS_NAME = Pattern.compile("(?i)^volvo\\s+ex30\\s+p\\d\\b.*");
+
+    /** Raden är ev-databases alias för en bil vi redan har under tillverkarens namn. */
+    public static boolean isAliasName(String carName) {
+        return carName != null && ALIAS_NAME.matcher(carName.trim()).matches();
+    }
+
     private final EvSpecRepository repo;
 
     public EvDatabaseScraperService(EvSpecRepository repo) {
@@ -91,6 +111,7 @@ public class EvDatabaseScraperService {
                 ScrapedSpec scraped = scrapeCarPage(BASE_URL + path);
                 if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
                 if (isExcludedBrand(scraped.name())) continue;   // inte failed — medvetet bortvald
+                if (isAliasName(scraped.name())) continue;       // samma bil, ev-databases namn
 
                 EvSpec match = findMatch(scraped.name(), scraped.rangeKm(), nameMap);
                 if (match == null) {

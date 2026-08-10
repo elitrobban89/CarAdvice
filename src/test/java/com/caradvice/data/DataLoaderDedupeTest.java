@@ -22,14 +22,33 @@ import static org.mockito.Mockito.verify;
 class DataLoaderDedupeTest {
 
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+    private final EvSpecRepository evSpecRepo = mock(EvSpecRepository.class);
 
     private DataLoader loader() {
         return new DataLoader(jdbc,
                 mock(ExpertInsightRepository.class), mock(SafetyRatingRepository.class),
-                mock(EvSpecRepository.class), mock(CargoSpecRepository.class),
+                evSpecRepo, mock(CargoSpecRepository.class),
                 mock(NewCarPriceService.class), mock(FeedbackService.class),
                 mock(WebInsightScraperService.class), mock(IceConsumptionService.class),
                 mock(com.caradvice.service.CarVideoService.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aliasraderRaderasMenRiktigaVarianterBehalls() {
+        // ev-databases P3/P5/P8 är samma EX30-varianter som våra egna rader, med netto- i
+        // stället för bruttokapacitet. De var osynliga så länge närliggande batterier slogs
+        // ihop; med en rad per variant blev bilen nio rader för fyra bilar.
+        com.caradvice.model.EvSpec p3 = new com.caradvice.model.EvSpec("Volvo EX30 P3", 11.0, 153.0, 49.0, 339, 0);
+        com.caradvice.model.EvSpec p5lr = new com.caradvice.model.EvSpec("Volvo EX30 P5 Long Range", 11.0, 153.0, 65.0, 476, 0);
+        com.caradvice.model.EvSpec riktig = new com.caradvice.model.EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 0);
+        org.mockito.Mockito.when(evSpecRepo.findAll()).thenReturn(java.util.List.of(p3, p5lr, riktig));
+
+        loader().dedupeEvSpecs();
+
+        ArgumentCaptor<Iterable<com.caradvice.model.EvSpec>> raderade = ArgumentCaptor.forClass(Iterable.class);
+        verify(evSpecRepo).deleteAll(raderade.capture());
+        assertThat(raderade.getValue()).containsExactly(p3, p5lr);
     }
 
     @Test
