@@ -295,6 +295,16 @@ public class DataLoader implements CommandLineRunner {
             "Kia EV6 Long Range AWD 77.4 kWh", 674_700,
             "Kia EV6 GT 77.4 kWh",             749_600);
 
+    /**
+     * Första generationens MG4: {bruttobatteri kWh, WLTP km}. Officiella MG-siffror, samma som
+     * seeden. ev-database listar bara andra generationen, så synken kan aldrig hålla de här
+     * raderna aktuella — DataLoader äger dem och sätter dem vid varje uppstart.
+     */
+    static final java.util.Map<String, double[]> MG4_GEN1 = java.util.Map.of(
+            "MG4 Standard Range", new double[]{51.0, 350},
+            "MG4 Long Range",     new double[]{64.0, 450},
+            "MG4 Extended Range", new double[]{77.0, 520});
+
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
         return new EvSpec(namn, 11.0, dcKw, batteryKwh, rangeKm, EV6_PRISER.get(namn));
@@ -364,7 +374,29 @@ public class DataLoader implements CommandLineRunner {
                         existing.remove("Kia EV6");
                     }
                 }
-                default -> {}
+                default -> {
+                    // MG4 första generationen. Nattsynken skrev andra generationens siffror över
+                    // de här raderna innan andragenerationsposterna fanns (se extras nedan), och
+                    // en gång fel data ligger kvar i produktion även när matchningen är lagad.
+                    //
+                    // Skriver över befintligt värde, som EV6_PRISER och till skillnad från
+                    // EX30-korrigeringarna ovan: ev-database har inte kvar första generationen,
+                    // så DataLoader är enda källan för de här tre raderna. Utan det hade de
+                    // felaktiga siffrorna suttit kvar för alltid.
+                    double[] gen1 = MG4_GEN1.get(spec.getCarName());
+                    if (gen1 != null) {
+                        boolean fel = spec.getBatteryKwh() == null || spec.getRangeKm() == null
+                                || spec.getBatteryKwh() != gen1[0] || spec.getRangeKm() != (int) gen1[1];
+                        if (fel) {
+                            log.warn("ev_spec: {} hade {} kWh/{} km — återställer till {} kWh/{} km (gen 1)",
+                                    spec.getCarName(), spec.getBatteryKwh(), spec.getRangeKm(),
+                                    gen1[0], (int) gen1[1]);
+                            spec.setBatteryKwh(gen1[0]);
+                            spec.setRangeKm((int) gen1[1]);
+                            toUpdate.add(spec);
+                        }
+                    }
+                }
             }
             // Prisbackfill för EV6-varianterna: raderna finns redan i produktion, och
             // extras-listan nedan hoppar över namn som redan existerar — utan det här hade
@@ -386,6 +418,28 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000));
         if (!existing.contains("Volvo EX30 Twin Motor Performance"))
             extras.add(new EvSpec("Volvo EX30 Twin Motor Performance",      11.0, 200.0, 69.0, 460, 430_000));
+
+        // MG4 andra generationen (2025+). ev-database listar sex MG4-poster och ALLA är den nya
+        // bilen — den första generationen finns inte kvar där. Utan egna rader matchade varje
+        // skrapad andragenerationssida in på en förstagenerationsrad och skrev över den: "MG4
+        // Standard Range" fick 41,9 kWh/325 km i stället för sina 51/350. Med de här raderna på
+        // plats vinner de i findMatch steg 2 (fyra–fem namnord slår tre), så synken uppdaterar
+        // rätt bil och förstagenerationsraderna lämnas i fred.
+        //
+        // Namnen följer ev-database.org minus märkesprefixet, som resten av tabellen. Priset
+        // lämnas till synken (den räknar EUR × 11,5) — till skillnad från EV6-raderna NÅR den
+        // de här namnen, så en hårdkodad gissning här hade bara konkurrerat med en riktig källa.
+        // Siffrorna avlästa på ev-database.org 2026-08-10.
+        if (!existing.contains("MG4 Urban Standard Range"))
+            extras.add(new EvSpec("MG4 Urban Standard Range",    11.0,  82.0, 41.9, 325, 0));
+        if (!existing.contains("MG4 Urban Comfort Long Range"))
+            extras.add(new EvSpec("MG4 Urban Comfort Long Range", 11.0,  87.0, 52.8, 416, 0));
+        if (!existing.contains("MG4 Urban Premium Long Range"))
+            extras.add(new EvSpec("MG4 Urban Premium Long Range", 11.0,  87.0, 52.8, 405, 0));
+        if (!existing.contains("MG4 Premium Long Range"))
+            extras.add(new EvSpec("MG4 Premium Long Range",       11.0, 154.0, 61.7, 452, 0));
+        if (!existing.contains("MG4 Premium Extended Range"))
+            extras.add(new EvSpec("MG4 Premium Extended Range",   11.0, 144.0, 74.4, 545, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

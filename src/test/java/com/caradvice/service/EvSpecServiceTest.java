@@ -294,6 +294,32 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void tvaModellgenerationerSlasInteIhopTrotsNastanLikaBatterier() {
+        // MG4 gen 1 har 51 kWh/350 km och gen 2 har 52,8 kWh/416 km — 3,5 % isär, alltså långt
+        // inom 8 %-toleransen. Utan generationsspärren blev raden "52.8 kWh (350–416 km)", som
+        // parar andra generationens batteri med första generationens räckvidd. Ingen siffra kan
+        // skilja fallen åt (EV6 GT och Long Range delar batteri men går 424 mot 528 km och SKA
+        // slås ihop), så generationen är uppgiven i EvSpecService.GENERATION.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG4 Standard Range", 11.0, 117.0, 51.0, 350, 295_000),
+                new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0)));
+
+        assertThat(service().verifiedEngineOptions("MG4"))
+                .isEqualTo("51 kWh (350 km) · Standard Range, "
+                         + "52.8 kWh (416 km) · Urban Comfort Long Range");
+    }
+
+    @Test
+    void varianterInomSammaGenerationSlasFortfarandeIhop() {
+        // Spärren får inte slå sönder den vanliga ihopslagningen: båda raderna är gen 2
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0),
+                new EvSpec("MG4 Urban Premium Long Range", 11.0, 87.0, 52.8, 405, 0)));
+
+        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("52.8 kWh (405–416 km)");
+    }
+
+    @Test
     void basmodellenUtanTrimFarIngenEtikett() {
         // Raden ar modellen sjalv ("MG4") — inget blir kvar nar titelorden tagits bort
         when(repo.findAll()).thenReturn(List.of(

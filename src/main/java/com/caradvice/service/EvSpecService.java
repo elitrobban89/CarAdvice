@@ -129,7 +129,9 @@ public class EvSpecService {
             int range = ev.getRangeKm() != null ? ev.getRangeKm() : 0;
             String key = ev.getBatteryKwh() + "|" + range;
             if (!seen.add(key)) continue;
-            variants.add(new Variant(ev.getBatteryKwh(), range, trimName(ev.getCarName(), titleSetOf(titleWords))));
+            variants.add(new Variant(ev.getBatteryKwh(), range,
+                    trimName(ev.getCarName(), titleSetOf(titleWords)),
+                    GENERATION.get(normalize(ev.getCarName()))));
         }
         if (variants.isEmpty()) return null;
         variants.sort(java.util.Comparator.comparingDouble(Variant::kwh).thenComparingInt(Variant::km));
@@ -138,11 +140,34 @@ public class EvSpecService {
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 
-    /** En matchad ev_spec-rad: batteri, räckvidd (0 = okänd) och trimnamn (null = inget). */
-    private record Variant(double kwh, int km, String trim) {}
+    /** En matchad ev_spec-rad: batteri, räckvidd (0 = okänd), trimnamn och modellgeneration. */
+    private record Variant(double kwh, int km, String trim, String generation) {}
 
-    /** En grupp hopslagna varianter: bruttobatteri, räckviddsspann och gemensamt trimnamn. */
-    private record Group(double kwh, int minKm, int maxKm, String trim) {}
+    /**
+     * Rader som tillhör en annan modellgeneration än de omärkta i samma modell.
+     *
+     * <p>Behövs för att {@link #groupByBattery} annars slår ihop generationer som råkar ha nästan
+     * lika stora batterier: MG4:s första generation har 51 kWh/350 km och den andra 52,8 kWh/416
+     * km — 3,5 % isär, alltså långt inom 8 %-toleransen. Resultatet blev raden "52.8 kWh (350–416
+     * km)", som parar andra generationens batteri med första generationens räckvidd. Det är inte
+     * ett spann, det är två olika bilar.
+     *
+     * <p>Ingen siffra kan skilja fallen åt — EV6 GT och Long Range delar batteri men går 424
+     * respektive 528 km (24 % isär) och ska ändå slås ihop. Generationen måste alltså vara
+     * uppgiven, inte härledd. Den ligger här och inte som en kolumn på {@code ev_spec} eftersom
+     * {@code ddl-auto=validate}: ett nytt fält på entiteten hade fällt uppstarten innan någon
+     * migrering hann köra. Raderna skapas i {@code DataLoader.seedEvSpecExtras}.
+     */
+    private static final Map<String, String> GENERATION = Map.of(
+            "mg4 urban standard range",     "MG4 gen 2",
+            "mg4 urban comfort long range", "MG4 gen 2",
+            "mg4 urban premium long range", "MG4 gen 2",
+            "mg4 premium long range",       "MG4 gen 2",
+            "mg4 premium extended range",   "MG4 gen 2",
+            "mg mg4 xpower",                "MG4 gen 2");
+
+    /** En grupp hopslagna varianter: bruttobatteri, räckviddsspann, trimnamn och generation. */
+    private record Group(double kwh, int minKm, int maxKm, String trim, String generation) {}
 
     private static java.util.Set<String> titleSetOf(String[] titleWords) {
         return new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
@@ -213,8 +238,10 @@ public class EvSpecService {
         double groupMinKwh = 0;
         for (Variant v : sorted) {
             Group current = groups.isEmpty() ? null : groups.get(groups.size() - 1);
-            if (current == null || v.kwh() > groupMinKwh * SAME_BATTERY_TOLERANCE) {
-                groups.add(new Group(v.kwh(), v.km(), v.km(), v.trim()));
+            boolean sammaGeneration = current != null
+                    && java.util.Objects.equals(current.generation(), v.generation());
+            if (current == null || !sammaGeneration || v.kwh() > groupMinKwh * SAME_BATTERY_TOLERANCE) {
+                groups.add(new Group(v.kwh(), v.km(), v.km(), v.trim(), v.generation()));
                 groupMinKwh = v.kwh();
                 continue;
             }
@@ -224,8 +251,8 @@ public class EvSpecService {
                 maxKm = Math.max(maxKm, v.km());
             }
             String trim = java.util.Objects.equals(current.trim(), v.trim()) ? current.trim() : null;
-            groups.set(groups.size() - 1,
-                    new Group(Math.max(current.kwh(), v.kwh()), minKm, maxKm, trim));  // visa bruttokapaciteten
+            groups.set(groups.size() - 1,                                    // visa bruttokapaciteten
+                    new Group(Math.max(current.kwh(), v.kwh()), minKm, maxKm, trim, current.generation()));
         }
         return groups;
     }
