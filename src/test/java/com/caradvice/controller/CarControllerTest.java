@@ -542,13 +542,13 @@ class CarControllerTest {
         // Utan endpointen gick nattens ifyllning bara att avläsa i Render-loggen — och
         // bagagevaktens "fäll bara på positivt bevis" vilar på just den här siffran
         when(cargoSpecService.coverage()).thenReturn(new java.util.LinkedHashMap<>(java.util.Map.of(
-                "total", 679L, "medVolym", 185L, "utanVolym", 494L)));
+                "total", 243L, "medVolym", 243L, "utanVolym", 0L)));
 
         mvc.perform(get("/api/admin/cargo-coverage").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.total").value(679))
-           .andExpect(jsonPath("$.medVolym").value(185))
-           .andExpect(jsonPath("$.utanVolym").value(494));
+           .andExpect(jsonPath("$.total").value(243))
+           .andExpect(jsonPath("$.medVolym").value(243))
+           .andExpect(jsonPath("$.utanVolym").value(0));
     }
 
     // --- GET /api/admin/ev-specs ---

@@ -473,10 +473,10 @@ public class EvDatabaseScraperService {
      * hade lika gärna kunnat plocka den andras siffra. Jämförelsen är exakt (inte "börjar med"),
      * av samma skäl.
      *
-     * <p>Anledningen att det görs här: {@code cargo_spec} har 679 kända bilnamn men bara 185
-     * med uppmätt volym, eftersom {@code CargoSpecSyncService} bara hämtar NAMN från Bilweb och
-     * skriver {@code null} i literkolumnen. Bagagefiltrets vakt kan därför bara fälla på
-     * positivt bevis. Sidorna nedan besöks ändå varje natt, så volymen kostar inget extra anrop.
+     * <p>Anledningen att det görs här: {@code cargo_spec} hade 243 rader den 2026-08-10 medan
+     * {@code ev_spec} hade 518 elbilsvarianter — merparten av elbilarna saknar alltså bagagerad
+     * helt, och bagagefiltrets vakt kan bara fälla på positivt bevis. Sidorna nedan besöks ändå
+     * varje natt, så volymen kostar inget extra anrop.
      */
     static int extractCargoCell(Document doc, String label) {
         for (Element td : doc.select("td")) {

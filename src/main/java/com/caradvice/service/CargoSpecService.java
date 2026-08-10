@@ -34,6 +34,11 @@ public class CargoSpecService {
      * bagagevaktens {@code requireCargoCapacity} faller bara på positivt bevis just för att
      * täckningen är låg, och när den närmar sig 100 % för elbilar går den regeln att skärpa.
      *
+     * <p><b>Läs {@code total} rätt:</b> det är antalet rader i cargo_spec (243 den 2026-08-10),
+     * INTE antalet bilar appen känner till. {@code /api/cars} svarade 697 och användes först
+     * som nämnare här, men den är unionen av cargo_spec och ev_spec — misstaget dolde att
+     * {@code utanVolym} redan var 0 och att nattens ifyllning därför inte kunde göra något.
+     *
      * @return {@code total} = alla kända bilnamn, {@code medVolym} = de med siffra
      */
     public Map<String, Long> coverage() {
@@ -48,32 +53,39 @@ public class CargoSpecService {
     /**
      * Fyller en tom bagagevolym med en uppmätt siffra från nattens EV-synk.
      *
-     * <p>Tabellen har 679 kända bilnamn men bara 185 med volym, eftersom
-     * {@code CargoSpecSyncService} bara hämtar NAMN från Bilweb och skriver {@code null} i
-     * literkolumnen. Bagagefiltrets vakt kan därför bara fälla på positivt bevis. ev-database
-     * bär både "Cargo Volume" och "Cargo Volume Max" på de bilsidor EV-synken ändå besöker
-     * varje natt, så volymen kostar inget extra anrop — men den täcker bara elbilar.
+     * <p>Luckan är bilar som <b>saknar rad</b>, inte rader som saknar siffra: {@code cargo_spec}
+     * har 243 rader och samtliga bär volym, medan {@code ev_spec} har 518 elbilsvarianter.
+     * Första versionen fyllde bara rader där volymen var {@code null} och vägrade skapa nya —
+     * den kunde alltså aldrig fylla någonting, vilket syntes först när
+     * {@code /api/admin/cargo-coverage} svarade {@code utanVolym: 0} efter en 12-minuterskörning
+     * som rört noll rader. Motivet till spärren ("nya rader per variant skräpar ned
+     * autocomplete") höll inte heller: {@code /api/cars} är unionen av cargo_spec och ev_spec,
+     * så namnen ligger redan där.
      *
-     * <p>Tre regler, alla avsiktliga:
+     * <p>ev-database bär både "Cargo Volume" och "Cargo Volume Max" på de bilsidor EV-synken
+     * ändå besöker varje natt, så volymen kostar inget extra anrop — men den täcker bara elbilar.
+     *
+     * <p>Tre regler:
      * <ul>
-     *   <li><b>Fyller bara tomma rader.</b> DataLoaders 185 seedade volymer är handkontrollerade
-     *       och vinner alltid över en skrapad siffra.</li>
-     *   <li><b>Skapar aldrig nya rader.</b> ev-database har en sida per VARIANT ("Kia EV6 Long
-     *       Range 2WD"), medan bagagevolym är en egenskap hos modellen — nya rader per variant
-     *       hade fyllt både tabellen och autocomplete ({@code /api/cars}) med dubbletter.</li>
+     *   <li><b>Befintlig volym skrivs aldrig över.</b> DataLoaders seedade volymer är
+     *       handkontrollerade och vinner alltid över en skrapad siffra.</li>
      *   <li><b>Mest specifika namnet vinner</b> när flera rader matchar, samma regel som
      *       {@link #formatForTitle}: "Kia EV6 GT" före "Kia EV6" för en GT-sida.</li>
+     *   <li><b>Saknas raden helt skapas den</b>, under ev-databases variantnamn. Uppslaget tar
+     *       ändå längsta matchande namn, så en GT-rad vid sidan av basmodellen gör lookupen mer
+     *       exakt och inte sämre.</li>
      * </ul>
      *
-     * @return true om en rad faktiskt fylldes
+     * @return true om en rad fylldes eller skapades
      */
     @Transactional
     public boolean fillFromScrape(String scrapedName, int liters, int maxLiters) {
         if (scrapedName == null || scrapedName.isBlank() || liters <= 0) return false;
         Set<String> scrapedWords = new HashSet<>(Arrays.asList(normalize(scrapedName).split("\\s+")));
 
+        // Sök bland ALLA rader, inte bara de tomma: en rad som redan bär volym betyder att bilen
+        // är täckt, och då ska ingen ny rad skapas för samma bil under ett variantnamn.
         CargoSpec match = repo.findAll().stream()
-                .filter(cs -> cs.getCargoLiters() == null)
                 .filter(cs -> {
                     String[] nameWords = normalize(cs.getCarName()).split("\\s+");
                     if (nameWords.length < 2) return false;   // "Volvo" ensamt matchar allt
@@ -82,7 +94,12 @@ public class CargoSpecService {
                 })
                 .max(Comparator.comparingInt(cs -> normalize(cs.getCarName()).split("\\s+").length))
                 .orElse(null);
-        if (match == null) return false;
+
+        if (match == null) {
+            repo.save(new CargoSpec(scrapedName, liters, maxLiters > 0 ? maxLiters : null));
+            return true;
+        }
+        if (match.getCargoLiters() != null && match.getCargoLiters() > 0) return false;
 
         match.setCargoLiters(liters);
         if (maxLiters > 0) match.setCargoMaxLiters(maxLiters);

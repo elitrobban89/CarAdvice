@@ -534,8 +534,9 @@ class GroqServiceTest {
 
     @Test
     void bilUtanUppmattBagageSlappsIgenom() throws Exception {
-        // Positivt bevis krävs, precis som i drivmedelsvakten: cargo_spec har 185 modeller mot
-        // modell-whitelistens ~700, så att kasta det omätta hade tagit fler bra bilar än dåliga
+        // Positivt bevis krävs, precis som i drivmedelsvakten: cargo_spec hade 243 rader den
+        // 2026-08-10 mot modell-whitelistens ~700, så att kasta det omätta hade tagit fler
+        // bra bilar än dåliga
         when(cargoSpecService.formatForTitle(anyString())).thenReturn(null);
         List<CarRecommendation> parsed = parsatSvarMed("Cupra Born (2022)");
         service().requireCargoCapacity(parsed, 400);   // ska inte kasta

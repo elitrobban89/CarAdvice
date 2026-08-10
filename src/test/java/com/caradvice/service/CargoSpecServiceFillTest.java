@@ -3,6 +3,7 @@ package com.caradvice.service;
 import com.caradvice.model.CargoSpec;
 import com.caradvice.repository.CargoSpecRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 
@@ -14,10 +15,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Ifyllningen av bagagevolym från nattens EV-synk. cargo_spec har 679 kända bilnamn men bara
- * 185 med volym — CargoSpecSyncService hämtar bara NAMN från Bilweb och skriver null i
- * literkolumnen — så bagagefiltrets vakt kan bara fälla på positivt bevis. ev-database bär
- * siffran på sidor som ändå besöks varje natt.
+ * Ifyllningen av bagagevolym från nattens EV-synk. Luckan är bilar som SAKNAR rad, inte rader
+ * som saknar siffra: cargo_spec hade 243 rader den 2026-08-10 och samtliga bar volym, medan
+ * ev_spec hade 518 elbilsvarianter. Bagagefiltrets vakt kan därför bara fälla på positivt bevis.
+ * ev-database bär siffran på sidor som ändå besöks varje natt.
+ *
+ * <p>Siffran 679 som stod här tidigare kom från {@code /api/cars}, som är UNIONEN av cargo_spec
+ * och ev_spec — misstaget dolde att {@code utanVolym} redan var 0.
  */
 class CargoSpecServiceFillTest {
 
@@ -37,7 +41,7 @@ class CargoSpecServiceFillTest {
 
     @Test
     void kurateradVolymSkrivsAldrigOver() {
-        // DataLoaders 185 seedade volymer är handkontrollerade och vinner alltid över en skrapad
+        // DataLoaders seedade volymer är handkontrollerade och vinner alltid över en skrapad
         CargoSpec seedad = new CargoSpec("Volvo EX30", 318, 904);
         when(repo.findAll()).thenReturn(List.of(seedad));
 
@@ -59,29 +63,48 @@ class CargoSpecServiceFillTest {
     }
 
     @Test
-    void ingenMatchSkaparIngenNyRad() {
-        // ev-database har en sida per VARIANT medan bagagevolym är en modellegenskap — nya rader
-        // per variant hade fyllt både tabellen och autocomplete (/api/cars) med dubbletter
-        when(repo.findAll()).thenReturn(List.of(new CargoSpec("Volvo EX30", null, null)));
+    void bilUtanRadFarEnNy() {
+        // Luckan är bilar som SAKNAR rad, inte rader som saknar siffra: cargo_spec har 243 rader
+        // och alla bär volym, medan ev_spec har 518 elbilsvarianter. Första versionen vägrade
+        // skapa rader och kunde därför aldrig fylla någonting — det syntes först när
+        // /api/admin/cargo-coverage svarade utanVolym: 0 efter en 12-minuterskörning.
+        when(repo.findAll()).thenReturn(List.of(new CargoSpec("Volvo EX30", 318, 904)));
 
-        assertThat(service.fillFromScrape("Tesla Model Y Long Range", 854, 2158)).isFalse();
+        assertThat(service.fillFromScrape("Tesla Model Y Long Range", 854, 2158)).isTrue();
+        ArgumentCaptor<CargoSpec> sparad = ArgumentCaptor.forClass(CargoSpec.class);
+        verify(repo).save(sparad.capture());
+        assertThat(sparad.getValue().getCarName()).isEqualTo("Tesla Model Y Long Range");
+        assertThat(sparad.getValue().getCargoLiters()).isEqualTo(854);
+        assertThat(sparad.getValue().getCargoMaxLiters()).isEqualTo(2158);
+    }
+
+    @Test
+    void taktBilFarIngenDubblettUnderVariantnamn() {
+        // Matchningen söker bland ALLA rader, inte bara de tomma — annars hade varje variantsida
+        // skapat en ny rad för en bil som redan har volym
+        when(repo.findAll()).thenReturn(List.of(new CargoSpec("Kia EV6", 490, 1300)));
+
+        assertThat(service.fillFromScrape("Kia EV6 Long Range 2WD", 480, 1280)).isFalse();
         verify(repo, never()).save(any());
     }
 
     @Test
     void enordsradMatcharAldrig() {
-        // "Volvo" ensamt ligger inne som namn och hade annars fått första bästa Volvos volym
+        // "Volvo" ensamt ligger inne som namn och hade annars fått första bästa Volvos volym.
+        // Ingen match betyder numera att raden skapas — men under den skrapade bilens namn.
         when(repo.findAll()).thenReturn(List.of(new CargoSpec("Volvo", null, null)));
 
-        assertThat(service.fillFromScrape("Volvo EX90 Twin Motor", 655, 1915)).isFalse();
-        verify(repo, never()).save(any());
+        assertThat(service.fillFromScrape("Volvo EX90 Twin Motor", 655, 1915)).isTrue();
+        ArgumentCaptor<CargoSpec> sparad = ArgumentCaptor.forClass(CargoSpec.class);
+        verify(repo).save(sparad.capture());
+        assertThat(sparad.getValue().getCarName()).isEqualTo("Volvo EX90 Twin Motor");
     }
 
     @Test
     void volymNollFyllerInget() {
-        // Sidan saknade siffran — då ska raden lämnas tom i stället för att sättas till 0,
-        // annars ser en omätt bil ut som en bil utan bagage och fälls av vakten
-        when(repo.findAll()).thenReturn(List.of(new CargoSpec("Kia EV6", null, null)));
+        // Sidan saknade siffran — då ska varken rad fyllas eller skapas, annars ser en omätt
+        // bil ut som en bil utan bagage och fälls av vakten
+        // (findAll behövs inte: metoden returnerar innan uppslaget)
 
         assertThat(service.fillFromScrape("Kia EV6 GT", 0, 0)).isFalse();
         verify(repo, never()).save(any());

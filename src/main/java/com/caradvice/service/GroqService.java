@@ -1585,9 +1585,9 @@ public class GroqService {
      * Skarpt läge: bagagekravet från formuläret, kontrollerat mot {@code cargo_spec}.
      *
      * <p>Faller bara på POSITIVT bevis — en uppmätt normalvolym under kravet. En bil vi inte
-     * mätt släpps igenom, av samma skäl som drivmedelsvakten gör det: tabellen har 185 modeller
-     * mot modell-whitelistens ~700, så att kasta det omätta hade tagit fler bra bilar än dåliga
-     * och gett två kort i stället för tre. Kortets bagagechip visar "–" för de omätta, så det
+     * mätt släpps igenom, av samma skäl som drivmedelsvakten gör det: tabellen hade 243 rader
+     * den 2026-08-10 mot modell-whitelistens ~700, så att kasta det omätta hade tagit fler bra
+     * bilar än dåliga och gett två kort i stället för tre. Kortets bagagechip visar "–" för de omätta, så det
      * syns vilka som är overifierade.
      *
      * <p>Mätt på NORMALvolymen (baksätet uppfällt). Maxvolymen är nästan tre gånger så stor —
