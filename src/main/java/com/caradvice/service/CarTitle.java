@@ -37,7 +37,31 @@ public final class CarTitle {
     private static final Pattern SPEC_JUNK =
             Pattern.compile("\\b\\d+(?:[.,]\\d+)?\\s*(kwh|kw|hk|hp)\\b", Pattern.CASE_INSENSITIVE);
 
+    /**
+     * Osynliga tecken ur AI-titlar: hårda och smala mellanslag (U+00A0, U+202F) och
+     * formattecken (U+200B). Java-regexens {@code \s} matchar <b>bara</b> ASCII-blanksteg, så
+     * ett smalt mellanslag räddar teknikuppgiften förbi {@link #SPEC_JUNK} och årtalet förbi
+     * årsmönstren — utan att synas i texten.
+     *
+     * <p>Live 2026-08-10 kom "Nissan Leaf (62&#x202F;kWh) (2020)" hela vägen ut på kortet.
+     * Eftersom "62 kWh" satt kvar i titeln hittade `EvSpecService.verifiedEngineOptions` ingen
+     * rad alls, och kortet visade AI:ns egen motorlista i stället för de verifierade
+     * varianterna: inga trimnamn, ingen generationsfiltrering och räckvidder som inte hörde
+     * ihop med batteriet. {@code EvSpecService.normalize} städar redan samma tecken, men det
+     * hjälper inte när skräpet ska tas bort ur titeln innan matchningen börjar.
+     */
+    private static final Pattern INVISIBLE = Pattern.compile("\\p{Cf}");
+    private static final Pattern ODD_SPACE = Pattern.compile("\\p{Zs}");
+
+    /** "(62 kWh)" blir "( )" när tekniken lyfts ut — parentesen ska följa med. */
+    private static final Pattern EMPTY_PARENS = Pattern.compile("\\(\\s*\\)");
+
     private CarTitle() {}
+
+    /** Titeln med bara vanliga mellanslag, så {@code \s} i mönstren nedan biter. */
+    private static String plainSpaces(String title) {
+        return ODD_SPACE.matcher(INVISIBLE.matcher(title).replaceAll("")).replaceAll(" ");
+    }
 
     /**
      * AI-titeln i den form resten av koden räknar med: "Märke Modell (år)".
@@ -54,11 +78,11 @@ public final class CarTitle {
      */
     public static String normalize(String title) {
         if (title == null) return null;
-        String utan = SPEC_JUNK.matcher(title).replaceAll(" ");
+        String utan = SPEC_JUNK.matcher(plainSpaces(title)).replaceAll(" ");
         Matcher m = YEAR_ANYWHERE.matcher(utan);
         String year = null;
         if (m.find()) year = m.group(1) != null ? m.group(1) : m.group(2);
-        String namn = m.reset().replaceAll(" ")
+        String namn = EMPTY_PARENS.matcher(m.reset().replaceAll(" ")).replaceAll(" ")
                 .replaceAll("[\\s,;–—-]+$", "")   // skiljetecken som blir hängande när årtalet lyfts ut
                 .replaceAll("\\s+", " ")
                 .trim();
@@ -69,13 +93,13 @@ public final class CarTitle {
     /** Titeln utan avslutande årsmodell: "Volkswagen ID.4 2026" och "(2026)" → "Volkswagen ID.4". */
     public static String stripYear(String title) {
         if (title == null) return null;
-        return YEAR_SUFFIX.matcher(title.trim()).replaceAll("").trim();
+        return YEAR_SUFFIX.matcher(plainSpaces(title).trim()).replaceAll("").trim();
     }
 
     /** Årsmodellen, eller null när titeln saknar en. */
     public static Integer year(String title) {
         if (title == null) return null;
-        Matcher m = YEAR_SUFFIX.matcher(title.trim());
+        Matcher m = YEAR_SUFFIX.matcher(plainSpaces(title).trim());
         if (!m.find()) return null;
         String year = m.group(1) != null ? m.group(1) + m.group(2) : m.group(3) + m.group(4);
         try {

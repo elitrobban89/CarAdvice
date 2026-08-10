@@ -24,6 +24,28 @@ class CarTitleTest {
     }
 
     @Test
+    void smaltMellanslagRaddarInteTeknikuppgiftenForbiStadningen() {
+        // Live 2026-08-10: AI:n skrev "Nissan Leaf (62 kWh) (2020)" med SMALT hårt mellanslag.
+        // Javas \s matchar bara ASCII-blanksteg, så SPEC_JUNK bet inte och "62 kWh" följde med ut
+        // på kortet. Följden syntes först i motorlistan: verifiedEngineOptions hittade ingen rad
+        // för den titeln och kortet visade AI:ns egen lista utan trimnamn och generationsfilter.
+        // OBS: titlarna nedan innehåller riktiga U+202F respektive U+00A0 — ser ut som vanliga
+        // mellanslag i editorn. Byts de mot ASCII-blanksteg testar raderna ingenting.
+        assertThat(CarTitle.normalize("Nissan Leaf (62 kWh) (2020)")).isEqualTo("Nissan Leaf (2020)");
+        assertThat(CarTitle.normalize("MG4 (64 kWh) (2023)")).isEqualTo("MG4 (2023)");
+        assertThat(CarTitle.year("Volkswagen ID.4 2026")).isEqualTo(2026);
+        assertThat(CarTitle.stripYear("Volkswagen ID.4 (2026)")).isEqualTo("Volkswagen ID.4");
+    }
+
+    @Test
+    void tomParentesForsvinnerMedTeknikuppgiften() {
+        // Utan den här raden blir "Nissan Leaf (62 kWh) (2020)" till "Nissan Leaf ( ) (2020)" —
+        // parentesen står kvar tom och följer med in i ordmatchningen mot ev_spec
+        assertThat(CarTitle.normalize("Nissan Leaf (62 kWh) (2020)")).isEqualTo("Nissan Leaf (2020)");
+        assertThat(CarTitle.normalize("Kia EV6 (77 kWh)")).isEqualTo("Kia EV6");
+    }
+
+    @Test
     void redanKorrektTitelLamnasOrord() {
         assertThat(CarTitle.normalize("Volkswagen ID.4 (2023)")).isEqualTo("Volkswagen ID.4 (2023)");
         assertThat(CarTitle.normalize("MG4 (2022)")).isEqualTo("MG4 (2022)");
