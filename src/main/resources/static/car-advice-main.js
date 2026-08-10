@@ -158,6 +158,7 @@ var caCurrentKm = 15000;
 var caCurrentCategory = '';
 // Sätts av sökningen när servern inte hittade en enda bil inom budgettaket
 var caBudgetShortfall = null;
+var caNarrowCriteria = null;   // {kvar, krav[]} nar vakterna gallrat bort bilar utan budgetdom
 var caShortfallBudget = 0;
 var caShortfallMaxAge = null;
 var caShortfallNewCar = false;   // nybilssök: siffran är ett nypris, inte ett annonspris
@@ -882,6 +883,7 @@ function caLoadFromHistory(index) {
     document.getElementById('ca-results').style.display = 'block';
     document.getElementById('ca-cache-badge').style.display = 'none';
     caBudgetShortfall = null;   // historikposten bär ingen budgetdom — visa aldrig en gammal
+    caNarrowCriteria = null;
     caShortfallPayload = null;
     caRenderCards(entry.recommendations);
     document.getElementById('ca-copy-btn').style.display = 'inline-block';
@@ -1149,6 +1151,35 @@ function caRenderBudgetNotice() {
   caFetchBudgetAlternatives();
 }
 
+// Banderoll för snäva krav. Prompten kräver tre bilar, men regelvakterna får fälla — och gör
+// det rätt: familjeelbil + 400 l bagage + 200 000 kr gav live 2026-08-10 ett enda kort (MG5),
+// eftersom MG4 (363 l) och Niro EV (349 l) inte klarade bagagekravet. Utan den här raden läser
+// ett ensamt kort som att appen krånglar i stället för som ett svar på en hård fråga.
+// Visas ALDRIG samtidigt som budgetbanderollen: servern skickar bara det ena beskedet, och två
+// rutor med överlappande budskap läser som ett renderingsfel (samma lärdom som budgetrutan gav).
+function caRenderNarrowNotice() {
+  var host = document.getElementById('ca-cards');
+  if (!host) return;
+  var existing = document.getElementById('ca-narrow-notice');
+  if (existing) existing.parentNode.removeChild(existing);
+  if (!caNarrowCriteria || !caNarrowCriteria.krav || !caNarrowCriteria.krav.length) return;
+
+  var n = caNarrowCriteria.kvar;
+  var rubrik = n === 1 ? 'Bara en bil matchade alla dina krav'
+                       : n + ' bilar matchade alla dina krav';
+  var el = document.createElement('div');
+  el.id = 'ca-narrow-notice';
+  el.setAttribute('style', 'margin:0 0 16px;padding:12px 14px;background:rgba(251,191,36,.08);' +
+    'border:1px solid rgba(251,191,36,.35);border-radius:10px;font-size:.82rem;line-height:1.55;' +
+    'color:rgba(255,255,255,.8)');
+  el.innerHTML =
+    '<strong style="color:#fcd34d">&#x2139; ' + caEsc(rubrik) + '</strong><br>' +
+    'Vi visar hellre f\xe4rre bilar som st\xe4mmer \xe4n tre d\xe4r n\xe5gra inte g\xf6r det. ' +
+    'Kraven som gallrade: ' + caEsc(caNarrowCriteria.krav.join(' \xb7 ')) + '. ' +
+    'L\xe4tta p\xe5 ett av dem f\xf6r fler alternativ.';
+  host.parentNode.insertBefore(el, host);
+}
+
 // Vad räcker budgeten faktiskt till? Hämtas lazy och bara när banderollen visas, eftersom
 // svaret kostar ett eget Groq-anrop plus Blocket-uppslag. Poängen: "100 000 kr räcker inte"
 // är korrekt men torftigt när svaret "för de pengarna är det 5–10 år gamla elbilar, till
@@ -1195,6 +1226,7 @@ function caRenderCards(recommendations) {
   caRenderPhevTaxNotice();
   caRenderChargingNotice(recommendations);
   caRenderBudgetNotice();
+  caRenderNarrowNotice();
   setTimeout(function() {
     container.classList.remove('fading');
     container.innerHTML = recommendations.map(function(r, i) {
@@ -1781,6 +1813,7 @@ function caLoadSavedEntry(id) {
       document.getElementById('ca-results').style.display = 'block';
       document.getElementById('ca-cache-badge').style.display = 'none';
       caBudgetShortfall = null;   // sparad sökning bär ingen budgetdom
+      caNarrowCriteria = null;
       caShortfallPayload = null;
       caRenderCards(recs);
       caCurrentRecs = recs;
@@ -2227,6 +2260,7 @@ async function caGetRecommendation() {
     if (d.success && d.recommendations) {
       // Sätts före renderingen: caRenderCards ritar banderollen ovanför korten
       caBudgetShortfall = d.budgetShortfallFromKr || null;
+      caNarrowCriteria = d.narrowCriteria || null;
       caShortfallBudget = payload.budget;
       caShortfallMaxAge = payload.maxAgeYears;
       caShortfallNewCar = !!payload.newCar;

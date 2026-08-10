@@ -577,6 +577,30 @@ class GroqServiceTest {
         assertThat(GroqService.harGolvvakt(begagnat)).isTrue();
     }
 
+    // --- activeConstraints (underlag för banderollen "för snäva krav") ---
+
+    @Test
+    void kravenSomGallradeRaknasUppIKlartext() {
+        // Live 2026-08-10: familjeelbil + 400 l + 200 000 kr gav ETT kort (MG5), helt korrekt —
+        // MG4 (363 l) och Niro EV (349 l) klarade inte bagagekravet. Utan förklaring läser ett
+        // ensamt kort som att appen krånglar i stället för som ett svar på en hård fråga.
+        CarPreferences snav = new CarPreferences(200_000, "familjebil", false, 15_000, "familj",
+                5, false, "el", null, "köp", 5, 400);
+
+        assertThat(GroqService.activeConstraints(snav))
+                .containsExactly("ren elbil", "minst 400 liter bagage", "familjestor bil",
+                                 "högst 5 år gammal", "högst 230000 kr");
+    }
+
+    @Test
+    void kravlistanTarBaraMedDetSomFaktisktBegransar() {
+        // En bred sökning ska inte påstå att den gallrat på krav användaren aldrig ställde
+        CarPreferences bred = new CarPreferences(300_000, "ekonomibil", false, 15_000, "pendling",
+                4, false, "spelar ingen roll", "spelar ingen roll", "köp", null, null);
+
+        assertThat(GroqService.activeConstraints(bred)).containsExactly("högst 330000 kr");
+    }
+
     // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---
 
     @Test

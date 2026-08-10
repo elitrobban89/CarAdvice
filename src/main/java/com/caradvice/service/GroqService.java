@@ -1664,6 +1664,35 @@ public class GroqService {
     }
 
     /**
+     * Kraven som faktiskt begränsade sökningen, i klartext — underlag för banderollen när
+     * färre än tre kort blev kvar.
+     *
+     * <p>Prompten kräver exakt tre bilar, men regelvakterna får fälla: live 2026-08-10 gav
+     * familjeelbil + 400 l + 200 000 kr ett enda kort (MG5), vilket var helt korrekt — MG4
+     * (363 l) och Niro EV (349 l) klarade inte bagagekravet. Utan förklaring läser ett ensamt
+     * kort som att appen krånglar i stället för som ett svar på en hård fråga. Samma resonemang
+     * som budgetbanderollen bygger på, men den täcker bara prisfallet.
+     *
+     * <p>Listan byggs ur {@link CarPreferences} och inte ur vakternas utfall: vilka vakter som
+     * fällde vad är borta när svaret sätts ihop, medan kraven användaren ställde alltid finns
+     * kvar — och det är dem hen kan lätta på.
+     */
+    public static List<String> activeConstraints(CarPreferences prefs) {
+        List<String> krav = new ArrayList<>();
+        if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv()) krav.add("ren elbil");
+        if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0)
+            krav.add("minst " + prefs.minCargoLiters() + " liter bagage");
+        if (requiresFamilySizedCar(prefs)) krav.add("familjestor bil");
+        if (!prefs.newCar() && prefs.maxAgeYears() != null)
+            krav.add("högst " + prefs.maxAgeYears() + " år gammal");
+        if (prefs.transmission() != null && !prefs.transmission().isBlank()
+                && !"spelar ingen roll".equals(prefs.transmission()))
+            krav.add(prefs.transmission());
+        krav.add("högst " + (prefs.budget() + BUDGET_CEILING_MARGIN_KR) + " kr");
+        return krav;
+    }
+
+    /**
      * Kandidatlistan för en låg budget — de mätta elbilsmodeller som faktiskt ryms.
      *
      * <p>Byggd efter att golvvakten börjat bita men gjort svaret tunnare i stället för bättre:

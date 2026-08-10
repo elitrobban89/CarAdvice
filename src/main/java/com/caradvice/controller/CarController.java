@@ -316,6 +316,14 @@ public class CarController {
             // Satt bara när kriterierna inte gick ihop och korten därför ligger över budget
             if (result.budgetShortfallFromKr() != null) {
                 body.put("budgetShortfallFromKr", result.budgetShortfallFromKr());
+            } else if (result.recommendations().size() < 3) {
+                // Färre än tre kort UTAN budgetdom betyder att regelvakterna fällde bilar som
+                // inte höll kraven — korten som blev kvar är alltså rätt, men användaren ser
+                // bara ett tunt svar. Bara det ena beskedet i taget: budgetbanderollen säger
+                // redan sitt, och två rutor med överlappande budskap läser som ett renderingsfel.
+                body.put("narrowCriteria", Map.of(
+                        "kvar", result.recommendations().size(),
+                        "krav", GroqService.activeConstraints(prefs)));
             }
             return ResponseEntity.ok(body);
         } catch (Exception e) {
