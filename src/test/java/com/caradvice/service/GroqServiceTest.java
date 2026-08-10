@@ -250,6 +250,21 @@ class GroqServiceTest {
     }
 
     @Test
+    void promptenNamnerMg5SomBilligElkombi() {
+        // MG5 fanns i ev_spec, i cargo_spec och i modell-whitelisten, var inte småbilsmarkerad
+        // och gick att prissätta mot Blocket — den saknades bara i promptens kuraterade lista,
+        // och AI:n föreslog den därför aldrig. Live 2026-08-10 gav elbil + 200 000 kr i stället
+        // EV6/Leaf/Polestar 2 med banderollen "budgeten räcker inte" (billigaste 274 900 kr),
+        // medan MG5 låg på Blocket från 179 700 kr med under 10 000 mil (18 annonser).
+        // Lärdomen från vaktprompterna gäller även rekommendationsprompten: modellen agerar på
+        // namngivna exempel, inte på att bilen råkar finnas i databasen.
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp)
+                .contains("MG5")
+                .contains("elkombi");
+    }
+
+    @Test
     void promptenPrioriterarEtableradeMarkenForeOkandaKinesiska() {
         // "europeiska bilar, inte kinesiska okända" — Zeekr/Xpeng/Leapmotor/BYD aldrig förstaval
         String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
