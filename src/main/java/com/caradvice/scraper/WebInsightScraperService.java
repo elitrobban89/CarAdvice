@@ -96,7 +96,7 @@ public class WebInsightScraperService {
               märke eller om en motor som sitter i flera modeller ("BMW:s N47-diesel") ska hoppas
               över helt, inte sparas med tom modell
             - "fuel_type": ett av: "elbil", "bensin", "diesel", "hybrid", "laddhybrid" — eller ""
-            - "category": ett av: "ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil" — eller ""
+            - "category": ett av: "familjebil", "suv", "elbil", "laddhybrid", "smaabil" — eller ""
             - "insight": 1-3 meningar på svenska med källans konkreta åsikt eller fakta, i tredje person
             - "rating": källans betyg omräknat till heltal på skalan 1-10, annars "". Räkna om
               andra skalor proportionerligt: "4 av 5" eller 4 stjärnor → 8, "3 av 5" → 6,
@@ -125,7 +125,7 @@ public class WebInsightScraperService {
               * "smaabil" = liten stadsbil (t.ex. Toyota Aygo, Renault Clio) — ALDRIG SUV:ar eller mellanklassbilar
               * "suv" = SUV/crossover oavsett drivlina (t.ex. Volvo XC60, Kia EV5)
               * "familjebil" = mellanstor/stor kombi, sedan eller halvkombi (t.ex. VW Passat, VW ID.7)
-              * en sportbil eller lyxbil är ALDRIG "ekonomibil"/"smaabil"/"familjebil"
+              * en sportbil eller lyxbil är ALDRIG "smaabil"/"familjebil"
               * sätt "" om ingen kategori passar
             - Ignorera navigationstext, annonser, medlemserbjudanden och orelaterat innehåll
             - Varje insikt ska vara självbärande och kunna läsas utan artikelkontext
@@ -1175,10 +1175,16 @@ public class WebInsightScraperService {
     }
 
     // category/fuel_type matchar användarens sökpreferenser i buildExpertContext — ett påhittat
-    // värde utanför listan gör ingen skada, men ett FELAKTIGT (Ferrari som "ekonomibil") förgiftar
+    // värde utanför listan gör ingen skada, men ett FELAKTIGT (Ferrari som "smaabil") förgiftar
     // rekommendationsprompten. Whitelist + promptregeln ovan håller fälten ärliga.
+    //
+    // "ekonomibil" ströks 2026-08-10 när kategorin slogs ihop med småbil. Listan MÅSTE spegla
+    // formulärets värden exakt: buildExpertContext matchar på likhet, så en insikt med ett
+    // värde som inte finns i rullgardinen når aldrig en prompt. Vid räkningen samma dag låg
+    // 45 insikter och skräpade med kategorier som aldrig funnits i formuläret (sportbil,
+    // crossover, transportbil, tom) — de är osynliga, inte farliga, och lämnades medvetet.
     private static final Set<String> VALID_CATEGORIES =
-            Set.of("ekonomibil", "familjebil", "suv", "elbil", "laddhybrid", "smaabil");
+            Set.of("familjebil", "suv", "elbil", "laddhybrid", "smaabil");
     private static final Set<String> VALID_FUEL_TYPES =
             Set.of("elbil", "bensin", "diesel", "hybrid", "laddhybrid");
 

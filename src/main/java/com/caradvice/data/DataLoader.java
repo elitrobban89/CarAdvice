@@ -90,8 +90,10 @@ public class DataLoader implements CommandLineRunner {
                 "Mildhybrid och fullhybrid sparar bränsle i stadstrafik men inte på motorväg. Välj hybriddrift om du kör varierat i stad och land – annars är en renodlad bensinbil ofta mer kostnadseffektiv.", null),
             new ExpertInsight("Bilexpert", null, null, "diesel", null,
                 "Diesel lönar sig fortfarande vid körsträckor över 2 000 mil/år. Partikelfilter (DPF) behöver regenereringskörningar – undvik dieselbilar som körts uteslutande i stadstrafik.", null),
-            new ExpertInsight("Bilexpert", null, null, null, "ekonomibil",
-                "I ekonomibilsklassen är Dacia Sandero prishärskaren och Toyota Yaris tillförlitlighetsreferensen. Undvik begagnade bilar under 60 000 km utan dokumenterad servicehistorik – det är en varningssignal.", null),
+            // Kategorin hette "ekonomibil" tills den slogs ihop med småbil 2026-08-10 — texten
+            // gäller oförändrat, den beskriver samma segment.
+            new ExpertInsight("Bilexpert", null, null, null, "smaabil",
+                "I småbilsklassen är Dacia Sandero prishärskaren och Toyota Yaris tillförlitlighetsreferensen. Undvik begagnade bilar under 60 000 km utan dokumenterad servicehistorik – det är en varningssignal.", null),
             new ExpertInsight("Bilexpert", null, null, null, "familjebil",
                 "Volvo V60 och V90 dominerar bland begagnade familjebilar i Sverige. Skoda Octavia Kombi ger mer lastutrymme per krona. Kontrollera alltid servostyrning, koppling och stötdämpare – gärna hos en oberoende verkstad.", null),
             new ExpertInsight("Bilexpert", null, null, null, "laddhybrid",

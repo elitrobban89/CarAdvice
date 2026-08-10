@@ -646,7 +646,7 @@ class GroqServiceTest {
     @Test
     void kravlistanTarBaraMedDetSomFaktisktBegransar() {
         // En bred sökning ska inte påstå att den gallrat på krav användaren aldrig ställde
-        CarPreferences bred = new CarPreferences(300_000, "ekonomibil", false, 15_000, "pendling",
+        CarPreferences bred = new CarPreferences(300_000, "smaabil", false, 15_000, "pendling",
                 4, false, "spelar ingen roll", "spelar ingen roll", "köp", null, null);
 
         assertThat(GroqService.activeConstraints(bred)).containsExactly("högst 330 000 kr");
@@ -680,7 +680,7 @@ class GroqServiceTest {
     @Test
     void kandidatlistanGallerBaraElbilssok() {
         // Golven är elbilsgolv — en bensinsökning ska inte få en lista med elbilar
-        CarPreferences bensin = new CarPreferences(150_000, "ekonomibil", false, 15_000, "pendling",
+        CarPreferences bensin = new CarPreferences(150_000, "smaabil", false, 15_000, "pendling",
                 4, false, "bensin", null, "köp", null, null);
         assertThat(GroqService.affordableModelsLine(bensin)).isEmpty();
     }

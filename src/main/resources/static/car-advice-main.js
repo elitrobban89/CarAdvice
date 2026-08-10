@@ -178,7 +178,18 @@ var caLoadingInterval = null;
 
 var CA_HISTORY_KEY = 'ca-history';
 var CA_HISTORY_MAX = 5;
-var CA_CAT_NAMES = { ekonomibil: 'Ekonomibil', smaabil: 'Sm\xe5bil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
+var CA_CAT_NAMES = { smaabil: 'Sm\xe5bil', familjebil: 'Familjebil', elbil: 'Elbil', suv: 'SUV', laddhybrid: 'Laddhybrid' };
+
+/**
+ * Kategorivärden som inte längre finns i formuläret, översatta till det som ersatte dem.
+ *
+ * Ekonomibil slogs ihop med Småbil 2026-08-10, men värdet lever kvar i tre lager utanför vår
+ * kontroll: delade länkar (?category=ekonomibil), localStorage hos alla som sökt förut, och
+ * sparade sökningar i databasen. Utan översättningen sätts <select> till ett värde som inte
+ * finns, och då blir fältet TOMT — samma fel som usage=familj gav i en delad länk 2026-08-10.
+ */
+var CA_CAT_ALIAS = { ekonomibil: 'smaabil' };
+function caCanonCat(v) { return (v && CA_CAT_ALIAS[v]) || v; }
 var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
 var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
 // Kategorierna där budgeten kan gå FÖRBI segmentet — gränsen OCH rådet står på ett ställe.
@@ -190,8 +201,14 @@ var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
 // Taket ligger PÅ reglagets rutnät (steg om 25 000 kr): 249 000 gick aldrig att ställa in och
 // hade bara visats som en udda siffra i varningstexten.
 var CA_OVER_CATEGORY = {
-  ekonomibil: { over: 250000, byt: 'familjebil, SUV eller elbil' },
-  smaabil:    { over: 200000, byt: 'ekonomibil, familjebil eller elbil' }
+  // Ekonomibil och Småbil slogs ihop 2026-08-10: de överlappade redan i appens egen text
+  // ("Prisvärda småbilar — Sandero, Fiesta, Fabia, Polo, Yaris" mot "Stadsbilar — up!, C1,
+  // Picanto, Aygo"), och skillnaden supermini/stadsbil är inget en köpare väljer på. Småbil
+  // överlevde: 85 av 89 insikter bar redan den etiketten, och namnet är konkret — "ekonomibil"
+  // är en känsla om driftkostnad som lika gärna kan gälla en begagnad Passat.
+  // Taket ärvdes från ekonomibil (250 000), eftersom den sammanslagna kategorin rymmer
+  // superminis och inte bara stadsbilar.
+  smaabil:    { over: 250000, byt: 'familjebil, SUV eller elbil' }
 };
 
 // Burnout-hjulet under laddtexten. Elementen skapas från JS, inte i HTML-snippeten: sidan på
@@ -385,17 +402,15 @@ var CA_BUDGET_LEVELS = {
   // en fabriksny Picanto kostar ca 150 000 kr, så 400 000 köper inte en bättre småbil
   // utan bara fel bil. Toppnivåerna pekar därför vidare till en annan kategori i stället
   // för att hitta på en dyrare modell.
-  ekonomibil: { ikon: '💰', nivaer: [
-    { upTo:  99000, txt: 'Prisv\xe4rda sm\xe5bilar, ca 8–12 \xe5r. Dacia Sandero fr\xe5n ca 45 000 kr, Ford Fiesta 60 000, Škoda Fabia och VW Polo kring 75–80 000.' },
-    { upTo: 149000, txt: 'Nyare exemplar, ca 3–8 \xe5r. Dacia Sandero fr\xe5n ca 100 000 kr, Toyota Yaris och Kia Rio kring 100–125 000.' },
-    { upTo: 199000, txt: 'N\xe4stan ny — Suzuki Swift fr\xe5n ca 155 000 kr och Toyota Yaris kring 180 000.' },
-    { upTo: CA_OVER_CATEGORY.ekonomibil.over, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
-    { upTo: Infinity, overCategory: true }
-  ] },
+  // Sammanslagen av Ekonomibil + Småbil (2026-08-10). Nivåerna är UNIONEN: stadsbilarna i
+  // botten där de är billigast, superminis där de faktiskt kostar. Båda listornas modeller
+  // finns kvar — de var poängen med respektive kategori och beskriver tillsammans hela
+  // segmentet, från en 12 år gammal up! till en fabriksny Yaris.
   smaabil: { ikon: '🚘', nivaer: [
-    { upTo:  99000, txt: 'Stadsbilar, ca 8–12 \xe5r. VW up! fr\xe5n ca 45 000 kr, Citro\xebn C1 och Peugeot 108 kring 59 000, Fiat 500 63 000 och Kia Picanto 68 000.' },
-    { upTo: 149000, txt: 'Nyare stadsbil, ca 2–5 \xe5r. Kia Picanto fr\xe5n ca 84 000 kr och Toyota Aygo X 100–135 000.' },
-    { upTo: CA_OVER_CATEGORY.smaabil.over, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
+    { upTo:  99000, txt: 'Stadsbilar och \xe4ldre sm\xe5bilar, ca 8–12 \xe5r. VW up! fr\xe5n ca 45 000 kr, Dacia Sandero 45 000, Citro\xebn C1 och Peugeot 108 kring 59 000, Ford Fiesta 60 000, Kia Picanto 68 000 och VW Polo 75–80 000.' },
+    { upTo: 149000, txt: 'Nyare exemplar, ca 2–8 \xe5r. Kia Picanto fr\xe5n ca 84 000 kr, Toyota Aygo X 100–135 000, Dacia Sandero fr\xe5n 100 000 och Toyota Yaris kring 125 000.' },
+    { upTo: 199000, txt: 'N\xe4stan ny — Suzuki Swift fr\xe5n ca 155 000 kr, Toyota Yaris kring 180 000. Picanto och Aygo X g\xe5r att f\xe5 fabriksnya kring 150 000.' },
+    { upTo: CA_OVER_CATEGORY.smaabil.over, txt: 'H\xe4r r\xe4cker budgeten till en fabriksny sm\xe5bil med full garanti.' },
     { upTo: Infinity, overCategory: true }
   ] },
   // Elbilsnivaerna delar sina siffror med GroqService.EV_PRICE_FLOORS, som ger AI:n samma golv
@@ -686,7 +701,7 @@ function caLoadPrefs() {
     var raw = localStorage.getItem('ca-prefs');
     if (!raw) return;
     var d = JSON.parse(raw);
-    if (d.category)   document.getElementById('ca-category').value   = d.category;
+    if (d.category)   document.getElementById('ca-category').value   = caCanonCat(d.category);
     caSetBudgetMode(d.budgetMode || 'köp', d.budget ? parseInt(d.budget) : undefined);
     if (d.charger)    document.getElementById('ca-charger').value     = d.charger;
     if (d.km)         document.getElementById('ca-km').value          = d.km;
@@ -705,7 +720,7 @@ function caLoadPrefs() {
 function caReadUrlParams() {
   try {
     var p = new URLSearchParams(window.location.search);
-    if (p.get('category'))   document.getElementById('ca-category').value   = p.get('category');
+    if (p.get('category'))   document.getElementById('ca-category').value   = caCanonCat(p.get('category'));
     caSetBudgetMode(p.get('budgetMode') || 'köp', p.get('budget') ? parseInt(p.get('budget')) : undefined);
     if (p.get('charger'))    document.getElementById('ca-charger').value     = p.get('charger');
     if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
@@ -892,7 +907,7 @@ function caLoadFromHistory(index) {
   var history = caGetHistory();
   var entry = history[index];
   if (!entry) return;
-  if (entry.category)   document.getElementById('ca-category').value   = entry.category;
+  if (entry.category)   document.getElementById('ca-category').value   = caCanonCat(entry.category);
   if (entry.budget)   { document.getElementById('ca-budget-slider').value = entry.budget; caUpdateSliderFill(); }
   if (entry.charger)    document.getElementById('ca-charger').value     = entry.charger;
   if (entry.km)         document.getElementById('ca-km').value          = entry.km;
@@ -954,7 +969,7 @@ function caBytbilUrl(title) {
 }
 
 function caResetForm() {
-  document.getElementById('ca-category').value   = 'ekonomibil';
+  document.getElementById('ca-category').value   = 'smaabil';
   document.getElementById('ca-budget-slider').value = 200000;
   document.getElementById('ca-charger').value    = 'false';
   document.getElementById('ca-km').value         = 1500;
@@ -1830,7 +1845,7 @@ function caLoadSavedEntry(id) {
   if (!s) return;
   try {
     var prefs = JSON.parse(s.prefsJson);
-    if (prefs.carCategory) document.getElementById('ca-category').value = prefs.carCategory;
+    if (prefs.carCategory) document.getElementById('ca-category').value = caCanonCat(prefs.carCategory);
     if (prefs.budget)    { document.getElementById('ca-budget-slider').value = prefs.budget; caUpdateSliderFill(); }
     if (prefs.hasCharger !== undefined) document.getElementById('ca-charger').value = prefs.hasCharger ? 'true' : 'false';
     if (prefs.kmPerYear) document.getElementById('ca-km').value = Math.round(prefs.kmPerYear / 10);
@@ -1983,6 +1998,8 @@ function caVehicleTaxPerYear(r) {
   if (isPhev) return 1500;
   if (isHybrid) return cat.indexOf('suv') !== -1 ? 3200 : 2000;
   if (cat.indexOf('suv') !== -1) return 4500;
+  // 'ekonomibil' �r ett legacy-v�rde efter sammanslagningen 2026-08-10 - kan fortfarande komma
+  // ur ett cachat svar eller en gammal sparad s�kning, s� kontrollen st�r kvar
   if (cat.indexOf('smaabil') !== -1 || cat.indexOf('ekonomibil') !== -1) return 1200;
   return 3000;
 }
