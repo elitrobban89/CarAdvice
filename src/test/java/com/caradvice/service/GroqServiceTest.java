@@ -577,6 +577,35 @@ class GroqServiceTest {
         assertThat(GroqService.harGolvvakt(begagnat)).isTrue();
     }
 
+    // --- rate limit vs trunkering (två olika fel som såg identiska ut) ---
+
+    @Test
+    void rateLimitFarAldrigRadetOmKriterierna() {
+        // Skarpt fall 2026-08-10: användaren fick "AI-svaret blev ofullständigt ... prova högre
+        // budget, färre passagerare" och samma sökning gick igenom direkt efteråt. Orsaken var
+        // minutkvoten — en sökning drar ~5 000 av 8 000 tokens, så två inom samma minut räcker.
+        // Rådet var alltså inte bara onödigt utan aktivt vilseledande: kriterierna var oskyldiga
+        // och det enda som hjälpte var att vänta.
+        GroqService.RateLimitedException taket =
+                new GroqService.RateLimitedException("AI-tjänsten är tillfälligt överbelastad.");
+
+        assertThat(GroqService.medRadOmKriterier(taket))
+                .isSameAs(taket);
+        assertThat(GroqService.medRadOmKriterier(taket).getMessage())
+                .doesNotContain("Kriterierna kan vara för snäva");
+    }
+
+    @Test
+    void andraFelBehallerRadetOmKriterierna() {
+        // Trunkering ÄR ofta kriterieberoende: elbil + 225 000 kr + 5 passagerare gav HTTP 500
+        // i tre försök av tre 2026-08-09, medan fyra passagerare gick igenom direkt
+        RuntimeException trunkerat = new RuntimeException("AI-svaret blev ofullständigt. Försök igen.");
+
+        assertThat(GroqService.medRadOmKriterier(trunkerat).getMessage())
+                .contains("AI-svaret blev ofullständigt")
+                .contains("Kriterierna kan vara för snäva");
+    }
+
     // --- activeConstraints (underlag för banderollen "för snäva krav") ---
 
     @Test

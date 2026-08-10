@@ -285,6 +285,16 @@ public class GroqService {
         } catch (RuntimeException first) {
             log.warn("{}: ofullständigt/tomt svar — omförsök med {}", label, reserveModel);
             HttpResponse<String> retry = httpClient.send(buildRequest(reserveBody), HttpResponse.BodyHandlers.ofString());
+            // Ett rate limit på omförsöket är INTE samma fel som det första: förr kastades det
+            // ursprungliga trunkeringsfelet vidare, så användaren fick "AI-svaret blev
+            // ofullständigt" plus rådet att lätta på sina kriterier — fast kriterierna var
+            // oskyldiga och det enda som hjälpte var att vänta en minut. En sökning drar ~5 000
+            // av minutbudgetens 8 000 tokens, så två inom samma minut räcker för att utlösa det.
+            // Återanvänder buildRateLimitError: den skiljer dygnstaket (TPD/RPD) från minuttaket
+            // och läser väntetiden ur Groqs eget svar, i stället för att gissa "en minut".
+            if (retry.statusCode() == 429)
+                throw new RateLimitedException(buildRateLimitError(retry.body())
+                        + " Dina kriterier är inte problemet.");
             if (retry.statusCode() != 200) throw first;
             try {
                 List<CarRecommendation> parsed = extractAndParse(retry, label + " (omförsök)");
@@ -1576,9 +1586,27 @@ public class GroqService {
      * om — den varierar mellan avhuggen JSON och overifierbar modell, och gissas inte här.
      */
     static RuntimeException medRadOmKriterier(RuntimeException e) {
+        // Rate limit får ALDRIG rådet om kriterierna. Det är inte bara onödigt utan aktivt
+        // vilseledande: sökningen var korrekt, taket släpper av sig självt, och att sänka
+        // kraven hjälper inte. Skarpt fall 2026-08-10 — användaren fick "AI-svaret blev
+        // ofullständigt ... prova högre budget" och samma sökning gick igenom direkt efteråt.
+        if (e instanceof RateLimitedException) return e;
         return new RuntimeException(e.getMessage()
                 + " Kriterierna kan vara för snäva — prova högre budget, färre passagerare"
                 + " eller ett annat drivmedel.");
+    }
+
+    /**
+     * Groq svarade 429 — appen har slagit i minutkvoten, inte i något användaren gjort.
+     *
+     * <p>Egen typ och inte bara en text, eftersom {@link #medRadOmKriterier} måste kunna skilja
+     * fallet från de andra: rådet "prova högre budget, färre passagerare" är fel svar på ett
+     * tak som släpper av sig självt om en minut.
+     */
+    static class RateLimitedException extends RuntimeException {
+        RateLimitedException(String message) {
+            super(message);
+        }
     }
 
     /**
