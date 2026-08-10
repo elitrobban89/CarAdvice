@@ -1856,6 +1856,10 @@ function caLoadSavedEntry(id) {
     if (prefs.fuelType)    document.getElementById('ca-fuel').value = prefs.fuelType;
     if (prefs.transmission) { var tEl2 = document.getElementById('ca-transmission'); if (tEl2) tEl2.value = prefs.transmission; }
     if (prefs.maxAgeYears) { var maEl2 = document.getElementById('ca-maxage'); if (maEl2) maEl2.value = prefs.maxAgeYears; }
+    // caSaveSearch skickar med minCargoLiters â€” utan raden hÃ¤r sparas kravet men Ã¥terstÃ¤lls
+    // aldrig, sÃ¥ en sparad sÃ¶kning ger ett ANNAT resultat Ã¤n den gjorde nÃ¤r den sparades.
+    // Samma asymmetri som delningslÃ¤nken hade tills den lagades tidigare idag.
+    if (prefs.minCargoLiters) { var cgEl = document.getElementById('ca-cargo'); if (cgEl) cgEl.value = prefs.minCargoLiters; }
     caUpdateFuelVisibility(); caCheckMismatch();
     var recs = JSON.parse(s.recommendationsJson || '[]');
     if (recs.length > 0) {
@@ -1998,8 +2002,8 @@ function caVehicleTaxPerYear(r) {
   if (isPhev) return 1500;
   if (isHybrid) return cat.indexOf('suv') !== -1 ? 3200 : 2000;
   if (cat.indexOf('suv') !== -1) return 4500;
-  // 'ekonomibil' är ett legacy-värde efter sammanslagningen 2026-08-10 - kan fortfarande komma
-  // ur ett cachat svar eller en gammal sparad sökning, så kontrollen står kvar
+  // 'ekonomibil' ï¿½r ett legacy-vï¿½rde efter sammanslagningen 2026-08-10 - kan fortfarande komma
+  // ur ett cachat svar eller en gammal sparad sï¿½kning, sï¿½ kontrollen stï¿½r kvar
   if (cat.indexOf('smaabil') !== -1 || cat.indexOf('ekonomibil') !== -1) return 1200;
   return 3000;
 }
