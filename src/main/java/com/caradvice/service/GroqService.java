@@ -2077,8 +2077,12 @@ public class GroqService {
         String cargoLine = (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0)
                 ? " BAGAGEKRAV: minst " + prefs.minCargoLiters() + " liter bagageutrymme med"
                   + " baksätet UPPFÄLLT (normalvolym, inte maxvolym med nedfällt säte). En bil med"
-                  + " mindre bagage är FELAKTIG oavsett hur väl den passar i övrigt — välj en"
-                  + " rymligare kaross (kombi eller SUV i stället för halvkombi)." : "";
+                  + " mindre bagage är FELAKTIG oavsett hur väl den passar i övrigt."
+                  + " KAROSSEN AVGÖR — typiska volymer uppfällt/nedfällt: kompakt-SUV 400–520 /"
+                  + " 1 300–1 600 l, mellankombi 500–610 / 1 500–1 650 l, stor kombi 600–700 /"
+                  + " 1 700–1 950 l, stor SUV (7-sits) 600–780 / upp till 2 000 l, skåp-/fritidsbil"
+                  + " 650–900 / 2 500–3 900 l. Räcker inte karossen till kravet, byt karosstyp i"
+                  + " stället för att föreslå en större motor eller dyrare utrustningsnivå." : "";
 
         return """
                 Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s%s

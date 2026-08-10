@@ -614,13 +614,16 @@ function caSavePrefs() {
 // .ca-field select automatiskt och ser rätt ut på WP-sidan utan att snippeten klistras om.
 // Nivåerna bär exempelbilar av samma skäl som budgetrutan gör det: "400 l" säger ingenting
 // förrän det står bredvid en bil man känner igen.
+// Nivåerna är satta efter KAROSSTYP och inte efter jämna hundratal: det är karossen som avgör
+// vad som får plats, och intervallen nedan är typiska för respektive klass. Modellnamnen står
+// kvar som ankare — "500 l" säger ingenting förrän det står bredvid en bil man känner igen.
 var CA_CARGO_LEVELS = [
   { v: 0,   txt: 'Spelar ingen roll' },
-  { v: 300, txt: 'Minst 300 l — Renault Zoe, Toyota Yaris' },
-  { v: 400, txt: 'Minst 400 l — Škoda Kamiq, VW Golf' },
-  { v: 500, txt: 'Minst 500 l — Volvo V60, Kia Niro EV' },
-  { v: 600, txt: 'Minst 600 l — Škoda Octavia Combi, MG5' },
-  { v: 700, txt: 'Minst 700 l — Volvo V90, stor el-SUV' }
+  { v: 300, txt: 'Minst 300 l — halvkombi (Zoe, Yaris)' },
+  { v: 400, txt: 'Minst 400 l — kompakt-SUV (Kamiq, Golf)' },
+  { v: 500, txt: 'Minst 500 l — mellankombi (V60, Niro EV)' },
+  { v: 600, txt: 'Minst 600 l — stor kombi eller stor SUV (Octavia Combi, MG5)' },
+  { v: 700, txt: 'Minst 700 l — stor SUV eller sk\xe5pbil (V90, EV9)' }
 ];
 function caEnsureCargoField() {
   if (document.getElementById('ca-cargo')) return;

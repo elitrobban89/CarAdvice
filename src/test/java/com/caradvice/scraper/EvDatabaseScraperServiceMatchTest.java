@@ -19,7 +19,32 @@ import static org.mockito.Mockito.mock;
 class EvDatabaseScraperServiceMatchTest {
 
     private final EvDatabaseScraperService service =
-            new EvDatabaseScraperService(mock(EvSpecRepository.class));
+            new EvDatabaseScraperService(mock(EvSpecRepository.class),
+                    mock(com.caradvice.service.CargoSpecService.class));
+
+    @Test
+    void bagagevolymLasesUrCellenEfterEtiketten() {
+        // Sidorna besöks ändå varje natt, så volymen kostar inget extra anrop. "Cargo Volume" och
+        // "Cargo Volume Max" står som varsin rad i SAMMA tabell — en textsökning på den första
+        // hade lika gärna kunnat plocka den andras siffra, därför exakt cell-matchning.
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse("""
+                <table>
+                  <tr><td>Cargo Volume</td><td>627 L</td></tr>
+                  <tr><td>Cargo Volume Max</td><td>1835 L</td></tr>
+                  <tr><td>Cargo Volume Frunk</td><td>62 L</td></tr>
+                </table>""");
+
+        assertThat(EvDatabaseScraperService.extractCargoCell(doc, "Cargo Volume")).isEqualTo(627);
+        assertThat(EvDatabaseScraperService.extractCargoCell(doc, "Cargo Volume Max")).isEqualTo(1835);
+        assertThat(EvDatabaseScraperService.extractCargoCell(doc, "Finns inte")).isZero();
+    }
+
+    @Test
+    void bagagevolymUtanSiffraGerNoll() {
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(
+                "<table><tr><td>Cargo Volume</td><td>n/a</td></tr></table>");
+        assertThat(EvDatabaseScraperService.extractCargoCell(doc, "Cargo Volume")).isZero();
+    }
 
     /** Samma normalisering som tjänsten använder internt för nameMap-nycklarna. */
     private static String norm(String s) {

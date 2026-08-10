@@ -25,6 +25,51 @@ public class CargoSpecService {
         return repo.findAllCarNames();
     }
 
+    /**
+     * Fyller en tom bagagevolym med en uppmätt siffra från nattens EV-synk.
+     *
+     * <p>Tabellen har 679 kända bilnamn men bara 185 med volym, eftersom
+     * {@code CargoSpecSyncService} bara hämtar NAMN från Bilweb och skriver {@code null} i
+     * literkolumnen. Bagagefiltrets vakt kan därför bara fälla på positivt bevis. ev-database
+     * bär både "Cargo Volume" och "Cargo Volume Max" på de bilsidor EV-synken ändå besöker
+     * varje natt, så volymen kostar inget extra anrop — men den täcker bara elbilar.
+     *
+     * <p>Tre regler, alla avsiktliga:
+     * <ul>
+     *   <li><b>Fyller bara tomma rader.</b> DataLoaders 185 seedade volymer är handkontrollerade
+     *       och vinner alltid över en skrapad siffra.</li>
+     *   <li><b>Skapar aldrig nya rader.</b> ev-database har en sida per VARIANT ("Kia EV6 Long
+     *       Range 2WD"), medan bagagevolym är en egenskap hos modellen — nya rader per variant
+     *       hade fyllt både tabellen och autocomplete ({@code /api/cars}) med dubbletter.</li>
+     *   <li><b>Mest specifika namnet vinner</b> när flera rader matchar, samma regel som
+     *       {@link #formatForTitle}: "Kia EV6 GT" före "Kia EV6" för en GT-sida.</li>
+     * </ul>
+     *
+     * @return true om en rad faktiskt fylldes
+     */
+    @Transactional
+    public boolean fillFromScrape(String scrapedName, int liters, int maxLiters) {
+        if (scrapedName == null || scrapedName.isBlank() || liters <= 0) return false;
+        Set<String> scrapedWords = new HashSet<>(Arrays.asList(normalize(scrapedName).split("\\s+")));
+
+        CargoSpec match = repo.findAll().stream()
+                .filter(cs -> cs.getCargoLiters() == null)
+                .filter(cs -> {
+                    String[] nameWords = normalize(cs.getCarName()).split("\\s+");
+                    if (nameWords.length < 2) return false;   // "Volvo" ensamt matchar allt
+                    for (String w : nameWords) if (!scrapedWords.contains(w)) return false;
+                    return true;
+                })
+                .max(Comparator.comparingInt(cs -> normalize(cs.getCarName()).split("\\s+").length))
+                .orElse(null);
+        if (match == null) return false;
+
+        match.setCargoLiters(liters);
+        if (maxLiters > 0) match.setCargoMaxLiters(maxLiters);
+        repo.save(match);
+        return true;
+    }
+
     public CargoSpecDto formatForTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(CarTitle.stripYear(title));

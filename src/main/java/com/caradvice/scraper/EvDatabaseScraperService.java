@@ -68,9 +68,12 @@ public class EvDatabaseScraperService {
     }
 
     private final EvSpecRepository repo;
+    private final com.caradvice.service.CargoSpecService cargoSpecService;
 
-    public EvDatabaseScraperService(EvSpecRepository repo) {
+    public EvDatabaseScraperService(EvSpecRepository repo,
+                                    com.caradvice.service.CargoSpecService cargoSpecService) {
         this.repo = repo;
+        this.cargoSpecService = cargoSpecService;
     }
 
     public int syncFromEvDatabase() {
@@ -99,6 +102,7 @@ public class EvDatabaseScraperService {
         int created = 0;
         int failed = 0;
         int collisions = 0;
+        int cargoFilled = 0;   // bagagevolymer som fylldes i cargo_spec pa kopet
         Map<String, String> claims = new LinkedHashMap<>();   // DB-rad → första skrapade bilen, se claimRow
         for (String path : carUrls) {
             int hour = ZonedDateTime.now(STOCKHOLM).getHour();
@@ -112,6 +116,21 @@ public class EvDatabaseScraperService {
                 if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
                 if (isExcludedBrand(scraped.name())) continue;   // inte failed — medvetet bortvald
                 if (isAliasName(scraped.name())) continue;       // samma bil, ev-databases namn
+
+                // Bagagevolymen ligger på samma sida — fyll den medan vi ändå är här. Egen
+                // try/catch: cargo_spec är en annan tabell och ett fel där får inte sänka
+                // EV-synken, som är sidans egentliga uppdrag.
+                try {
+                    if (scraped.cargoLiters() > 0
+                            && cargoSpecService.fillFromScrape(scraped.name(),
+                                    scraped.cargoLiters(), scraped.cargoMaxLiters())) {
+                        cargoFilled++;
+                        log.info("Bagagevolym ifylld från {}: {} l ({} l nedfällt)",
+                                scraped.name(), scraped.cargoLiters(), scraped.cargoMaxLiters());
+                    }
+                } catch (Exception e) {
+                    log.warn("Bagagevolym för {} kunde inte skrivas: {}", scraped.name(), e.getMessage());
+                }
 
                 EvSpec match = findMatch(scraped.name(), scraped.rangeKm(), nameMap);
                 if (match == null) {
@@ -198,8 +217,8 @@ public class EvDatabaseScraperService {
         }
 
         int total = carUrls.size();
-        log.info("Sync complete — updated={} created={} failed={} collisions={} total={}",
-                updated, created, failed, collisions, total);
+        log.info("Sync complete — updated={} created={} failed={} collisions={} bagagevolymer={} total={}",
+                updated, created, failed, collisions, cargoFilled, total);
         if (collisions > 0) {
             log.warn("Scraper: {} bilar hoppades över för att de pekade på en redan tagen DB-rad — "
                     + "se SCRAPER ALERT-raderna ovan", collisions);
@@ -255,7 +274,9 @@ public class EvDatabaseScraperService {
                     extractBattery(text),
                     extractDc(text),
                     extractAc(text),
-                    extractPrice(text)
+                    extractPrice(text),
+                    extractCargoCell(doc, "Cargo Volume"),
+                    extractCargoCell(doc, "Cargo Volume Max")
             );
         } catch (Exception e) {
             log.debug("Skipped {}: {}", url, e.getMessage());
@@ -441,5 +462,30 @@ public class EvDatabaseScraperService {
                 .trim();
     }
 
-    record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw, int priceKr) {}
+    record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw, int priceKr,
+                       int cargoLiters, int cargoMaxLiters) {}
+
+    /**
+     * Bagagevolymen ur specifikationstabellen på bilsidan.
+     *
+     * <p>Läses ur cellen EFTER etiketten och inte ur sidans brödtext: "Cargo Volume" och
+     * "Cargo Volume Max" står som varsin rad i samma tabell, och en textsökning på den första
+     * hade lika gärna kunnat plocka den andras siffra. Jämförelsen är exakt (inte "börjar med"),
+     * av samma skäl.
+     *
+     * <p>Anledningen att det görs här: {@code cargo_spec} har 679 kända bilnamn men bara 185
+     * med uppmätt volym, eftersom {@code CargoSpecSyncService} bara hämtar NAMN från Bilweb och
+     * skriver {@code null} i literkolumnen. Bagagefiltrets vakt kan därför bara fälla på
+     * positivt bevis. Sidorna nedan besöks ändå varje natt, så volymen kostar inget extra anrop.
+     */
+    static int extractCargoCell(Document doc, String label) {
+        for (Element td : doc.select("td")) {
+            if (!td.text().trim().equalsIgnoreCase(label)) continue;
+            Element value = td.nextElementSibling();
+            if (value == null) continue;
+            Matcher m = Pattern.compile("(\\d{2,4})\\s*L\\b", Pattern.CASE_INSENSITIVE).matcher(value.text());
+            if (m.find()) return Integer.parseInt(m.group(1));
+        }
+        return 0;
+    }
 }
