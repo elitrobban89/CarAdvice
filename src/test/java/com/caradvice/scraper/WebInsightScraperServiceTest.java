@@ -454,6 +454,28 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void relevanspromptenStopparModellspecifikFordonsskatt() {
+        // Natten 2026-08-10 sparades två skatterader (V60 Recharge 360 kr/år, Cayenne Turbo
+        // E-Hybrid 2 714 kr/år) fast "skatter" redan stod i uteslutningslistan — vakten läste
+        // ett belopp knutet till en enskild modell som en egenskap hos bilen. Beloppet följer
+        // av regelverket och ändras med det, medan priset på bilen måste förbli RELEVANT
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("fordonsskatt")
+                .contains("ingen egenskap hos bilen")
+                .contains("Bilens pris, förbrukning och CO2-värde är däremot egenskaper");
+    }
+
+    @Test
+    void relevanspromptenStopparRenoveringsobjekt() {
+        // "Volvo 240 kan återställas till körglädje för omkring 38 000 kronor" släpptes igenom
+        // 2026-08-10 trots att veteran-/samlarbilar och entusiastombyggnader var uteslutna —
+        // texten handlar om ett renoveringsprojekt, inte om en bil någon kan köpa och köra
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("renoveringsobjekt")
+                .contains("Volvo 240");
+    }
+
+    @Test
     void relevanspromptenSkiljerKonceptbilFranPresenteradModell() {
         // A/B 2026-08-08: A2 e-tron-raderna stoppades 3/3 även ensamma i sin batch tills
         // gränsen skrevs ut — "preliminär energiförbrukning" lästes som konceptbil av

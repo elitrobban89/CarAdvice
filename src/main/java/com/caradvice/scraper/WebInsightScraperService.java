@@ -209,7 +209,11 @@ public class WebInsightScraperService {
               En konceptbil är en studie utan produktionsbeslut. En modell tillverkaren
               officiellt presenterat för marknaden är däremot ingen konceptbil, även om
               siffrorna är preliminära och säljstarten inte är satt — Audi A2 e-trons
-              preliminära förbrukning lästes felaktigt som en konceptbil 2026-08-08
+              preliminära förbrukning lästes felaktigt som en konceptbil 2026-08-08.
+              Hit hör också renoveringsobjekt och begagnade bilar vars poäng är att en gammal
+              modell går att få billig i skick: "Volvo 240 kan återställas till körglädje för
+              omkring 38 000 kronor" släpptes felaktigt igenom 2026-08-10 — ett
+              entusiastprojekt är ingen köpvägledning
             - specialutgåvor, jubileums- och signatureditioner vars innehåll är utseende,
               namn eller upplaga i stället för egenskaper — färger, fälgar, dekor, emblem,
               "firar 25 år", "begränsad upplaga om 500 exemplar" (Mini Cooper Oxford Edition
@@ -227,7 +231,14 @@ public class WebInsightScraperService {
               släpptes felaktigt igenom 2026-08-01). Skriver texten däremot ut vad som
               faktiskt går sönder — vilken funktion, vilket symtom, vilken åtgärd — är den
               RELEVANT som känt fel
-            - trafikregler, lagändringar, böter, skatter eller försäkringsregler
+            - trafikregler, lagändringar, böter, skatter eller försäkringsregler. Uteslutningen
+              gäller ÄVEN när skattebeloppet är knutet till en enskild modell — fordonsskatt,
+              malus och trängselskatt: "Volvo V60 Recharge betalar 360 kr/år i fordonsskatt"
+              och "Porsche Cayenne Turbo E-Hybrid har 2 714 kr per år" släpptes felaktigt
+              igenom 2026-08-10 fast skatter redan var uteslutna. En skattesiffra följer av
+              regelverket och ändras när reglerna ändras — den är ingen egenskap hos bilen.
+              Bilens pris, förbrukning och CO2-värde är däremot egenskaper och fortsatt
+              RELEVANTA, även när texten runt omkring handlar om skatt
             - vilken bil en känd person (idrottare, artist, politiker) kör, äger eller setts i
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
