@@ -231,10 +231,16 @@ class GroqServiceTest {
         assertThat(sp)
                 .contains("FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 5+ passagerare)")
                 .contains("Dacia Spring")
-                .contains("UTNYTTJA BUDGETEN")
-                // ID.3 är Golf-klass med fem säten och stod på förbudslistan medan MG4 — samma
-                // storleksklass — rekommenderades som familjeelbil längre ned i samma stycke
-                .doesNotContain("VW ID.3");
+                .contains("UTNYTTJA BUDGETEN");
+        // ID.3 är Golf-klass med fem säten och stod på förbudslistan medan MG4 — samma
+        // storleksklass — rekommenderades som familjeelbil längre ned i samma stycke.
+        // Kollas på SJÄLVA förbudsraden och inte på hela prompten: bilen får mycket väl nämnas
+        // på annat håll, och gjorde det så fort begagnatgolven kom in ("VW ID.3 fr. ca 199 000")
+        // — en assertion på hela texten hade tvingat fram fel rättning av rätt larm.
+        String familjeraden = sp.lines()
+                .filter(l -> l.startsWith("FAMILJEBIL (kategori"))
+                .findFirst().orElseThrow();
+        assertThat(familjeraden).doesNotContain("ID.3");
     }
 
     @Test
@@ -247,6 +253,22 @@ class GroqServiceTest {
                 .contains("Ceed SW")
                 .contains("Dacia Jogger")
                 .contains("7 säten");
+    }
+
+    @Test
+    void promptenBarUppmattaBegagnatgolvForElbilar() {
+        // Elbil var enda kategorin utan exempellista: AI:n fick nypristabellen plus
+        // deprecieringsregeln och räknade fram begagnatpriserna själv — systematiskt för högt.
+        // Live 2026-08-10: elbil + 200 000 kr gav EV6 (billigaste annons 316 990 kr) och
+        // banderollen "budgeten räcker inte", medan MG4 fanns från 193 990 och MG5 från 179 700.
+        // Golven speglar CA_BUDGET_LEVELS.elbil i car-advice-main.js — går de isär säger
+        // budgetrutan och korten emot varandra i samma vy.
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp)
+                .contains("UPPMÄTTA BEGAGNATGOLV")
+                .contains("högst 10 000 mil")   // utan milgränsen sätter vraken golvet
+                .contains("MG4 och Hyundai Kona Electric fr. ca 195 000")
+                .contains("Kia EV6 fr. ca 317 000");
     }
 
     @Test

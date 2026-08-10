@@ -397,6 +397,10 @@ var CA_BUDGET_LEVELS = {
     { upTo: CA_OVER_CATEGORY.smaabil.over, txt: 'Fabriksny stadsbil med garanti — Picanto och Aygo X ligger kring 150 000 kr.' },
     { upTo: Infinity, overCategory: true }
   ] },
+  // Elbilsnivaerna delar sina siffror med GroqService.EV_PRICE_FLOORS, som ger AI:n samma golv
+  // som prisankare — rutan sager vad pengarna racker till, prompten vad AI:n far foresla. Gar de
+  // isar motsager sidan sig sjalv i samma vy: 2026-08-10 sa rutan "MG4 kring 195 000" medan
+  // motorn foreslog EV6 for 316 990 och skrev att budgeten inte rackte. Mat om BADA samtidigt.
   elbil: { ikon: '⚡', nivaer: [
     { upTo:  99000, txt: 'De \xe4ldsta elbilarna — Renault Zoe fr\xe5n ca 58 000 kr och Nissan Leaf fr\xe5n ca 70 000. Kort r\xe4ckvidd och ett batteri som b\xf6rjar bli \xe5ldrat.' },
     { upTo: 149000, txt: 'Liten begagnad elbil, ca 6–10 \xe5r. MG ZS EV fr\xe5n ca 130 000 kr och e-Golf kring 139 000 — Leaf och Zoe ligger under det.' },

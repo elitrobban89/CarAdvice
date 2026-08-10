@@ -36,6 +36,28 @@ public class GroqService {
             "NYPRIS PER GENERATION: Se \"ICE-nypris\"-tabellen nedan. Begagnatpris = nypris (för bilens generation) × koefficient: ×0.85 (1år), ×0.75 (2år), ×0.65 (3år), ×0.57 (4år), ×0.50 (5år), ×0.44 (6år), ×0.39 (7år), ×0.34 (8+år).";
 
     /**
+     * Uppmätta begagnatgolv för elbilar — prisankare åt modellvalet.
+     *
+     * <p>Elbilskategorin var den enda utan exempellista i prompten (SUV och Småbil har sina),
+     * så AI:n fick nypristabellen plus {@link #DEPRECIATION_RULE} och skulle räkna ut
+     * begagnatpriserna själv. Den överskattar dem systematiskt: live 2026-08-10 gav elbil +
+     * 200 000 kr förslagen EV6/Leaf/Polestar 2, där EV6:s billigaste annons låg på 316 990 kr
+     * och utlöste banderollen om att budgeten inte räcker — medan MG4 fanns från 193 990 kr och
+     * MG5 från 179 700 kr. Ingen vakt hade fällt någon av dem; de föreslogs bara aldrig.
+     *
+     * <p><b>Håll listan i synk med {@code CA_BUDGET_LEVELS.elbil} i car-advice-main.js.</b> Det
+     * är samma siffror sedda från två håll — budgetrutan säger vad pengarna räcker till, den här
+     * listan säger åt AI:n vad den får föreslå — och går de isär motsäger sidan sig själv inom
+     * samma vy. Golven är mätta mot Blocket med **högst 10 000 mil** och samma outlier-trimning
+     * som prisraden på korten; utan milgränsen sätts golvet av marknadens mest slitna exemplar.
+     * Siffrorna åldras: mät om båda listorna samtidigt, aldrig bara den ena.
+     */
+    private static final String EV_PRICE_FLOORS = """
+            ELBIL (kategori "elbil") — UPPMÄTTA BEGAGNATGOLV på svenska marknaden (billigaste annons med högst 10 000 mil, augusti 2026). Använd dem som prisankare i stället för att räkna fram priset ur nypriset:
+            Renault Zoe fr. ca 58 000, Nissan Leaf fr. ca 70 000, MG ZS EV fr. ca 130 000, VW e-Golf fr. ca 139 000, Kia Niro EV fr. ca 175 000, MG5 fr. ca 180 000 (elkombi), MG4 och Hyundai Kona Electric fr. ca 195 000, VW ID.3 fr. ca 199 000, Polestar 2 fr. ca 209 000, Tesla Model 3 fr. ca 215 000, VW ID.4 fr. ca 229 500, Škoda Enyaq fr. ca 279 000, Kia EV6 fr. ca 317 000.
+            En modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en modell vars golv ligger nära budgeten. Golvet är billigaste exemplaret: ett välutrustat eller lågmilat exemplar kostar mer.""";
+
+    /**
      * {@code budgetShortfallFromKr} är null i normalfallet. Är den satt gick ingen bil att
      * hitta inom budgettaket — korten visas ändå (tomt resultat hjälper ingen), och värdet
      * är billigaste verkliga marknadspris bland dem så frontend kan säga varför.
@@ -1945,6 +1967,7 @@ public class GroqService {
                 FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage — marknadens billigaste elbil med kombikaross och därför ett självklart förslag när budgeten ligger under ca 250 000 kr).
                 SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).
                 SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
+                """ + EV_PRICE_FLOORS + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte att hitta under det taket är bilen fel förslag oavsett hur väl den passar i övrigt — byt till äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
                 SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
