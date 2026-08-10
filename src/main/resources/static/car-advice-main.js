@@ -190,6 +190,21 @@ var CA_CAT_NAMES = { smaabil: 'Sm\xe5bil', familjebil: 'Familjebil', elbil: 'Elb
  */
 var CA_CAT_ALIAS = { ekonomibil: 'smaabil' };
 function caCanonCat(v) { return (v && CA_CAT_ALIAS[v]) || v; }
+
+/**
+ * Loggar ett svalt fel i stället för att tiga.
+ *
+ * Återställningsfunktionerna (sparad sökning, localStorage, URL-parametrar) ligger i ett enda
+ * try/catch, så ett saknat element avbryter mitt i och lämnar formuläret HALVT ifyllt — utan
+ * ett ljud. Det hände på riktigt 2026-08-10 när bagagefältet skulle återställas: kategorin hann
+ * sättas, resten inte, och fixen såg trasig ut fast den var korrekt. Samma sorts tystnad gjorde
+ * både AI:ns påhittade Blocket-siffra och rate limit-felet svåra att hitta samma dag.
+ *
+ * console.warn och inte throw: en trasig sparad sökning ska inte fälla hela sidan.
+ */
+function caWarn(vad, e) {
+  try { console.warn('CarAdvice: ' + vad + ' avbröts — formuläret kan vara halvt ifyllt', e); } catch (x) {}
+}
 var CA_FUEL_NAMES = { bensin: 'Bensin', diesel: 'Diesel', hybrid: 'Hybrid' };
 var CA_TRANSMISSION_NAMES = { manuell: 'Manuell', automat: 'Automat' };
 // Kategorierna där budgeten kan gå FÖRBI segmentet — gränsen OCH rådet står på ett ställe.
@@ -638,7 +653,7 @@ function caSavePrefs() {
       maxage:       maEl ? maEl.value : '',
       cargo:        (function(){ var c = document.getElementById('ca-cargo'); return c ? c.value : '0'; })()
     }));
-  } catch(e) {}
+  } catch(e) { caWarn('att spara inställningar', e); }
 }
 // ── Bagagefiltret ────────────────────────────────────────────────────────────
 // Byggs från JS och inte i HTML-snippeten: WordPress-sidan är en manuell kopia, så ett nytt
@@ -714,7 +729,7 @@ function caLoadPrefs() {
     if (d.maxage) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = d.maxage; }
     caUpdateFuelVisibility();
     caCheckMismatch();
-  } catch(e) {}
+  } catch(e) { caWarn('sparade inställningar', e); }
 }
 
 function caReadUrlParams() {
@@ -732,7 +747,7 @@ function caReadUrlParams() {
     if (p.get('maxage')) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = p.get('maxage'); }
     if (p.get('cargo')) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = p.get('cargo'); }
     if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
-  } catch(e) {}
+  } catch(e) { caWarn('länkens parametrar', e); }
 }
 
 function caSnapshotValues() {
@@ -848,7 +863,7 @@ function caSaveHistory(recommendations) {
     history = history.slice(0, CA_HISTORY_MAX);
     localStorage.setItem(CA_HISTORY_KEY, JSON.stringify(history));
     caRenderHistory();
-  } catch(e) {}
+  } catch(e) { caWarn('att spara historik', e); }
 }
 
 function caGetHistory() {
@@ -1881,7 +1896,7 @@ function caLoadSavedEntry(id) {
     } else {
       caGetRecommendation();
     }
-  } catch(e) {}
+  } catch(e) { caWarn('sparad sökning', e); }
 }
 
 async function caDeleteSaved(id) {
