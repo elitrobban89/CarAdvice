@@ -693,6 +693,7 @@ function caReadUrlParams() {
     if (p.get('fuelType'))    document.getElementById('ca-fuel').value        = p.get('fuelType');
     if (p.get('transmission')) { var t = document.getElementById('ca-transmission'); if (t) t.value = p.get('transmission'); }
     if (p.get('maxage')) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = p.get('maxage'); }
+    if (p.get('cargo')) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = p.get('cargo'); }
     if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
   } catch(e) {}
 }
@@ -2175,7 +2176,11 @@ function caShareSearch() {
     fuelType:     document.getElementById('ca-fuel').value,
     transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
     budgetMode:   caIsLeasing ? 'leasing' : 'köp',
-    maxage:       (function(){ var el = document.getElementById('ca-maxage'); return el ? el.value : ''; })()
+    maxage:       (function(){ var el = document.getElementById('ca-maxage'); return el ? el.value : ''; })(),
+    // Utan den här raden tappar en delad länk bagagekravet, och mottagaren får en ANNAN sökning
+    // än avsändaren gjorde — tyst, eftersom formuläret ser rätt ut och bara resultatet skiljer.
+    // Samma asymmetri fanns åt andra hållet i caReadUrlParams.
+    cargo:        (function(){ var c = document.getElementById('ca-cargo'); return c ? c.value : '0'; })()
   });
   var url = window.location.origin + window.location.pathname + '?' + params.toString();
   var btns = [document.getElementById('ca-share-search-btn'), document.getElementById('ca-share-result-btn')];
