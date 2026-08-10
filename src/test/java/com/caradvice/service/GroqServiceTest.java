@@ -257,6 +257,22 @@ class GroqServiceTest {
     }
 
     @Test
+    void avvecklandeModellerFarForeslasIBegagnatsok() {
+        // Renault Zoe slutade tillverkas i mars 2024 (ersatt av Renault 5) — men 49 exemplar
+        // ligger på Blocket från 58 000 kr, och prompten listar samtidigt Zoe både som
+        // småbilsexempel och med begagnatgolv 58 000. Regeln "nämn ALDRIG modeller som inte
+        // officiellt säljs i Sverige" motsade alltså två andra rader i samma prompt. Appen ger
+        // råd om begagnatköp: gränsen går vid bilar som ALDRIG sålts här.
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "el");
+        assertThat(sp)
+                .contains("aldrig sålts i Sverige")
+                .doesNotContain("Nämn ALDRIG modeller som inte officiellt säljs i Sverige")
+                .contains("SLUTAT tillverkas är däremot inget hinder")
+                // ...men en avvecklad modell går varken att köpa ny eller leasa
+                .contains("NYBILSSÖK och LEASING");
+    }
+
+    @Test
     void promptenBarUppmattaBegagnatgolvForElbilar() {
         // Elbil var enda kategorin utan exempellista: AI:n fick nypristabellen plus
         // deprecieringsregeln och räknade fram begagnatpriserna själv — systematiskt för högt.

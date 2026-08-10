@@ -2022,7 +2022,7 @@ public class GroqService {
                 PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).
                 Rekommendera ALDRIG en årsmodell före modellens verkliga lansering — nyheter om en modell betyder inte att den finns begagnad. Ex: Kia EV2 lanseras 2026 (finns ALDRIG begagnad), Kia EV3 2024+, EV4/EV5 2025+, Renault 5 E-Tech 2024+, Citroën ë-C3 2024+, Volvo EX30 2023+.
                 Volvos enda EV-modeller: EX30, EX40, EC40, EX60, EX90 — det finns inga andra (ingen C90/C70).
-                Nämn ALDRIG modeller som inte officiellt säljs i Sverige. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är helt säker på finns.
+                Nämn ALDRIG modeller som aldrig sålts i Sverige. Att en modell SLUTAT tillverkas är däremot inget hinder i ett begagnatsök — tvärtom: Renault Zoe (2012–mars 2024, ersatt av Renault 5), VW e-Golf och äldre Nissan Leaf är bland de vanligaste billiga begagnade elbilarna och ligger på Blocket i 49, 29 respektive 44 exemplar. Undantag: i NYBILSSÖK och LEASING måste modellen gå att köpa ny idag. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är helt säker på finns.
                 """ + (wantsEv && !wantsIce && !wantsPhev ? "ELBIL OBLIGATORISKT: ENBART renodlade batterielbilar (BEV) — aldrig PHEV, laddhybrid eller bensin/diesel.\n" : "")
                     + (wantsPhev ? PHEV_TAX_CAVEAT : "")
                     + (icePrices.isBlank() ? "" : icePrices + "\n")

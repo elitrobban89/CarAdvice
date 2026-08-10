@@ -179,9 +179,15 @@ public class WebInsightScraperService {
 
             En insikt är IRRELEVANT om den handlar om:
             - en bil som aldrig blir tillgänglig för en svensk köpare: modeller som bara
-              säljs på andra marknader (t.ex. Lada eller varianter som säljs i Kina/USA)
-              och modeller som lämnat den svenska marknaden. Hit hör också lösa rykten
-              utan något kontrollerbart: "kan heta X", "väntas komma om några år".
+              säljs på andra marknader (t.ex. Lada eller varianter som säljs i Kina/USA).
+              Hit hör också lösa rykten utan något kontrollerbart: "kan heta X", "väntas
+              komma om några år". Att modellen SLUTAT tillverkas är däremot INGEN
+              uteslutningsgrund — läsaren köper begagnat, och en avvecklad modell med
+              levande begagnatmarknad är bland det mest användbara som finns: Renault Zoe
+              tillverkades 2012 till mars 2024 och ersattes av Renault 5, men ligger på
+              Blocket i 49 exemplar från 58 000 kr. Detsamma gäller VW e-Golf och äldre
+              Nissan Leaf. Gränsen går vid bilar som aldrig sålts här, inte vid bilar som
+              slutat säljas NYA.
               Att bilen ännu inte går att köpa här är däremot INGEN uteslutningsgrund.
               Konkreta uppgifter om en bekräftad modell — mått, effekt, räckvidd, batteri,
               plattform, teknik, testvärden, pris — är RELEVANTA oavsett när den når

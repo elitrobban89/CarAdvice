@@ -454,6 +454,20 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void avvecklandeModellMedBegagnatmarknadArRelevant() {
+        // "modeller som lämnat den svenska marknaden" stod som IRRELEVANT-grund och hade kastat
+        // varje insikt om Renault Zoe — tillverkad 2012 till mars 2024, ersatt av Renault 5, men
+        // med 49 exemplar på Blocket från 58 000 kr. Läsaren köper begagnat, så en avvecklad
+        // modell med levande begagnatmarknad är bland det mest användbara som finns. Samma
+        // familj av fel som tillgänglighetsregeln 2026-08-08: en rimlig regel som råkade döda
+        // rätt rader.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .doesNotContain("modeller som lämnat den svenska marknaden")
+                .contains("SLUTAT tillverkas är däremot INGEN")
+                .contains("aldrig sålts här");
+    }
+
+    @Test
     void relevanspromptenStopparModellspecifikFordonsskatt() {
         // Natten 2026-08-10 sparades två skatterader (V60 Recharge 360 kr/år, Cayenne Turbo
         // E-Hybrid 2 714 kr/år) fast "skatter" redan stod i uteslutningslistan — vakten läste
