@@ -43,7 +43,7 @@ class ExpertInsightServiceTest {
 
     private static CarPreferences prefs(String category, String fuelType) {
         return new CarPreferences(300_000, category, false, 15_000, "pendling",
-                4, true, fuelType, "automat", "köp", null);
+                4, true, fuelType, "automat", "köp", null, null);
     }
 
     private static ExpertInsight insikt(String expert, String make, String model, String text, Integer rating) {

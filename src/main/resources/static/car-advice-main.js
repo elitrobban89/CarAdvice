@@ -597,9 +597,63 @@ function caSavePrefs() {
       newcar:       document.getElementById('ca-newcar').value,
       fuelType:     document.getElementById('ca-fuel').value,
       transmission: t ? t.value : 'spelar ingen roll',
-      maxage:       maEl ? maEl.value : ''
+      maxage:       maEl ? maEl.value : '',
+      cargo:        (function(){ var c = document.getElementById('ca-cargo'); return c ? c.value : '0'; })()
     }));
   } catch(e) {}
+}
+// ── Bagagefiltret ────────────────────────────────────────────────────────────
+// Byggs från JS och inte i HTML-snippeten: WordPress-sidan är en manuell kopia, så ett nytt
+// fält i snippeten syns inte förrän den klistrats in på nytt. Injektionen är idempotent
+// (returnerar direkt om #ca-cargo redan finns), så snippeten kan bära fältet också utan att
+// det dubbleras — samma grepp som budgetrutan och burnout-laddaren.
+// Rullgardin och inte reglage, trots att en fri siffra vore exaktare: ALL slider-styling i
+// snippeten är bunden till #ca-budget-slider (ID-selektorer, inklusive ::-webkit-slider-thumb
+// som inte går att sätta inline), och ett injicerat <style> blockeras av sidans CSP — samma
+// begränsning som burnout-laddaren fick kringgå med Web Animations API. En select ärver
+// .ca-field select automatiskt och ser rätt ut på WP-sidan utan att snippeten klistras om.
+// Nivåerna bär exempelbilar av samma skäl som budgetrutan gör det: "400 l" säger ingenting
+// förrän det står bredvid en bil man känner igen.
+var CA_CARGO_LEVELS = [
+  { v: 0,   txt: 'Spelar ingen roll' },
+  { v: 300, txt: 'Minst 300 l — Renault Zoe, Toyota Yaris' },
+  { v: 400, txt: 'Minst 400 l — Škoda Kamiq, VW Golf' },
+  { v: 500, txt: 'Minst 500 l — Volvo V60, Kia Niro EV' },
+  { v: 600, txt: 'Minst 600 l — Škoda Octavia Combi, MG5' },
+  { v: 700, txt: 'Minst 700 l — Volvo V90, stor el-SUV' }
+];
+function caEnsureCargoField() {
+  if (document.getElementById('ca-cargo')) return;
+  var pass = document.getElementById('ca-passengers');
+  if (!pass) return;
+  var rad = pass.closest('.ca-grid');
+  if (!rad) return;
+  var opts = CA_CARGO_LEVELS.map(function(n) {
+    return '<option value="' + n.v + '">' + n.txt + '</option>';
+  }).join('');
+  var wrap = document.createElement('div');
+  wrap.className = 'ca-grid';
+  wrap.innerHTML =
+    '<div class="ca-field">' +
+      '<label>Minsta bagageutrymme</label>' +
+      '<select id="ca-cargo">' + opts + '</select>' +
+    '</div>';
+  rad.parentNode.insertBefore(wrap, rad.nextSibling);
+}
+/** Kravet i liter, eller null när "Spelar ingen roll" är valt. */
+function caCargoValue() {
+  var el = document.getElementById('ca-cargo');
+  var v = el ? parseInt(el.value) : 0;
+  return v > 0 ? v : null;
+}
+// Kategorin heter "Elbil" och betyder rena elbilar. Etiketten rättas också från JS eftersom
+// WP-sidans snippet är en manuell kopia — annars stod "Elektrisk bil" kvar till nästa inklistring.
+function caFixCategoryLabels() {
+  var sel = document.getElementById('ca-category');
+  if (!sel) return;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === 'elbil') sel.options[i].textContent = 'Elbil';
+  }
 }
 function caLoadPrefs() {
   try {
@@ -612,6 +666,7 @@ function caLoadPrefs() {
     if (d.km)         document.getElementById('ca-km').value          = d.km;
     if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
     if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
+    if (d.cargo) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = d.cargo; }
     if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
     if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
     if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
@@ -652,14 +707,15 @@ function caSnapshotValues() {
     newcar:       document.getElementById('ca-newcar').value,
     fuelType:     document.getElementById('ca-fuel').value,
     transmission: t ? t.value : 'spelar ingen roll',
-    maxage:       maSnap ? maSnap.value : ''
+    maxage:       maSnap ? maSnap.value : '',
+    cargo:        (function(){ var c = document.getElementById('ca-cargo'); return c ? c.value : '0'; })()
   };
 }
 
 function caCheckChanges() {
   if (!caHasSearched) return;
-  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission','ca-maxage'];
-  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType','transmission','maxage'];
+  var ids  = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission','ca-maxage','ca-cargo'];
+  var keys = ['category','budget','charger','km','usage','passengers','newcar','fuelType','transmission','maxage','cargo'];
   var anyChanged = false;
   ids.forEach(function(id, i) {
     var el = document.getElementById(id);
@@ -678,7 +734,7 @@ function caCheckChanges() {
 }
 
 function caBindChangeListeners() {
-  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission','ca-maxage'];
+  var ids = ['ca-category','ca-budget-slider','ca-charger','ca-km','ca-usage','ca-passengers','ca-newcar','ca-fuel','ca-transmission','ca-maxage','ca-cargo'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -1811,7 +1867,8 @@ async function caSaveSearch() {
       fuelType:     document.getElementById('ca-fuel').value,
       transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
       budgetType:   caIsLeasing ? 'leasing' : 'köp',
-      maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })()
+      maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })(),
+      minCargoLiters: caCargoValue()
     };
     var label = caSavedLabel(prefs);
     var r = await fetch(CA_API_BASE + '/api/user/saved-searches', {
@@ -2132,7 +2189,8 @@ async function caGetRecommendation() {
     fuelType:     fuelVal,
     transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
     budgetType:   caIsLeasing ? 'leasing' : 'köp',
-    maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })()
+    maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })(),
+    minCargoLiters: caCargoValue()
   };
 
   var controller = new AbortController();
@@ -2479,6 +2537,9 @@ function caInit() {
   };
 
   caUpdateSliderFill();
+  // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
+  caEnsureCargoField();
+  caFixCategoryLabels();
   caLoadPrefs();
   caReadUrlParams();
   caBindChangeListeners();

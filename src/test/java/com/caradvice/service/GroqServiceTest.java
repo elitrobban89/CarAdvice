@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.when;
 
 /**
@@ -58,7 +59,7 @@ class GroqServiceTest {
                                         boolean newCar, String fuelType, String transmission,
                                         String budgetType, Integer maxAgeYears) {
         return new CarPreferences(budget, category, hasCharger, kmPerYear, "pendling",
-                4, newCar, fuelType, transmission, budgetType, maxAgeYears);
+                4, newCar, fuelType, transmission, budgetType, maxAgeYears, null);
     }
 
     // --- buildFeedbackContext (tummen ner-signal i systemprompten) ---
@@ -161,7 +162,7 @@ class GroqServiceTest {
     void kategorinFamiljebilFlaggasSomFamiljebilIPrompten() {
         // Familjekriteriet sitter på bilkategorin — passagerare 3 så att bara kategorin triggar
         CarPreferences familj = new CarPreferences(300_000, "familjebil", true, 15_000, "blandat",
-                3, false, "el", null, "köp", null);
+                3, false, "el", null, "köp", null, null);
         assertThat(service().buildPrompt(familj))
                 .contains("FAMILJEBIL")
                 .contains("MG4/VW ID.4 eller större")
@@ -173,7 +174,7 @@ class GroqServiceTest {
         // Skarpt läge: "Renault Zoe (2023)" för familjekörning/300k — äldre inklistrade
         // WordPress-snippets skickar fortfarande usage "familj" och ska täckas
         CarPreferences familj = new CarPreferences(300_000, "elbil", true, 15_000, "familj",
-                5, false, "el", null, "köp", null);
+                5, false, "el", null, "köp", null, null);
         assertThat(service().buildPrompt(familj))
                 .contains("FAMILJEBIL")
                 .contains("MG4/VW ID.4 eller större")
@@ -186,7 +187,7 @@ class GroqServiceTest {
         // alla som inte rörde fältet. Live 2026-08-09: elbil/225 000 kr gav två kort med fyra
         // passagerare men tre med två (Zoe, Leaf, MG ZS EV), alltså just det billiga utbudet.
         CarPreferences fyra = new CarPreferences(225_000, "elbil", false, 15_000, "pendling",
-                4, false, "el", null, "köp", null);
+                4, false, "el", null, "köp", null, null);
         assertThat(GroqService.requiresFamilySizedCar(fyra)).isFalse();
         assertThat(service().buildPrompt(fyra)).doesNotContain("FAMILJEBIL");
     }
@@ -194,7 +195,7 @@ class GroqServiceTest {
     @Test
     void femPassagerareArFamiljeprofil() {
         CarPreferences fem = new CarPreferences(225_000, "elbil", false, 15_000, "pendling",
-                5, false, "el", null, "köp", null);
+                5, false, "el", null, "köp", null, null);
         assertThat(GroqService.requiresFamilySizedCar(fem)).isTrue();
     }
 
@@ -211,7 +212,7 @@ class GroqServiceTest {
     @Test
     void tvaPassagerarePendlingArInteFamiljeprofil() {
         CarPreferences pendlare = new CarPreferences(300_000, "elbil", true, 15_000, "pendling",
-                2, false, "el", null, "köp", null);
+                2, false, "el", null, "köp", null, null);
         assertThat(GroqService.requiresFamilySizedCar(pendlare)).isFalse();
         assertThat(service().buildPrompt(pendlare)).doesNotContain("FAMILJEBIL");
     }
@@ -490,6 +491,71 @@ class GroqServiceTest {
                 "{\"recommendations\":[" + id4 + "," + mg4 + "]}");
         GroqService.requireFamilySizedCars(parsed); // ska inte kasta
         assertThat(parsed).hasSize(2);
+    }
+
+    // --- requireCargoCapacity (bagagekravet i kod, inte bara i prompten) ---
+
+    @Test
+    void forLitetBagageAvvisas() throws Exception {
+        // Användarfallet: "min Kamiq tar 400 l, visa bara bilar med mer". En halvkombi på 380 l
+        // är fel svar oavsett hur väl den passar i övrigt.
+        when(cargoSpecService.formatForTitle(anyString()))
+                .thenReturn(new com.caradvice.model.CargoSpecDto(380, 1270));
+        List<CarRecommendation> parsed = parsatSvarMed("Volkswagen Golf (2021)");
+        assertThatThrownBy(() -> service().requireCargoCapacity(parsed, 400))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("bagageutrymme");
+    }
+
+    @Test
+    void tillrackligtBagageSlappsIgenom() throws Exception {
+        when(cargoSpecService.formatForTitle(anyString()))
+                .thenReturn(new com.caradvice.model.CargoSpecDto(578, 1456));
+        List<CarRecommendation> parsed = parsatSvarMed("MG5 (2022)");
+        service().requireCargoCapacity(parsed, 400);   // ska inte kasta
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void bilUtanUppmattBagageSlappsIgenom() throws Exception {
+        // Positivt bevis krävs, precis som i drivmedelsvakten: cargo_spec har 185 modeller mot
+        // modell-whitelistens ~700, så att kasta det omätta hade tagit fler bra bilar än dåliga
+        when(cargoSpecService.formatForTitle(anyString())).thenReturn(null);
+        List<CarRecommendation> parsed = parsatSvarMed("Cupra Born (2022)");
+        service().requireCargoCapacity(parsed, 400);   // ska inte kasta
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void bagagevaktenBarMedDeGodkandaBilarna() throws Exception {
+        // Samma mönster som de andra vakterna: RuleViolationException bär det som klarade regeln,
+        // så ett brott bland tre bilar inte kostar hela svaret
+        when(cargoSpecService.formatForTitle(contains("Golf")))
+                .thenReturn(new com.caradvice.model.CargoSpecDto(380, 1270));
+        when(cargoSpecService.formatForTitle(contains("V60")))
+                .thenReturn(new com.caradvice.model.CargoSpecDto(529, 1441));
+        String golf = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volkswagen Golf (2021)");
+        String v60 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo V60 (2021)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + golf + "," + v60 + "]}");
+
+        assertThatThrownBy(() -> service().requireCargoCapacity(parsed, 400))
+                .isInstanceOfSatisfying(GroqService.RuleViolationException.class, e -> {
+                    assertThat(e.kvar()).hasSize(1);
+                    assertThat(e.kvar().get(0).title()).contains("V60");
+                });
+    }
+
+    @Test
+    void bagagekravetIngarICachenyckeln() {
+        // Utan det svarar cachen med förra sökningens bilar när bara kravet ändrats
+        assertThat(service().buildCacheKey(prefsMedBagage(400)))
+                .isNotEqualTo(service().buildCacheKey(prefsMedBagage(null)));
+    }
+
+    private static CarPreferences prefsMedBagage(Integer liter) {
+        return new CarPreferences(300_000, "familjebil", false, 15_000, "blandat",
+                4, false, "el", null, "köp", null, liter);
     }
 
     // --- requirePureEvCars (ELBIL OBLIGATORISKT i kod, inte bara i prompten) ---
@@ -1240,9 +1306,9 @@ class GroqServiceTest {
     @Test
     void leasingprompenBerOmManadskostnad() {
         var leasingPrefs = new CarPreferences(5_000, "elbil", true, 15_000, "familj", 5, true,
-                "el", "spelar ingen roll", "leasing", null);
+                "el", "spelar ingen roll", "leasing", null, null);
         var kopPrefs = new CarPreferences(300_000, "elbil", true, 15_000, "familj", 5, false,
-                "el", "spelar ingen roll", "köp", null);
+                "el", "spelar ingen roll", "köp", null, null);
 
         assertThat(service().buildPrompt(leasingPrefs)).contains("kr/mån");
         assertThat(service().buildPrompt(kopPrefs)).doesNotContain("kr/mån");

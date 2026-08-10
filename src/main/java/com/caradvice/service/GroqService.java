@@ -1,5 +1,6 @@
 package com.caradvice.service;
 
+import com.caradvice.model.CargoSpecDto;
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -930,7 +931,7 @@ public class GroqService {
         CarPreferences utanAlderskrav = new CarPreferences(
                 prefs.budget(), prefs.carCategory(), prefs.hasCharger(), prefs.kmPerYear(),
                 prefs.usage(), prefs.passengers(), prefs.newCar(), prefs.fuelType(),
-                prefs.transmission(), prefs.budgetType(), null);
+                prefs.transmission(), prefs.budgetType(), null, prefs.minCargoLiters());
 
         String key = "budgetalt|" + buildCacheKey(utanAlderskrav);
         CacheEntry cached = cache.get(key);
@@ -1573,7 +1574,45 @@ public class GroqService {
         if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
             validator = validator.andThen(this::requirePureEvCars);
+        if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0) {
+            int krav = prefs.minCargoLiters();
+            validator = validator.andThen(p -> requireCargoCapacity(p, krav));
+        }
         return validator;
+    }
+
+    /**
+     * Skarpt läge: bagagekravet från formuläret, kontrollerat mot {@code cargo_spec}.
+     *
+     * <p>Faller bara på POSITIVT bevis — en uppmätt normalvolym under kravet. En bil vi inte
+     * mätt släpps igenom, av samma skäl som drivmedelsvakten gör det: tabellen har 185 modeller
+     * mot modell-whitelistens ~700, så att kasta det omätta hade tagit fler bra bilar än dåliga
+     * och gett två kort i stället för tre. Kortets bagagechip visar "–" för de omätta, så det
+     * syns vilka som är overifierade.
+     *
+     * <p>Mätt på NORMALvolymen (baksätet uppfällt). Maxvolymen är nästan tre gånger så stor —
+     * MG5 lastar 578 l normalt och 1 456 l med nedfällt säte — så fel kolumn hade gjort kravet
+     * verkningslöst.
+     */
+    void requireCargoCapacity(List<CarRecommendation> parsed, int minLiters) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            Integer liter = null;
+            try {
+                CargoSpecDto cs = cargoSpecService.formatForTitle(r.title());
+                if (cs != null && cs.cargoLiters() > 0) liter = cs.cargoLiters();
+            } catch (Exception ignored) {}   // specuppslaget får aldrig fälla hela svaret
+            if (liter != null && liter < minLiters) avvisade.add(r.title() + " (" + liter + " l)");
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog bil(ar) under bagagekravet {} l: {} — {} bil(ar) kvar",
+                minLiters, String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException(
+                "AI:n föreslog en bil med för litet bagageutrymme. Försök igen.", kvar, avvisade,
+                "Alla bilar måste ha minst " + minLiters + " liter bagageutrymme med baksätet"
+                + " uppfällt. Välj en rymligare kaross — kombi eller SUV i stället för halvkombi.");
     }
 
     /**
@@ -1639,7 +1678,10 @@ public class GroqService {
                (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
                (prefs.transmission() != null ? prefs.transmission() : "") + "|" +
                (prefs.budgetType() != null ? prefs.budgetType() : "köp") + "|" +
-               (prefs.maxAgeYears() != null ? prefs.maxAgeYears() : "");
+               (prefs.maxAgeYears() != null ? prefs.maxAgeYears() : "") + "|" +
+               // Utan bagagekravet i nyckeln svarar cachen med den förra sökningens bilar när
+               // bara kravet ändrats — och det är just den ändringen användaren vill se effekten av
+               (prefs.minCargoLiters() != null ? prefs.minCargoLiters() : "");
     }
 
     private String parseRetryTime(String body) {
@@ -2029,12 +2071,21 @@ public class GroqService {
                   + " Sverige idag, med årsmodell " + currentYear + " eller " + (currentYear + 1)
                   + " i title-fältet. En utgången årsmodell går inte att leasa." : "";
 
+        // Bagagekravet mäts mot NORMALvolymen (baksätet uppfällt) — maxvolymen med nedfällt säte
+        // är ett annat mått och nästan tre gånger så stort, så en bil skulle glida igenom på fel
+        // siffra. Kravet kontrolleras mot cargo_spec efteråt; en bil som bryter mot det kastas.
+        String cargoLine = (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0)
+                ? " BAGAGEKRAV: minst " + prefs.minCargoLiters() + " liter bagageutrymme med"
+                  + " baksätet UPPFÄLLT (normalvolym, inte maxvolym med nedfällt säte). En bil med"
+                  + " mindre bagage är FELAKTIG oavsett hur väl den passar i övrigt — välj en"
+                  + " rymligare kaross (kombi eller SUV i stället för halvkombi)." : "";
+
         return """
-                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s
+                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s%s
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
                 km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
-                leasingPrisLine
+                leasingPrisLine, cargoLine
         );
     }
 }
