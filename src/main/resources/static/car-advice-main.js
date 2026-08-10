@@ -473,6 +473,24 @@ var CA_LEASING_LEVELS = { ikon: '📄', nivaer: [
   { upTo: Infinity, txt: 'Premiumsegmentet — stora SUV:ar och premiumelbilar. Kolla milpaketet, det styr m\xe5nadskostnaden lika mycket som bilen.' }
 ] };
 
+/**
+ * Nivåstegen för vald kategori — men DRIVMEDLET går före när det pekar åt ett annat håll.
+ *
+ * Kategorierna ekonomibil/familjebil/SUV/småbil har prisnivåer mätta på förbränningsbilar,
+ * eftersom det är det normala fallet. Väljer användaren drivmedel "el" är de siffrorna fel
+ * marknad: familjebil + el visade 2026-08-10 "Toyota Corolla Touring Sports från ca 209 000 kr,
+ * Volvo V90 kring 220 000" för en sökning som bara kan ge elbilar, alltså samma sorts
+ * självmotsägelse inom en och samma vy som budgetrutan och kategorivarningen redan städat bort.
+ * Elbil och laddhybrid är redan drivmedelsbestämda och rörs inte.
+ */
+function caBudgetLevelsFor(kategori) {
+  if (!kategori) return null;
+  var fuel = document.getElementById('ca-fuel');
+  var elbilssok = fuel && fuel.value === 'el'
+                  && kategori !== 'elbil' && kategori !== 'laddhybrid';
+  return CA_BUDGET_LEVELS[elbilssok ? 'elbil' : kategori] || null;
+}
+
 // Elementet skapas från JS, inte i HTML-snippeten: WordPress-sidan är en manuell kopia och
 // hade annars saknat rutan tills snippeten klistrades in på nytt.
 function caRenderEvBudgetHint() {
@@ -482,7 +500,7 @@ function caRenderEvBudgetHint() {
   var hint = document.getElementById('ca-ev-budget-hint');
   // Kategorier utan egna nivåer får ingen ruta alls — hellre tyst än en gissning.
   // Leasing har en egen stege: samma för alla kategorier, och i kr/mån i stället för köppris.
-  var niva = caIsLeasing ? CA_LEASING_LEVELS : (cat ? CA_BUDGET_LEVELS[cat.value] : null);
+  var niva = caIsLeasing ? CA_LEASING_LEVELS : caBudgetLevelsFor(cat ? cat.value : null);
   if (!niva) { if (hint) hint.style.display = 'none'; return; }
 
   if (!hint) {
@@ -574,6 +592,10 @@ function caUpdateFuelVisibility() {
     if (charger && charger.value === 'true') document.getElementById('ca-fuel').value = 'el';
   }
   caUpdateMaxAgeVisibility();
+  // Drivmedlet sätts här PROGRAMMATISKT (familjebil + laddbox blir "el"), och en tilldelning
+  // i JS utlöser inget change-event. Utan det här anropet visade budgetrutan bensinkombiernas
+  // priser för en sökning appen själv just gjort till en elbilssökning.
+  caRenderEvBudgetHint();
 }
 
 function caUpdateMaxAgeVisibility() {
@@ -759,6 +781,10 @@ function caBindChangeListeners() {
   if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
   if (cat) cat.addEventListener('change', caRenderEvBudgetHint);
   if (chg) chg.addEventListener('change', caUpdateFuelVisibility);
+  // Drivmedlet styr numera VILKEN nivåstege rutan läser (se caBudgetLevelsFor) — utan den här
+  // raden byttes texten först när budgeten eller kategorin rördes, alltså oftast aldrig.
+  var fuel = document.getElementById('ca-fuel');
+  if (fuel) fuel.addEventListener('change', caRenderEvBudgetHint);
   if (bud) bud.addEventListener('input', caUpdateSliderFill);
   if (nc)  nc.addEventListener('change', caUpdateMaxAgeVisibility);
 }
