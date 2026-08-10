@@ -331,7 +331,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-508 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+510 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -353,7 +353,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `UpcomingInsightServiceTest` (6) | Kommande-flaggan: markering skriver raden och tömmer cachen (annars låg den gamla mängden kvar i fem minuter), id-mängden cachas mellan uppslag (den läses på varje insiktsuppslag), `release` svarar om raden fanns, DB-fel döljer ingenting (fail open — hellre en kommande insikt synlig än att alla insikter slocknar) |
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
 | `JobStatusServiceTest` (9) | Körstatusen för de schemalagda jobben: `track` returnerar jobbets antal och skriver start + slut, undantag ur jobbet ger `-1` och en `FEL:`-märkt rad i stället för att fälla schemaläggaren, statusskrivningen sväljer sina egna DB-fel (jobbet får aldrig krascha på loggningen), statusen härleds rätt (`OK`/`RUNNING` när sluttid saknas/`ERROR` vid felprefix/`NEVER_RUN` med schematext), och `allJobs` listar alla fyra i körordning även när DB:n svarar med fel |
-| `CarControllerTest` (56) | HTTP-lagret (MockMvc): `DELETE /api/admin/seen-keys` (403 utan nyckel, antal borttagna rader, 400 när tjänsten avvisar värdet), admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns), jobbstatuslistan i `/api/admin/scrape-status` (`jobs`-fältet per jobb, och att endpointen fortfarande svarar om jobbtabellen kraschar) |
+| `CarControllerTest` (58) | HTTP-lagret (MockMvc): `DELETE /api/admin/seen-keys` (403 utan nyckel, antal borttagna rader, 400 när tjänsten avvisar värdet), admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns), jobbstatuslistan i `/api/admin/scrape-status` (`jobs`-fältet per jobb, och att endpointen fortfarande svarar om jobbtabellen kraschar) |
 
 ```bash
 mvn test          # kör alla tester lokalt (~1 s)
@@ -634,6 +634,15 @@ Utan den är en artikel som markerats av fel skäl förlorad för gott — dedup
 
 ```bash
 curl -X DELETE "https://caradvice.onrender.com/api/admin/seen-keys?key=https://carup.se/skrackljud-i-volvos-motor" \
+  -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+```
+
+### `GET /api/admin/cargo-coverage`
+
+Hur stor del av `cargo_spec` som faktiskt har en uppmätt bagagevolym: `{"total":679,"medVolym":185,"utanVolym":494}`. Tabellen bär både namn och volym, men CargoSpec-skraparen hämtar bara **namn** från Bilweb och skriver `null` i literkolumnen — täckningen går alltså inte att läsa ur radantalet. Finns för att nattens ifyllning (EV-synken, se ovan) annars bara syns i Render-loggen, och för att siffran styr en designfråga: bagagevakten `requireCargoCapacity` faller bara på **positivt bevis** just för att täckningen är låg, och när den närmar sig 100 % för elbilar går regeln att skärpa. Kräver `X-Admin-Key`-header.
+
+```bash
+curl "https://caradvice.onrender.com/api/admin/cargo-coverage" \
   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
 ```
 

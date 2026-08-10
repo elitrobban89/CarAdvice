@@ -682,6 +682,15 @@ public class CarController {
         return ResponseEntity.ok(evSpecService.listAllWithValueLabel(kmPerYear));
     }
 
+    // Admin: hur många bilnamn som har uppmätt bagagevolym. Utan den här går nattens ifyllning
+    // bara att avläsa i Render-loggen, och bagagevaktens "fäll bara på positivt bevis" vilar
+    // på just den siffran.
+    @GetMapping("/admin/cargo-coverage")
+    public ResponseEntity<?> cargoCoverage(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(cargoSpecService.coverage());
+    }
+
     // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning
     @GetMapping("/admin/insights")
     public ResponseEntity<?> listInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key,

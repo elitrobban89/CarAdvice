@@ -26,6 +26,26 @@ public class CargoSpecService {
     }
 
     /**
+     * Hur stor del av tabellen som faktiskt har en uppmätt volym.
+     *
+     * <p>Finns för att täckningen annars inte går att mäta: admin-API:t hade `import` och
+     * `upsert` för bagagedata men inget som läser, så enda sättet att se om nattens ifyllning
+     * gjort något var att läsa Render-loggen. Siffran styr dessutom en designfråga —
+     * bagagevaktens {@code requireCargoCapacity} faller bara på positivt bevis just för att
+     * täckningen är låg, och när den närmar sig 100 % för elbilar går den regeln att skärpa.
+     *
+     * @return {@code total} = alla kända bilnamn, {@code medVolym} = de med siffra
+     */
+    public Map<String, Long> coverage() {
+        long total = repo.count();
+        long medVolym = repo.countWithVolume();
+        return new LinkedHashMap<>(Map.of(
+                "total", total,
+                "medVolym", medVolym,
+                "utanVolym", total - medVolym));
+    }
+
+    /**
      * Fyller en tom bagagevolym med en uppmätt siffra från nattens EV-synk.
      *
      * <p>Tabellen har 679 kända bilnamn men bara 185 med volym, eftersom

@@ -529,6 +529,28 @@ class CarControllerTest {
            .andExpect(status().isTooManyRequests());
     }
 
+    // --- GET /api/admin/cargo-coverage ---
+
+    @Test
+    void bagagetackningenKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/cargo-coverage"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void bagagetackningenVisarHurMangaSomHarVolym() throws Exception {
+        // Utan endpointen gick nattens ifyllning bara att avläsa i Render-loggen — och
+        // bagagevaktens "fäll bara på positivt bevis" vilar på just den här siffran
+        when(cargoSpecService.coverage()).thenReturn(new java.util.LinkedHashMap<>(java.util.Map.of(
+                "total", 679L, "medVolym", 185L, "utanVolym", 494L)));
+
+        mvc.perform(get("/api/admin/cargo-coverage").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.total").value(679))
+           .andExpect(jsonPath("$.medVolym").value(185))
+           .andExpect(jsonPath("$.utanVolym").value(494));
+    }
+
     // --- GET /api/admin/ev-specs ---
 
     @Test
