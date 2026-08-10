@@ -1664,6 +1664,41 @@ public class GroqService {
     }
 
     /**
+     * Kandidatlistan för en låg budget — de mätta elbilsmodeller som faktiskt ryms.
+     *
+     * <p>Byggd efter att golvvakten börjat bita men gjort svaret tunnare i stället för bättre:
+     * live 2026-08-10 föll EV6, Ioniq 5 och Enyaq korrekt, men omförsöket fyllde inte på till
+     * tre och båda sökningarna gav **ett** kort. Vakten säger vad som är fel; den här raden
+     * säger vad som är rätt, och den säger det i FÖRSTA prompten i stället för som
+     * tillrättavisning efteråt. Samma data ur {@link #EV_PRICE_FLOOR_KR}, andra tidpunkt.
+     *
+     * <p>Tom sträng när listan inte tillför något: när användaren inte söker elbil (golven är
+     * elbilsgolv), i nybils- och leasingläge (fel prisunderlag) och när budgeten rymmer hela
+     * tabellen ändå — då är listan bara brus som kostar tokens.
+     */
+    static String affordableModelsLine(CarPreferences prefs) {
+        if (!harGolvvakt(prefs)) return "";
+        if (!fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv()) return "";
+        int tak = prefs.budget() + BUDGET_CEILING_MARGIN_KR;
+
+        List<String> ryms = EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() <= tak)
+                .map(e -> e.getKey() + " (fr. " + String.format(java.util.Locale.ROOT, "%,d", e.getValue())
+                        .replace(',', ' ') + ")")
+                .toList();
+        List<String> over = EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() > tak)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (over.isEmpty() || ryms.isEmpty()) return "";
+
+        return " MODELLER SOM RYMS I BUDGETEN (uppmätta begagnatgolv, billigaste exemplar): "
+                + String.join(", ", ryms) + ". Utgå från dessa. Följande ligger ÖVER taket "
+                + tak + " kr och kastas av kontrollen även om de passar profilen i övrigt: "
+                + String.join(", ", over) + ".";
+    }
+
+    /**
      * Golvvakten gäller bara begagnatsök — golven är begagnatpriser, så ett nybilssök eller en
      * leasingförfrågan mäts mot fel tal och lämnas åt {@code exceedsBudgetCeiling}, som redan
      * hanterar båda lägena med egna referenser (nypris respektive kr/mån).
@@ -2187,11 +2222,11 @@ public class GroqService {
                   + " stället för att föreslå en större motor eller dyrare utrustningsnivå." : "";
 
         return """
-                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s%s
+                Budget: %s. Kategori: %s. Laddbox: %s. Körsträcka: %,d km/år (%s). Användning: %s. Passagerare: %d.%s%s%s%s%s%s
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
                 km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
-                leasingPrisLine, cargoLine
+                leasingPrisLine, cargoLine, affordableModelsLine(prefs)
         );
     }
 }

@@ -577,6 +577,51 @@ class GroqServiceTest {
         assertThat(GroqService.harGolvvakt(begagnat)).isTrue();
     }
 
+    // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---
+
+    @Test
+    void lagBudgetFarKandidatlistanRedanIForstaPrompten() {
+        // Golvvakten började bita men gjorde svaret tunnare i stället för bättre: live
+        // 2026-08-10 föll EV6/Ioniq 5/Enyaq korrekt, men omförsöket fyllde inte på till tre och
+        // BÅDA sökningarna gav ETT kort. Vakten säger vad som är fel — den här raden säger vad
+        // som är rätt, och säger det innan modellen hunnit gissa.
+        String rad = GroqService.affordableModelsLine(prefsMedBudget(200_000));
+        assertThat(rad)
+                .contains("MODELLER SOM RYMS")
+                .contains("MG4 (fr. 195 000)")
+                .contains("Volkswagen ID.3")
+                .contains("Kia EV6");          // står som avrådd, inte som kandidat
+        assertThat(rad.substring(0, rad.indexOf("ligger ÖVER")))
+                .doesNotContain("Kia EV6");
+    }
+
+    @Test
+    void hogBudgetFarIngenKandidatlista() {
+        // Ryms hela tabellen är listan bara brus som kostar tokens — och tokenbudgeten är den
+        // bindande gränsen (8 000/min hos Groq), inte appens sökkvot
+        assertThat(GroqService.affordableModelsLine(prefsMedBudget(400_000))).isEmpty();
+    }
+
+    @Test
+    void kandidatlistanGallerBaraElbilssok() {
+        // Golven är elbilsgolv — en bensinsökning ska inte få en lista med elbilar
+        CarPreferences bensin = new CarPreferences(150_000, "ekonomibil", false, 15_000, "pendling",
+                4, false, "bensin", null, "köp", null, null);
+        assertThat(GroqService.affordableModelsLine(bensin)).isEmpty();
+    }
+
+    @Test
+    void kandidatlistanGallerInteNybilEllerLeasing() {
+        CarPreferences nybil = new CarPreferences(200_000, "elbil", false, 15_000, "pendling",
+                4, true, "el", null, "köp", null, null);
+        assertThat(GroqService.affordableModelsLine(nybil)).isEmpty();
+    }
+
+    private static CarPreferences prefsMedBudget(int budget) {
+        return new CarPreferences(budget, "elbil", false, 15_000, "pendling",
+                4, false, "el", null, "köp", null, null);
+    }
+
     // --- requireCargoCapacity (bagagekravet i kod, inte bara i prompten) ---
 
     @Test
