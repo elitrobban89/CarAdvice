@@ -911,8 +911,10 @@ function caEvChips(ev, hp) {
   if (ev.summerKm > 0) chips += '<span class="ca-ev-chip ca-ev-range">&#x2600;&#xFE0F; ~'+ev.summerKm+' km sommar</span>';
   if (ev.winterKm > 0) chips += '<span class="ca-ev-chip ca-ev-winter">&#x2744;&#xFE0F; ~'+ev.winterKm+' km vinter</span>';
   if (ev.daysLabel) chips += '<div style="width:100%;height:0;margin:0"></div><span class="ca-ev-chip ca-ev-charge">&#x1F50B; '+caEsc(ev.daysLabel)+'</span>';
-  if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x26A1; DC '+ev.maxDcKw+' kW</span>';
-  if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac">&#x1F50C; AC '+ev.maxAcKw+' kW</span>';
+  // Tooltiparna upprepar kortversionen av brasklappen i caRenderChargingNotice — chipset syns
+  // långt innan man fäller ut rutan, och AC-talet missförstås rutinmässigt som "kräver 22 kW-box"
+  if (ev.maxDcKw > 0) chips += '<span class="ca-ev-chip ca-ev-dc" title="Toppeffekt vid publik snabbladdare. Verklig effekt beror p\xe5 batteriets temperatur och laddniv\xe5, och p\xe5 vad stolpen klarar.">&#x26A1; DC '+ev.maxDcKw+' kW</span>';
+  if (ev.maxAcKw > 0) chips += '<span class="ca-ev-chip ca-ev-ac" title="Toppeffekt fr\xe5n laddbox. Taket sitter i bilens ombordladdare - en kraftigare laddbox ger \xe4nd\xe5 inte mer \xe4n s\xe5 h\xe4r mycket.">&#x1F50C; AC '+ev.maxAcKw+' kW</span>';
   if (hp > 0) chips += '<span class="ca-ev-chip ca-ev-dc">&#x1F4AA; '+hp+' hk</span>';
   if (ev.batteryKwh > 0) chips += '<span class="ca-ev-chip ca-ev-bat">&#x1F50B; '+ev.batteryKwh+' kWh'+(ev.chemistry ? ' &middot; '+ev.chemistry : '')+'</span>';
   if (ev.priceKr > 0) chips += '<span class="ca-ev-chip ca-ev-price">fr\xe5n '+Math.round(ev.priceKr/1000)+' tkr</span>';
@@ -979,6 +981,64 @@ function caRenderPhevTaxNotice() {
     'Bilar med litet batteri och under ca 5–6 mils elr\xe4ckvidd drabbas h\xe5rdast. ' +
     '<a href="https://carup.se/chocken-bilskatt-kan-oka-med-1300/" target="_blank" rel="noopener" ' +
     'style="color:#fbbf24;text-decoration:underline">K\xe4lla: CarUp &#x2192;</a>';
+  host.parentNode.insertBefore(el, host);
+}
+
+// Brasklapp för DC/AC-effekterna på korten. Båda talen är TOPPEFFEKT under ideala förhållanden
+// och läses annars som "så snabbt laddar bilen alltid". AC-talet är det som oftast missförstås:
+// det är bilens ombordladdare som sätter taket, så en 22 kW-laddbox ger ändå bara 11 kW till en
+// bil som klarar 11. Hopfälld som standard — den gäller varje elbilskort och ska förklara på
+// begäran, inte tränga undan resultaten. Samma placering som laddhybridsnotisen: syskon före
+// #ca-cards, eftersom kortlistan är ett grid och en banner som första barn tar en kolumnruta.
+function caRenderChargingNotice(recs) {
+  var host = document.getElementById('ca-cards');
+  if (!host) return;
+  var existing = document.getElementById('ca-charging-notice');
+  var show = (recs || []).some(function(r) {
+    return r.evSpec && (r.evSpec.maxDcKw > 0 || r.evSpec.maxAcKw > 0);
+  });
+  if (!show) { if (existing) existing.parentNode.removeChild(existing); return; }
+  if (existing) return;
+
+  var el = document.createElement('details');
+  el.id = 'ca-charging-notice';
+  el.setAttribute('style', 'margin:0 0 16px;padding:10px 14px;background:rgba(56,189,248,.06);' +
+    'border:1px solid rgba(56,189,248,.28);border-radius:10px;font-size:.82rem;line-height:1.55;' +
+    'color:rgba(255,255,255,.78)');
+  el.innerHTML =
+    // Ingen list-style:none — den inbyggda triangeln är det enda som visar att rutan går att
+    // fälla ut, och den vänder sig själv när den öppnas
+    '<summary style="cursor:pointer;color:#38bdf8;font-weight:600">' +
+      '&#x26A1; Vad betyder DC max och AC max?</summary>' +
+    '<div style="margin-top:10px">' +
+      '<strong style="color:rgba(255,255,255,.92)">DC max &mdash; likstr\xf6m, snabbladdning</strong><br>' +
+      'H\xf6gsta effekt bilen kan ta emot vid en publik snabbladdare. Taket s\xe4tts av batteriets ' +
+      'kemi, temperatur och h\xe4lsa, och ligger i praktiken mellan ca 50 kW f\xf6r \xe4ldre eller ' +
+      'enklare modeller och 250&#x2013;350 kW f\xf6r modern snabbladdningsteknik. H\xf6gre v\xe4rde ger ' +
+      'betydligt kortare stopp p\xe5 l\xe5ngresa &#x2013; typiskt 10&#x2013;80\xa0% p\xe5 20&#x2013;30 minuter &#x2013; ' +
+      'f\xf6rutsatt att laddstolpen kan leverera lika mycket.' +
+      '<div style="height:8px"></div>' +
+      '<strong style="color:rgba(255,255,255,.92)">AC max &mdash; v\xe4xelstr\xf6m, normalladdning</strong><br>' +
+      'H\xf6gsta effekt bilen klarar fr\xe5n en laddbox eller normalladdstolpe. Den gr\xe4nsen sitter i ' +
+      'bilens interna ombordladdare, inte i elen: vanliga v\xe4rden \xe4r 11 kW (trefas 16\xa0A) och ' +
+      '22 kW (trefas 32\xa0A). Har bilen AC max 11 kW spelar det ingen roll om laddboxen klarar ' +
+      '22 kW &#x2013; bilen laddar \xe4nd\xe5 i h\xf6gst 11 kW.' +
+      '<div style="height:8px"></div>' +
+      '<strong style="color:rgba(255,255,255,.92)">Varf\xf6r AC max s\xe4llan avg\xf6r valet</strong><br>' +
+      'AC-laddning sker n\xe4stan alltid hemma eller p\xe5 jobbet, och d\xe5 st\xe5r bilen parkerad i ' +
+      'timmar \xe4nd\xe5. 11 kW fyller ett normalstort batteri p\xe5 6&#x2013;8 timmar, allts\xe5 \xf6ver en ' +
+      'natt &#x2013; att bilen skulle klara 22 kW \xe4ndrar inget n\xe4r den st\xe5r stilla till morgonen. ' +
+      'De flesta svenska hemmainstallationer ger dessutom 11 kW; 22 kW kr\xe4ver s\xe4rskild el dragen ' +
+      'till huset.' +
+      '<div style="height:6px"></div>' +
+      'Viktigare att j\xe4mf\xf6ra \xe4r <strong>DC-effekten</strong> (hur korta pauserna blir p\xe5 ' +
+      'l\xe5ngresa), <strong>r\xe4ckvidden</strong> (hur ofta du beh\xf6ver stanna alls) och ' +
+      '<strong>f\xf6rbrukningen per mil</strong> (vad bilen kostar att \xe4ga \xf6ver tid).' +
+      '<div style="height:8px"></div>' +
+      '<span style="color:rgba(255,255,255,.55)">B\xe5da talen \xe4r toppeffekt under ideala ' +
+      'f\xf6rh\xe5llanden. Verklig effekt sjunker med kallt batteri och stigande laddniv\xe5 &#x2013; ' +
+      'sista biten till 100\xa0% \xe4r alltid l\xe5ngsam.</span>' +
+    '</div>';
   host.parentNode.insertBefore(el, host);
 }
 
@@ -1070,6 +1130,7 @@ function caRenderCards(recommendations) {
   var container = document.getElementById('ca-cards');
   container.classList.add('fading');
   caRenderPhevTaxNotice();
+  caRenderChargingNotice(recommendations);
   caRenderBudgetNotice();
   setTimeout(function() {
     container.classList.remove('fading');
@@ -1368,8 +1429,8 @@ function caRenderCompare(recs, targetEl) {
     rows.push({ label: '&#x2600;&#xFE0F; Sommar', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.summerKm > 0 ? chip('~'+ev.summerKm+' km','rgba(59,130,246,.18)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x2744;&#xFE0F; Vinter', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.winterKm > 0 ? chip('~'+ev.winterKm+' km','rgba(148,163,184,.15)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F50B; Laddning', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.daysLabel ? '<span style="font-size:.8rem;color:#fcd34d;font-weight:600">'+caEsc(ev.daysLabel)+'</span>' : '&#x2013;'; }); } });
-    rows.push({ label: '&#x26A1; DC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
-    rows.push({ label: '&#x1F50C; AC max', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
+    rows.push({ label: '<span title="Toppeffekt vid publik snabbladdare. Avg\xf6r hur korta pauserna blir p\xe5 l\xe5ngresa - h\xf6gre \xe4r b\xe4ttre, f\xf6rutsatt att stolpen klarar lika mycket." style="border-bottom:1px dotted rgba(255,255,255,.3);cursor:help">&#x26A1; DC max</span>', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
+    rows.push({ label: '<span title="Toppeffekt fr\xe5n laddbox, satt av bilens ombordladdare. S\xe4llan avg\xf6rande: 11 kW fyller batteriet \xf6ver natten \xe4nd\xe5, och de flesta hemmainstallationer ger inte mer." style="border-bottom:1px dotted rgba(255,255,255,.3);cursor:help">&#x1F50C; AC max</span>', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh'+(ev.chemistry ? ' &middot; '+ev.chemistry : ''),'rgba(56,189,248,.1)') : '&#x2013;'; }); } });
     rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r) {
     var hp = r.horsepower || (r.fuelSpec && r.fuelSpec.horsepower) || 0;

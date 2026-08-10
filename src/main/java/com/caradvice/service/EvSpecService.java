@@ -118,7 +118,7 @@ public class EvSpecService {
         String[] titleWords = cleaned.split("\\s+");
 
         java.util.Set<String> seen = new java.util.LinkedHashSet<>();
-        List<double[]> variants = new java.util.ArrayList<>();
+        List<Variant> variants = new java.util.ArrayList<>();
         for (EvSpec ev : repo.findAll()) {
             java.util.Set<String> nameSet = new java.util.HashSet<>(
                     java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
@@ -129,13 +129,53 @@ public class EvSpecService {
             int range = ev.getRangeKm() != null ? ev.getRangeKm() : 0;
             String key = ev.getBatteryKwh() + "|" + range;
             if (!seen.add(key)) continue;
-            variants.add(new double[]{ev.getBatteryKwh(), range});
+            variants.add(new Variant(ev.getBatteryKwh(), range, trimName(ev.getCarName(), titleSetOf(titleWords))));
         }
         if (variants.isEmpty()) return null;
-        variants.sort(java.util.Comparator.<double[]>comparingDouble(v -> v[0]).thenComparingDouble(v -> v[1]));
+        variants.sort(java.util.Comparator.comparingDouble(Variant::kwh).thenComparingInt(Variant::km));
         return groupByBattery(variants).stream()
                 .map(EvSpecService::formatGroup)
                 .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    /** En matchad ev_spec-rad: batteri, räckvidd (0 = okänd) och trimnamn (null = inget). */
+    private record Variant(double kwh, int km, String trim) {}
+
+    /** En grupp hopslagna varianter: bruttobatteri, räckviddsspann och gemensamt trimnamn. */
+    private record Group(double kwh, int minKm, int maxKm, String trim) {}
+
+    private static java.util.Set<String> titleSetOf(String[] titleWords) {
+        return new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
+    }
+
+    /**
+     * Trimnivån ur ett lagrat namn: det som blir kvar när modellorden ur titeln tagits bort
+     * ("MG4 Standard Range" + titeln "MG4" → "Standard Range"). Utan den här raden visar kortet
+     * fyra MG4-rader som bara skiljer sig i kWh, där två dessutom har samma räckvidd (Long Range
+     * och XPOWER, 405 km) — omöjligt att se vilken rad som är vilken bil.
+     *
+     * <p>Märket framför modellen skalas bort först: ev-database lagrar "MG MG4 XPOWER" medan
+     * titeln bara säger "MG4", så utan det steget blir trimmet "MG XPOWER". Allt före det första
+     * ordet som faktiskt finns i titeln räknas som märkesprefix.
+     *
+     * @return trimnamnet, eller null om inget blir kvar (raden ÄR basmodellen)
+     */
+    private static String trimName(String carName, java.util.Set<String> titleWords) {
+        if (carName == null) return null;
+        String[] words = carName.trim().split("\\s+");
+        int firstTitleWord = -1;
+        for (int i = 0; i < words.length; i++) {
+            if (titleWords.contains(normalize(words[i]))) { firstTitleWord = i; break; }
+        }
+        if (firstTitleWord < 0) return null;
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = firstTitleWord; i < words.length; i++) {
+            if (titleWords.contains(normalize(words[i]))) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(words[i]);
+        }
+        return sb.length() == 0 ? null : sb.toString();
     }
 
     /**
@@ -159,35 +199,47 @@ public class EvSpecService {
      * <p>Jämförelsen görs mot gruppens MINSTA kWh, inte den största, så en lång kedja av
      * närliggande värden inte kan växa ihop till en enda grupp.
      *
-     * @param sorted varianter sorterade på kWh stigande, {kWh, km} per post (km = 0 om okänt)
-     * @return grupper som {maxKwh, minKm, maxKm} — 0 i km-fälten betyder att räckvidd saknas
+     * <p>Trimnamnet följer bara med när ALLA rader i gruppen bär samma namn. En hopslagen grupp
+     * beskriver per definition flera varianter (EX30:s 51 kWh är P3, P5 och Single Motor), och
+     * ett av namnen godtyckligt utvalt hade pekat ut fel bil — hellre ingen etikett än en som
+     * ljuger. I praktiken betyder det att etiketten syns just när den behövs: när en variant
+     * står ensam på sin rad.
+     *
+     * @param sorted varianter sorterade på kWh stigande (km = 0 om okänt)
+     * @return grupper med bruttokapacitet, räckviddsspann (0 = saknas) och ev. gemensamt trim
      */
-    private static List<double[]> groupByBattery(List<double[]> sorted) {
-        List<double[]> groups = new java.util.ArrayList<>();
+    private static List<Group> groupByBattery(List<Variant> sorted) {
+        List<Group> groups = new java.util.ArrayList<>();
         double groupMinKwh = 0;
-        for (double[] v : sorted) {
-            double kwh = v[0], km = v[1];
-            double[] current = groups.isEmpty() ? null : groups.get(groups.size() - 1);
-            if (current == null || kwh > groupMinKwh * SAME_BATTERY_TOLERANCE) {
-                groups.add(new double[]{kwh, km, km});
-                groupMinKwh = kwh;
+        for (Variant v : sorted) {
+            Group current = groups.isEmpty() ? null : groups.get(groups.size() - 1);
+            if (current == null || v.kwh() > groupMinKwh * SAME_BATTERY_TOLERANCE) {
+                groups.add(new Group(v.kwh(), v.km(), v.km(), v.trim()));
+                groupMinKwh = v.kwh();
                 continue;
             }
-            current[0] = Math.max(current[0], kwh);          // visa bruttokapaciteten
-            if (km > 0) {
-                current[1] = current[1] == 0 ? km : Math.min(current[1], km);
-                current[2] = Math.max(current[2], km);
+            int minKm = current.minKm(), maxKm = current.maxKm();
+            if (v.km() > 0) {
+                minKm = minKm == 0 ? v.km() : Math.min(minKm, v.km());
+                maxKm = Math.max(maxKm, v.km());
             }
+            String trim = java.util.Objects.equals(current.trim(), v.trim()) ? current.trim() : null;
+            groups.set(groups.size() - 1,
+                    new Group(Math.max(current.kwh(), v.kwh()), minKm, maxKm, trim));  // visa bruttokapaciteten
         }
         return groups;
     }
 
-    /** {maxKwh, minKm, maxKm} → "69 kWh (436–480 km)", "51 kWh (344 km)" eller "51 kWh". */
-    private static String formatGroup(double[] g) {
-        String kwh = formatKwh(g[0]) + " kWh";
-        if (g[2] <= 0) return kwh;
-        if (g[1] == g[2]) return kwh + " (" + (int) g[2] + " km)";
-        return kwh + " (" + (int) g[1] + "–" + (int) g[2] + " km)";
+    /** → "69 kWh (436–480 km)", "52.8 kWh (405 km) · Long Range" eller "51 kWh". */
+    private static String formatGroup(Group g) {
+        StringBuilder sb = new StringBuilder(formatKwh(g.kwh())).append(" kWh");
+        if (g.maxKm() > 0) {
+            sb.append(g.minKm() == g.maxKm()
+                    ? " (" + g.maxKm() + " km)"
+                    : " (" + g.minKm() + "–" + g.maxKm() + " km)");
+        }
+        if (g.trim() != null) sb.append(" · ").append(g.trim());
+        return sb.toString();
     }
 
     private static String formatKwh(double kwh) {
