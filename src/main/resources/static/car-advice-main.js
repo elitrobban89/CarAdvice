@@ -1192,7 +1192,11 @@ function caRenderNarrowNotice() {
   if (!caNarrowCriteria || !caNarrowCriteria.krav || !caNarrowCriteria.krav.length) return;
 
   var n = caNarrowCriteria.kvar;
-  var rubrik = n === 1 ? 'Bara en bil matchade alla dina krav'
+  // Noll bilar är inte ett fel utan ett svar: servern returnerar tomt när ingen bil klarade
+  // kraven, i stället för det tekniska "AI:n föreslog en bilmodell som inte kunde verifieras"
+  // som skyllde på AI:n för en hård fråga.
+  var rubrik = n === 0 ? 'Ingen bil matchade alla dina krav'
+             : n === 1 ? 'Bara en bil matchade alla dina krav'
                        : n + ' bilar matchade alla dina krav';
   var el = document.createElement('div');
   el.id = 'ca-narrow-notice';
@@ -1203,7 +1207,9 @@ function caRenderNarrowNotice() {
     // &#x2139; ensamt renderas som ett vanligt serif-"i" och läser som en stray bokstav —
     // variantväljaren FE0F tvingar emojiformen, samma som budgetrutans &#x26A0; får gratis
     '<strong style="color:#fcd34d">&#x2139;&#xFE0F; ' + caEsc(rubrik) + '</strong><br>' +
-    'Vi visar hellre f\xe4rre bilar som st\xe4mmer \xe4n tre d\xe4r n\xe5gra inte g\xf6r det. ' +
+    (n === 0
+      ? 'Alla f\xf6rslag f\xf6ll p\xe5 minst ett av kraven, s\xe5 vi visar hellre inget \xe4n en bil som inte st\xe4mmer. '
+      : 'Vi visar hellre f\xe4rre bilar som st\xe4mmer \xe4n tre d\xe4r n\xe5gra inte g\xf6r det. ') +
     'Kraven som gallrade: ' + caEsc(caNarrowCriteria.krav.join(' \xb7 ')) + '. ' +
     'L\xe4tta p\xe5 ett av dem f\xf6r fler alternativ.';
   host.parentNode.insertBefore(el, host);

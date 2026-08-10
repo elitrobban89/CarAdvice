@@ -327,6 +327,29 @@ class CarControllerTest {
     }
 
     @Test
+    void tomtSvarBarKravenIStalletForEttFel() throws Exception {
+        // Klarade INGEN bil kraven returnerar GroqService tomt i stället för att kasta. Förr
+        // blev det HTTP 500 "AI:n föreslog en bilmodell som inte kunde verifieras" — ett
+        // tekniskt fel som skyllde på AI:n för något som oftast är ett rimligt svar på en hård
+        // fråga. Live 2026-08-10: familjeelbil + 400 l + 200 000 kr gav 500 i ena körningen och
+        // ett Tesla-kort i nästa.
+        when(groqService.getRecommendation(any()))
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
+
+        mvc.perform(post("/api/recommend")
+                .header("X-Forwarded-For", "10.9.9.7")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"budget\":\"200000\",\"carCategory\":\"familjebil\",\"fuelType\":\"el\","
+                       + "\"passengers\":5,\"minCargoLiters\":400}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.success").value(true))
+           .andExpect(jsonPath("$.recommendations").isEmpty())
+           .andExpect(jsonPath("$.narrowCriteria.kvar").value(0))
+           .andExpect(jsonPath("$.narrowCriteria.krav[0]").value("ren elbil"))
+           .andExpect(jsonPath("$.narrowCriteria.krav[1]").value("minst 400 liter bagage"));
+    }
+
+    @Test
     void budgetalternativReturnerarBilarInomBudget() throws Exception {
         // "100 000 kr räcker inte" är korrekt men torftigt — MG ZS EV kring 100 000 kr och
         // Nissan Leaf 2016+ finns i prisklassen, de är bara äldre än 3 år.

@@ -740,11 +740,23 @@ public class GroqService {
         } catch (RuleViolationException e) {
             // Både första svaret och omförsöket bröt mot en regel. Samma avvägning som
             // budgettaket gör: en kortare lista med bilar som stämmer med sökningen är mer värd
-            // än ett felmeddelande. Klarade ingen bil regeln finns inget att visa — då är felet
-            // det enda ärliga svaret.
+            // än ett felmeddelande.
             parsed = keepPassingCars(e, validator);
             if (parsed.isEmpty()) parsed = retryAfterRuleViolation(systemPrompt, prompt, e, validator);
-            if (parsed.isEmpty()) throw medRadOmKriterier(e);
+            if (parsed.isEmpty()) {
+                // Klarade INGEN bil kraven är tomt resultat ärligare än ett fel. Felet skyllde
+                // på AI:n ("AI:n föreslog en bilmodell som inte kunde verifieras") för något
+                // som oftast är ett rimligt svar på en hård fråga: sökningen har numera fem
+                // vakter som kan fälla samtidigt — okänd modell, årsmodell, familjestorlek,
+                // drivmedel, bagage och prisgolv — och ju fler krav, desto större chans att
+                // ingenting överlever hela kedjan. Controllern sätter narrowCriteria på ett
+                // tomt svar precis som på ett tunt, så användaren får kraven uppräknade i
+                // stället för ett tekniskt fel. Live 2026-08-10: familjeelbil + 400 l +
+                // 200 000 kr gav HTTP 500 i ena körningen och ett Tesla-kort i nästa.
+                log.warn("Ingen bil klarade kraven ({}) — returnerar tomt svar i stället för fel",
+                        String.join(", ", activeConstraints(prefs)));
+                return new Result(List.of(), false, 0, null);
+            }
             log.warn("Visar {} av 3 kort — resten bröt mot en regel ({})", parsed.size(), e.getMessage());
         } catch (RuntimeException e) {
             throw medRadOmKriterier(e);
