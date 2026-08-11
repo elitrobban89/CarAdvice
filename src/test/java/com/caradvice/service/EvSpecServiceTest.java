@@ -68,6 +68,65 @@ class EvSpecServiceTest {
         assertThat(dto.wltpKm()).isEqualTo(500); // den specifika, inte den generiska (400)
     }
 
+    // ── PHEV-rader får inte fastna på ett elbilskort ────────────────────────────
+
+    @Test
+    void laddhybridradenMatcharInteEttElbilskort() {
+        // Skarpt fall 2026-08-11: kortet "Hyundai Kona Electric (2020)" fick motoralternativet
+        // "8.9 kWh (58 km) · PHEV". Matchningen strippar "Electric" (för att "MG4 Electric" ska
+        // hitta "MG4"), så titeln blir "Hyundai Kona" — och båda orden finns i "Hyundai Kona PHEV".
+        EvSpec elbil = new EvSpec("Hyundai Kona Electric", 11.0, 100.0, 65.4, 514, 400_000);
+        EvSpec phev  = new EvSpec("Hyundai Kona PHEV", 3.7, 0.0, 8.9, 58, 290_000);
+        when(repo.findAll()).thenReturn(List.of(phev, elbil));
+
+        assertThat(service().verifiedEngineOptions("Hyundai Kona Electric (2020)"))
+                .contains("65.4").doesNotContain("8.9");
+        assertThat(service().formatForTitle("Hyundai Kona Electric (2020)", 15000).wltpKm())
+                .isEqualTo(514);
+    }
+
+    @Test
+    void laddhybridradenHittarFortfarandeSinEgenTitel() {
+        // Spärren prövas mot titelns EGNA ord före strippningen, annars hade PHEV-kortet
+        // blivit av med sin enda rad
+        EvSpec phev = new EvSpec("Kia Niro PHEV", 3.7, 0.0, 8.9, 58, 290_000);
+        when(repo.findAll()).thenReturn(List.of(phev));
+        assertThat(service().formatForTitle("Kia Niro PHEV (2021)", 15000)).isNotNull();
+    }
+
+    @Test
+    void bensinbilMedLaddhybridvariantRaknasInteSomElbil() {
+        // isKnownEv svarar insiktsfiltret på "är kortet en ren elbil?". "Volvo XC60" matchade
+        // "Volvo XC60 PHEV", så en bensin-XC60 klassades som elbil och tappade sina
+        // förbränningsinsikter — samma matchning, större skada än fel siffra i ett chip.
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volvo XC60 PHEV", 3.7, 0.0, 18.8, 68, 500_000)));
+        assertThat(service().isKnownEv("Volvo XC60")).isFalse();
+        assertThat(service().isKnownEv("Volvo XC60 PHEV")).isTrue();
+    }
+
+    // ── Årsmodellen väljer generation också i spec-chipsen ──────────────────────
+
+    @Test
+    void arsmodellenValjerGenerationAvenIMatchByTitle() {
+        // keepGenerationForYear satt bara i verifiedEngineOptions, så motorlistan visade rätt
+        // generation medan chipsen bredvid kunde visa den andra. Samma generationsdata styr nu båda.
+        EvSpec gen1 = new EvSpec("MG4 Long Range", 11.0, 140.0, 64.0, 450, 300_000);
+        EvSpec gen2 = new EvSpec("MG4 Premium Long Range", 11.0, 144.0, 52.8, 416, 320_000);
+        when(repo.findAll()).thenReturn(List.of(gen1, gen2));
+
+        // 2023 är gen 1 — gen 2 började säljas 2025
+        assertThat(service().formatForTitle("MG4 Long Range (2023)", 15000).wltpKm()).isEqualTo(450);
+    }
+
+    @Test
+    void utanArsmodellRorsGenerationsvaletInte() {
+        // Ingen årsmodell i titeln = inget att välja på; passens egen tiebreak gäller som förut
+        EvSpec gen1 = new EvSpec("MG4 Long Range", 11.0, 140.0, 64.0, 450, 300_000);
+        EvSpec gen2 = new EvSpec("MG4 Premium Long Range", 11.0, 144.0, 52.8, 416, 320_000);
+        when(repo.findAll()).thenReturn(List.of(gen1, gen2));
+        assertThat(service().formatForTitle("MG4 Long Range", 15000)).isNotNull();
+    }
+
     @Test
     void arsmodellIslutetStrippas() {
         when(repo.findAll()).thenReturn(List.of(spec("Volvo EX30")));

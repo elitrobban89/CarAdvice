@@ -54,49 +54,125 @@ public class EvSpecService {
                 .trim());
         String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet = new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
+        java.util.Set<String> raw = rawWords(title);
+        int year = modelYear(title);
 
         List<EvSpec> all = repo.findAll();
 
         // Pass 1: all title words are contained in stored name as substrings
-        EvSpec match = all.stream()
+        EvSpec match = pickForYear(all.stream()
+                .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                 .filter(ev -> {
                     String name = normalize(ev.getCarName());
                     for (String w : titleWords) if (!name.contains(w)) return false;
                     return true;
                 })
-                .findFirst().orElse(null);
+                .collect(java.util.stream.Collectors.toList()), year, false);
 
         // Pass 2: all stored-name words are exact words in the title
         // e.g. "Tesla Model 3" matches "Tesla Model 3 Long Range"
         // Uses word-set so "ev" does NOT match "phev"
         if (match == null) {
-            match = all.stream()
+            match = pickForYear(all.stream()
+                    .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
                         String[] nameWords = normalize(ev.getCarName()).split("\\s+");
                         for (String w : nameWords) if (!titleSet.contains(w)) return false;
                         return true;
                     })
-                    .max(java.util.Comparator.comparingInt(ev ->
-                            normalize(ev.getCarName()).split("\\s+").length))
-                    .orElse(null);
+                    .collect(java.util.stream.Collectors.toList()), year, true);
         }
 
         // Pass 3: all title words appear as words in the stored name
         // Handles "MG4" matching "MG4 Long Range", "Volvo EX30" matching "Volvo EX30 Single Motor"
         if (match == null) {
-            match = all.stream()
+            match = pickForYear(all.stream()
+                    .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
                         java.util.Set<String> nameSet = new java.util.HashSet<>(
                                 java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
                         for (String w : titleWords) if (!nameSet.contains(w)) return false;
                         return true;
                     })
-                    .max(java.util.Comparator.comparingInt(ev ->
-                            normalize(ev.getCarName()).split("\\s+").length))
-                    .orElse(null);
+                    .collect(java.util.stream.Collectors.toList()), year, true);
         }
 
         return match;
+    }
+
+    /**
+     * Väljer rad ur ett pass kandidater, med årsmodellen som tiebreak mellan generationer.
+     *
+     * <p>Utan årsledet plockade passen "bästa namnträff" utan att bry sig om vilken bil annonsen
+     * faktiskt gäller: en MG4 från 2023 (gen 1, 51/64/77 kWh) kunde få gen 2:as siffror i
+     * spec-chipsen medan {@code verifiedEngineOptions} strax intill visade rätt generation, för
+     * bara den senare filtrerade på år. Samma generationsdata styr nu båda.
+     *
+     * @param längstaNamnetVinner passens egen tiebreak när året inte skiljer dem åt
+     */
+    private static EvSpec pickForYear(List<EvSpec> kandidater, int year, boolean längstaNamnetVinner) {
+        List<EvSpec> kvar = specsForYear(kandidater, year);
+        if (kvar.isEmpty()) return null;
+        return längstaNamnetVinner
+                ? kvar.stream().max(java.util.Comparator.comparingInt(ev ->
+                        normalize(ev.getCarName()).split("\\s+").length)).orElse(null)
+                : kvar.get(0);
+    }
+
+    /**
+     * Samma generationsval som {@link #keepGenerationForYear}, men på ev_spec-rader i stället för
+     * hopslagna varianter. Rör inget när årsmodell saknas, när ingen kandidat bär en generation
+     * eller när valet skulle tömma listan — se den metoden för motiveringen.
+     */
+    private static List<EvSpec> specsForYear(List<EvSpec> kandidater, int year) {
+        if (year == 0 || kandidater.size() < 2) return kandidater;
+        if (kandidater.stream().noneMatch(ev -> GENERATION.containsKey(normalize(ev.getCarName())))) {
+            return kandidater;
+        }
+        int vald = kandidater.stream()
+                .mapToInt(EvSpecService::fromYear)
+                .filter(from -> from <= year)
+                .max().orElse(0);
+        List<EvSpec> kvar = kandidater.stream()
+                .filter(ev -> fromYear(ev) == vald)
+                .collect(java.util.stream.Collectors.toList());
+        return kvar.isEmpty() ? kandidater : kvar;
+    }
+
+    private static int fromYear(EvSpec ev) {
+        Generation g = GENERATION.get(normalize(ev.getCarName()));
+        return g == null ? 0 : g.fromYear();
+    }
+
+    /**
+     * Drivlineord i ett lagrat namn som titeln måste bära för att raden ska få matcha.
+     *
+     * <p>{@code ev_spec} innehåller 21 laddhybridrader ("Kia Niro PHEV", "Volvo XC60 PHEV") vid
+     * sidan av elbilarna, eftersom en laddhybrid också har batteri och elräckvidd. Matchningen
+     * strippar "Electric" ur titeln för att "MG4 Electric" ska hitta "MG4" — men då blir
+     * "Hyundai Kona Electric" bara "Hyundai Kona", och båda orden finns i "Hyundai Kona PHEV".
+     * Live 2026-08-11 fick därför ett rent elbilskort motoralternativet "8.9 kWh (58 km) · PHEV",
+     * alltså en laddhybrids 5,8 mil på en bil som går 51.
+     *
+     * <p>Värre för {@link #isKnownEv}, som svarar på "är kortet en ren elbil?" åt insiktsfiltret:
+     * "Volvo XC60" matchade "Volvo XC60 PHEV" och en bensin-XC60 räknades som elbil, varpå
+     * förbränningsinsikterna filtrerades bort från kortet.
+     *
+     * <p>Prövas mot titelns EGNA ord före strippningen — annars hade "Kia Niro PHEV (2021)"
+     * inte kunnat hitta sin egen rad.
+     */
+    private static boolean drivlinekrock(String carName, java.util.Set<String> titelnsEgnaOrd) {
+        for (String w : normalize(carName).split("\\s+")) {
+            if (DRIVLINEORD.contains(w) && !titelnsEgnaOrd.contains(w)) return true;
+        }
+        return false;
+    }
+
+    private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of("phev", "hev");
+
+    /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */
+    private static java.util.Set<String> rawWords(String title) {
+        return new java.util.HashSet<>(java.util.Arrays.asList(normalize(title).split("\\s+")));
     }
 
     /**
@@ -118,10 +194,12 @@ public class EvSpecService {
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
                 .trim());
         String[] titleWords = cleaned.split("\\s+");
+        java.util.Set<String> raw = rawWords(title);
 
         java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         List<Variant> variants = new java.util.ArrayList<>();
         for (EvSpec ev : repo.findAll()) {
+            if (drivlinekrock(ev.getCarName(), raw)) continue;   // se drivlinekrock: PHEV-raden på elbilskortet
             java.util.Set<String> nameSet = new java.util.HashSet<>(
                     java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
             boolean matches = true;
