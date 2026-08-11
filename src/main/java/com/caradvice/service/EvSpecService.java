@@ -63,7 +63,7 @@ public class EvSpecService {
         EvSpec match = pickForYear(all.stream()
                 .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                 .filter(ev -> {
-                    String name = normalize(ev.getCarName());
+                    String name = matchningsNamn(ev.getCarName());
                     for (String w : titleWords) if (!name.contains(w)) return false;
                     return true;
                 })
@@ -76,7 +76,7 @@ public class EvSpecService {
             match = pickForYear(all.stream()
                     .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
-                        String[] nameWords = normalize(ev.getCarName()).split("\\s+");
+                        String[] nameWords = matchningsNamn(ev.getCarName()).split("\\s+");
                         for (String w : nameWords) if (!titleSet.contains(w)) return false;
                         return true;
                     })
@@ -90,7 +90,7 @@ public class EvSpecService {
                     .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
                         java.util.Set<String> nameSet = new java.util.HashSet<>(
-                                java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
+                                java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
                         for (String w : titleWords) if (!nameSet.contains(w)) return false;
                         return true;
                     })
@@ -187,9 +187,35 @@ public class EvSpecService {
      * "Recharge" är Volvos namn för både elbil och laddhybrid och våra XC40 Recharge-rader är
      * 75 kWh-elbilar; DS "E-Tense" likaså (50,8 och 58,3 kWh); "Jeep Compass Electric 4xe"
      * är 96,1 kWh. Ett för brett filter hade tystat riktiga elbilskort.
+     *
+     * <p><b>e-prefixade modellnamn hör hit av samma skäl.</b> "e-Golf" är inte "Golf" — den ena
+     * är en elbil, den andra en av Sveriges vanligaste bensinbilar. Matchningen strippar
+     * {@code e-} ur BÅDA sidor (se {@link #matchningsNamn}) för att "Ford e-Tourneo Courier"
+     * ska hitta sin rad, och utan den här spärren hade en bensin-Golf då fått e-Golfens siffror
+     * och räknats som elbil av {@link #isKnownEv}. Bara de modellnamn där basordet också finns
+     * som förbränningsbil står med — "Audi Q4 e-tron" behöver inget skydd, det finns ingen
+     * bensin-Q4 att förväxla den med.
      */
-    private static final java.util.Set<String> DRIVLINEORD =
-            java.util.Set.of("phev", "hev", "gte", "plug-in");
+    private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
+            "phev", "hev", "gte", "plug-in",
+            "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter");
+
+    /**
+     * Lagrat namn med samma {@code e-}-strippning som titeln får, för ordjämförelserna.
+     *
+     * <p>Titelsidan har alltid strippat prefixet ("e-Niro" → "Niro"), men den lagrade sidan
+     * har inte gjort det — så en rad vars MODELLORD bär prefixet blev omöjlig att träffa med
+     * ordmatchning: "Ford e-Tourneo Courier" har orden {ford, e-tourneo, courier} medan titeln
+     * ger {ford, tourneo, courier}, och "tourneo" finns inte bland radens ord. De raderna fick
+     * därför aldrig några verifierade motoralternativ. Symmetrin fixar ~30 rader (e-Tourneo,
+     * e-Caravelle, e-Transporter, e-Rifter, e-Traveller) utöver e-Golf.
+     *
+     * <p>Spärren i {@link #DRIVLINEORD} prövas mot det OSTRIPPADE namnet och måste göra det —
+     * annars vore "e-golf" borta innan den hann jämföras.
+     */
+    private static String matchningsNamn(String carName) {
+        return normalize(carName.replaceAll("(?i)\\be-(?=[A-Za-z])", ""));
+    }
 
     /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */
     private static java.util.Set<String> rawWords(String title) {
@@ -222,7 +248,7 @@ public class EvSpecService {
         for (EvSpec ev : repo.findAll()) {
             if (drivlinekrock(ev.getCarName(), raw)) continue;   // se drivlinekrock: PHEV-raden på elbilskortet
             java.util.Set<String> nameSet = new java.util.HashSet<>(
-                    java.util.Arrays.asList(normalize(ev.getCarName()).split("\\s+")));
+                    java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
             boolean matches = true;
             for (String w : titleWords) if (!nameSet.contains(w)) { matches = false; break; }
             if (!matches) continue;
@@ -342,6 +368,10 @@ public class EvSpecService {
     private static final Generation ZS_GEN1 = new Generation("ZS EV pre-facelift", 2019);
     private static final Generation ZS_GEN2 = new Generation("ZS EV facelift", 2022);
 
+    /** e-Golf: 24,2 kWh 2014–2016, 35,8 kWh från facelift 2017. Ingen otaggad rad att ta hänsyn till. */
+    private static final Generation EGOLF_GEN1 = new Generation("e-Golf 24 kWh", 2014);
+    private static final Generation EGOLF_GEN2 = new Generation("e-Golf 35 kWh", 2017);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -355,7 +385,9 @@ public class EvSpecService {
             Map.entry("nissan leaf e+ 62 kwh",        LEAF_GEN2),
             Map.entry("nissan leaf",                  LEAF_GEN3),
             Map.entry("mg zs ev 44.5 kwh",            ZS_GEN1),
-            Map.entry("mg zs ev",                     ZS_GEN2));
+            Map.entry("mg zs ev",                     ZS_GEN2),
+            Map.entry("volkswagen e-golf 24.2 kwh",   EGOLF_GEN1),
+            Map.entry("volkswagen e-golf 35.8 kwh",   EGOLF_GEN2));
 
 
     /**
@@ -386,13 +418,13 @@ public class EvSpecService {
         String[] words = carName.trim().split("\\s+");
         int firstTitleWord = -1;
         for (int i = 0; i < words.length; i++) {
-            if (titleWords.contains(normalize(words[i]))) { firstTitleWord = i; break; }
+            if (titleWords.contains(matchningsNamn(words[i]))) { firstTitleWord = i; break; }
         }
         if (firstTitleWord < 0) return null;
 
         StringBuilder sb = new StringBuilder();
         for (int i = firstTitleWord; i < words.length; i++) {
-            if (titleWords.contains(normalize(words[i]))) continue;
+            if (titleWords.contains(matchningsNamn(words[i]))) continue;
             if (sb.length() > 0) sb.append(' ');
             sb.append(words[i]);
         }
@@ -510,8 +542,24 @@ public class EvSpecService {
                     ? " (" + g.maxKm() + " km)"
                     : " (" + g.minKm() + "–" + g.maxKm() + " km)");
         }
-        if (g.trim() != null) sb.append(" · ").append(g.trim());
+        if (g.trim() != null && !baraKapacitet(g.trim(), g.kwh())) sb.append(" · ").append(g.trim());
         return sb.toString();
+    }
+
+    /**
+     * Är trimnamnet bara en upprepning av kWh-talet som redan står först på raden?
+     *
+     * <p>Trimmet är det som blir kvar av radnamnet när titelns ord tagits bort, så en rad vars
+     * enda särskiljande del ÄR batteristorleken gav "44.5 kWh (263 km) · 44.5 kWh". Det gäller
+     * raderna vi själva lagt in för utgångna generationer, där kWh-talet är det som skiljer dem
+     * åt i namnet. Ett trim som säger något mer ("e+ 62 kWh") behålls — plustecknet är
+     * modellbeteckningen, inte kapaciteten.
+     */
+    private static boolean baraKapacitet(String trim, double kwh) {
+        Matcher m = Pattern.compile("^\\s*(\\d+(?:[.,]\\d+)?)\\s*kwh\\s*$", Pattern.CASE_INSENSITIVE)
+                .matcher(trim);
+        if (!m.matches()) return false;
+        return Math.abs(Double.parseDouble(m.group(1).replace(',', '.')) - kwh) < 0.05;
     }
 
     private static String formatKwh(double kwh) {

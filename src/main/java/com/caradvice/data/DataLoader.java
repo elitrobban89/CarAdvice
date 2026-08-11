@@ -339,7 +339,9 @@ public class DataLoader implements CommandLineRunner {
             "Nissan Leaf 30 kWh",    new double[]{30.0, 150},
             "Nissan Leaf 40 kWh",    new double[]{40.0, 270},
             "Nissan Leaf e+ 62 kWh", new double[]{62.0, 385},
-            "MG ZS EV 44.5 kWh",     new double[]{44.5, 263});
+            "MG ZS EV 44.5 kWh",     new double[]{44.5, 263},
+            "Volkswagen e-Golf 24.2 kWh", new double[]{24.2, 130},
+            "Volkswagen e-Golf 35.8 kWh", new double[]{35.8, 231});
 
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
@@ -517,6 +519,17 @@ public class DataLoader implements CommandLineRunner {
         // för en 2020:a fick 2022 års bil. Priset lämnas 0 av samma skäl som Leaf-raderna.
         if (!existing.contains("MG ZS EV 44.5 kWh"))
             extras.add(new EvSpec("MG ZS EV 44.5 kWh",      6.6,  76.0, 44.5, 263, 0));
+
+        // Volkswagen e-Golf saknades HELT — kortet föll tillbaka på AI:ns fritext, som
+        // 2026-08-11 gav "35.8 kWh (190km), 45 kWh (230km)". 45 kWh har aldrig funnits;
+        // bilen såldes som 24,2 kWh (2014–2016) och 35,8 kWh (facelift 2017–2020).
+        // Räckvidderna följer samma konvention som Leaf: WLTP där det finns (231 km för
+        // 35,8 kWh), verklig bruksräckvidd för den pre-WLTP-bil som bara har NEDC-tal
+        // (24,2 kWh angavs som 190 km NEDC, verkligt ~13 mil).
+        if (!existing.contains("Volkswagen e-Golf 24.2 kWh"))
+            extras.add(new EvSpec("Volkswagen e-Golf 24.2 kWh", 3.6, 40.0, 24.2, 130, 0));
+        if (!existing.contains("Volkswagen e-Golf 35.8 kWh"))
+            extras.add(new EvSpec("Volkswagen e-Golf 35.8 kWh", 7.2, 40.0, 35.8, 231, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

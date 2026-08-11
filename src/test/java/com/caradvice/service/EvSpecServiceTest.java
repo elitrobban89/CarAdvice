@@ -217,6 +217,49 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void eGolfHittarSinaRaderMenBensinGolfGorDetInte() {
+        // e-Golf saknades helt i tabellen, så kortet föll tillbaka på AI:ns fritext (som gav
+        // "45 kWh" — en kapacitet bilen aldrig haft). Raderna finns nu, men "Golf" ensamt är
+        // en av Sveriges vanligaste bensinbilar och får INTE plocka upp dem.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volkswagen e-Golf 24.2 kWh", 3.6, 40.0, 24.2, 130, 0),
+                new EvSpec("Volkswagen e-Golf 35.8 kWh", 7.2, 40.0, 35.8, 231, 0)));
+
+        assertThat(service().verifiedEngineOptions("Volkswagen e-Golf (2019)"))
+                .contains("35.8").contains("231");
+        assertThat(service().isKnownEv("Volkswagen Golf")).isFalse();
+        assertThat(service().isKnownEv("Volkswagen Golf (2019)")).isFalse();
+    }
+
+    @Test
+    void ePrefixIRadnamnetHittasMedOrdmatchning() {
+        // Titelsidan har alltid strippat "e-", den lagrade sidan inte — så rader vars MODELLORD
+        // bär prefixet var omöjliga att träffa med ordmatchning och fick aldrig några
+        // verifierade motoralternativ. Gäller ~30 rader: e-Tourneo, e-Caravelle, e-Rifter...
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Ford e-Tourneo Courier", 11.0, 100.0, 43.6, 296, 0)));
+        assertThat(service().verifiedEngineOptions("Ford e-Tourneo Courier (2024)"))
+                .contains("43.6");
+    }
+
+    @Test
+    void trimSomBaraUpprepningAvKwhTasBort() {
+        // Raderna vi själva lagt in för utgångna generationer särskiljs av kWh-talet i namnet,
+        // så trimmet blev en upprepning: "44.5 kWh (263 km) · 44.5 kWh"
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG ZS EV 44.5 kWh", 6.6, 76.0, 44.5, 263, 0)));
+        assertThat(service().verifiedEngineOptions("MG ZS EV (2020)")).isEqualTo("44.5 kWh (263 km)");
+    }
+
+    @Test
+    void trimSomSagerNagotMerBehalls() {
+        // "e+" är modellbeteckningen, inte kapaciteten — den raden ska fortfarande märkas ut
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Nissan Leaf e+ 62 kWh", 6.6, 100.0, 62.0, 385, 0)));
+        assertThat(service().verifiedEngineOptions("Nissan Leaf (2019)")).contains("e+");
+    }
+
+    @Test
     void utanArsmodellRorsGenerationsvaletInte() {
         // Ingen årsmodell i titeln = inget att välja på; passens egen tiebreak gäller som förut
         EvSpec gen1 = new EvSpec("MG4 Long Range", 11.0, 140.0, 64.0, 450, 300_000);
