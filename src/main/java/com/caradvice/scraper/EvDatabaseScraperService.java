@@ -352,6 +352,32 @@ public class EvDatabaseScraperService {
 
     /** Minsta antal ord i det skrapade namnet för att steg 3 ska få leta. Se motiveringen där. */
     static final int MIN_SCRAPED_WORDS_FOR_REVERSE = 3;
+    /**
+     * Kortaste DB-ord som får träffa som delsträng i steg 2. Kortare ord måste stå som eget ord.
+     *
+     * <p>Delsträngsfallbacken finns för att normaliseringen delar upp namn olika beroende på
+     * skiljetecken — "ID.3" blir "id 3" men "ID3" blir "id3". För långa ord är det ofarligt.
+     * För ett- och tvåteckensord är det förödande, eftersom de ryms i nästan vilket annat ord
+     * som helst. Uppmätt mot skarp data 2026-08-11 (518 DB-rader mot 639 bilar på cheatsheeten)
+     * skrev fallbacken systematiskt fel bil till fel rad:
+     *
+     * <ul>
+     *   <li>{@code Hyundai IONIQ 3 61 kWh} träffade raden <b>Hyundai IONIQ 6</b> — "6" ryms i "61"</li>
+     *   <li>{@code Renault 4 E-Tech 52kWh} träffade <b>Renault 5 E-Tech 52kWh</b> — "5" ryms i "52"</li>
+     *   <li>{@code Volkswagen ID. Polo 155 kW} träffade <b>Volkswagen ID.5</b> — "5" ryms i "155"</li>
+     *   <li>{@code Mercedes-Benz GLC 400 4MATIC} träffade <b>Mercedes-Benz C 400 4MATIC</b> — "c" i "glc"</li>
+     *   <li>{@code Audi RS e-tron GT} träffade <b>Audi S e-tron GT</b> — "s" i "rs"</li>
+     *   <li>{@code Škoda Enyaq 85x} träffade <b>Škoda Enyaq 85</b> — "85" i "85x", och x är fyrhjulsdriften</li>
+     * </ul>
+     *
+     * <p>Gränsen 3 tar samtliga fall ovan. 4 tecken provades också och kostade fyra äkta
+     * steg 2-träffar utan att stoppa något nytt, så 3 är den lösaste gräns som räcker.
+     *
+     * <p>Bonuseffekt: de åtta Tesla Model 3/Y-varianter som fastnade i oavgjort-spärren gjorde
+     * det för att BÅDA de lika långa DB-namnen träffade via delsträng. Utan skenträffarna är
+     * de inte längre tvetydiga och matchar rätt rad.
+     */
+    static final int MIN_DB_WORD_FOR_SUBSTRING = 3;
     /** Hur mycket DB-radens räckvidd får avvika från den skrapade för att räknas som samma bil. */
     static final double REVERSE_RANGE_TOLERANCE = 0.10;
 
@@ -382,7 +408,10 @@ public class EvDatabaseScraperService {
             Set<String> scrapedWords = new HashSet<>(Arrays.asList(normScraped.split("\\s+")));
             boolean allMatch = true;
             for (String w : dbWords) {
-                if (!scrapedWords.contains(w) && !normScraped.contains(w)) { allMatch = false; break; }
+                // Korta DB-ord måste stå som eget ord — se MIN_DB_WORD_FOR_SUBSTRING för varför.
+                boolean hit = scrapedWords.contains(w)
+                        || (w.length() >= MIN_DB_WORD_FOR_SUBSTRING && normScraped.contains(w));
+                if (!hit) { allMatch = false; break; }
             }
             if (!allMatch) continue;
             if (dbWords.length > bestLen) {

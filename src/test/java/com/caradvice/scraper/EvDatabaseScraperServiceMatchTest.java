@@ -183,6 +183,60 @@ class EvDatabaseScraperServiceMatchTest {
         assertThat(service.findMatch("Tesla Model 3 Long Range AWD", 566, db(kort, lang))).isSameAs(lang);
     }
 
+    // ── Steg 2: korta DB-ord får inte träffa som delsträng ──────────────────────
+
+    @Test
+    void siffra_traffar_inte_inuti_ett_langre_tal() {
+        // Skarpt fall 2026-08-11: "Hyundai IONIQ 3 61 kWh" skrev sina siffror till raden
+        // "Hyundai IONIQ 6", för "6" ryms i "61". Två helt olika bilar.
+        var ioniq6 = spec("Hyundai IONIQ 6", 614);
+        assertThat(service.findMatch("Hyundai IONIQ 3 61 kWh", 0, db(ioniq6))).isNull();
+    }
+
+    @Test
+    void modellsiffra_traffar_inte_inuti_effekt_eller_batterital() {
+        // "Renault 4 E-Tech 52kWh" träffade "Renault 5 E-Tech 52kWh" — "5" ryms i "52".
+        var renault5 = spec("Renault 5 E-Tech 52kWh 150hp", 410);
+        assertThat(service.findMatch("Renault 4 E-Tech 52kWh 150hp", 0, db(renault5))).isNull();
+    }
+
+    @Test
+    void enbokstavsmodell_traffar_inte_inuti_ett_langre_modellnamn() {
+        // "Mercedes-Benz GLC 400 4MATIC" träffade "Mercedes-Benz C 400 4MATIC" — "c" ryms i "glc".
+        // Samma mekanism gav "Audi RS e-tron GT" → "Audi S e-tron GT".
+        var cKlass = spec("Mercedes-Benz C 400 4MATIC", 600);
+        assertThat(service.findMatch("Mercedes-Benz GLC 400 4MATIC", 0, db(cKlass))).isNull();
+
+        var sEtron = spec("Audi S e-tron GT", 590);
+        assertThat(service.findMatch("Audi RS e-tron GT", 0, db(sEtron))).isNull();
+    }
+
+    @Test
+    void kort_dbord_traffar_fortfarande_som_eget_ord() {
+        // Spärren får bara stoppa delsträngar. Står bokstaven som eget ord är det rätt bil.
+        var cKlass = spec("Mercedes-Benz C 400 4MATIC", 600);
+        assertThat(service.findMatch("Mercedes-Benz C 400 4MATIC Sedan", 600, db(cKlass)))
+                .isSameAs(cKlass);
+    }
+
+    @Test
+    void langt_dbord_far_fortfarande_traffa_som_delstrang() {
+        // Motivet till fallbacken lever kvar: normaliseringen delar upp namn olika beroende på
+        // skiljetecken, och för ord på tre tecken eller mer är delsträngsträffen ofarlig.
+        var s = spec("Tesla Model Y Long Range", 533);
+        assertThat(service.findMatch("Tesla Model Y LongRange AWD", 533, db(s))).isSameAs(s);
+    }
+
+    @Test
+    void utan_skentraffar_ar_varianterna_inte_langre_oavgjorda() {
+        // Bonuseffekten: de åtta Tesla-varianterna föll i oavgjort-spärren för att BÅDA de lika
+        // långa DB-namnen träffade via delsträng — "y" ryms i "yoke". Nu matchar bara den rätta.
+        var modell3 = spec("Tesla Model 3", 513);
+        var modellY = spec("Tesla Model Y", 533);
+        assertThat(service.findMatch("Tesla Model 3 Yoke Premium", 513, db(modell3, modellY)))
+                .isSameAs(modell3);
+    }
+
     // ── Kollisionsspärren: flera skrapade bilar om samma DB-rad ─────────────────
 
     @Test
