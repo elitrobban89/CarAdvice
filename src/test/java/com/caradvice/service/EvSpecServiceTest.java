@@ -118,6 +118,54 @@ class EvSpecServiceTest {
         assertThat(service().formatForTitle("MG4 Long Range (2023)", 15000).wltpKm()).isEqualTo(450);
     }
 
+    /** Leaf-raderna som DataLoader skapar dem, plus synkens rad för 2026 års bil. */
+    private static List<EvSpec> leafRader() {
+        return List.of(
+                new EvSpec("Nissan Leaf",            6.6, 150.0, 75.1, 624, 290_000),  // gen 3, 2026
+                new EvSpec("Nissan Leaf 24 kWh",     3.6,  50.0, 24.0, 120, 0),        // gen 1
+                new EvSpec("Nissan Leaf 30 kWh",     3.6,  50.0, 30.0, 150, 0),        // gen 1
+                new EvSpec("Nissan Leaf 40 kWh",     6.6,  50.0, 40.0, 270, 0),        // gen 2
+                new EvSpec("Nissan Leaf e+ 62 kWh",  6.6, 100.0, 62.0, 385, 0));       // gen 2
+    }
+
+    @Test
+    void leafFran2019FarAndraGenerationensSiffror() {
+        // Skarpt fall 2026-08-11: ett elbilssök på 175 000 kr gav kortet "Nissan Leaf (2019)"
+        // med motoralternativet "75.1 kWh (624 km)" — 2026 års bil. Det var den enda Leaf-raden
+        // som fanns, så årsfiltret hade inget att välja mellan.
+        when(repo.findAll()).thenReturn(leafRader());
+
+        assertThat(service().verifiedEngineOptions("Nissan Leaf (2019)"))
+                .contains("40").contains("62")
+                .doesNotContain("75.1").doesNotContain("24").doesNotContain("30");
+        // och chipsen bredvid ska visa samma generation
+        assertThat(service().formatForTitle("Nissan Leaf (2019)", 15000).wltpKm())
+                .isIn(270, 385);
+    }
+
+    @Test
+    void leafFran2013FarForstaGenerationensSiffror() {
+        when(repo.findAll()).thenReturn(leafRader());
+        assertThat(service().verifiedEngineOptions("Nissan Leaf (2013)"))
+                .contains("24").doesNotContain("40").doesNotContain("75.1");
+    }
+
+    @Test
+    void leafFran2026FarNyasteRaden() {
+        // Den otaggade raden ÄR den nyaste bilen här, tvärtemot MG4 där otaggat = äldst.
+        // Utan en egen gen 3-tagg hade 2026 års Leaf räknats som den äldsta generationen.
+        when(repo.findAll()).thenReturn(leafRader());
+        assertThat(service().formatForTitle("Nissan Leaf (2026)", 15000).wltpKm()).isEqualTo(624);
+    }
+
+    @Test
+    void leafUtanArsmodellVisarAllaGenerationer() {
+        // Ingen årsmodell = inget att välja på. Hellre för mycket information än fel.
+        when(repo.findAll()).thenReturn(leafRader());
+        assertThat(service().verifiedEngineOptions("Nissan Leaf"))
+                .contains("24").contains("40").contains("62").contains("75.1");
+    }
+
     @Test
     void utanArsmodellRorsGenerationsvaletInte() {
         // Ingen årsmodell i titeln = inget att välja på; passens egen tiebreak gäller som förut

@@ -300,13 +300,31 @@ public class EvSpecService {
 
     private static final Generation MG4_GEN2 = new Generation("MG4 gen 2", 2025);
 
-    private static final Map<String, Generation> GENERATION = Map.of(
-            "mg4 urban standard range",     MG4_GEN2,
-            "mg4 urban comfort long range", MG4_GEN2,
-            "mg4 urban premium long range", MG4_GEN2,
-            "mg4 premium long range",       MG4_GEN2,
-            "mg4 premium extended range",   MG4_GEN2,
-            "mg mg4 xpower",                MG4_GEN2);
+    /**
+     * Nissan Leafs tre generationer. Till skillnad från MG4 måste ALLA tre taggas, inte bara de
+     * nyare: den otaggade raden räknas som {@code fromYear = 0}, alltså den äldsta — och vår
+     * otaggade Leaf-rad är tvärtom den NYASTE bilen (2026, 75,1 kWh). Utan taggen hade en
+     * annons från 2019 fått 2026 års siffror igen, fast raderna nu finns.
+     *
+     * <p>Gen 1 och gen 2 skapas i {@code DataLoader.LEAF_UTGANGNA}; gen 3-raden heter bara
+     * "Nissan Leaf" och underhålls av nattsynken.
+     */
+    private static final Generation LEAF_GEN1 = new Generation("Leaf gen 1", 2011);
+    private static final Generation LEAF_GEN2 = new Generation("Leaf gen 2", 2018);
+    private static final Generation LEAF_GEN3 = new Generation("Leaf gen 3", 2026);
+
+    private static final Map<String, Generation> GENERATION = Map.ofEntries(
+            Map.entry("mg4 urban standard range",     MG4_GEN2),
+            Map.entry("mg4 urban comfort long range", MG4_GEN2),
+            Map.entry("mg4 urban premium long range", MG4_GEN2),
+            Map.entry("mg4 premium long range",       MG4_GEN2),
+            Map.entry("mg4 premium extended range",   MG4_GEN2),
+            Map.entry("mg mg4 xpower",                MG4_GEN2),
+            Map.entry("nissan leaf 24 kwh",           LEAF_GEN1),
+            Map.entry("nissan leaf 30 kwh",           LEAF_GEN1),
+            Map.entry("nissan leaf 40 kwh",           LEAF_GEN2),
+            Map.entry("nissan leaf e+ 62 kwh",        LEAF_GEN2),
+            Map.entry("nissan leaf",                  LEAF_GEN3));
 
 
     /**

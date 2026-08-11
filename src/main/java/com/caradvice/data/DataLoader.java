@@ -307,6 +307,33 @@ public class DataLoader implements CommandLineRunner {
             "MG4 Long Range",     new double[]{64.0, 450},
             "MG4 Extended Range", new double[]{77.0, 520});
 
+    /**
+     * Nissan Leafs två utgångna generationer: {bruttobatteri kWh, räckvidd km}.
+     *
+     * <p>Tabellen hade EN Leaf-rad — 75,1 kWh / 624 km, alltså 2026 års bil — och den var
+     * därför den enda raden ett kort för "Nissan Leaf (2019)" kunde visa. Live 2026-08-11 gav
+     * ett elbilssök på 175 000 kr just det kortet: årsmodell 2019 med 62 mils räckvidd, en bil
+     * som inte fanns när annonsbilen tillverkades. Årsfiltret kunde inte hjälpa, för det fanns
+     * ingen annan rad att välja.
+     *
+     * <p>ev-database listar bara den nuvarande Leafen, så synken kan aldrig hålla de här raderna
+     * aktuella — DataLoader äger dem och återställer dem vid varje uppstart, precis som
+     * {@link #MG4_GEN1}. Synken når dem inte heller av misstag: dess steg 1 träffar den korta
+     * raden "Nissan Leaf" exakt, och våra namn bär ett kWh-suffix som det skrapade namnet saknar.
+     *
+     * <p><b>RÄCKVIDDSKONVENTIONEN SKILJER SIG MELLAN GENERATIONERNA och det är avsiktligt.</b>
+     * Gen 2 (2018+) har riktiga WLTP-tal: 40 kWh = 270 km, e+ 62 kWh = 385 km. Gen 1 (2011–2017)
+     * såldes före WLTP och har bara NEDC-tal — 175 respektive 250 km — som är så optimistiska
+     * att de hade återskapat precis det fel raderna läggs in för att åtgärda. Därför används
+     * verkliga bruksräckvidder för gen 1 (samma konvention som ev-databases "real range"),
+     * ~120 och ~150 km. Blandningen är känd och medveten, som prisglappet i {@link #EV6_PRISER}.
+     */
+    static final java.util.Map<String, double[]> LEAF_UTGANGNA = java.util.Map.of(
+            "Nissan Leaf 24 kWh",    new double[]{24.0, 120},
+            "Nissan Leaf 30 kWh",    new double[]{30.0, 150},
+            "Nissan Leaf 40 kWh",    new double[]{40.0, 270},
+            "Nissan Leaf e+ 62 kWh", new double[]{62.0, 385});
+
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
         return new EvSpec(namn, 11.0, dcKw, batteryKwh, rangeKm, EV6_PRISER.get(namn));
@@ -397,16 +424,20 @@ public class DataLoader implements CommandLineRunner {
                     // EX30-korrigeringarna ovan: ev-database har inte kvar första generationen,
                     // så DataLoader är enda källan för de här tre raderna. Utan det hade de
                     // felaktiga siffrorna suttit kvar för alltid.
-                    double[] gen1 = MG4_GEN1.get(spec.getCarName());
-                    if (gen1 != null) {
+                    //
+                    // Samma sak gäller Nissan Leafs två äldre generationer (LEAF_UTGANGNA):
+                    // ev-database listar bara 2026 års bil, så de raderna har ingen annan källa.
+                    double[] egen = MG4_GEN1.get(spec.getCarName());
+                    if (egen == null) egen = LEAF_UTGANGNA.get(spec.getCarName());
+                    if (egen != null) {
                         boolean fel = spec.getBatteryKwh() == null || spec.getRangeKm() == null
-                                || spec.getBatteryKwh() != gen1[0] || spec.getRangeKm() != (int) gen1[1];
+                                || spec.getBatteryKwh() != egen[0] || spec.getRangeKm() != (int) egen[1];
                         if (fel) {
-                            log.warn("ev_spec: {} hade {} kWh/{} km — återställer till {} kWh/{} km (gen 1)",
+                            log.warn("ev_spec: {} hade {} kWh/{} km — återställer till {} kWh/{} km (egen rad)",
                                     spec.getCarName(), spec.getBatteryKwh(), spec.getRangeKm(),
-                                    gen1[0], (int) gen1[1]);
-                            spec.setBatteryKwh(gen1[0]);
-                            spec.setRangeKm((int) gen1[1]);
+                                    egen[0], (int) egen[1]);
+                            spec.setBatteryKwh(egen[0]);
+                            spec.setRangeKm((int) egen[1]);
                             toUpdate.add(spec);
                         }
                     }
@@ -454,6 +485,25 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("MG4 Premium Long Range",       11.0, 154.0, 61.7, 452, 0));
         if (!existing.contains("MG4 Premium Extended Range"))
             extras.add(new EvSpec("MG4 Premium Extended Range",   11.0, 144.0, 74.4, 545, 0));
+
+        // Nissan Leaf gen 1 (2011–2017) och gen 2 (2018–2022). Se LEAF_UTGANGNA för varför de
+        // ligger här och varför gen 1:s räckvidder inte är NEDC-tal. Laddeffekterna: gen 1 hade
+        // 3,6 kW AC som standard (6,6 kW mot tillägg) och CHAdeMO 50 kW; gen 2 har 6,6 kW AC,
+        // och e+ tar 100 kW DC mot 40-kWh-bilens 50.
+        //
+        // PRISET LÄMNAS 0 med flit. Vi har ingen källa på svenska listpriser för de här bilarna,
+        // och toDto sätter prisvärdhetsetikett bara när priset är > 0 — en gissad siffra hade
+        // alltså inte blivit ett tomt fält utan en felaktig etikett på kortet. Samma slutsats
+        // som EV6-raderna kom till efter att härledda gissningar fått ersättas med sourcade
+        // priser: hellre inget värde än ett påhittat.
+        if (!existing.contains("Nissan Leaf 24 kWh"))
+            extras.add(new EvSpec("Nissan Leaf 24 kWh",     3.6,  50.0, 24.0, 120, 0));
+        if (!existing.contains("Nissan Leaf 30 kWh"))
+            extras.add(new EvSpec("Nissan Leaf 30 kWh",     3.6,  50.0, 30.0, 150, 0));
+        if (!existing.contains("Nissan Leaf 40 kWh"))
+            extras.add(new EvSpec("Nissan Leaf 40 kWh",     6.6,  50.0, 40.0, 270, 0));
+        if (!existing.contains("Nissan Leaf e+ 62 kWh"))
+            extras.add(new EvSpec("Nissan Leaf e+ 62 kWh",  6.6, 100.0, 62.0, 385, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))
