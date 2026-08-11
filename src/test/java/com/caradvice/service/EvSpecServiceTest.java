@@ -95,6 +95,43 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void gteRadenFastnarInteVidEGolf() {
+        // Andra omgången av samma bugg, hittad i verifieringssöket 2026-08-11: kortet
+        // "Volkswagen e-Golf (2019)" fick "13 kWh (70 km) · GTE". e-prefixregeln gör titeln till
+        // "volkswagen golf", som matchar laddhybriden Golf GTE. Spärren tog bara "phev"/"hev" —
+        // tabellen har flera namnkonventioner för samma sak.
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volkswagen Golf GTE", 3.6, 0.0, 13.0, 70, 0)));
+        assertThat(service().verifiedEngineOptions("Volkswagen e-Golf (2019)")).isNull();
+        assertThat(service().isKnownEv("Volkswagen e-Golf")).isFalse();
+        // ...men GTE-kortet hittar fortfarande sin egen rad
+        assertThat(service().isKnownEv("Volkswagen Golf GTE (2020)")).isTrue();
+    }
+
+    @Test
+    void plugInRadenFastnarInteVidBasmodellen() {
+        // Toyota Prius Plug-in och Toyota RAV4 Plug-in är samma bilar som Prius/RAV4 PHEV under
+        // en annan namnkonvention — båda konventionerna måste spärras
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Toyota Prius Plug-in", 3.3, 0.0, 8.8, 69, 0)));
+        assertThat(service().isKnownEv("Toyota Prius")).isFalse();
+        assertThat(service().isKnownEv("Toyota Prius Plug-in (2021)")).isTrue();
+    }
+
+    @Test
+    void elbilarMedLaddhybridliknandeNamnSlappsIgenom() {
+        // Filtret får inte bli för brett: "Recharge" är Volvos namn för BÅDE elbil och
+        // laddhybrid, DS "E-Tense" likaså, och Jeeps "4xe" sitter på en 96 kWh-elbil.
+        // Alla tre är riktiga elbilar i tabellen och deras kort ska fungera.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 75.0, 530, 465_000),
+                new EvSpec("DS Automobiles DS 3 E-Tense", 11.0, 100.0, 50.8, 404, 0),
+                new EvSpec("Jeep Compass Electric 4xe", 11.0, 160.0, 96.1, 606, 0)));
+
+        assertThat(service().isKnownEv("Volvo XC40 Recharge")).isTrue();
+        assertThat(service().isKnownEv("DS Automobiles DS 3 E-Tense")).isTrue();
+        assertThat(service().isKnownEv("Jeep Compass Electric 4xe")).isTrue();
+    }
+
+    @Test
     void bensinbilMedLaddhybridvariantRaknasInteSomElbil() {
         // isKnownEv svarar insiktsfiltret på "är kortet en ren elbil?". "Volvo XC60" matchade
         // "Volvo XC60 PHEV", så en bensin-XC60 klassades som elbil och tappade sina

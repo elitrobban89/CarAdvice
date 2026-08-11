@@ -168,7 +168,28 @@ public class EvSpecService {
         return false;
     }
 
-    private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of("phev", "hev");
+    /**
+     * Laddhybridmarkörer i lagrade namn. Listan är inventerad ur tabellen, inte gissad.
+     *
+     * <p>Första versionen tog bara "phev" och "hev" — generaliserat från de två exempel som
+     * fanns för handen. Det räckte inte: verifieringssöket 2026-08-11 gav kortet "Volkswagen
+     * e-Golf (2019)" motoralternativet "13 kWh (70 km) · GTE". Titeln strippas till "volkswagen
+     * golf" av e-prefixregeln och matchade <b>Volkswagen Golf GTE</b>, en laddhybrid — och den
+     * riktiga e-Golfen (35,8 kWh, ~23 mil) finns inte ens som rad. Tabellen använder alltså
+     * flera namnkonventioner för samma sak.
+     *
+     * <p>Genuina laddhybridrader vid inventeringen: Golf GTE, Passat GTE, Prius Plug-in,
+     * RAV4 Plug-in samt de 21 raderna med PHEV i namnet. De två Plug-in-raderna är dubbletter
+     * av Prius PHEV och RAV4 PHEV under en annan konvention — de raderas inte, eftersom
+     * nattsynken skulle kunna återskapa dem, och spärren gör dem ofarliga där de står.
+     *
+     * <p>Följande ser ut som laddhybridmarkörer men är det INTE, och får inte in i listan:
+     * "Recharge" är Volvos namn för både elbil och laddhybrid och våra XC40 Recharge-rader är
+     * 75 kWh-elbilar; DS "E-Tense" likaså (50,8 och 58,3 kWh); "Jeep Compass Electric 4xe"
+     * är 96,1 kWh. Ett för brett filter hade tystat riktiga elbilskort.
+     */
+    private static final java.util.Set<String> DRIVLINEORD =
+            java.util.Set.of("phev", "hev", "gte", "plug-in");
 
     /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */
     private static java.util.Set<String> rawWords(String title) {
