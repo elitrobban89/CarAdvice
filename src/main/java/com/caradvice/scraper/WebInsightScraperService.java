@@ -83,7 +83,9 @@ public class WebInsightScraperService {
         return PERMANENT_HTTP_STATUS.contains(httpStatus);
     }
 
-    private static final String SYSTEM_PROMPT = """
+    // Paketprivat som de övriga prompterna: gränsen för utmärkelser står på två ställen och
+    // testet låser att de inte glider isär.
+    static final String SYSTEM_PROMPT = """
             Du är en assistent som extraherar bilexpertinsikter ur text från svenska motorsajter.
 
             Analysera texten och extrahera KONKRETA insikter om specifika bilar eller bilkategorier.
@@ -112,8 +114,11 @@ public class WebInsightScraperService {
               * prototyper, konceptbilar, entusiastombyggnader, veteran-/samlarbilar
               * specialutgåvor/jubileumsmodeller där innehållet handlar om färger, fälgar och dekor
               * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar)
-                — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test",
-                topplacering i försäljningsstatistik) är RELEVANTA och ska inkluderas
+                — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test")
+                är RELEVANTA och ska inkluderas. Försäljningsstatistik räknas som utmärkelse bara
+                när det är FÖRSTAPLATSEN, på den SVENSKA marknaden, och siffran är från det
+                senaste året — en enskild placering ("sjätte plats", "åttonde mest sålda") är
+                marknadsstatistik och ska uteslutas
               * trafikregler, lagändringar, böter, körkorts-, besiktnings- och försäkringsregler
             - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
               eller gissa modellnamn; är du osäker: sätt ""
@@ -249,7 +254,18 @@ public class WebInsightScraperService {
             En insikt är RELEVANT om den kan hjälpa en svensk bilköpare att välja eller
             värdera en personbil (styrkor, svagheter, mätvärden, testresultat, kända fel).
             Utmärkelser till en specifik modell är också RELEVANTA (Årets Bil/Car of the Year,
-            "bäst i test", mest sålda bilen i sin klass) — de är köpsignaler, inte företagsnyheter.
+            "bäst i test") — de är köpsignaler, inte företagsnyheter. Försäljningsstatistik är
+            en utmärkelse bara när ALLA TRE villkoren är uppfyllda:
+              1. FÖRSTAPLATSEN, inte en placering i en lista. "Mest sålda bilen i sin klass"
+                 och "återtog tronen som mest sålda" är köpsignaler. "Sjätte plats", "åttonde
+                 mest sålda" och "topp tio" är marknadsstatistik och ska uteslutas — en
+                 placering långt ner i en lista säger ingenting om bilen
+              2. SVENSKA marknaden. Danska nyregistreringar och amerikanska värderings- eller
+                 tillförlitlighetsstudier (iSeeCars, KBB, Consumer Reports) är ingen köpsignal
+                 för en svensk köpare, hur mätbar siffran än är
+              3. AKTUELL, alltså från ungefär det senaste året. Äldre siffror beskriver en
+                 marknad som inte finns kvar
+            Är något av de tre osäkert: uteslut raden.
             Sammanfattade testomdömen från motorpressen är RELEVANTA även utan siffror, så
             länge de namnger vilka egenskaper omdömet gäller: "hyllas i världspressens tester
             för prestanda och komfort", "beröm för sportig körning, interiör och ljudsystem",

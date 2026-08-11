@@ -500,6 +500,35 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void utmarkelseundantagetKraverForstaplatsSvenskMarknadOchAktualitet() {
+        // Undantaget ("mest sålda bilen i sin klass" är en köpsignal) var den bredaste
+        // oskyddade läckvägen i prompten och släppte in tre olika sorters skräp:
+        //   2026-08-06  danska nyregistreringar från juli 2024 (id 1174-1176) — fel marknad OCH gammalt
+        //   2026-08-11  amerikansk iSeeCars-värdering (id 1212) — fel marknad
+        //   2026-08-11  CarUp:s begagnattopplista, enskilda placeringar (id 1182/1184/1185/1186)
+        // Användaren drog gränsen 08-11 genom att radera de fyra: förstaplats är en köpsignal,
+        // en placering i en lista är marknadsstatistik. id 1183 ("återtog tronen som mest
+        // sålda") behölls och är facit åt andra hållet.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("ALLA TRE villkoren")
+                .contains("FÖRSTAPLATSEN, inte en placering i en lista")
+                .contains("SVENSKA marknaden")
+                .contains("AKTUELL")
+                // de tre skarpa fallen ska stå kvar som exempel, inte skrivas bort
+                .contains("Sjätte plats")
+                .contains("Danska nyregistreringar")
+                .contains("iSeeCars")
+                // ...utan att äta upp den utmärkelse som faktiskt är en köpsignal
+                .contains("återtog tronen som mest sålda")
+                .contains("Årets Bil/Car of the Year");
+        // samma gräns i extraktionsprompten, annars plockas raden ut och stoppas först i vakten
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("FÖRSTAPLATSEN")
+                .contains("SVENSKA marknaden")
+                .contains("en enskild placering");
+    }
+
+    @Test
     void saljbarhetsvaktenGallerBaraStriktaKallor() throws Exception {
         // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
         // övriga källor ska inte betala för ett extra Groq-anrop på sina säljbara rader.
