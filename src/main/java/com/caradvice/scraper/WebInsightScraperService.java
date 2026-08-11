@@ -868,6 +868,25 @@ public class WebInsightScraperService {
      * 2026-08-04 och två av fem var sådant extravakten fångar (dollarpris för USA, fabrikens
      * produktionsvolym). {@link #STRICT_UPCOMING_PROMPT} är därför samma granskning utan
      * säljbarhetsregeln — den frågan har relevansvakten redan avgjort.
+     *
+     * <p><b>Kommande-vaktens dom loggas men kastar inte längre (2026-08-11).</b> Natten 08-11
+     * markerade {@link #markUpcomingChunk} "Volvo V40" som kommande modell — en bil som slutade
+     * tillverkas 2019 och finns i mängd på begagnatmarknaden. Raden var Folksams "Bra val"-lista
+     * (krocksäkerhet, whiplashskydd, autobroms), alltså precis det vi vill spara. Extravakten
+     * dömde den mot kommande-kriterierna, fällde den, och raden var borta.
+     *
+     * <p>Felet satt ett steg tidigare, men konsekvensen uppstod här: kommande-vakten får enligt
+     * design bara PARKERA (se {@link #markUpcomingRows}), medan extravakten får kasta — så en
+     * felaktig KOMMANDE-dom blev i praktiken en radering, och den enda vägen dit gick genom en
+     * vakt som aldrig var tänkt att kunna döda något. Samma familj som EX60-raderna 2026-08-07.
+     *
+     * <p>Kommande-rader är redan dolda för prompter och bilkort så länge de står i kön, så en
+     * fälld rad gör ingen skada där. Den parkeras därför i stället för att kastas och loggas
+     * som WARN. Asymmetrin mot säljbar-gruppen är avsiktlig och samma avvägning som överallt
+     * annars i kedjan: kön går att rensa i efterhand med
+     * {@code DELETE /api/admin/insights/{id}}, medan en tappad rad inte går att få tillbaka.
+     * Vakten behåller alltså sitt värde som signal — stoppraderna i loggen är det som besvarar
+     * om den fångar dollarpriser och produktionsvolymer — men inte sin rätt att radera.
      */
     List<JsonNode> filterStrict(String expert, List<JsonNode> insights) {
         boolean striktKalla = STRICT_SOURCES.contains(expert);
@@ -896,13 +915,33 @@ public class WebInsightScraperService {
                     : saljs);
         }
         if (!kommande.isEmpty()) {
-            kept.addAll(runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]"));
+            loggaParkerade(expert, kommande,
+                    runGuard(STRICT_UPCOMING_PROMPT, kommande, "extravakten [" + expert + "/kommande]"));
+            kept.addAll(kommande);   // domen loggas, raden kastas inte — se javadocen
         }
         List<JsonNode> result = new ArrayList<>();
         for (JsonNode ins : insights) {
             if (kept.contains(ins)) result.add(ins);
         }
         return result;
+    }
+
+    /**
+     * Skillnaden mellan vad kommande-vakten fällde och vad som ändå behålls. Raden ligger dold
+     * i kön, så domen är en signal till den som rensar kön — inte ett skäl att tappa raden.
+     * Loggas som WARN just för att den är enda spåret av beslutet.
+     */
+    private void loggaParkerade(String expert, List<JsonNode> kommande, List<JsonNode> godkanda) {
+        if (godkanda.size() == kommande.size()) return;
+        Set<JsonNode> kvar = Collections.newSetFromMap(new IdentityHashMap<>());
+        kvar.addAll(godkanda);
+        for (JsonNode ins : kommande) {
+            if (kvar.contains(ins)) continue;
+            log.warn("Web insights: extravakten [{}/kommande] fällde {} {} — raden PARKERAS i kön "
+                            + "i stället för att kastas, granska den vid nästa köstädning: {}",
+                    expert, ins.path("car_make").asText(), ins.path("car_model").asText(),
+                    truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+        }
     }
 
     /**
