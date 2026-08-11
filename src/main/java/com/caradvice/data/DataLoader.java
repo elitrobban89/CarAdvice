@@ -327,12 +327,19 @@ public class DataLoader implements CommandLineRunner {
      * att de hade återskapat precis det fel raderna läggs in för att åtgärda. Därför används
      * verkliga bruksräckvidder för gen 1 (samma konvention som ev-databases "real range"),
      * ~120 och ~150 km. Blandningen är känd och medveten, som prisglappet i {@link #EV6_PRISER}.
+     *
+     * <p><b>MG ZS EV har samma form och ligger i samma karta.</b> Tabellen hade en enda rad —
+     * 72,6 kWh / 440 km, alltså faceliftens Long Range — så kortet "MG ZS EV (2020)" fick den
+     * i verifieringssöket 2026-08-11. Pre-facelift 2019–2021 var 44,5 kWh / 263 km WLTP.
+     * Bara den raden läggs till här: faceliftens Standard Range (51,1 kWh) finns hos
+     * ev-database, och det som har en riktig källa ska synken äga, inte vi.
      */
-    static final java.util.Map<String, double[]> LEAF_UTGANGNA = java.util.Map.of(
+    static final java.util.Map<String, double[]> UTGANGNA_GENERATIONER = java.util.Map.of(
             "Nissan Leaf 24 kWh",    new double[]{24.0, 120},
             "Nissan Leaf 30 kWh",    new double[]{30.0, 150},
             "Nissan Leaf 40 kWh",    new double[]{40.0, 270},
-            "Nissan Leaf e+ 62 kWh", new double[]{62.0, 385});
+            "Nissan Leaf e+ 62 kWh", new double[]{62.0, 385},
+            "MG ZS EV 44.5 kWh",     new double[]{44.5, 263});
 
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
@@ -425,10 +432,10 @@ public class DataLoader implements CommandLineRunner {
                     // så DataLoader är enda källan för de här tre raderna. Utan det hade de
                     // felaktiga siffrorna suttit kvar för alltid.
                     //
-                    // Samma sak gäller Nissan Leafs två äldre generationer (LEAF_UTGANGNA):
+                    // Samma sak gäller Nissan Leafs två äldre generationer (UTGANGNA_GENERATIONER):
                     // ev-database listar bara 2026 års bil, så de raderna har ingen annan källa.
                     double[] egen = MG4_GEN1.get(spec.getCarName());
-                    if (egen == null) egen = LEAF_UTGANGNA.get(spec.getCarName());
+                    if (egen == null) egen = UTGANGNA_GENERATIONER.get(spec.getCarName());
                     if (egen != null) {
                         boolean fel = spec.getBatteryKwh() == null || spec.getRangeKm() == null
                                 || spec.getBatteryKwh() != egen[0] || spec.getRangeKm() != (int) egen[1];
@@ -486,7 +493,7 @@ public class DataLoader implements CommandLineRunner {
         if (!existing.contains("MG4 Premium Extended Range"))
             extras.add(new EvSpec("MG4 Premium Extended Range",   11.0, 144.0, 74.4, 545, 0));
 
-        // Nissan Leaf gen 1 (2011–2017) och gen 2 (2018–2022). Se LEAF_UTGANGNA för varför de
+        // Nissan Leaf gen 1 (2011–2017) och gen 2 (2018–2022). Se UTGANGNA_GENERATIONER för varför de
         // ligger här och varför gen 1:s räckvidder inte är NEDC-tal. Laddeffekterna: gen 1 hade
         // 3,6 kW AC som standard (6,6 kW mot tillägg) och CHAdeMO 50 kW; gen 2 har 6,6 kW AC,
         // och e+ tar 100 kW DC mot 40-kWh-bilens 50.
@@ -504,6 +511,12 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Nissan Leaf 40 kWh",     6.6,  50.0, 40.0, 270, 0));
         if (!existing.contains("Nissan Leaf e+ 62 kWh"))
             extras.add(new EvSpec("Nissan Leaf e+ 62 kWh",  6.6, 100.0, 62.0, 385, 0));
+
+        // MG ZS EV pre-facelift (2019–2021), 44,5 kWh / 263 km WLTP. Samma fall som Leaf: den
+        // enda ZS-raden i tabellen är faceliftens Long Range (72,6 kWh / 440 km), så ett kort
+        // för en 2020:a fick 2022 års bil. Priset lämnas 0 av samma skäl som Leaf-raderna.
+        if (!existing.contains("MG ZS EV 44.5 kWh"))
+            extras.add(new EvSpec("MG ZS EV 44.5 kWh",      6.6,  76.0, 44.5, 263, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

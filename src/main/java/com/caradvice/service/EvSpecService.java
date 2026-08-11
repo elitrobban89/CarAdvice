@@ -334,6 +334,14 @@ public class EvSpecService {
     private static final Generation LEAF_GEN2 = new Generation("Leaf gen 2", 2018);
     private static final Generation LEAF_GEN3 = new Generation("Leaf gen 3", 2026);
 
+    /**
+     * MG ZS EV, samma fall som Leaf: den otaggade raden ("MG ZS EV", 72,6 kWh / 440 km) är
+     * faceliftens Long Range, alltså den NYARE bilen, så båda måste taggas. Pre-facelift-raden
+     * skapas i {@code DataLoader.UTGANGNA_GENERATIONER}.
+     */
+    private static final Generation ZS_GEN1 = new Generation("ZS EV pre-facelift", 2019);
+    private static final Generation ZS_GEN2 = new Generation("ZS EV facelift", 2022);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -345,7 +353,9 @@ public class EvSpecService {
             Map.entry("nissan leaf 30 kwh",           LEAF_GEN1),
             Map.entry("nissan leaf 40 kwh",           LEAF_GEN2),
             Map.entry("nissan leaf e+ 62 kwh",        LEAF_GEN2),
-            Map.entry("nissan leaf",                  LEAF_GEN3));
+            Map.entry("nissan leaf",                  LEAF_GEN3),
+            Map.entry("mg zs ev 44.5 kwh",            ZS_GEN1),
+            Map.entry("mg zs ev",                     ZS_GEN2));
 
 
     /**

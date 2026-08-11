@@ -204,6 +204,19 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void zsEvFran2020FarPreFaceliftSiffror() {
+        // Samma fall som Leaf, hittat i samma verifieringssök: den enda ZS-raden var
+        // faceliftens Long Range (72,6 kWh / 440 km), så kortet "MG ZS EV (2020)" fick
+        // 2022 års bil. Pre-facelift var 44,5 kWh / 263 km.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG ZS EV",          11.0, 92.0, 72.6, 440, 300_000),   // facelift LR
+                new EvSpec("MG ZS EV 44.5 kWh",  6.6, 76.0, 44.5, 263, 0)));       // pre-facelift
+
+        assertThat(service().formatForTitle("MG ZS EV (2020)", 15000).wltpKm()).isEqualTo(263);
+        assertThat(service().formatForTitle("MG ZS EV (2023)", 15000).wltpKm()).isEqualTo(440);
+    }
+
+    @Test
     void utanArsmodellRorsGenerationsvaletInte() {
         // Ingen årsmodell i titeln = inget att välja på; passens egen tiebreak gäller som förut
         EvSpec gen1 = new EvSpec("MG4 Long Range", 11.0, 140.0, 64.0, 450, 300_000);
