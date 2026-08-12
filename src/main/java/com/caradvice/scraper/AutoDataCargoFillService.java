@@ -2,6 +2,7 @@ package com.caradvice.scraper;
 
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.CarTitle;
+import com.caradvice.service.IceConsumptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,10 +39,45 @@ public class AutoDataCargoFillService {
 
     private final AutoDataScraperService autoData;
     private final CargoSpecService cargoSpecs;
+    private final IceConsumptionService iceConsumption;
 
-    public AutoDataCargoFillService(AutoDataScraperService autoData, CargoSpecService cargoSpecs) {
+    public AutoDataCargoFillService(AutoDataScraperService autoData, CargoSpecService cargoSpecs,
+                                    IceConsumptionService iceConsumption) {
         this.autoData = autoData;
         this.cargoSpecs = cargoSpecs;
+        this.iceConsumption = iceConsumption;
+    }
+
+    /**
+     * Arbetslistan: bilar som saknar bagagevolym.
+     *
+     * <p><b>Den kan inte byggas på rader utan volym, och det var första versionens fel.</b>
+     * Mätt 2026-08-12 efter deployen: {@code cargo-coverage} gav 553 / 553 / 0 — alltså noll
+     * rader utan volym, och ifyllningen hade ingenting att göra. Förbränningsbilarna saknas
+     * nämligen inte som TOMMA rader, de saknas som rader över huvud taget: alla 553 kommer från
+     * ev-database och är elbilar, och Bilweb-namnsynken som skulle skapa resten ger 0 nya varje
+     * natt.
+     *
+     * <p>Listan byggs därför på {@code ice_consumption}, som bär 304 distinkta modeller och per
+     * definition är just bensin, diesel och hybrid — exakt luckan. Rader utan volym tas med
+     * också, så listan fungerar den dag Bilweb-synken börjar leverera igen.
+     *
+     * <p>Redan täckta bilar filtreras bort på {@code formatForTitle}, alltså samma fuzzy-matchning
+     * som kortet använder. {@code fillFromScrape} hade ändå vägrat skriva över dem, men varje
+     * onödig bil kostar upp till fyra sidhämtningar.
+     */
+    List<String> arbetslista() {
+        java.util.LinkedHashSet<String> ut = new java.util.LinkedHashSet<>(cargoSpecs.namnUtanVolym());
+        ut.addAll(iceConsumption.allModelNames());
+
+        List<String> kvar = new java.util.ArrayList<>();
+        for (String namn : ut) {
+            try {
+                if (cargoSpecs.formatForTitle(namn) != null) continue;   // redan täckt
+            } catch (Exception ignored) { /* hellre ett extra försök än en tappad bil */ }
+            kvar.add(namn);
+        }
+        return kvar;
     }
 
     /**
@@ -56,9 +92,9 @@ public class AutoDataCargoFillService {
      * @return antal rader som fylldes
      */
     public int fyllSaknadeVolymer() {
-        List<String> namn = cargoSpecs.namnUtanVolym();
+        List<String> namn = arbetslista();
         if (namn.isEmpty()) {
-            log.info("auto-data bagage: inga rader saknar volym");
+            log.info("auto-data bagage: inga bilar saknar volym");
             return 0;
         }
 
