@@ -293,6 +293,49 @@ class BlocketPriceServiceTest {
     }
 
     @Test
+    void avbetalningSatterInteLeasinggolvet() {
+        // Live 2026-08-12: annons 18117231 (HedBil i Jönköping) låg i Blockets Leasing-hink på
+        // 2 723 kr/mån, men annonstexten säger "Köp på avbetalning 2723kr / månad eller leasing
+        // för företag 2358kr / månad". Samma form på ID.4: 3 191 kr på en 2021:a med 10 570 mil,
+        // medan privatleasingen börjar på 3 395 kr. Momsuppdelningen är enda skiljelinjen —
+        // sales_form är 5 på allihop.
+        var blandat = leasingDocs(new Integer[]{2021, 2_723, 2_178}, new Integer[]{2021, 3_191, 2_552},
+                new Integer[]{2027, 3_395, null}, new Integer[]{2027, 3_595, null});
+
+        var range = service.leasingRangeFrom(blandat, null);
+
+        assertThat(range.minKr()).isEqualTo(3_395);   // inte 2 723
+        assertThat(range.count()).isEqualTo(2);
+    }
+
+    @Test
+    void privatleasingUtanMomsuppdelningRaknasFortfarande() {
+        // Gränsen åt andra hållet: regeln får inte tömma leasingspannet. Märkeshandlarnas
+        // privatleasing (2027, noll mil) saknar amount_ex_vat och ska passera.
+        var bara = leasingDocs(new Integer[]{2027, 3_995, null}, new Integer[]{2027, 5_295, null});
+
+        assertThat(service.leasingRangeFrom(bara, null).count()).isEqualTo(2);
+    }
+
+    /** Leasingannonser: (årsmodell, kr/mån, pris ex moms). Null ex moms = ingen momsuppdelning. */
+    private JsonNode leasingDocs(Integer[]... arsmodellPrisExMoms) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < arsmodellPrisExMoms.length; i++) {
+            if (i > 0) sb.append(',');
+            Integer[] rad = arsmodellPrisExMoms[i];
+            sb.append(String.format("{\"year\":%d,\"price\":{\"amount\":%d,\"price_unit\":\"kr\"",
+                    rad[0], rad[1]));
+            if (rad[2] != null) sb.append(String.format(",\"amount_ex_vat\":%d", rad[2]));
+            sb.append("}}");
+        }
+        try {
+            return mapper.readTree(sb.append(']').toString());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
     void ingenLeasingannonsGerNull() {
         var barakop = docs(new int[]{2026, 479_000}, new int[]{2026, 509_000});
 

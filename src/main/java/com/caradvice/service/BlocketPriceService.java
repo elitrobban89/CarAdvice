@@ -257,6 +257,7 @@ public class BlocketPriceService {
             int amount = doc.path("price").path("amount").asInt(0);
             if (leasing ? (amount <= 0 || amount > HIGHEST_PLAUSIBLE_MONTHLY_KR)
                         : amount <= LOWEST_PLAUSIBLE_CAR_PRICE_KR) continue;
+            if (leasing && harMomsuppdelatPris(doc)) continue;
             if (year != null) {
                 int adYear = doc.path("year").asInt(0);
                 if (adYear < year - 1 || adYear > year + 1) continue;
@@ -272,6 +273,30 @@ public class BlocketPriceService {
             prices.add(amount);
         }
         return prices;
+    }
+
+    /**
+     * Sant för annonser vars månadsbelopp är ett företags- eller finansieringspris, inte
+     * privatleasing.
+     *
+     * <p>Blockets Leasing-hink ({@code sales_form=5}) bär båda sorterna och API:t har inget
+     * filter som skiljer dem åt — {@code sales_form} har bara värdena 1, 2 och 5, och
+     * {@code labels}, {@code flags} och {@code ad_type} är identiska. Skillnaden syns bara på
+     * att beloppet är momsuppdelat: {@code amount_ex_vat} är satt på företagsleasing och
+     * avbetalning, och saknas på privatleasing.
+     *
+     * <p>Mätt 2026-08-12 över Tesla Model 3, VW ID.4, Kia EV6 och Volvo XC60. Annonserna med
+     * {@code amount_ex_vat} var undantagslöst begagnade bilar med verklig körsträcka
+     * (2021-2024, 1 270-10 921 mil), de utan var nya (årsmodell 2027, noll mil) från
+     * märkeshandlare. Annons 18117231 (HedBil i Jönköping, 2 723 kr) säger det rent ut i
+     * texten: "Köp på avbetalning 2723kr / månad eller leasing för företag 2358kr / månad".
+     *
+     * <p>De satte dessutom golvet, som är talet budgettaket mäts mot: ID.4 visades från
+     * 3 191 kr/mån på en 2021:a med 10 570 mil när privatleasingen börjar på 3 395 kr, och
+     * Model 3 från 2 412 kr i stället för 6 295 kr.
+     */
+    private static boolean harMomsuppdelatPris(JsonNode doc) {
+        return doc.path("price").has("amount_ex_vat");
     }
 
     /**
