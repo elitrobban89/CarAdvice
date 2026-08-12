@@ -118,8 +118,18 @@ public class WebInsightScraperService {
                 är RELEVANTA och ska inkluderas. Försäljningsstatistik räknas som utmärkelse bara
                 när det är FÖRSTAPLATSEN, på den SVENSKA marknaden, och siffran är från det
                 senaste året — en enskild placering ("sjätte plats", "åttonde mest sålda") är
-                marknadsstatistik och ska uteslutas
+                marknadsstatistik och ska uteslutas. Värdeminskning, restvärde, tillförlitlighet
+                och livslängd är INTE försäljningsstatistik utan egenskaper hos bilen: de ska
+                inkluderas för alla modeller, se regeln om marknadsangivelse nedan
               * trafikregler, lagändringar, böter, körkorts-, besiktnings- och försäkringsregler
+            - MARKNADSANGIVELSE: bygger insikten på en undersökning av värdeminskning, restvärde,
+              tillförlitlighet eller livslängd som INTE avser Sverige, ska "insight" skriva ut
+              varifrån siffran kommer — "enligt en amerikansk undersökning", "i USA". Skriv det
+              i själva meningen, inte bara i "source_ref". En svensk köpare som läser
+              "Jaguar I-Pace har tappat 72,2 % på fem år" utan den uppgiften tror att siffran
+              gäller här; med den är raden användbar. Gäller INTE bilens egna mätvärden (pris,
+              förbrukning, räckvidd, laddtid, bagagevolym, testresultat) — ett tyskt eller
+              engelskt biltest mäter samma bil som säljs här och behöver ingen brasklapp
             - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
               eller gissa modellnamn; är du osäker: sätt ""
             - "car_make" ska vara märkets vanliga kortform utan undermärken och tillägg
@@ -260,12 +270,22 @@ public class WebInsightScraperService {
                  och "återtog tronen som mest sålda" är köpsignaler. "Sjätte plats", "åttonde
                  mest sålda" och "topp tio" är marknadsstatistik och ska uteslutas — en
                  placering långt ner i en lista säger ingenting om bilen
-              2. SVENSKA marknaden. Danska nyregistreringar och amerikanska värderings- eller
-                 tillförlitlighetsstudier (iSeeCars, KBB, Consumer Reports) är ingen köpsignal
-                 för en svensk köpare, hur mätbar siffran än är
+              2. SVENSKA marknaden. Danska nyregistreringar är ingen köpsignal för en svensk
+                 köpare, hur mätbar siffran än är
               3. AKTUELL, alltså från ungefär det senaste året. Äldre siffror beskriver en
                  marknad som inte finns kvar
             Är något av de tre osäkert: uteslut raden.
+            VÄRDEMINSKNING, restvärde, tillförlitlighet och livslängd (inklusive skrotålder)
+            är däremot INTE försäljningsstatistik utan egenskaper hos bilen, och är RELEVANTA
+            för alla modeller — hur mycket en bil tappar i värde är en av de tyngsta
+            kostnaderna för en köpare. De tre villkoren ovan gäller alltså INTE dem, och en
+            utländsk studie (iSeeCars, KBB, Consumer Reports) duger som källa. Ett enda krav
+            gäller i stället: insikten måste skriva ut VILKEN MARKNAD siffran kommer från när
+            det inte är den svenska ("enligt en amerikansk undersökning", "i USA"). Utan den
+            uppgiften läser en svensk köpare siffran som om den gällde här, och då ska raden
+            uteslutas. "Jaguar I-Pace har förlorat 72,2 % av sitt nypris på fem år" (id 1221,
+            2026-08-12) hade alltså varit RELEVANT med orden "enligt en amerikansk studie"
+            utsatta, men inte utan dem.
             Sammanfattade testomdömen från motorpressen är RELEVANTA även utan siffror, så
             länge de namnger vilka egenskaper omdömet gäller: "hyllas i världspressens tester
             för prestanda och komfort", "beröm för sportig körning, interiör och ljudsystem",

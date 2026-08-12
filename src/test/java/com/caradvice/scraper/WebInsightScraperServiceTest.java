@@ -502,22 +502,22 @@ class WebInsightScraperServiceTest {
     @Test
     void utmarkelseundantagetKraverForstaplatsSvenskMarknadOchAktualitet() {
         // Undantaget ("mest sålda bilen i sin klass" är en köpsignal) var den bredaste
-        // oskyddade läckvägen i prompten och släppte in tre olika sorters skräp:
+        // oskyddade läckvägen i prompten och släppte in två sorters skräp:
         //   2026-08-06  danska nyregistreringar från juli 2024 (id 1174-1176) — fel marknad OCH gammalt
-        //   2026-08-11  amerikansk iSeeCars-värdering (id 1212) — fel marknad
         //   2026-08-11  CarUp:s begagnattopplista, enskilda placeringar (id 1182/1184/1185/1186)
         // Användaren drog gränsen 08-11 genom att radera de fyra: förstaplats är en köpsignal,
         // en placering i en lista är marknadsstatistik. id 1183 ("återtog tronen som mest
         // sålda") behölls och är facit åt andra hållet.
+        // OBS: värderingsstudier (iSeeCars) föll tidigare på samma villkor, men lyftes ur
+        // 2026-08-12 — se vardeminskningArRelevantMenKraverMarknadsangivelse.
         assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
                 .contains("ALLA TRE villkoren")
                 .contains("FÖRSTAPLATSEN, inte en placering i en lista")
                 .contains("SVENSKA marknaden")
                 .contains("AKTUELL")
-                // de tre skarpa fallen ska stå kvar som exempel, inte skrivas bort
+                // de skarpa fallen ska stå kvar som exempel, inte skrivas bort
                 .contains("Sjätte plats")
                 .contains("Danska nyregistreringar")
-                .contains("iSeeCars")
                 // ...utan att äta upp den utmärkelse som faktiskt är en köpsignal
                 .contains("återtog tronen som mest sålda")
                 .contains("Årets Bil/Car of the Year");
@@ -526,6 +526,32 @@ class WebInsightScraperServiceTest {
                 .contains("FÖRSTAPLATSEN")
                 .contains("SVENSKA marknaden")
                 .contains("en enskild placering");
+    }
+
+    @Test
+    void vardeminskningArRelevantMenKraverMarknadsangivelse() {
+        // Skärpningen 08-11 lät värderingsstudier falla på samma villkor som försäljnings-
+        // statistik, eftersom iSeeCars nämndes inuti försäljningsundantaget. Det höll inte:
+        // id 1221 (Jaguar I-Pace, 72,2 % på fem år) skrapades in igen natten 08-12 därför att
+        // RELEVANT-definitionen strax ovanför tillåter "mätvärden" som hjälper en köpare
+        // VÄRDERA en bil — prompten motsade sig själv och läckan vann.
+        // Användaren avgjorde 08-12: värdeminskning är en av de tyngsta kostnaderna för en
+        // köpare och ska vara med för alla modeller. Problemet var aldrig siffran utan att
+        // dess marknad inte framgick, så villkoret är marknadsANGIVELSE, inte svensk marknad.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("VÄRDEMINSKNING")
+                .contains("INTE försäljningsstatistik")
+                .contains("iSeeCars")
+                .contains("VILKEN MARKNAD")
+                // gränsen åt andra hållet: utan marknadsangivelse faller raden ändå
+                .contains("uteslutas");
+        // extraktionen måste SKRIVA UT marknaden, annars faller raden i vakten och siffran
+        // går förlorad — tvärtemot beslutet
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("MARKNADSANGIVELSE")
+                .contains("enligt en amerikansk undersökning")
+                // får inte svälla till att kräva brasklapp på vanliga biltester
+                .contains("behöver ingen brasklapp");
     }
 
     @Test
