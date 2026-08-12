@@ -104,6 +104,33 @@ class BlocketPriceServiceTest {
         assertThat(range.count()).isEqualTo(2);
     }
 
+    @Test
+    void milgransenLattasISteg_inteRaktUtTillHelaMarknaden() {
+        // Samma Enyaq-lista, men bara ETT exemplar under 10 000 mil — då räcker steget inte
+        // till en prisrad (två annonser krävs). Förr togs hela marknaden in direkt och golvet
+        // sattes av 21 091-milaren igen; nu prövas 15 000 mil först och golvet blir 269 900.
+        var enyaq = docsMedMil(new int[]{2024, 229_900, 21_091}, new int[]{2024, 269_900, 15_100},
+                new int[]{2024, 289_900, 12_400}, new int[]{2024, 339_900, 7_010});
+
+        var steg1 = service.priceRangeFrom(enyaq, 2024, null, BlocketPriceService.MAX_MILEAGE_MIL);
+        var steg2 = service.priceRangeFrom(enyaq, 2024, null, BlocketPriceService.RELAXED_MILEAGE_MIL);
+        var helaMarknaden = service.priceRangeFrom(enyaq, 2024, null);
+
+        assertThat(steg1.count()).isEqualTo(1);          // för tunt, trappan går vidare
+        assertThat(steg2.count()).isEqualTo(2);          // räcker — här stannar den
+        assertThat(steg2.minKr()).isEqualTo(289_900);
+        assertThat(helaMarknaden.minKr()).isEqualTo(229_900);   // steget vi INTE tar
+    }
+
+    @Test
+    void trappanGarFranSnavastTillHelaMarknaden() {
+        // Ordningen är hela poängen: släpps gränsen i ett hopp sätts golvet av marknadens
+        // mest slitna bil igen. Sista steget är null = ingen gräns, kvar som sista utväg.
+        assertThat(BlocketPriceService.MILEAGE_STEPS_MIL)
+                .containsExactly(BlocketPriceService.MAX_MILEAGE_MIL,
+                        BlocketPriceService.RELAXED_MILEAGE_MIL, null);
+    }
+
     /** Bygger en träfflista med körsträcka: (årsmodell, pris, mil). Negativ mil = fältet saknas. */
     private JsonNode docsMedMil(int[]... arsmodellPrisMil) {
         StringBuilder sb = new StringBuilder("[");

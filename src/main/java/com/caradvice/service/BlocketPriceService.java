@@ -12,6 +12,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -58,9 +59,26 @@ public class BlocketPriceService {
     static final int MAX_MILEAGE_MIL = 10_000;
 
     /**
-     * Så många annonser måste den milfiltrerade sökningen ge för att duga som prisrad. Under
-     * det tas hela marknaden in i stället — {@code GroqService.exceedsBudgetCeiling} kräver
-     * två annonser för att fälla en bil, så en tunn lista hade tyst avväpnat budgettaket.
+     * Andra steget i milgränsen, för modeller som inte finns lågmilade nog att ge en prisrad.
+     *
+     * <p>Gränsen lättas i steg i stället för att släppas: ett golv satt av en 15 000-milare
+     * ligger fortfarande närmare den bil någon faktiskt köper än ett satt av en 21 000-milare,
+     * och det var just det språnget som gjorde Enyaq "köpbar" på 229 900 kr 2026-08-08.
+     */
+    static final int RELAXED_MILEAGE_MIL = 15_000;
+
+    /**
+     * Milgränsens trappa, snävast först. Sista steget är {@code null} = hela marknaden, kvar
+     * som sista utväg för modeller som inte finns lågmilade alls — utan prisrad kan
+     * {@code GroqService.exceedsBudgetCeiling} inte fälla bilen (den kräver två annonser),
+     * och då hade en tunn lista tyst avväpnat budgettaket.
+     */
+    static final List<Integer> MILEAGE_STEPS_MIL =
+            Collections.unmodifiableList(Arrays.asList(MAX_MILEAGE_MIL, RELAXED_MILEAGE_MIL, null));
+
+    /**
+     * Så många annonser måste det milfiltrerade steget ge för att duga som prisrad. Under det
+     * prövas nästa steg i {@link #MILEAGE_STEPS_MIL}.
      */
     private static final int MIN_ADS_FOR_RANGE = 2;
     /**
@@ -139,15 +157,17 @@ public class BlocketPriceService {
             String digits = modelDigits(query);
             List<Integer> prices = pricesFrom(billigast, year, leasing, digits, milTak);
 
-            // Milgränsen får aldrig kosta hela prisraden: finns för få lågmilade exemplar
-            // mäts bilen mot hela marknaden i stället för att tappa sin prisrad helt.
-            if (milTak != null && prices.size() < MIN_ADS_FOR_RANGE) {
-                JsonNode allt = fetchDocs(query, year, leasing, "PRICE_ASC", null);
-                if (allt != null && !allt.isEmpty()) {
-                    milTak = null;
-                    billigast = allt;
-                    prices = pricesFrom(billigast, year, leasing, digits, null);
-                }
+            // Milgränsen får aldrig kosta hela prisraden, men den lättas ett steg i taget i
+            // stället för att släppas: räcker inte de lågmilade annonserna prövas 15 000 mil,
+            // och först när även det steget är för tunt tas hela marknaden in.
+            for (Integer nasteTak : MILEAGE_STEPS_MIL) {
+                if (milTak == null || prices.size() >= MIN_ADS_FOR_RANGE) break;
+                if (nasteTak != null && nasteTak <= milTak) continue;   // redan prövat
+                JsonNode bredare = fetchDocs(query, year, leasing, "PRICE_ASC", nasteTak);
+                if (bredare == null || bredare.isEmpty()) continue;
+                milTak = nasteTak;
+                billigast = bredare;
+                prices = pricesFrom(billigast, year, leasing, digits, nasteTak);
             }
 
             boolean kapad = billigast.size() >= PAGE_CAP;
