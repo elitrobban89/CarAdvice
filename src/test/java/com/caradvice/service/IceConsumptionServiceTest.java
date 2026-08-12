@@ -150,4 +150,46 @@ class IceConsumptionServiceTest {
         var v = new IceConsumptionService.Variant("Mazda", "Mazda 3 2.0 Skyactiv-X 186 hk", "bensin", 0.68);
         assertThat(IceConsumptionService.engineDescriptor(v)).isEqualTo("2.0 Skyactiv-X 186 hk");
     }
+
+    // --- motoralternativ som lista, som elbilskorten redan visar ---
+
+    @Test
+    void helaMotorutbudetVisas_inteBaraEnVariant() {
+        // Volvo XC60 finns som B5, B6, D4, D5, T6 PHEV och T8 PHEV i tabellen, men kortet
+        // visade bara den hästkraftsnärmaste enda varianten — resten låg osynligt i databasen.
+        String motorer = service.engineOptionsForTitle("Volvo XC60 (2021)");
+
+        assertThat(motorer).contains("B5", "B6", "D4", "D5", "T8");
+        assertThat(motorer.split(" · ")).hasSizeGreaterThan(3);
+    }
+
+    @Test
+    void motoralternativenSorterasSvagastForst() {
+        String motorer = service.engineOptionsForTitle("Volvo XC60 (2021)");
+
+        var hk = java.util.Arrays.stream(motorer.split(" · "))
+                .map(IceConsumptionService::parseHp)
+                .filter(java.util.Objects::nonNull).toList();
+
+        assertThat(hk).isSorted();
+    }
+
+    @Test
+    void modellordsskyddetGallerAvenMotorlistan() {
+        // Samma fälla som förbrukningssiffran hade: "3" är delsträng av "cx-30". Motorn att
+        // pröva på måste vara en som BARA Mazda 3 har — Skyactiv-X 186 hk duger inte, den
+        // sitter i båda bilarna på riktigt. Turbo 2.5 265 hk och 1.8 Skyactiv-D finns bara i 3:an.
+        String cx30 = service.engineOptionsForTitle("Mazda CX-30 (2022)");
+
+        assertThat(cx30).doesNotContain("Turbo 2.5 265 hk");
+        assertThat(cx30).doesNotContain("1.8 Skyactiv-D 116 hk");
+        assertThat(cx30).contains("Skyactiv-X 186 hk");   // CX-30 har den faktiskt själv
+    }
+
+    @Test
+    void okandModellGerNull() {
+        // Null, inte tom sträng: anroparen ska kunna behålla AI:ns egen motortext i stället.
+        assertThat(service.engineOptionsForTitle("Koenigsegg Jesko (2023)")).isNull();
+        assertThat(service.engineOptionsForTitle(null)).isNull();
+    }
 }

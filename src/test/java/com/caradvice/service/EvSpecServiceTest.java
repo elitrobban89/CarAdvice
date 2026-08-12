@@ -217,6 +217,40 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void enyaqIvOchFaceliftBlandasInte() {
+        // Femte ingången till samma bugg: Enyaq ligger i tabellen under TVÅ namnkonventioner.
+        // "iV" är förfaceliftnamnet (2020-2025), utan iV är faceliften (2025-). Uppmätt
+        // 2026-08-12 stod alla fem raderna som parallella val på samma kort.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Škoda Enyaq iV 60", 11.0, 135.0, 58.0, 390, 420_000),
+                new EvSpec("Škoda Enyaq iV 80", 11.0, 135.0, 82.0, 530, 540_000),
+                new EvSpec("Škoda Enyaq iV 85", 11.0, 175.0, 82.0, 550, 490_000),
+                new EvSpec("Škoda Enyaq 60",    11.0, 105.0, 58.0, 455, 494_000),
+                new EvSpec("Škoda Enyaq 85",    11.0, 165.0, 77.0, 582, 535_000)));
+
+        // Vilken VARIANT som väljs inom generationen avgörs av prisvärdhetsrankningen och prövas
+        // på annat håll; det här testet låser att generationen är rätt. En 2022:a måste hamna på
+        // en iV-rad (390/530/550 km) och aldrig på faceliftens (455/582).
+        assertThat(service().formatForTitle("Škoda Enyaq (2022)", 15000).wltpKm()).isIn(390, 530, 550);
+        assertThat(service().formatForTitle("Škoda Enyaq (2026)", 15000).wltpKm()).isIn(455, 582);
+    }
+
+    @Test
+    void enyaqKortetVisarBaraSinEgenGenerationsMotorer() {
+        // Frågan som avslöjade felet: "vilka är Long Range-alternativen?" gick inte att svara på
+        // eftersom listan blandade två generationer. En iV ska visa iV:ns utbud, inget annat.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Škoda Enyaq iV 60", 11.0, 135.0, 58.0, 390, 420_000),
+                new EvSpec("Škoda Enyaq iV 85", 11.0, 175.0, 82.0, 550, 490_000),
+                new EvSpec("Škoda Enyaq 85",    11.0, 165.0, 77.0, 582, 535_000)));
+
+        String iv = service().verifiedEngineOptions("Škoda Enyaq (2022)");
+
+        assertThat(iv).contains("390 km").contains("550 km");
+        assertThat(iv).doesNotContain("582 km");   // faceliftens rad hör inte hit
+    }
+
+    @Test
     void eGolfHittarSinaRaderMenBensinGolfGorDetInte() {
         // e-Golf saknades helt i tabellen, så kortet föll tillbaka på AI:ns fritext (som gav
         // "45 kWh" — en kapacitet bilen aldrig haft). Raderna finns nu, men "Golf" ensamt är

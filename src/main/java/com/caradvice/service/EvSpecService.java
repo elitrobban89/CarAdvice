@@ -372,6 +372,30 @@ public class EvSpecService {
     private static final Generation EGOLF_GEN1 = new Generation("e-Golf 24 kWh", 2014);
     private static final Generation EGOLF_GEN2 = new Generation("e-Golf 35 kWh", 2017);
 
+    /**
+     * Škoda Enyaq under TVÅ namnkonventioner, vilket är en femte ingång till samma fel som
+     * MG4, Leaf, ZS EV och e-Golf: en rad som matchar ett kort den inte hör till.
+     *
+     * <p>Tabellen bär både {@code Enyaq iV 60/80/85} och {@code Enyaq 60/85} — samma bil, men
+     * "iV" är förfaceliftnamnet. Utan taggning stod alla fem som parallella val på samma kort,
+     * och en 2022:a kunde få faceliftens siffror. Uppmätt 2026-08-12 gav ett Enyaq-kort raderna
+     * "58 kWh (390 km) · 60", "82 kWh (530 km) · 80" och "82 kWh (550 km) · 85" bredvid varandra,
+     * vilket ser ut som tre batterier när det är två.
+     *
+     * <p><b>Årtalen är hämtade från auto-data 2026-08-12, inte gissade:</b> {@code Enyaq iV}
+     * 2020–2025, {@code Enyaq Coupe iV} 2022–2025, faceliften från 2025. Faceliftåret är alltså
+     * 2025, inte 2024 som namnet "85" först antyder — Škoda döpte om 80 till 85 REDAN under
+     * iV-generationen, så {@code Enyaq iV 85} är en äkta rad och inte en hopblandning.
+     *
+     * <p><b>Kapaciteten anges olika mellan generationerna och det är källornas konvention, inte
+     * ett fel:</b> iV-raderna bär bruttobatteriet (82 kWh) och faceliftraderna nettot (77 kWh).
+     * Det är samma fysiska pack. Att skriva om den ena hade gjort raden osann mot sin källa, och
+     * grupperingen i {@code verifiedEngineOptions} slår redan ihop brutto/netto när räckvidden
+     * är densamma — det är därför generationstaggen, inte en omräkning, som är rätt åtgärd.
+     */
+    private static final Generation ENYAQ_GEN1 = new Generation("Enyaq iV", 2020);
+    private static final Generation ENYAQ_GEN2 = new Generation("Enyaq facelift", 2025);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -387,7 +411,17 @@ public class EvSpecService {
             Map.entry("mg zs ev 44.5 kwh",            ZS_GEN1),
             Map.entry("mg zs ev",                     ZS_GEN2),
             Map.entry("volkswagen e-golf 24.2 kwh",   EGOLF_GEN1),
-            Map.entry("volkswagen e-golf 35.8 kwh",   EGOLF_GEN2));
+            Map.entry("volkswagen e-golf 35.8 kwh",   EGOLF_GEN2),
+            Map.entry("skoda enyaq iv 60",            ENYAQ_GEN1),
+            Map.entry("skoda enyaq iv 80",            ENYAQ_GEN1),
+            Map.entry("skoda enyaq iv 85",            ENYAQ_GEN1),
+            Map.entry("skoda enyaq 60",               ENYAQ_GEN2),
+            Map.entry("skoda enyaq 85",               ENYAQ_GEN2),
+            Map.entry("skoda enyaq rs",               ENYAQ_GEN2),
+            Map.entry("skoda enyaq coupe 60",         ENYAQ_GEN2),
+            Map.entry("skoda enyaq coupe 85",         ENYAQ_GEN2),
+            Map.entry("skoda enyaq coupe 85x",        ENYAQ_GEN2),
+            Map.entry("skoda enyaq coupe rs",         ENYAQ_GEN2));
 
 
     /**

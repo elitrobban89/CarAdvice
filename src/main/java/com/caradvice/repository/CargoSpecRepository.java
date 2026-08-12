@@ -18,4 +18,14 @@ public interface CargoSpecRepository extends JpaRepository<CargoSpec, Long> {
      */
     @Query("SELECT COUNT(c) FROM CargoSpec c WHERE c.cargoLiters IS NOT NULL AND c.cargoLiters > 0")
     long countWithVolume();
+
+    /**
+     * Bilnamnen som saknar volym — arbetslistan för auto-data-ifyllningen.
+     *
+     * <p>Volym 0 räknas som saknad av samma skäl som {@code countWithVolume} kräver > 0: en
+     * nolla är ett omätt fält, inte en bil utan bagage, och bagagevakten skulle fälla den.
+     */
+    @Query("SELECT c.carName FROM CargoSpec c WHERE c.carName IS NOT NULL "
+            + "AND (c.cargoLiters IS NULL OR c.cargoLiters <= 0) ORDER BY c.carName")
+    List<String> findNamesWithoutVolume();
 }

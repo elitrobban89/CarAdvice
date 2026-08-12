@@ -25,6 +25,11 @@ public class CargoSpecService {
         return repo.findAllCarNames();
     }
 
+    /** Arbetslistan för auto-data-ifyllningen: bilnamn som ännu saknar bagagevolym. */
+    public List<String> namnUtanVolym() {
+        return repo.findNamesWithoutVolume();
+    }
+
     /**
      * Hur stor del av tabellen som faktiskt har en uppmätt volym.
      *

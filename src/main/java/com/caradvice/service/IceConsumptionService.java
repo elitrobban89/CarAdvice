@@ -181,6 +181,48 @@ public class IceConsumptionService {
         return sorted.get(sorted.size() / 2);
     }
 
+    /**
+     * Samtliga verifierade motoralternativ för en modell, som elbilskorten redan visar.
+     *
+     * <p>Tabellen bär 957 varianter fördelat på 304 modeller, och 197 av dem har fler än en —
+     * Volvo XC60 finns som B5, B6, D4, D5, T6 PHEV och T8 PHEV. Kortet visade ändå bara EN,
+     * vald av {@link #consumptionForTitle} som den hästkraftsnärmaste, så resten av utbudet var
+     * osynligt trots att det låg i databasen.
+     *
+     * <p>Drivmedelsfiltret är avsiktligt INTE med: motoralternativ är just vad bilen går att få
+     * med, och en köpare som tittar på en bensinbil har nytta av att se att samma modell finns
+     * som diesel och laddhybrid. Förbrukningssiffran, som ska gälla den bil kortet visar, väljs
+     * fortfarande med drivmedelsfilter i {@code consumptionForTitle}.
+     *
+     * <p>Sorterat på effekt, svagast först — samma ordning som en prislista. Dubbletter på
+     * beteckning slås ihop: CSV:n bär samma motor för flera årsmodeller.
+     *
+     * @return null när modellen saknas i tabellen, så anroparen kan behålla AI:ns egen text
+     */
+    public String engineOptionsForTitle(String title) {
+        if (title == null || title.isBlank()) return null;
+        String t = normalize(CarTitle.stripYear(title));
+        java.util.Set<String> tokens = titleTokens(t);
+
+        List<Variant> candidates = new ArrayList<>();
+        for (Variant v : findAll()) {
+            if (!t.contains(normalize(v.brand()))) continue;
+            if (tokens.contains(modelWord(v))) candidates.add(v);
+        }
+        if (candidates.isEmpty()) return null;
+
+        List<String> namn = candidates.stream()
+                .sorted(Comparator.comparingInt(v -> {
+                    Integer hp = parseHp(v.variant());
+                    return hp == null ? Integer.MAX_VALUE : hp;
+                }))
+                .map(IceConsumptionService::engineDescriptor)
+                .distinct()
+                .toList();
+
+        return namn.isEmpty() ? null : String.join(" · ", namn);
+    }
+
     /** Kompakt förbrukningsrad för jämförelseprompten: median per drivmedel för modellen. */
     public String consumptionSummaryForTitle(String title) {
         if (title == null || title.isBlank()) return null;

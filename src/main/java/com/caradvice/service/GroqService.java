@@ -659,7 +659,12 @@ public class GroqService {
                     if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
                             fuelSpec.consumptionLiterPerMil(), fuelSpec.gearbox(), verifiedHp, fuelSpec.engineVolumeLiters());
                 }
-                engineOptions = IceConsumptionService.engineDescriptor(iceVariant);
+                // Hela motorutbudet, inte bara den variant förbrukningssiffran togs från —
+                // elbilskorten har alltid visat sina batterivarianter som lista, medan
+                // förbränningskorten visade en enda motor fast databasen bar flera.
+                String allaMotorer = iceConsumptionService.engineOptionsForTitle(r.title());
+                engineOptions = allaMotorer != null ? allaMotorer
+                        : IceConsumptionService.engineDescriptor(iceVariant);
             }
 
             result.add(new CarRecommendation(
