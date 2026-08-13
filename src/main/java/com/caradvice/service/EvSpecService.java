@@ -463,6 +463,23 @@ public class EvSpecService {
      * <p>Lärdomen är generell: <b>suffix skyddar inte en rad från att hamna på fel kort.</b>
      * Varje modell med rader ur mer än en generation måste taggas, oavsett hur namnen ser ut.
      */
+    /**
+     * Stellantis e-CMP: 50 kWh-paketet (46,3 användbara) blev 54 kWh (50,8) från 2023-2024.
+     *
+     * <p>Ett ENDA generationspar räcker för fyra namnplåtar, eftersom {@code keepGenerationForYear}
+     * väljer den senaste generationen vars {@code fromYear} inte överstiger årsmodellen: ë-C4
+     * (2021), ë-C4 X (2023), Corsa Electric (2020) och e-208 (2020) hamnar alla korrekt i GEN1
+     * med startåret 2020, och först en 2024:a får GEN2.
+     *
+     * <p><b>Nyckelformen är inte självklar och därför testad:</b> {@code GENERATION} slås upp med
+     * {@code normalize(carName)}, som tar bort diakritiska tecken men BEHÅLLER bindestreck — så
+     * "Citroën ë-C4" blir {@code "citroen e-c4"}, inte "citroen c4". En felstavad nyckel ger
+     * ingen träff och därmed en OTAGGAD rad, vilket räknas som äldst och tyst återskapar precis
+     * det fel taggningen skulle laga.
+     */
+    private static final Generation ECMP_GEN1 = new Generation("e-CMP 50 kWh", 2020);
+    private static final Generation ECMP_GEN2 = new Generation("e-CMP 54 kWh", 2024);
+
     private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020);
     private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026);
     private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013);
@@ -539,7 +556,16 @@ public class EvSpecService {
             Map.entry("volkswagen id.3 neo 58 kwh",      ID3_GEN2),
             Map.entry("volkswagen id.3 neo 79 kwh",      ID3_GEN2),
             Map.entry("bmw i3 120 ah 37.9 kwh",          I3_GEN1),
-            Map.entry("bmw i3 50 xdrive",                I3_GEN2));
+            Map.entry("bmw i3 50 xdrive",                I3_GEN2),
+            Map.entry("citroen e-c4",                    ECMP_GEN1),
+            Map.entry("citroen e-c4 54 kwh",             ECMP_GEN2),
+            Map.entry("citroen e-c4 x",                  ECMP_GEN1),
+            Map.entry("citroen e-c4 x 54 kwh",           ECMP_GEN2),
+            Map.entry("opel corsa electric 50 kwh",      ECMP_GEN1),
+            Map.entry("opel corsa electric 54 kwh",      ECMP_GEN2),
+            Map.entry("peugeot e-208 50 kwh",            ECMP_GEN1),
+            Map.entry("peugeot e-208 54 kwh",            ECMP_GEN2),
+            Map.entry("peugeot e-208 gti",               ECMP_GEN2));
 
 
     /**

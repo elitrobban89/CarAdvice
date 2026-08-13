@@ -476,6 +476,23 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void stellantisFemtioOchFemtiofyraHallsIsarTrotsDiakritisktNamn() {
+        // Bada generationerna fanns redan som rader — bara taggen saknades, alltsa klass B.
+        // Testet finns lika mycket for NYCKELFORMEN: GENERATION slas upp med normalize(carName),
+        // som tar bort diakriter men BEHALLER bindestreck. "Citroën ë-C4" blir "citroen e-c4".
+        // En felstavad nyckel ger ingen traff, och en otaggad rad raknas som aldst — alltsa
+        // exakt det fel taggningen skulle laga, fast tyst.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Citroën ë-C4", 11.0, 100.0, 46.3, 354, 0),
+                new EvSpec("Citroën ë-C4 54 kWh", 11.0, 100.0, 50.8, 418, 0)));
+
+        assertThat(service().verifiedEngineOptions("Citroën ë-C4 (2022)"))
+                .contains("46.3 kWh (354 km)").doesNotContain("418 km");
+        assertThat(service().verifiedEngineOptions("Citroën ë-C4 (2025)"))
+                .contains("50.8 kWh (418 km)").doesNotContain("354 km");
+    }
+
+    @Test
     void suffixSkyddarInteEnRadFranAttHamnaPaFelKort() {
         // Forsta inventeringen friade ID.3 med motiveringen att "Neo" i radnamnet skulle hindra
         // en match mot titeln "Volkswagen ID.3". Det var bakvant: verifiedEngineOptions kraver
