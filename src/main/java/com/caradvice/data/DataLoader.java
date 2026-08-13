@@ -365,7 +365,17 @@ public class DataLoader implements CommandLineRunner {
             java.util.Map.entry("Renault Zoe 22 kWh",    new double[]{22.0, 130}),
             java.util.Map.entry("Renault Zoe ZE40 41 kWh", new double[]{41.0, 300}),
             java.util.Map.entry("Tesla Model 3 Standard Range Plus 55 kWh", new double[]{55.4, 430}),
-            java.util.Map.entry("Tesla Model 3 Long Range 82 kWh", new double[]{82.0, 614}));
+            java.util.Map.entry("Tesla Model 3 Long Range 82 kWh", new double[]{82.0, 614}),
+            // Resten av klass A, tillagd 2026-08-13. Samtliga siffror avlästa på ev-database —
+            // ANVÄNDBAR kapacitet och WLTP TEH, alltså den strängare av de två testprofilerna.
+            java.util.Map.entry("Tesla Model Y Long Range 75 kWh",   new double[]{75.0, 568}),
+            java.util.Map.entry("Hyundai Kona Electric 39 kWh",      new double[]{39.2, 305}),
+            java.util.Map.entry("Hyundai Kona Electric 64 kWh",      new double[]{64.0, 484}),
+            java.util.Map.entry("Polestar 2 Long Range 75 kWh",      new double[]{75.0, 515}),
+            java.util.Map.entry("Volkswagen ID.4 Pro 77 kWh",        new double[]{77.0, 481}),
+            java.util.Map.entry("Hyundai IONIQ 5 54 kWh",            new double[]{54.0, 384}),
+            java.util.Map.entry("Hyundai IONIQ 5 70 kWh",            new double[]{70.0, 451}),
+            java.util.Map.entry("Toyota bZ4X 64 kWh",                new double[]{64.0, 442}));
 
     /**
      * Rader som nattsynken en gång skrev fel data i, och som ingen källa rättar av sig själv.
@@ -603,6 +613,41 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Tesla Model 3 Standard Range Plus 55 kWh", 11.0, 170.0, 55.4, 430, 0));
         if (!existing.contains("Tesla Model 3 Long Range 82 kWh"))
             extras.add(new EvSpec("Tesla Model 3 Long Range 82 kWh",          11.0, 250.0, 82.0, 614, 0));
+
+        /*
+         * Resten av klass A ur inventeringen 2026-08-13 — modeller vars enda rad bar den nyaste
+         * generationens siffror. Alla värden är ANVÄNDBAR kapacitet och WLTP TEH från
+         * ev-database, samma källa nattsynken använder, så en framtida synk som når raderna inte
+         * motsäger dem.
+         *
+         * BARA VOLYMVARIANTEN per generation läggs till där bara en är belagd. Entry- och
+         * Performance-utföranden utelämnas hellre än gissas, av samma skäl som priset lämnas 0:
+         * ett tomt fält är ärligt, en ungefärlig siffra ser lika trovärdig ut som en mätt.
+         * Undantagen är Kona och IONIQ 5, där båda batterierna var lika vanliga och båda finns
+         * belagda hos ev-database.
+         *
+         * KONVENTIONSGLAPPET ÄR KÄNT OCH MEDVETET: faceliftraderna i tabellen bär i flera fall
+         * BRUTTOkapacitet (IONIQ 5 84, Model Y 79) medan de här bär NETTO. Det är källornas egen
+         * inkonsekvens, precis som Enyaqs iV-rader mot faceliftens, och verifiedEngineOptions
+         * slår bara ihop rader när räckvidden är identisk — så glappet kan inte smälta samman
+         * två generationer av misstag.
+         */
+        if (!existing.contains("Tesla Model Y Long Range 75 kWh"))
+            extras.add(new EvSpec("Tesla Model Y Long Range 75 kWh", 11.0, 250.0, 75.0, 568, 0));
+        if (!existing.contains("Hyundai Kona Electric 39 kWh"))
+            extras.add(new EvSpec("Hyundai Kona Electric 39 kWh",    7.2,  44.0, 39.2, 305, 0));
+        if (!existing.contains("Hyundai Kona Electric 64 kWh"))
+            extras.add(new EvSpec("Hyundai Kona Electric 64 kWh",    11.0, 77.0, 64.0, 484, 0));
+        if (!existing.contains("Polestar 2 Long Range 75 kWh"))
+            extras.add(new EvSpec("Polestar 2 Long Range 75 kWh",    11.0, 155.0, 75.0, 515, 0));
+        if (!existing.contains("Volkswagen ID.4 Pro 77 kWh"))
+            extras.add(new EvSpec("Volkswagen ID.4 Pro 77 kWh",      11.0, 135.0, 77.0, 481, 0));
+        if (!existing.contains("Hyundai IONIQ 5 54 kWh"))
+            extras.add(new EvSpec("Hyundai IONIQ 5 54 kWh",          11.0, 175.0, 54.0, 384, 0));
+        if (!existing.contains("Hyundai IONIQ 5 70 kWh"))
+            extras.add(new EvSpec("Hyundai IONIQ 5 70 kWh",          11.0, 225.0, 70.0, 451, 0));
+        if (!existing.contains("Toyota bZ4X 64 kWh"))
+            extras.add(new EvSpec("Toyota bZ4X 64 kWh",              11.0, 150.0, 64.0, 442, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

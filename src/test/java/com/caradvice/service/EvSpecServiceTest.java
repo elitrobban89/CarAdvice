@@ -476,6 +476,28 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void klassAModellerFarSinEgenGenerationEfterArsmodell() {
+        // Inventeringen 2026-08-13 hittade nio modeller vars ENDA rad bar nyaste generationens
+        // siffror, sa arsfiltret hade inget att valja mellan. Kona ar mallexemplet: gen 1
+        // (2018-2022) fanns inte alls, sa ett kort for en 2020:a fick gen 2:s 65,4 kWh / 514 km.
+        //
+        // Testet provar bada hallen. Att bara prova den gamla arsmodellen hade missat den fallan
+        // Leaf-arbetet skrev upp: en OTAGGAD rad raknas som fromYear 0, alltsa aldst, sa den
+        // nyaste raden maste vara taggad for att den gamla arsmodellen inte ska fa den anda.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Hyundai Kona Electric 39 kWh", 7.2,  44.0, 39.2, 305, 0),
+                new EvSpec("Hyundai Kona Electric 64 kWh", 11.0, 77.0, 64.0, 484, 0),
+                new EvSpec("Hyundai Kona Electric",        11.0, 102.0, 65.4, 514, 0)));
+
+        assertThat(service().verifiedEngineOptions("Hyundai Kona Electric (2020)"))
+                .contains("39.2 kWh (305 km)").contains("64 kWh (484 km)")
+                .doesNotContain("514 km");
+        assertThat(service().verifiedEngineOptions("Hyundai Kona Electric (2024)"))
+                .contains("65.4 kWh (514 km)")
+                .doesNotContain("305 km").doesNotContain("484 km");
+    }
+
+    @Test
     void ev6PreFaceliftOchFaceliftSlasAldrigIhopEfterTaggningen() {
         // Inventeringen 2026-08-13 gick igenom alla 539 ev_spec-rader och EV6 var den ENDA
         // modell dar bada generationerna redan fanns men ingen var taggad. Ett kort for en

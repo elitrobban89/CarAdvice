@@ -430,6 +430,27 @@ public class EvSpecService {
     private static final Generation EV6_GEN1 = new Generation("EV6 pre-facelift", 2021);
     private static final Generation EV6_GEN2 = new Generation("EV6 facelift", 2025);
 
+    /**
+     * Resten av klass A ur inventeringen 2026-08-13 — modeller vars enda rad bar den nyaste
+     * generationens siffror, nu kompletterade med sin äldre generation i
+     * {@code DataLoader.UTGANGNA_GENERATIONER}.
+     *
+     * <p>Årtalen är faceliftens/generationsskiftets FÖRSTA säljår i Sverige, inte
+     * presentationsåret — det är årsmodellen på en annons som filtret jämför mot.
+     */
+    private static final Generation MODELY_GEN1 = new Generation("Model Y pre-facelift", 2021);
+    private static final Generation MODELY_GEN2 = new Generation("Model Y Juniper", 2025);
+    private static final Generation KONA_GEN1   = new Generation("Kona Electric gen 1", 2018);
+    private static final Generation KONA_GEN2   = new Generation("Kona Electric gen 2", 2023);
+    private static final Generation PS2_GEN1    = new Generation("Polestar 2 pre-facelift", 2020);
+    private static final Generation PS2_GEN2    = new Generation("Polestar 2 facelift", 2024);
+    private static final Generation ID4_GEN1    = new Generation("ID.4 launch", 2021);
+    private static final Generation ID4_GEN2    = new Generation("ID.4 facelift", 2024);
+    private static final Generation IONIQ5_GEN1 = new Generation("IONIQ 5 pre-facelift", 2021);
+    private static final Generation IONIQ5_GEN2 = new Generation("IONIQ 5 facelift", 2024);
+    private static final Generation BZ4X_GEN1   = new Generation("bZ4X pre-facelift", 2022);
+    private static final Generation BZ4X_GEN2   = new Generation("bZ4X facelift", 2025);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -475,7 +496,26 @@ public class EvSpecService {
             Map.entry("kia ev6 long range 2wd",          EV6_GEN2),
             Map.entry("kia ev6 gt",                      EV6_GEN2),
             Map.entry("kia ev6 long range 2wd 84 kwh",   EV6_GEN2),
-            Map.entry("kia ev6 long range awd 84 kwh",   EV6_GEN2));
+            Map.entry("kia ev6 long range awd 84 kwh",   EV6_GEN2),
+            Map.entry("tesla model y long range 75 kwh",                MODELY_GEN1),
+            Map.entry("tesla model y",                                  MODELY_GEN2),
+            Map.entry("tesla model y rwd (juniper)",                    MODELY_GEN2),
+            Map.entry("tesla model y premium rwd (juniper - tesla 4680)", MODELY_GEN2),
+            Map.entry("tesla model y premium awd (juniper)",            MODELY_GEN2),
+            Map.entry("tesla model y performance (juniper)",            MODELY_GEN2),
+            Map.entry("hyundai kona electric 39 kwh",    KONA_GEN1),
+            Map.entry("hyundai kona electric 64 kwh",    KONA_GEN1),
+            Map.entry("hyundai kona electric",           KONA_GEN2),
+            Map.entry("polestar 2 long range 75 kwh",    PS2_GEN1),
+            Map.entry("polestar 2",                      PS2_GEN2),
+            Map.entry("volkswagen id.4 pro 77 kwh",      ID4_GEN1),
+            Map.entry("volkswagen id.4",                 ID4_GEN2),
+            Map.entry("hyundai ioniq 5 54 kwh",          IONIQ5_GEN1),
+            Map.entry("hyundai ioniq 5 70 kwh",          IONIQ5_GEN1),
+            Map.entry("hyundai ioniq 5 63 kwh rwd",      IONIQ5_GEN2),
+            Map.entry("hyundai ioniq 5",                 IONIQ5_GEN2),
+            Map.entry("toyota bz4x 64 kwh",              BZ4X_GEN1),
+            Map.entry("toyota bz4x",                     BZ4X_GEN2));
 
 
     /**
