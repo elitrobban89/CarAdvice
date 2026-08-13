@@ -369,6 +369,16 @@ public class AutoDataScraperService {
         return gen == null ? List.of() : parseMotorAlternativ(hamta(BAS + gen.sokvag()));
     }
 
+    /**
+     * Senaste generationen för en modell, utan årsmodell att gå på.
+     *
+     * <p>Publik ingång åt generationsifyllningen: {@code ice_consumption}s motorlista beskriver
+     * modellens NUVARANDE generation, så det är just den senaste vi vill datera.
+     */
+    public Generation generationForNamn(String bilnamn) {
+        return generationForBil(bilnamn, null);
+    }
+
     /** Märkes- och modelluppslaget, delat av båda ingångarna ovan. */
     private Generation generationForBil(String bilnamn, Integer arsmodell) {
         if (bilnamn == null || bilnamn.isBlank()) return null;

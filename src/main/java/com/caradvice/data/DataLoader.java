@@ -37,13 +37,16 @@ public class DataLoader implements CommandLineRunner {
     private final WebInsightScraperService webInsightScraper;
     private final IceConsumptionService iceConsumptionService;
     private final CarVideoService carVideoService;
+    private final com.caradvice.service.IceGenerationService iceGenerationService;
 
     public DataLoader(JdbcTemplate jdbc,
                       ExpertInsightRepository expertRepo, SafetyRatingRepository safetyRepo,
                       EvSpecRepository evSpecRepo, CargoSpecRepository cargoRepo,
                       NewCarPriceService newCarPriceService, FeedbackService feedbackService,
                       WebInsightScraperService webInsightScraper, IceConsumptionService iceConsumptionService,
-                      CarVideoService carVideoService) {
+                      CarVideoService carVideoService,
+                      com.caradvice.service.IceGenerationService iceGenerationService) {
+        this.iceGenerationService = iceGenerationService;
         this.jdbc = jdbc;
         this.expertRepo = expertRepo;
         this.safetyRepo = safetyRepo;
@@ -62,6 +65,7 @@ public class DataLoader implements CommandLineRunner {
         feedbackService.ensureTable();
         webInsightScraper.ensureTable();
         iceConsumptionService.ensureTableAndSeed();
+        iceGenerationService.ensureTable();
         carVideoService.ensureTable();
         if (expertRepo.count() == 0)  seedInsights();
         if (safetyRepo.count() == 0)  seedSafetyRatings();

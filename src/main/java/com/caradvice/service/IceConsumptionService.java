@@ -37,8 +37,20 @@ public class IceConsumptionService {
     // Tabellen är statisk seed-data — cachas i minnet efter första läsningen
     private volatile List<Variant> cachedAll = null;
 
+    /**
+     * Generationsårtalen. Sätts via settern och inte konstruktorn för att bryta den cirkel som
+     * annars uppstår: ifyllningstjänsten behöver den här servicen för sin arbetslista.
+     * Null är ett giltigt läge — då gäller det gamla beteendet, alltså lista alltid.
+     */
+    private IceGenerationService iceGenerations;
+
     public IceConsumptionService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setIceGenerations(IceGenerationService iceGenerations) {
+        this.iceGenerations = iceGenerations;
     }
 
     public void ensureTableAndSeed() {
@@ -200,6 +212,29 @@ public class IceConsumptionService {
      * @return null när modellen saknas i tabellen, så anroparen kan behålla AI:ns egen text
      */
     public String engineOptionsForTitle(String title) {
+        return engineOptionsForTitle(title, null);
+    }
+
+    /**
+     * Som ovan, men tyst när årsmodellen är äldre än den generation listan beskriver.
+     *
+     * <p>Tabellen bär EN generations motorer per modell — uppmätt 2026-08-13 är samtliga tretton
+     * Golf-rader Golf VIII (2020+), och Golf VII har noll rader hos oss. Utan det här filtret
+     * fick ett kort för "Volkswagen Golf (2018)" alltså 2020 års motorutbud, inklusive
+     * {@code 1.0 eTSI Mild Hybrid} och {@code eHybrid PHEV} som inte fanns då. Det gällde
+     * <b>202 av 310 namnplåtar</b>.
+     *
+     * <p><b>Null i stället för en gissning.</b> Vi kan inte visa rätt lista för en äldre
+     * årsmodell — de raderna finns inte i tabellen och att hämta dem okurerat från auto-data
+     * hade gett 46 Golf VII-varianter varav flera aldrig sålts i Sverige. Då är rätt svar att
+     * avstå: anroparen faller tillbaka på AI:ns egen motortext, precis som för en modell vi
+     * saknar helt. Ett tomt påstående är bättre än ett falskt.
+     *
+     * <p>Saknas årtal i titeln, eller saknar modellen ännu rad i {@code ice_generation}, visas
+     * listan som förut. Tabellen fylls över flera nätter och ett kort får inte tappa sina
+     * motoralternativ under tiden.
+     */
+    public String engineOptionsForTitle(String title, Integer arsmodell) {
         if (title == null || title.isBlank()) return null;
         String t = normalize(CarTitle.stripYear(title));
         java.util.Set<String> tokens = titleTokens(t);
@@ -210,6 +245,12 @@ public class IceConsumptionService {
             if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
+
+        if (arsmodell != null && iceGenerations != null) {
+            Variant forsta = candidates.get(0);
+            Integer franAr = iceGenerations.franArFor(forsta.brand() + " " + modelWord(forsta));
+            if (franAr != null && arsmodell < franAr) return null;
+        }
 
         List<String> namn = candidates.stream()
                 .sorted(Comparator.comparingInt(v -> {

@@ -30,8 +30,13 @@ public class CargoSpecSyncScheduler {
             // som bara har elbilar. auto-data fyller resten — och körs efter namnhämtningen så
             // att nattens nya bilar kan få sin volym direkt.
             int fyllda = autoDataFill.fyllSaknadeVolymer();
-            log.info("Daily CargoSpec sync: {} nya bilnamn, {} bagagevolymer ifyllda", nya, fyllda);
-            return nya + fyllda;
+            // Efter bagaget: sidcachen är varm för just de modeller vi nyss besökt, så
+            // generationsåret blir nästan gratis för dem. Se IceGenerationService för varför
+            // bara årtalet hämtas och inte hela motorutbudet.
+            int generationer = autoDataFill.fyllGenerationsar();
+            log.info("Daily CargoSpec sync: {} nya bilnamn, {} bagagevolymer, {} generationsår ifyllda",
+                    nya, fyllda, generationer);
+            return nya + fyllda + generationer;
         });
         log.info("Daily CargoSpec sync finished — {} rader berörda", added);
     }

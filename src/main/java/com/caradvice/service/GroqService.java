@@ -695,7 +695,10 @@ public class GroqService {
                 // Hela motorutbudet, inte bara den variant förbrukningssiffran togs från —
                 // elbilskorten har alltid visat sina batterivarianter som lista, medan
                 // förbränningskorten visade en enda motor fast databasen bar flera.
-                String allaMotorer = iceConsumptionService.engineOptionsForTitle(r.title());
+                // Årsmodellen skickas med: tabellen bär EN generations motorer per modell, så
+                // ett äldre kort ska hellre få AI:ns egen text än 2020 års motorutbud.
+                String allaMotorer = iceConsumptionService.engineOptionsForTitle(
+                        r.title(), CarTitle.year(r.title()));
                 engineOptions = allaMotorer != null ? allaMotorer
                         : IceConsumptionService.engineDescriptor(iceVariant);
             }

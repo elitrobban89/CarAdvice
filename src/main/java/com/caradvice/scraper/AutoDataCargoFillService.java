@@ -40,12 +40,15 @@ public class AutoDataCargoFillService {
     private final AutoDataScraperService autoData;
     private final CargoSpecService cargoSpecs;
     private final IceConsumptionService iceConsumption;
+    private final com.caradvice.service.IceGenerationService iceGenerations;
 
     public AutoDataCargoFillService(AutoDataScraperService autoData, CargoSpecService cargoSpecs,
-                                    IceConsumptionService iceConsumption) {
+                                    IceConsumptionService iceConsumption,
+                                    com.caradvice.service.IceGenerationService iceGenerations) {
         this.autoData = autoData;
         this.cargoSpecs = cargoSpecs;
         this.iceConsumption = iceConsumption;
+        this.iceGenerations = iceGenerations;
     }
 
     /**
@@ -121,6 +124,56 @@ public class AutoDataCargoFillService {
             }
         }
         log.info("auto-data bagage: {} fyllda, {} utan träff, {} försökta av {} saknade",
+                fyllda, utanTraff, forsokta, namn.size());
+        return fyllda;
+    }
+
+    /**
+     * Fyller {@code ice_generation} — startåret för den generation som modellens motorlista
+     * beskriver. Se {@link com.caradvice.service.IceGenerationService} för varför bara årtalet
+     * hämtas och inte hela motorutbudet.
+     *
+     * <p>Ligger i det här jobbet och inte i ett eget av två skäl: arbetslistan är samma
+     * modellnamn som bagageifyllningen redan går, och sidcachen är varm efter den — en modell vi
+     * just hämtat bagage för kostar nästan ingenting att hämta generationen för. Ett eget
+     * nattjobb hade dessutom krävt egen schemaläggning, egen jobbstatusrad och egen
+     * adminplumbning för samma källa och samma kadens.
+     *
+     * <p>Eget tak: bagagelistan krymper mot noll medan den här har 310 modeller att beta av, och
+     * ett gemensamt tak hade låtit den ena svälta ut den andra.
+     *
+     * @return antal modeller som fick ett årtal
+     */
+    public int fyllGenerationsar() {
+        List<String> namn = iceConsumption.allModelNames().stream()
+                .filter(n -> !iceGenerations.harArtal(n))
+                .toList();
+        if (namn.isEmpty()) {
+            log.info("auto-data generation: alla modeller har årtal");
+            return 0;
+        }
+
+        int fyllda = 0, forsokta = 0, utanTraff = 0;
+        for (String modell : namn) {
+            if (forsokta >= MAX_PER_KORNING) break;
+            forsokta++;
+            try {
+                // Utan årsmodell väljer generationForBil den SENASTE generationen — och det är
+                // precis den som tabellens motorlista beskriver, så genvägen är rätt här.
+                var gen = autoData.generationForNamn(modell);
+                if (gen == null || gen.franAr() == null) {
+                    utanTraff++;
+                    continue;
+                }
+                iceGenerations.spara(modell, gen.franAr());
+                fyllda++;
+                log.info("auto-data generation: {} → från {}", modell, gen.franAr());
+            } catch (Exception e) {
+                log.warn("auto-data generation: {} misslyckades — {}", modell, e.getMessage());
+                utanTraff++;
+            }
+        }
+        log.info("auto-data generation: {} fyllda, {} utan träff, {} försökta av {} kvar",
                 fyllda, utanTraff, forsokta, namn.size());
         return fyllda;
     }

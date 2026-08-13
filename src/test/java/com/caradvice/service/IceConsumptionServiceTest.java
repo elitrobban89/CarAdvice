@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tester mot riktig H2 in-memory-databas — verifierar att seeden från
@@ -149,6 +151,53 @@ class IceConsumptionServiceTest {
     void engineDescriptorStripparAvenUpprepatMarke() {
         var v = new IceConsumptionService.Variant("Mazda", "Mazda 3 2.0 Skyactiv-X 186 hk", "bensin", 0.68);
         assertThat(IceConsumptionService.engineDescriptor(v)).isEqualTo("2.0 Skyactiv-X 186 hk");
+    }
+
+    // --- generationsvakten: listan är EN generation, inte alla ---
+
+    @Test
+    void aldreArsmodellFarIngenMotorlistaAlls() {
+        /*
+         * Uppmätt 2026-08-13: tabellen bär EN generations motorer per modell. Samtliga tretton
+         * Golf-rader är Golf VIII (2020-2024) — 1.0 eTSI Mild Hybrid, eHybrid PHEV, GTI
+         * Clubsport — och Golf VII har noll rader hos oss. Ett kort för "Golf (2018)" fick
+         * alltså 2020 års motorutbud. Det gällde 202 av 310 namnplåtar.
+         *
+         * Rätt svar är att AVSTÅ, inte att gissa: de äldre raderna finns inte, och att hämta
+         * dem okurerat från auto-data hade gett 46 Golf VII-varianter varav flera (1.5 TGI,
+         * 1.4 TGI — fordonsgas) aldrig sålts i Sverige. Anroparen faller tillbaka på AI:ns
+         * egen motortext, precis som för en modell vi saknar helt.
+         */
+        // Nyckeln är samma form som allModelNames() bygger, alltså märket som det står plus
+        // modellordet NORMALISERAT till gemener: "Volkswagen golf". Formen är inte snygg men
+        // den måste vara identisk i uppslaget och i ifyllningen, annars matchar de aldrig.
+        IceGenerationService gen = mock(IceGenerationService.class);
+        when(gen.franArFor("Volkswagen golf")).thenReturn(2020);
+        service.setIceGenerations(gen);
+        try {
+            // Årsmodellen skickas SEPARAT — enargsvarianten betyder "inget år att gå på" och
+            // visar listan som förut. GroqService plockar året ur titeln med CarTitle.year.
+            assertThat(service.engineOptionsForTitle("Volkswagen Golf (2018)", 2018)).isNull();
+            assertThat(service.engineOptionsForTitle("Volkswagen Golf (2022)", 2022)).isNotNull();
+            assertThat(service.engineOptionsForTitle("Volkswagen Golf (2018)")).isNotNull();
+        } finally {
+            service.setIceGenerations(null);
+        }
+    }
+
+    @Test
+    void utanArtalEllerUtanKantGenerationsarVisasListanSomForut() {
+        // Tabellen fylls över flera nätter och ett kort får inte tappa sina motoralternativ
+        // under tiden — okänd generation betyder "ingen åsikt", inte "dölj".
+        IceGenerationService gen = mock(IceGenerationService.class);
+        when(gen.franArFor(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        service.setIceGenerations(gen);
+        try {
+            assertThat(service.engineOptionsForTitle("Volvo XC60 (2012)", 2012)).isNotNull();
+            assertThat(service.engineOptionsForTitle("Volvo XC60", null)).isNotNull();
+        } finally {
+            service.setIceGenerations(null);
+        }
     }
 
     // --- motoralternativ som lista, som elbilskorten redan visar ---
