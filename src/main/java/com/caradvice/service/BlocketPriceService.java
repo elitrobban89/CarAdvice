@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -89,6 +90,70 @@ public class BlocketPriceService {
 
     public record PriceRange(int minKr, int maxKr, int count, String formatted) {}
 
+    /**
+     * Vilka annonser som får sätta prisraden, uttryckt i Blockets EGNA fältvärden.
+     *
+     * <p>Prisgolvet var tidigare blint för drivmedel och växellåda: sökningen skickar bara
+     * {@code q=<märke modell>}, och {@code pricesFrom} filtrerade på pris, årsmodell, mil och
+     * modellsiffra — aldrig på {@code fuel} eller {@code transmission}, fast Blocket skickar
+     * med båda i varje annons. En förfrågan om bensin + automat fick alltså sitt budgettak
+     * mätt mot en manuell diesel. Uppmätt 2026-08-13 (annonser under 10 000 mil):
+     *
+     * <ul>
+     *   <li>Volvo XC60: golvet 125 500 kr mot 249 900 kr för billigaste bensinautomat</li>
+     *   <li>Volvo XC40 2019: 227 000 mot 259 500 — bilen slank under 230 000-taket med
+     *       3 000 kr marginal på annonser användaren inte kan köpa</li>
+     *   <li>VW T-Roc: golvet 159 900 kr fast det finns NOLL bensinautomater under 10 000 mil</li>
+     * </ul>
+     *
+     * <p>Fälten är fritext hos Blocket, inte koder. Uppmätta värden 2026-08-13 över XC60, RAV4,
+     * Golf, Niro och Model 3 (250 annonser): {@code fuel} är "Bensin", "Diesel", "El",
+     * "Hybrid bensin" eller "Plug-in Bensin", och {@code transmission} är "Automatisk" eller
+     * "Manuell". Enstaka annonser har fältet TOMT.
+     *
+     * <p><b>Tomt fält räknas som icke-match, till skillnad från saknad körsträcka som släpps
+     * igenom.</b> Avsteget är avsiktligt: milgränsen finns för att hålla vrak borta, och där är
+     * en okänd körsträcka ingen anledning att stryka en annons. Här är hela poängen att golvet
+     * ska sättas av en bil som matchar det användaren bad om, och ett tomt fält är inget bevis
+     * för att den gör det. Trappan nedan gör avsteget ofarligt.
+     */
+    public record AdFilter(Set<String> fuels, String gearbox) {
+
+        /** Inget filter — golvet sätts av billigaste annons oavsett drivlina, som före 2026-08-13. */
+        public static final AdFilter NONE = new AdFilter(Set.of(), null);
+
+        public AdFilter {
+            fuels = fuels == null ? Set.of() : Set.copyOf(fuels);
+        }
+
+        boolean isEmpty() { return fuels.isEmpty() && gearbox == null; }
+
+        /**
+         * Drivmedlet matchas på PREFIX och inte på likhet, eftersom "Hybrid bensin" ska räknas
+         * som bensin (en självladdande hybrid är en bensinbil, samma bedömning som
+         * {@code GroqService.fuelIntent} gör) medan "Plug-in Bensin" inte ska det — den som
+         * bett om bensin har inte bett om en laddhybrid. Anroparen skickar därför hela
+         * prefixet: "Bensin" och "Hybrid bensin" är två olika poster i mängden.
+         */
+        boolean matches(JsonNode doc) {
+            if (!fuels.isEmpty()) {
+                String f = doc.path("fuel").asText("");
+                if (f.isBlank() || fuels.stream().noneMatch(f::equalsIgnoreCase)) return false;
+            }
+            if (gearbox != null) {
+                String g = doc.path("transmission").asText("");
+                if (!gearbox.equalsIgnoreCase(g)) return false;
+            }
+            return true;
+        }
+
+        /** Filtret MÅSTE ingå i cachenyckeln — annars serveras ett elbilssöks golv till ett bensinsök. */
+        String cacheKey() {
+            if (isEmpty()) return "";
+            return "|f=" + String.join("+", fuels.stream().sorted().toList()) + ";g=" + gearbox;
+        }
+    }
+
     private record CacheEntry(PriceRange result, long timestamp) {}
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -122,7 +187,16 @@ public class BlocketPriceService {
      *         på annan grund (se GroqService.verifiedFloor)
      */
     public PriceRange fetchPriceRange(String carTitle) {
-        return fetchRange(carTitle, false);
+        return fetchRange(carTitle, false, AdFilter.NONE);
+    }
+
+    /**
+     * Som ovan, men bara annonser som matchar det användaren faktiskt bad om får sätta golvet.
+     * Se {@link AdFilter} för varför, och {@code GroqService.adFilterFor} för hur formulärets
+     * val översätts till Blockets fältvärden.
+     */
+    public PriceRange fetchPriceRange(String carTitle, AdFilter filter) {
+        return fetchRange(carTitle, false, filter == null ? AdFilter.NONE : filter);
     }
 
     /**
@@ -131,22 +205,51 @@ public class BlocketPriceService {
      * {@code price.amount} och samma {@code price_unit} "kr": 4 495 kr bredvid 479 000 kr.
      */
     public PriceRange fetchLeasingRange(String carTitle) {
-        return fetchRange(carTitle, true);
+        return fetchRange(carTitle, true, AdFilter.NONE);
     }
 
-    private PriceRange fetchRange(String carTitle, boolean leasing) {
+    private PriceRange fetchRange(String carTitle, boolean leasing, AdFilter filter) {
         String query = extractSearchQuery(carTitle);
         if (query == null || query.isBlank()) return null;
         // Privatleasing gäller nya bilar — annonserna ligger på årsmodell 2026-2027 medan AI:n
         // sätter ett årtal som hör begagnatmarknaden till. Årsfiltret hade tömt träfflistan.
         Integer year = leasing ? null : extractYear(carTitle);
 
-        String cacheKey = (leasing ? "leasing|" : "") + (year != null ? query + "|" + year : query);
+        String cacheKey = (leasing ? "leasing|" : "") + (year != null ? query + "|" + year : query)
+                + filter.cacheKey();
         CacheEntry cached = cache.get(cacheKey);
         if (cached != null && System.currentTimeMillis() - cached.timestamp() < CACHE_TTL_MS)
             return cached.result();
 
         try {
+            PriceRange result = rangeFor(query, year, leasing, filter);
+
+            /*
+             * Trappa nummer två, byggd av exakt samma skäl som milgränsens: filtret får aldrig
+             * kosta hela prisraden. Utan reservsteget vore ett för snävt filter INTE en
+             * skärpning utan en tyst uppluckring — GroqService.exceedsBudgetCeiling kan bara
+             * fälla en bil som har en prisrad, så en tömd träfflista slipper igenom allt.
+             *
+             * Villkoret är count < MIN_ADS_FOR_RANGE och inte bara null, av samma anledning:
+             * budgettaket kräver två annonser, så en ensam kvarvarande träff avväpnar det lika
+             * effektivt som noll. Hellre ett trubbigt golv än inget golv alls.
+             */
+            if (!filter.isEmpty() && (result == null || result.count() < MIN_ADS_FOR_RANGE))
+                result = rangeFor(query, year, leasing, AdFilter.NONE);
+
+            if (result == null) return null;
+            cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));
+            return result;
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Ett försök med ett givet filter — hela milgränstrappan, men utan cache och reservsteg. */
+    private PriceRange rangeFor(String query, Integer year, boolean leasing, AdFilter filter)
+            throws Exception {
+        {
             // Leasingannonser gäller nya bilar och saknar körsträcka — milgränsen är en
             // begagnatregel och hade bara tömt den träfflistan.
             Integer milTak = leasing ? null : MAX_MILEAGE_MIL;
@@ -155,7 +258,7 @@ public class BlocketPriceService {
             if (billigast == null || billigast.isEmpty()) return null;
 
             String digits = modelDigits(query);
-            List<Integer> prices = pricesFrom(billigast, year, leasing, digits, milTak);
+            List<Integer> prices = pricesFrom(billigast, year, leasing, digits, milTak, filter);
 
             // Milgränsen får aldrig kosta hela prisraden, men den lättas ett steg i taget i
             // stället för att släppas: räcker inte de lågmilade annonserna prövas 15 000 mil,
@@ -167,7 +270,7 @@ public class BlocketPriceService {
                 if (bredare == null || bredare.isEmpty()) continue;
                 milTak = nasteTak;
                 billigast = bredare;
-                prices = pricesFrom(billigast, year, leasing, digits, nasteTak);
+                prices = pricesFrom(billigast, year, leasing, digits, nasteTak, filter);
             }
 
             boolean kapad = billigast.size() >= PAGE_CAP;
@@ -181,16 +284,10 @@ public class BlocketPriceService {
             // 3 021-4 695 kr/mån där, mot 12 375 kr/mån när dyraste änden togs med.
             if (kapad && !leasing) {
                 JsonNode dyrast = fetchDocs(query, year, leasing, "PRICE_DESC", milTak);
-                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits, milTak));
+                if (dyrast != null) prices.addAll(pricesFrom(dyrast, year, leasing, digits, milTak, filter));
             }
 
-            PriceRange result = rangeOf(prices, leasing, kapad);
-            if (result == null) return null;
-            cache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));
-            return result;
-
-        } catch (Exception e) {
-            return null;
+            return rangeOf(prices, leasing, kapad);
         }
     }
 
@@ -232,6 +329,12 @@ public class BlocketPriceService {
         return rangeOf(pricesFrom(docs, year, false, modelDigits, mileageTo), false, false);
     }
 
+    /** Som ovan, med drivmedels- och växellådsfiltret på. */
+    PriceRange priceRangeFrom(JsonNode docs, Integer year, String modelDigits, Integer mileageTo,
+                              AdFilter filter) {
+        return rangeOf(pricesFrom(docs, year, false, modelDigits, mileageTo, filter), false, false);
+    }
+
     /** Som ovan, för privatleasingens kr/mån. */
     PriceRange leasingRangeFrom(JsonNode docs, Integer year) {
         return rangeOf(pricesFrom(docs, year, true), true, false);
@@ -252,6 +355,11 @@ public class BlocketPriceService {
 
     private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing, String modelDigits,
                                      Integer mileageTo) {
+        return pricesFrom(docs, year, leasing, modelDigits, mileageTo, AdFilter.NONE);
+    }
+
+    private List<Integer> pricesFrom(JsonNode docs, Integer year, boolean leasing, String modelDigits,
+                                     Integer mileageTo, AdFilter filter) {
         List<Integer> prices = new ArrayList<>();
         for (JsonNode doc : docs) {
             int amount = doc.path("price").path("amount").asInt(0);
@@ -270,6 +378,10 @@ public class BlocketPriceService {
                 if (mil > mileageTo) continue;
             }
             if (!matchesModel(doc, modelDigits)) continue;
+            // Drivmedel och växellåda sist: filtret är det snävaste villkoret och det enda som
+            // har ett reservsteg ovanför sig, så det ska mäta på en lista som redan passerat
+            // pris, årsmodell, mil och modell.
+            if (!filter.matches(doc)) continue;
             prices.add(amount);
         }
         return prices;

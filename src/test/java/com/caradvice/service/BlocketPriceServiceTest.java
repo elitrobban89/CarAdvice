@@ -347,4 +347,94 @@ class BlocketPriceServiceTest {
         assertThat(service.priceRangeFrom(docs(new int[]{2020, 4_495}), 2020)).isNull();
         assertThat(service.priceRangeFrom(docs(), 2020)).isNull();
     }
+
+    // --- prisgolvet får bara sättas av annonser som matchar drivmedel + växellåda ---
+
+    /** Träfflista med drivlinefälten ifyllda: {pris, fuel, transmission}. */
+    private JsonNode docsMedDrivlina(String[]... prisFuelLada) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < prisFuelLada.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(String.format(
+                    "{\"year\":2020,\"mileage\":5000,\"price\":{\"amount\":%s},\"fuel\":\"%s\",\"transmission\":\"%s\"}",
+                    prisFuelLada[i][0], prisFuelLada[i][1], prisFuelLada[i][2]));
+        }
+        try {
+            return mapper.readTree(sb.append(']').toString());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final BlocketPriceService.AdFilter BENSIN_AUTOMAT =
+            new BlocketPriceService.AdFilter(java.util.Set.of("Bensin", "Hybrid bensin"), "Automatisk");
+
+    @Test
+    void golvetSattsInteLangreAvEnManuellDieselIEttBensinautomatsok() {
+        // Uppmätt live 2026-08-13: Volvo XC60 fick golvet 125 500 kr av annonser som varken var
+        // bensin eller automat, medan billigaste bensinautomat låg på 249 900 kr. Skillnaden är
+        // 124 400 kr och budgettaket mättes mot fel tal.
+        var traffar = docsMedDrivlina(
+                new String[]{"125500", "Diesel", "Manuell"},
+                new String[]{"180000", "Diesel", "Automatisk"},
+                new String[]{"210000", "Bensin", "Manuell"},
+                new String[]{"249900", "Bensin", "Automatisk"},
+                new String[]{"289000", "Bensin", "Automatisk"});
+
+        var utan = service.priceRangeFrom(traffar, 2020, null, BlocketPriceService.MAX_MILEAGE_MIL);
+        var med = service.priceRangeFrom(traffar, 2020, null, BlocketPriceService.MAX_MILEAGE_MIL,
+                BENSIN_AUTOMAT);
+
+        assertThat(utan.minKr()).isEqualTo(125_500);
+        assertThat(med.minKr()).isEqualTo(249_900);
+        assertThat(med.count()).isEqualTo(2);
+    }
+
+    @Test
+    void sjalvladdandeHybridRaknasSomBensinMenLaddhybridGorDetInte() {
+        // "Hybrid bensin" är en bensinbil med elassistans — samma bedömning som fuelIntent gör
+        // när den lägger HEV under ice. "Plug-in Bensin" är en laddhybrid och något annat än
+        // det användaren bad om, trots att båda strängarna innehåller "Bensin".
+        var traffar = docsMedDrivlina(
+                new String[]{"150000", "Plug-in Bensin", "Automatisk"},
+                new String[]{"175000", "Hybrid bensin", "Automatisk"},
+                new String[]{"195000", "Bensin", "Automatisk"});
+
+        var range = service.priceRangeFrom(traffar, 2020, null, BlocketPriceService.MAX_MILEAGE_MIL,
+                BENSIN_AUTOMAT);
+
+        assertThat(range.minKr()).isEqualTo(175_000);
+        assertThat(range.count()).isEqualTo(2);
+    }
+
+    @Test
+    void tomtDrivmedelsfaltRaknasSomIckeMatch() {
+        // Avsteg från milgränsens konvention, där saknat värde släpps igenom: här är hela
+        // poängen att golvet ska sättas av en bil som bevisligen matchar, och ett tomt fält
+        // bevisar ingenting. Reservsteget i fetchRange gör avsteget ofarligt.
+        var traffar = docsMedDrivlina(
+                new String[]{"99000", "", ""},
+                new String[]{"249900", "Bensin", "Automatisk"},
+                new String[]{"259000", "Bensin", "Automatisk"});
+
+        var range = service.priceRangeFrom(traffar, 2020, null, BlocketPriceService.MAX_MILEAGE_MIL,
+                BENSIN_AUTOMAT);
+
+        assertThat(range.minKr()).isEqualTo(249_900);
+    }
+
+    @Test
+    void tomtFilterSlapperIgenomAllt() {
+        // AdFilter.NONE måste bete sig exakt som före 2026-08-13 — jämförelseläget och
+        // leasingvägen kör med det.
+        var traffar = docsMedDrivlina(
+                new String[]{"125500", "Diesel", "Manuell"},
+                new String[]{"249900", "Bensin", "Automatisk"});
+
+        var range = service.priceRangeFrom(traffar, 2020, null, BlocketPriceService.MAX_MILEAGE_MIL,
+                BlocketPriceService.AdFilter.NONE);
+
+        assertThat(range.minKr()).isEqualTo(125_500);
+        assertThat(range.count()).isEqualTo(2);
+    }
 }

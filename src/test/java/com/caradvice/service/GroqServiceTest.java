@@ -217,6 +217,60 @@ class GroqServiceTest {
         assertThat(service().buildPrompt(pendlare)).doesNotContain("FAMILJEBIL");
     }
 
+    // --- adFilterFor: formulärets val → Blockets fältvärden ---
+
+    @Test
+    void bensinsokSlapperSjalvladdandeHybridMenInteLaddhybrid() {
+        var f = GroqService.adFilterFor("bensin", "suv", "automat");
+        assertThat(f.fuels()).containsExactlyInAnyOrder("Bensin", "Hybrid bensin");
+        assertThat(f.gearbox()).isEqualTo("Automatisk");
+    }
+
+    @Test
+    void vaxelladanOversattsTillBlocketsOrd() {
+        assertThat(GroqService.adFilterFor("bensin", "suv", "manuell").gearbox()).isEqualTo("Manuell");
+        assertThat(GroqService.adFilterFor("bensin", "suv", "spelar ingen roll").gearbox()).isNull();
+        assertThat(GroqService.adFilterFor("bensin", "suv", null).gearbox()).isNull();
+    }
+
+    @Test
+    void elbilskategorinGerElfilterAvenNarDrivmedelsrutanArDold() {
+        // Formuläret DÖLJER drivmedelsrutan för kategorin elbil och tvingar värdet till
+        // "spelar ingen roll" — och den strängen bär delsträngen "el" (i "spelar"), så
+        // fuelIntent får både ev och ice sanna och pureEv() blir falskt. Utan den uttryckliga
+        // kategorigrenen hade ett elbilssök från formuläret fått ett TOMT filter, alltså exakt
+        // den blindhet som skulle åtgärdas.
+        assertThat(GroqService.adFilterFor("spelar ingen roll", "elbil", "spelar ingen roll").fuels())
+                .containsExactly("El");
+        assertThat(GroqService.adFilterFor("el", "elbil", null).fuels()).containsExactly("El");
+    }
+
+    @Test
+    void laddhybridskategorinGerPluginfilter() {
+        assertThat(GroqService.adFilterFor("spelar ingen roll", "laddhybrid", null).fuels())
+                .containsExactlyInAnyOrder("Plug-in Bensin", "Plug-in Diesel");
+    }
+
+    @Test
+    void hybridvaletGerBaraSjalvladdandeHybrider() {
+        // "Hybrid (ej laddhybrid)" är HEV — varken en elbil eller en laddhybrid.
+        assertThat(GroqService.adFilterFor("hybrid", "suv", null).fuels())
+                .containsExactlyInAnyOrder("Hybrid bensin", "Hybrid diesel");
+    }
+
+    @Test
+    void spelarIngenRollGerTomtFilterSaGolvetBeterSigSomForut() {
+        var f = GroqService.adFilterFor("spelar ingen roll", "suv", "spelar ingen roll");
+        assertThat(f.fuels()).isEmpty();
+        assertThat(f.gearbox()).isNull();
+    }
+
+    @Test
+    void dieselsokSlapperInteLaddhybriddiesel() {
+        assertThat(GroqService.adFilterFor("diesel", "familjebil", null).fuels())
+                .containsExactlyInAnyOrder("Diesel", "Hybrid diesel");
+    }
+
     // --- buildSystemPrompt ---
 
     @Test
