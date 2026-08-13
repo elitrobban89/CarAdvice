@@ -272,6 +272,21 @@ class GroqServiceTest {
     }
 
     @Test
+    void formularetsElbilssokFarKandidatlistanOchKravetUtskrivet() {
+        // affordableModelsLine och activeConstraints gatas på SAMMA pureEv() som vakten, så de
+        // föll med den. Kandidatlistan är särskilt allvarlig: den byggdes 2026-08-10 för att
+        // golvvakten fällde EV6/Ioniq 5/Enyaq utan att omförsöket fyllde på till tre kort, och
+        // botemedlet var alltså avstängt på exakt den väg symtomet uppstod.
+        var formularetsElbilssok = prefs(200_000, "elbil", true, 15_000, false,
+                "spelar ingen roll", "spelar ingen roll", "köp", null);
+
+        assertThat(GroqService.affordableModelsLine(formularetsElbilssok))
+                .contains("MODELLER SOM RYMS I BUDGETEN");
+        assertThat(GroqService.activeConstraints(formularetsElbilssok))
+                .contains("ren elbil");
+    }
+
+    @Test
     void laddhybridskategorinPaverkasInteAvElbilsgrenen() {
         // Kategorin laddhybrid ska fortfarande ge brasklappen och INTE BEV-tvånget, oavsett
         // vilket kvarglömt drivmedelsvärde formuläret råkar skicka med.
