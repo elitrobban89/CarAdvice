@@ -425,6 +425,7 @@ CarAdvice/
     │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
     │       ├── ExpertInsightService.java
     │       ├── GroqService.java        ← Groq AI, cache, felhantering
+    │       ├── IceGenerationService.java ← Generationsår per modell: låter motorlistan avstå för äldre årsmodeller
     │       ├── SafetyRatingService.java
     │       ├── SavedSearchService.java ← CRUD för sparade sökningar (max 20/användare)
     │       ├── StripeService.java      ← Checkout-session, webhook-hantering
@@ -650,7 +651,7 @@ curl -X DELETE "https://caradvice.onrender.com/api/admin/seen-keys?key=https://c
 
 ### `GET /api/admin/cargo-coverage`
 
-Hur stor del av `cargo_spec` som faktiskt har en uppmätt bagagevolym: `{"total":243,"medVolym":243,"utanVolym":0}` (2026-08-10). **Läs `total` rätt:** det är antalet rader i cargo_spec, INTE antalet bilar appen känner till — `/api/cars` svarade 697 och är unionen av cargo_spec och ev_spec. Den förväxlingen dolde att `utanVolym` redan var 0. Finns för att nattens ifyllning (EV-synken, se ovan) annars bara syns i Render-loggen, och för att siffran styr en designfråga: bagagevakten `requireCargoCapacity` faller bara på **positivt bevis** just för att täckningen är låg, och när den närmar sig 100 % för elbilar går regeln att skärpa. Kräver `X-Admin-Key`-header.
+Hur stor del av `cargo_spec` som faktiskt har en uppmätt bagagevolym, plus hur långt generationsifyllningen kommit: `{"total":602,"medVolym":602,"utanVolym":0,"iceGenerations":0}` (2026-08-13). **`iceGenerations`** är antalet modeller som fått sitt generationsår i `ice_generation`, och det avgör om motorlistvakten biter alls — 0 betyder att den ännu är verkningslös. Fältet ligger här och inte bara i loggen därför att **nattkontrollrutinerna inte kan läsa Render-loggen**; en siffra som bara finns där går aldrig att bevaka, vilket kollisionstalet i EV-synken är det stående exemplet på. **Läs `total` rätt:** det är antalet rader i cargo_spec, INTE antalet bilar appen känner till — `/api/cars` svarade 697 och är unionen av cargo_spec och ev_spec. Den förväxlingen dolde att `utanVolym` redan var 0. Finns för att nattens ifyllning (EV-synken, se ovan) annars bara syns i Render-loggen, och för att siffran styr en designfråga: bagagevakten `requireCargoCapacity` faller bara på **positivt bevis** just för att täckningen är låg, och när den närmar sig 100 % för elbilar går regeln att skärpa. Kräver `X-Admin-Key`-header.
 
 ```bash
 curl "https://caradvice.onrender.com/api/admin/cargo-coverage" \
