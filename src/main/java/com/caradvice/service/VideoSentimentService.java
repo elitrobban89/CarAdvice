@@ -199,7 +199,28 @@ public class VideoSentimentService {
         return out;
     }
 
+    /**
+     * Hur länge kommentarsanalysen håller sig borta från Groq efter ett 429.
+     *
+     * <p>Tjänsten kör på {@code groq.chat.model}, som också är rekommendationernas
+     * FALLBACK-modell — de delar alltså per-minut-hink. Analysen är en trevlighet på ett bilkort
+     * medan rekommendationen är hela svaret användaren väntar på, så när hinken är tom ska den
+     * här vika undan. Utan spärren gjorde den tvärtom: mätt i produktionsloggen 2026-08-13
+     * kl. 08:59-09:01 gick åtta {@code car_video_sentiment}-anrop rakt in i 429 under exakt de
+     * minuter då rekommendationsvägen svalt, och varje sådant anrop är ren belastning — svaret
+     * kastas ändå.
+     *
+     * <p>Ett saknat omdöme kostar ingenting: {@code classify} returnerar redan null vid fel och
+     * anroparen klarar det. Fönstret är satt efter Groqs egna {@code try again in}-besked i
+     * samma logg (10-59 s).
+     */
+    private static final long GROQ_COOL_OFF_MS = 60_000L;
+
+    /** Epoch-ms då kommentarsanalysen får prata med Groq igen. 0 = ingen paus. */
+    private volatile long groqPausedUntil = 0L;
+
     private JsonNode classify(List<String> comments) {
+        if (System.currentTimeMillis() < groqPausedUntil) return null;
         try {
             StringBuilder user = new StringBuilder("KOMMENTARER:\n");
             for (int i = 0; i < comments.size(); i++) {
@@ -222,7 +243,13 @@ public class VideoSentimentService {
                     .build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
-                log.warn("car_video_sentiment: Groq svarade {}", resp.statusCode());
+                if (resp.statusCode() == 429) {
+                    groqPausedUntil = System.currentTimeMillis() + GROQ_COOL_OFF_MS;
+                    log.warn("car_video_sentiment: Groq svarade 429 — pausar kommentarsanalysen {} s"
+                            + " så rekommendationerna får hinken", GROQ_COOL_OFF_MS / 1000);
+                } else {
+                    log.warn("car_video_sentiment: Groq svarade {}", resp.statusCode());
+                }
                 return null;
             }
             String content = mapper.readTree(resp.body()).path("choices").path(0)

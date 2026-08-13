@@ -176,8 +176,24 @@ public class GroqService {
      * med nattscrapern.
      */
     private static final int RECOMMENDATION_MAX_TOKENS = 3000;
-    /** Omförsökets tokentak — se jsonCallBody(…, maxTokens) för varför det är högre än ordinarie. */
-    private static final int RETRY_MAX_TOKENS = 3400;
+    /**
+     * Omförsökets tokentak. Lika med det ordinarie, och får inte höjas över det — samma regel
+     * som {@link #RECOMMENDATION_MAX_TOKENS}, av samma skäl.
+     *
+     * <p>Stod på 4500 från {@code a0d7256} (2026-08-09) och sänktes sedan till 3400 för att
+     * bekämpa trunkering, men aldrig hela vägen ned. Återställningen till 3000 som stängde 413
+     * på primärvägen rörde alltså aldrig reservvägen, och den bar felet vidare tills trafiken
+     * blev hög nog att visa det: mätt i produktionsloggen 2026-08-13 kl. 08:59-09:01 avvisades
+     * sex anrop mot {@code qwen/qwen3.6-27b} med 413, med {@code Requested} 8044, 8092, 8110,
+     * 8151, 8157 och 8165 mot taket 8000. Drar man bort de 3400 reserverade landar prompten på
+     * 4644-4765 tokens — varenda ett av dem hade rymts under 8000 med 3000 reserverade.
+     *
+     * <p>Avvägningen är medveten: 3400 fanns för att ett omförsök med samma tak ofta upprepar
+     * trunkeringen. Men 413 är ett hårt fel som fäller hela anropet, medan trunkering utlöser
+     * just det omförsök som finns här — den sämre av de två utfallen är alltså 413. Vägen till
+     * att bli av med båda går genom en kortare systemprompt, inte genom ett högre tak.
+     */
+    private static final int RETRY_MAX_TOKENS = RECOMMENDATION_MAX_TOKENS;
     private static final long CACHE_TTL_MS = 4 * 60 * 60 * 1000;
     private static final int MAX_CACHE_SIZE = 200;
     private static final long PRICES_TTL_MS = 60 * 60 * 1000;
@@ -243,9 +259,11 @@ public class GroqService {
     }
 
     /**
-     * Med eget takvärde. Reservmodellen får mer utrymme än ordinarie: "AI-svaret blev
-     * ofullständigt" betyder att svaret inte hann skrivas färdigt inom taket, och att göra om
-     * försöket med samma tak upprepar oftast samma trunkering.
+     * Med eget takvärde. Reservmodellen körde en tid med ett HÖGRE tak än ordinarie, eftersom
+     * "AI-svaret blev ofullständigt" betyder att svaret inte hann skrivas färdigt och ett
+     * omförsök med samma tak ofta upprepar trunkeringen. Det gav i stället 413 på reservvägen —
+     * se {@link #RETRY_MAX_TOKENS}. Överlagringen finns kvar för att taket ska gå att sätta per
+     * anrop, men inget anrop får längre reservera mer än {@link #RECOMMENDATION_MAX_TOKENS}.
      */
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt,
                                              String userPrompt, int maxTokens) {
@@ -2251,16 +2269,16 @@ public class GroqService {
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj rymliga modeller: kombi, SUV eller rymlig halvkombi/sedan. Beprövade familjebilar att utgå från — bensin/diesel/hybrid: Volvo V60/V90 (hög komfort, toppklass krocksäkerhet, 529 l bagage i V60), Škoda Octavia Combi (klassledande bagageutrymme per krona), Kia Ceed SW (mycket bil för pengarna, 7 års nybilsgaranti), Dacia Jogger (mest plånboksvänlig, finns med 7 säten); elbil: Škoda Enyaq (rymlig, lång räckvidd), VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage — marknadens billigaste elbil med kombikaross och därför ett självklart förslag när budgeten ligger under ca 250 000 kr).
+                FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).
                 SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).
                 SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
                 """ + EV_PRICE_FLOORS + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
-                BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte att hitta under det taket är bilen fel förslag oavsett hur väl den passar i övrigt — byt till äldre årsmodell, enklare utrustningsnivå eller ett billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
+                BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte under taket är bilen fel förslag hur väl den än passar — byt till äldre årsmodell, enklare utrustning eller billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
                 SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
                 "price" är ALLTID ett intervall som "85 000–100 000 kr" — siffror med mellanslag, inga förkortningar eller extra text.
                 """ + DEPRECIATION_RULE + "\n" + """
-                "whyRecommended" är en KÄLLA eller ett omdöme ("Teknikens Värld: toppbetyg", "Vi Bilägare: prisvärd och rymlig") — ALDRIG pris- eller marknadsuppgifter. Skriv aldrig meningar om Blocket, antal annonser, begagnatgolv eller mätarställningar där: de siffrorna räknas fram ur riktiga annonser och står redan på kortet, så en gissning bredvid dem blir en synlig motsägelse.
+                "whyRecommended" är en KÄLLA eller ett omdöme ("Teknikens Värld: toppbetyg", "Vi Bilägare: prisvärd och rymlig") — ALDRIG pris- eller marknadsuppgifter. Skriv aldrig om Blocket, antal annonser, begagnatgolv eller mätarställningar där; de står redan på kortet.
                 FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.
                 Ange motorbeteckning (TDI/TSI/MPI/volym) bara om du är säker på att varianten finns — annars bara hk + 'manuell'/'automat'.
                 Rekommendera ALDRIG BYD Dolphin eller Hyundai INSTER. Håll dig till dessa märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai, Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är bensinbil, INTE elbil. Aldrig bensin/diesel när användaren efterfrågar elbil.
@@ -2268,7 +2286,7 @@ public class GroqService {
                 PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).
                 Rekommendera ALDRIG en årsmodell före modellens verkliga lansering — nyheter om en modell betyder inte att den finns begagnad. Ex: Kia EV2 lanseras 2026 (finns ALDRIG begagnad), Kia EV3 2024+, EV4/EV5 2025+, Renault 5 E-Tech 2024+, Citroën ë-C3 2024+, Volvo EX30 2023+.
                 Volvos enda EV-modeller: EX30, EX40, EC40, EX60, EX90 — det finns inga andra (ingen C90/C70).
-                Nämn ALDRIG modeller som aldrig sålts i Sverige. Att en modell SLUTAT tillverkas är däremot inget hinder i ett begagnatsök — tvärtom: Renault Zoe (2012–mars 2024, ersatt av Renault 5), VW e-Golf och äldre Nissan Leaf är bland de vanligaste billiga begagnade elbilarna och ligger på Blocket i 49, 29 respektive 44 exemplar. Undantag: i NYBILSSÖK och LEASING måste modellen gå att köpa ny idag. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är helt säker på finns.
+                Nämn ALDRIG modeller som aldrig sålts i Sverige. Att en modell SLUTAT tillverkas är däremot inget hinder i ett begagnatsök — Renault Zoe, VW e-Golf och äldre Nissan Leaf är vanliga billiga begagnade elbilar. Undantag: i NYBILSSÖK och LEASING måste modellen gå att köpa ny idag. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är säker på finns.
                 """ + (wantsEv && !wantsIce && !wantsPhev ? "ELBIL OBLIGATORISKT: ENBART renodlade batterielbilar (BEV) — aldrig PHEV, laddhybrid eller bensin/diesel.\n" : "")
                     + (wantsPhev ? PHEV_TAX_CAVEAT : "")
                     + (icePrices.isBlank() ? "" : icePrices + "\n")

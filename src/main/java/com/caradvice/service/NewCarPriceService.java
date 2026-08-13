@@ -172,12 +172,24 @@ public class NewCarPriceService {
         }
     }
 
+    /**
+     * Så många nyprisrader som får följa med in i systemprompten.
+     *
+     * <p>Sänkt från 50 till 30 2026-08-13 som en del av promptbantningen: Groq mäter
+     * {@code prompt + reserverade max_tokens} mot per-minut-taket på 8 000, och prompten låg
+     * mätt i produktionsloggen på 4 644-4 765 tokens — nära nog taket att reservvägen avvisades
+     * med 413. Raderna är sorterade på pris stigande, så de 20 som faller bort är de DYRASTE i
+     * tabellen; de behövs minst, eftersom {@code DEPRECIATION_RULE} bara använder tabellen som
+     * prisankare och de dyra bilarna sällan ryms i en begagnatbudget ändå.
+     */
+    private static final int MAX_PRICE_ROWS_IN_PROMPT = 30;
+
     public String buildPriceReferenceContext() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT car_name, price_kr FROM new_car_price ORDER BY price_kr, car_name");
         if (rows.isEmpty()) return "";
         String prices = rows.stream()
-                .limit(50)
+                .limit(MAX_PRICE_ROWS_IN_PROMPT)
                 .map(r -> r.get("car_name") + " fr. " + formatSek(((Number) r.get("price_kr")).intValue()))
                 .collect(Collectors.joining(", "));
         return "ICE-nypris Sverige (SEK): " + prices;
