@@ -235,14 +235,53 @@ class GroqServiceTest {
 
     @Test
     void elbilskategorinGerElfilterAvenNarDrivmedelsrutanArDold() {
-        // Formuläret DÖLJER drivmedelsrutan för kategorin elbil och tvingar värdet till
-        // "spelar ingen roll" — och den strängen bär delsträngen "el" (i "spelar"), så
-        // fuelIntent får både ev och ice sanna och pureEv() blir falskt. Utan den uttryckliga
-        // kategorigrenen hade ett elbilssök från formuläret fått ett TOMT filter, alltså exakt
-        // den blindhet som skulle åtgärdas.
         assertThat(GroqService.adFilterFor("spelar ingen roll", "elbil", "spelar ingen roll").fuels())
                 .containsExactly("El");
         assertThat(GroqService.adFilterFor("el", "elbil", null).fuels()).containsExactly("El");
+    }
+
+    // --- formulärets elbilspayload: kategorin måste bära hela avsikten ---
+
+    @Test
+    void formularetsElbilssokRaknasSomRenElbilTrotsSpelarIngenRoll() {
+        // Formuläret DÖLJER drivmedelsrutan för elbil/laddhybrid och tvingar värdet till
+        // "spelar ingen roll" — en sträng som bär delsträngen "el" INUTI "spelar". Laddhybrid
+        // räddades av sin carCategory-gren, elbil hade ingen: ev och ice blev båda sanna och
+        // pureEv() falskt. Uppmätt 2026-08-13 gav det tre fel samtidigt på appens vanligaste
+        // elbilsväg, och alla tre satt i samma villkor.
+        var intent = GroqService.fuelIntent("spelar ingen roll", "elbil");
+
+        assertThat(intent.pureEv()).isTrue();   // → requirePureEvCars körs
+        assertThat(intent.ev()).isTrue();
+        assertThat(intent.ice()).isFalse();     // → ICE-nypristabellen utelämnas
+    }
+
+    @Test
+    void formularetsElbilssokFarBevKravOchSlipperIceTabellen() {
+        // Samma payload som gränssnittet faktiskt skickar. Live-verifieringarna gick via API
+        // med fuelType="el", där pureEv() redan var sant, så just den här payloaden provades
+        // aldrig — därför testet.
+        String sp = serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", "elbil");
+
+        assertThat(sp)
+                .contains("ELBIL OBLIGATORISKT")
+                .contains("EV-PRISTABELL-MARKÖR")
+                // Båda tabellerna följde med före fixen, alltså det tyngsta promptfallet —
+                // samma storleksklass som gav HTTP 413 på reservvägen.
+                .doesNotContain("ICE-NYPRISTABELL-MARKÖR");
+    }
+
+    @Test
+    void laddhybridskategorinPaverkasInteAvElbilsgrenen() {
+        // Kategorin laddhybrid ska fortfarande ge brasklappen och INTE BEV-tvånget, oavsett
+        // vilket kvarglömt drivmedelsvärde formuläret råkar skicka med.
+        var intent = GroqService.fuelIntent("spelar ingen roll", "laddhybrid");
+        assertThat(intent.phev()).isTrue();
+        assertThat(intent.pureEv()).isFalse();
+
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", "laddhybrid"))
+                .contains("LADDHYBRIDSKATT")
+                .doesNotContain("ELBIL OBLIGATORISKT");
     }
 
     @Test

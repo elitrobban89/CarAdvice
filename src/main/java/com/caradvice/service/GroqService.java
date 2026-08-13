@@ -2259,14 +2259,34 @@ public class GroqService {
      * <p>Drivmedelslistan i formuläret saknar "laddhybrid" (valen är bensin/diesel/hybrid/el/
      * spelar ingen roll) — laddhybrid uttrycks som KATEGORI. fuelType testas ändå för
      * API-anropare som skickar drivmedlet direkt.
+     *
+     * <p><b>KATEGORIN "elbil" är lika bindande som "laddhybrid", och det måste stå här och inte
+     * hos anroparna.</b> Formuläret DÖLJER drivmedelsrutan för båda kategorierna och tvingar
+     * värdet till "spelar ingen roll" — en sträng som bär delsträngen "el" inuti "spelar".
+     * Laddhybrid räddades av sin {@code carCategory}-gren, men elbil hade ingen: {@code ev} och
+     * {@code ice} blev båda sanna och {@code pureEv()} FALSKT. Uppmätt 2026-08-13 gav
+     * formulärets elbilssök därför tre fel samtidigt, alla på appens vanligaste elbilsväg:
+     *
+     * <ol>
+     *   <li>{@code requirePureEvCars} kördes aldrig — drivmedelsvakten var avstängd</li>
+     *   <li>"ELBIL OBLIGATORISKT" saknades i systemprompten</li>
+     *   <li>BÅDA nypristabellerna följde med, alltså det tyngsta promptfallet — samma
+     *       storleksklass som gav HTTP 413 (se {@link #RETRY_MAX_TOKENS})</li>
+     * </ol>
+     *
+     * <p>Att fixa det hos varje anropare hade krävt tre kopior av samma villkor, vilket är
+     * precis det den här metoden finns för att förhindra. Live-verifieringarna missade felet
+     * för att de gick via API med {@code fuelType="el"}, där {@code pureEv()} redan var sant —
+     * formulärets payload provades aldrig.
      */
     static FuelIntent fuelIntent(String fuelType, String carCategory) {
-        boolean hev = "hybrid".equalsIgnoreCase(fuelType == null ? null : fuelType.trim());
-        boolean ev = !hev && fuelType != null &&
-                (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev"));
-        boolean ice = hev || fuelType == null || fuelType.isBlank() ||
+        boolean elbilKategori = "elbil".equals(carCategory);
+        boolean hev = !elbilKategori && "hybrid".equalsIgnoreCase(fuelType == null ? null : fuelType.trim());
+        boolean ev = elbilKategori || (!hev && fuelType != null &&
+                (fuelType.contains("el") || fuelType.contains("hybrid") || fuelType.contains("phev")));
+        boolean ice = !elbilKategori && (hev || fuelType == null || fuelType.isBlank() ||
                 fuelType.contains("bensin") || fuelType.contains("diesel") ||
-                fuelType.equals("spelar ingen roll");
+                fuelType.equals("spelar ingen roll"));
         String ft = fuelType == null ? "" : fuelType.toLowerCase();
         boolean phev = "laddhybrid".equals(carCategory) || ft.contains("laddhybrid") || ft.contains("phev");
         return new FuelIntent(ev, ice, phev, hev);
@@ -2281,17 +2301,12 @@ public class GroqService {
      * poängen med att den metoden finns, och en andra tolkning hade glidit isär vid första
      * ändringen precis som dess javadoc varnar för.
      *
-     * <p><b>Kategorin "elbil" hanteras uttryckligen, och det är avsiktligt.</b> Formuläret
-     * DÖLJER drivmedelsrutan när kategorin är elbil eller laddhybrid och tvingar värdet till
-     * "spelar ingen roll" — och den strängen innehåller delsträngen "el" (i "spelar"), så
-     * {@code fuelIntent} får både {@code ev} och {@code ice} sanna och {@code pureEv()} blir
-     * falskt. {@code fuelIntent} löser redan laddhybrid via {@code carCategory}; elbil saknar
-     * motsvarande gren, så den tas här. Utan raden hade ett elbilssök från formuläret fått ett
-     * tomt filter, alltså exakt den blindhet som skulle åtgärdas.
-     *
      * <p>"Hybrid bensin" räknas som bensin: en självladdande hybrid är en bensinbil, samma
      * bedömning som {@code fuelIntent} gör när den lägger HEV under {@code ice}. "Plug-in
      * Bensin" räknas däremot inte — den som bett om bensin har inte bett om en laddhybrid.
+     *
+     * <p>Kategorin elbil behöver INGEN egen gren här: {@code fuelIntent} avgör den redan, och
+     * en andra kopia av det villkoret var precis vad som gjorde felet svårt att se från början.
      */
     static BlocketPriceService.AdFilter adFilterFor(String fuelType, String carCategory, String transmission) {
         String gearbox = null;
@@ -2304,7 +2319,7 @@ public class GroqService {
         FuelIntent intent = fuelIntent(fuelType, carCategory);
         String ft = fuelType == null ? "" : fuelType.toLowerCase();
         java.util.Set<String> fuels;
-        if ("elbil".equals(carCategory) || intent.pureEv())   fuels = java.util.Set.of("El");
+        if (intent.pureEv())                                  fuels = java.util.Set.of("El");
         else if (intent.phev())                               fuels = java.util.Set.of("Plug-in Bensin", "Plug-in Diesel");
         else if (intent.hev())                                fuels = java.util.Set.of("Hybrid bensin", "Hybrid diesel");
         else if (ft.contains("bensin"))                       fuels = java.util.Set.of("Bensin", "Hybrid bensin");
