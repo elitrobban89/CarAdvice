@@ -476,6 +476,23 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void suffixSkyddarInteEnRadFranAttHamnaPaFelKort() {
+        // Forsta inventeringen friade ID.3 med motiveringen att "Neo" i radnamnet skulle hindra
+        // en match mot titeln "Volkswagen ID.3". Det var bakvant: verifiedEngineOptions kraver
+        // att varje ord i TITELN finns i RADENS namn, sa en LANGRE rad matchar alltid en KORTARE
+        // titel. Live 2026-08-13 gav ett kort for en 2022:a Neo-varianter med 630 km.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volkswagen ID.3 Pro 58 kWh",  11.0, 120.0, 58.0, 409, 0),
+                new EvSpec("Volkswagen ID.3 Neo 79 kWh",  11.0, 185.0, 79.0, 630, 0)));
+
+        // Utan tagg drar den korta titeln in bada raderna — det ar sjalva exponeringen.
+        assertThat(service().verifiedEngineOptions("Volkswagen ID.3 (2022)"))
+                .contains("58 kWh (409 km)").doesNotContain("630 km");
+        assertThat(service().verifiedEngineOptions("Volkswagen ID.3 (2026)"))
+                .contains("79 kWh (630 km)").doesNotContain("409 km");
+    }
+
+    @Test
     void klassAModellerFarSinEgenGenerationEfterArsmodell() {
         // Inventeringen 2026-08-13 hittade nio modeller vars ENDA rad bar nyaste generationens
         // siffror, sa arsfiltret hade inget att valja mellan. Kona ar mallexemplet: gen 1

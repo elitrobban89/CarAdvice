@@ -375,7 +375,11 @@ public class DataLoader implements CommandLineRunner {
             java.util.Map.entry("Volkswagen ID.4 Pro 77 kWh",        new double[]{77.0, 481}),
             java.util.Map.entry("Hyundai IONIQ 5 54 kWh",            new double[]{54.0, 384}),
             java.util.Map.entry("Hyundai IONIQ 5 70 kWh",            new double[]{70.0, 451}),
-            java.util.Map.entry("Toyota bZ4X 64 kWh",                new double[]{64.0, 442}));
+            java.util.Map.entry("Toyota bZ4X 64 kWh",                new double[]{64.0, 442}),
+            // Tillagda 2026-08-13 efter att exponeringslistan gjorts om mot RÄTT matchningsregel
+            // — se DataLoader-kommentaren vid raderna nedan.
+            java.util.Map.entry("Volkswagen ID.3 Pro 58 kWh",        new double[]{58.0, 409}),
+            java.util.Map.entry("BMW i3 120 Ah 37.9 kWh",            new double[]{37.9, 308}));
 
     /**
      * Rader som nattsynken en gång skrev fel data i, och som ingen källa rättar av sig själv.
@@ -648,6 +652,29 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Hyundai IONIQ 5 70 kWh",          11.0, 225.0, 70.0, 451, 0));
         if (!existing.contains("Toyota bZ4X 64 kWh"))
             extras.add(new EvSpec("Toyota bZ4X 64 kWh",              11.0, 150.0, 64.0, 442, 0));
+
+        /*
+         * ID.3 och i3, tillagda efter att EXPONERINGSLISTAN GJORDES OM mot rätt matchningsregel.
+         *
+         * Första inventeringen antog att en rad med extra ord i namnet inte kan matcha en kortare
+         * titel, och friade båda modellerna på den grunden. Regeln är den omvända
+         * (EvSpecService.verifiedEngineOptions): varje ord i TITELN måste finnas i RADENS namn,
+         * så en rad med fler ord matchar alltid en kortare titel. "Volkswagen ID.3" ⊆
+         * {volkswagen, id.3, neo, 50, kwh} — alltså träff.
+         *
+         * Bekräftat i drift 2026-08-13: ett kort för "Volkswagen ID.3 (2022)" listade Neo-rader
+         * (2026 års bil) med upp till 630 km. i3 är inte observerad live men följer av samma
+         * regel: tabellens enda i3-rad är "BMW i3 50 xDrive", 108,7 kWh / 912 km, alltså 2026 års
+         * Neue Klasse-sedan — en helt annan bil än 2013-2022 års i3-halvkombi.
+         *
+         * Siffrorna är ANVÄNDBAR kapacitet och WLTP från ev-database, som resten av klass A.
+         * i3 120 Ah (2018-2022) är den i3 som faktiskt finns begagnad i antal; 60 Ah och 94 Ah
+         * utelämnas hellre än gissas.
+         */
+        if (!existing.contains("Volkswagen ID.3 Pro 58 kWh"))
+            extras.add(new EvSpec("Volkswagen ID.3 Pro 58 kWh",      11.0, 120.0, 58.0, 409, 0));
+        if (!existing.contains("BMW i3 120 Ah 37.9 kWh"))
+            extras.add(new EvSpec("BMW i3 120 Ah 37.9 kWh",          11.0,  50.0, 37.9, 308, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

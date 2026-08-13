@@ -451,6 +451,23 @@ public class EvSpecService {
     private static final Generation BZ4X_GEN1   = new Generation("bZ4X pre-facelift", 2022);
     private static final Generation BZ4X_GEN2   = new Generation("bZ4X facelift", 2025);
 
+    /**
+     * ID.3 och i3 — hittade först när exponeringslistan gjordes om mot RÄTT matchningsregel.
+     *
+     * <p>Den första inventeringen friade båda med motiveringen att en rad med extra ord i namnet
+     * ("ID.3 <b>Neo</b> 50 kWh", "i3 <b>50 xDrive</b>") inte skulle matcha en kortare titel. Det
+     * var precis bakvänt: {@link #verifiedEngineOptions} kräver att varje ord i TITELN finns i
+     * RADENS namn, så en längre rad matchar alltid en kortare titel. Ett kort för
+     * "Volkswagen ID.3 (2022)" listade därför Neo-varianter med 630 km, bekräftat i drift.
+     *
+     * <p>Lärdomen är generell: <b>suffix skyddar inte en rad från att hamna på fel kort.</b>
+     * Varje modell med rader ur mer än en generation måste taggas, oavsett hur namnen ser ut.
+     */
+    private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020);
+    private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026);
+    private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013);
+    private static final Generation I3_GEN2  = new Generation("i3 Neue Klasse", 2026);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -515,7 +532,14 @@ public class EvSpecService {
             Map.entry("hyundai ioniq 5 63 kwh rwd",      IONIQ5_GEN2),
             Map.entry("hyundai ioniq 5",                 IONIQ5_GEN2),
             Map.entry("toyota bz4x 64 kwh",              BZ4X_GEN1),
-            Map.entry("toyota bz4x",                     BZ4X_GEN2));
+            Map.entry("toyota bz4x",                     BZ4X_GEN2),
+            Map.entry("volkswagen id.3",                 ID3_GEN1),
+            Map.entry("volkswagen id.3 pro 58 kwh",      ID3_GEN1),
+            Map.entry("volkswagen id.3 neo 50 kwh",      ID3_GEN2),
+            Map.entry("volkswagen id.3 neo 58 kwh",      ID3_GEN2),
+            Map.entry("volkswagen id.3 neo 79 kwh",      ID3_GEN2),
+            Map.entry("bmw i3 120 ah 37.9 kwh",          I3_GEN1),
+            Map.entry("bmw i3 50 xdrive",                I3_GEN2));
 
 
     /**
