@@ -17,6 +17,7 @@ import com.caradvice.service.ExpertInsightService;
 import com.caradvice.service.FeedbackService;
 import com.caradvice.service.GroqService;
 import com.caradvice.service.IceConsumptionService;
+import com.caradvice.service.IceGenerationService;
 import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
 import com.caradvice.service.UpcomingInsightService;
@@ -73,6 +74,7 @@ public class CarController {
     private final CarVideoService carVideoService;
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
+    private final IceGenerationService iceGenerationService;
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingInsightService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
@@ -113,7 +115,9 @@ public class CarController {
                          IceConsumptionService iceConsumptionService, CarVideoService carVideoService,
                          MobilityStatsSyncService mobilityStatsSyncService,
                          EvSpecService evSpecService, JobStatusService jobStatus,
-                         UpcomingInsightService upcomingInsightService) {
+                         UpcomingInsightService upcomingInsightService,
+                         IceGenerationService iceGenerationService) {
+        this.iceGenerationService = iceGenerationService;
         this.jobStatus = jobStatus;
         this.upcomingInsightService = upcomingInsightService;
         this.evSpecService = evSpecService;
@@ -693,10 +697,25 @@ public class CarController {
     // Admin: hur många bilnamn som har uppmätt bagagevolym. Utan den här går nattens ifyllning
     // bara att avläsa i Render-loggen, och bagagevaktens "fäll bara på positivt bevis" vilar
     // på just den siffran.
+    /**
+     * Bagagetäckningen, plus {@code iceGenerations} — antal modeller som fått sitt
+     * generationsår ifyllt av samma 03:00-jobb.
+     *
+     * <p>Talet ligger här och inte bara i loggen av ett konkret skäl: nattkontrollrutinerna kan
+     * inte läsa Render-loggen, så en siffra som bara finns där går aldrig att bevaka. Samma
+     * lärdom som kollisionstalet i EV-synken gav — det står bara i loggens {@code Sync
+     * complete}-rad och har därför aldrig kunnat följas.
+     *
+     * <p>Vakten i {@code IceConsumptionService.engineOptionsForTitle} är verkningslös så länge
+     * talet är 0: okänt generationsår betyder "ingen åsikt" och listan visas som förut.
+     */
     @GetMapping("/admin/cargo-coverage")
     public ResponseEntity<?> cargoCoverage(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        return ResponseEntity.ok(cargoSpecService.coverage());
+        Map<String, Object> ut = new LinkedHashMap<>(cargoSpecService.coverage());
+        try { ut.put("iceGenerations", iceGenerationService.antal()); }
+        catch (Exception e) { log.warn("cargo-coverage: ice_generation kunde inte räknas: {}", e.getMessage()); }
+        return ResponseEntity.ok(ut);
     }
 
     // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning
