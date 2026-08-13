@@ -462,12 +462,34 @@ class EvSpecServiceTest {
     @Test
     void variantUtanRackviddSlasIhopSomForut() {
         // Saknas rackvidden finns inget att skilja raderna at med — da galler den gamla
-        // regeln, annars hade en rad utan siffror blivit en egen tom variant
+        // regeln, annars hade en rad utan siffror blivit en egen tom variant.
+        //
+        // Fixturen anvande tidigare EV6, men EV6 ar generationstaggad sedan 2026-08-13 och
+        // generationen ingar i gruppidentiteten — tva rader ur olika generationer slas darfor
+        // aldrig ihop, oavsett rackvidd. Regeln som testas har handlar om den saknade
+        // rackvidden, sa fixturen anvander nu en OTAGGAD modell for att prova den i isolering.
         when(repo.findAll()).thenReturn(List.of(
-                new EvSpec("Kia EV6 Long Range", 11.0, 233.0, 77.4, 0, 0),
-                new EvSpec("Kia EV6 Long Range 2WD", 11.0, 233.0, 80.0, 582, 0)));
+                new EvSpec("Kia EV9 Long Range", 11.0, 233.0, 96.0, 0, 0),
+                new EvSpec("Kia EV9 Long Range 2WD", 11.0, 233.0, 99.8, 579, 0)));
 
-        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("80 kWh (582 km)");
+        assertThat(service().verifiedEngineOptions("Kia EV9")).isEqualTo("99.8 kWh (579 km)");
+    }
+
+    @Test
+    void ev6PreFaceliftOchFaceliftSlasAldrigIhopEfterTaggningen() {
+        // Inventeringen 2026-08-13 gick igenom alla 539 ev_spec-rader och EV6 var den ENDA
+        // modell dar bada generationerna redan fanns men ingen var taggad. Ett kort for en
+        // 2022:a kunde darfor fa faceliftens 84 kWh. Generationen ingar i gruppidentiteten,
+        // sa taggningen halls isar dem aven nar kWh-avstandet ar litet (77,4 mot 80).
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Kia EV6 Long Range 2WD 77.4 kWh", 11.0, 233.0, 77.4, 528, 0),
+                new EvSpec("Kia EV6 Long Range 2WD", 11.0, 258.0, 80.0, 582, 0)));
+
+        // Domen ar vilken GENERATION arsmodellen far, inte hur trimetiketten formateras.
+        assertThat(service().verifiedEngineOptions("Kia EV6 (2022)"))
+                .contains("77.4 kWh (528 km)").doesNotContain("80 kWh");
+        assertThat(service().verifiedEngineOptions("Kia EV6 (2025)"))
+                .contains("80 kWh (582 km)").doesNotContain("77.4 kWh");
     }
 
     @Test

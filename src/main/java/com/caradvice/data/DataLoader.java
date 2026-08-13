@@ -333,15 +333,69 @@ public class DataLoader implements CommandLineRunner {
      * i verifieringssöket 2026-08-11. Pre-facelift 2019–2021 var 44,5 kWh / 263 km WLTP.
      * Bara den raden läggs till här: faceliftens Standard Range (51,1 kWh) finns hos
      * ev-database, och det som har en riktig källa ska synken äga, inte vi.
+     *
+     * <p><b>Renault Zoe och Tesla Model 3 tillkom 2026-08-13</b> ur inventeringen av hela
+     * {@code ev_spec} (539 rader). Båda hade samma form som Leaf: en enda rad med den nyaste
+     * generationens siffror, alltså inget för årsfiltret att välja mellan.
+     *
+     * <ul>
+     *   <li><b>Zoe</b> bar bara ZE50 (50 kWh / 395 km, 2019–2024). ZE40 (2017–2019) är
+     *       41,0 kWh / 300 km WLTP enligt ev-database, alltså samma källa synken använder.
+     *       Q210/R240 (2013–2016) såldes före WLTP och får verklig bruksräckvidd, som Leaf
+     *       gen 1. Zoe är det billigaste begagnade elbilssegmentet och därmed mitt i appens
+     *       målgrupp — memoryt noterade 49 Blocket-annonser från 58 000 kr.</li>
+     *   <li><b>Model 3</b> bar bara Highland (2024+). Pre-facelift 2019–2023 var Standard
+     *       Range Plus 55,4 kWh / 430 km och Long Range AWD 82 kWh / 614 km WLTP. Felet
+     *       bekräftades i drift 2026-08-13: ett kort för "Tesla Model 3 (2020)" listade
+     *       Highland-varianter med 716 och 750 km.</li>
+     * </ul>
+     *
+     * <p><b>Performance-varianterna utelämnas med flit</b> för båda bilarna. De är en liten del
+     * av begagnatmarknaden och deras WLTP-tal varierar mellan källor och fälgstorlekar — och en
+     * rad som finns här ska vara belagd, inte ungefärlig. Samma avvägning som priset 0.
      */
-    static final java.util.Map<String, double[]> UTGANGNA_GENERATIONER = java.util.Map.of(
-            "Nissan Leaf 24 kWh",    new double[]{24.0, 120},
-            "Nissan Leaf 30 kWh",    new double[]{30.0, 150},
-            "Nissan Leaf 40 kWh",    new double[]{40.0, 270},
-            "Nissan Leaf e+ 62 kWh", new double[]{62.0, 385},
-            "MG ZS EV 44.5 kWh",     new double[]{44.5, 263},
-            "Volkswagen e-Golf 24.2 kWh", new double[]{24.2, 130},
-            "Volkswagen e-Golf 35.8 kWh", new double[]{35.8, 231});
+    static final java.util.Map<String, double[]> UTGANGNA_GENERATIONER = java.util.Map.ofEntries(
+            java.util.Map.entry("Nissan Leaf 24 kWh",    new double[]{24.0, 120}),
+            java.util.Map.entry("Nissan Leaf 30 kWh",    new double[]{30.0, 150}),
+            java.util.Map.entry("Nissan Leaf 40 kWh",    new double[]{40.0, 270}),
+            java.util.Map.entry("Nissan Leaf e+ 62 kWh", new double[]{62.0, 385}),
+            java.util.Map.entry("MG ZS EV 44.5 kWh",     new double[]{44.5, 263}),
+            java.util.Map.entry("Volkswagen e-Golf 24.2 kWh", new double[]{24.2, 130}),
+            java.util.Map.entry("Volkswagen e-Golf 35.8 kWh", new double[]{35.8, 231}),
+            java.util.Map.entry("Renault Zoe 22 kWh",    new double[]{22.0, 130}),
+            java.util.Map.entry("Renault Zoe ZE40 41 kWh", new double[]{41.0, 300}),
+            java.util.Map.entry("Tesla Model 3 Standard Range Plus 55 kWh", new double[]{55.4, 430}),
+            java.util.Map.entry("Tesla Model 3 Long Range 82 kWh", new double[]{82.0, 614}));
+
+    /**
+     * Rader som nattsynken en gång skrev fel data i, och som ingen källa rättar av sig själv.
+     *
+     * <p>Skiljer sig från {@link #UTGANGNA_GENERATIONER} i AVSIKT och inte i mekanik: där handlar
+     * det om generationer synken aldrig kommer att känna till, här om en rad som fick en ANNAN
+     * BILS siffror. Samma lärdom som MG4:s förstagenerationsrader gav — en gång fel data ligger
+     * kvar i produktion även när matchningen är lagad, för ingenting skriver över den igen.
+     *
+     * <p><b>Tesla Model S bar 60,0 kWh / 534 km</b>, vilket är Model 3 RWD:s siffror. Hittad
+     * 2026-08-13 genom att gruppera hela {@code ev_spec} på {@code kWh|räckvidd} och leta
+     * grupper med minst tre rader: fem rader delade exakt 60,0/534 — {@code Tesla Model 3},
+     * {@code Model 3 RWD (Highland)}, {@code Model S}, {@code Model Y} och
+     * {@code Model Y RWD (Juniper)}. Det är kollisionssignaturen från {@code claimRow}, och
+     * memoryt noterar att de åtta tvetydiga matchningarna 2026-08-11 var just Tesla-varianter.
+     * {@code d9ff37b} stängde vägen (ettteckensordet "S" måste nu stå som eget ord), så raden
+     * kan inte bli fel igen — men den blir inte heller rätt av sig själv.
+     *
+     * <p><b>Siffran är den osäkraste i hela filen och det ska stå här.</b> Model S Long Range
+     * anges som 95–96 kWh användbart, och WLTP varierar mellan 649 och 723 km beroende på
+     * årsmodell och fälg. 95,0/649 är den konservativa änden. Om någon senare hittar bilen hos
+     * ev-database ska den raden vinna och den här posten tas bort — det som har en riktig källa
+     * ska synken äga.
+     *
+     * <p>Kontrollen är värd att köra om: samma gruppering hittar nästa kollisionsoffer. Övriga
+     * träffar var äkta badge-tvillingar (Stellantis skåpbilar, VW e-Caravelle/e-Transporter)
+     * och ska INTE röras.
+     */
+    static final java.util.Map<String, double[]> FELSKRIVNA_AV_SYNKEN = java.util.Map.of(
+            "Tesla Model S", new double[]{95.0, 649});
 
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
@@ -438,6 +492,8 @@ public class DataLoader implements CommandLineRunner {
                     // ev-database listar bara 2026 års bil, så de raderna har ingen annan källa.
                     double[] egen = MG4_GEN1.get(spec.getCarName());
                     if (egen == null) egen = UTGANGNA_GENERATIONER.get(spec.getCarName());
+                    // Samma återställning, annan avsikt — se FELSKRIVNA_AV_SYNKEN.
+                    if (egen == null) egen = FELSKRIVNA_AV_SYNKEN.get(spec.getCarName());
                     if (egen != null) {
                         boolean fel = spec.getBatteryKwh() == null || spec.getRangeKm() == null
                                 || spec.getBatteryKwh() != egen[0] || spec.getRangeKm() != (int) egen[1];
@@ -530,6 +586,23 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volkswagen e-Golf 24.2 kWh", 3.6, 40.0, 24.2, 130, 0));
         if (!existing.contains("Volkswagen e-Golf 35.8 kWh"))
             extras.add(new EvSpec("Volkswagen e-Golf 35.8 kWh", 7.2, 40.0, 35.8, 231, 0));
+
+        // Renault Zoe: tabellen hade bara ZE50 (50 kWh / 395 km). Se UTGANGNA_GENERATIONER.
+        // Laddeffekterna följer bilens egen historia: Zoe laddar AC snabbt (Chameleon-laddaren,
+        // 22 kW) men fick DC-snabbladdning först med ZE50 — Q210 och ZE40 saknar CCS helt, och
+        // 0 är därför korrekt och inte ett saknat värde. Priset lämnas 0 som Leaf-raderna.
+        if (!existing.contains("Renault Zoe 22 kWh"))
+            extras.add(new EvSpec("Renault Zoe 22 kWh",         22.0,  0.0, 22.0, 130, 0));
+        if (!existing.contains("Renault Zoe ZE40 41 kWh"))
+            extras.add(new EvSpec("Renault Zoe ZE40 41 kWh",    22.0,  0.0, 41.0, 300, 0));
+
+        // Tesla Model 3 pre-Highland (2019–2023). Tabellens fem rader var alla Highland, så ett
+        // kort för en 2020:a fick 716/750 km — bekräftat i drift 2026-08-13. Laddeffekterna är
+        // bilens egna: SR+ tar 170 kW DC, Long Range 250 kW, båda 11 kW AC.
+        if (!existing.contains("Tesla Model 3 Standard Range Plus 55 kWh"))
+            extras.add(new EvSpec("Tesla Model 3 Standard Range Plus 55 kWh", 11.0, 170.0, 55.4, 430, 0));
+        if (!existing.contains("Tesla Model 3 Long Range 82 kWh"))
+            extras.add(new EvSpec("Tesla Model 3 Long Range 82 kWh",          11.0, 250.0, 82.0, 614, 0));
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))

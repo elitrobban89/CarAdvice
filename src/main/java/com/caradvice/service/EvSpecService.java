@@ -396,6 +396,40 @@ public class EvSpecService {
     private static final Generation ENYAQ_GEN1 = new Generation("Enyaq iV", 2020);
     private static final Generation ENYAQ_GEN2 = new Generation("Enyaq facelift", 2025);
 
+    /**
+     * Renault Zoe i tre generationer, tillagda 2026-08-13 tillsammans med raderna i
+     * {@code DataLoader.UTGANGNA_GENERATIONER}. Q210/R240 2013–2016, ZE40 2017–2018,
+     * ZE50 2019–2024 (då modellen lades ned och ersattes av Renault 5).
+     */
+    private static final Generation ZOE_GEN1 = new Generation("Zoe 22 kWh", 2013);
+    private static final Generation ZOE_GEN2 = new Generation("Zoe ZE40", 2017);
+    private static final Generation ZOE_GEN3 = new Generation("Zoe ZE50", 2019);
+
+    /**
+     * Tesla Model 3 före och efter Highland-faceliften (hösten 2023, i handeln 2024).
+     *
+     * <p>Den OTAGGADE raden hette bara "Tesla Model 3" och bar 60 kWh / 534 km, alltså exakt
+     * samma värden som "Model 3 RWD (Highland)" — den är faceliftens RWD under ett kortare
+     * namn, inte en äldre bil. Den måste därför taggas som GEN2, och det är precis den fällan
+     * Leaf-arbetet 2026-08-11 skrev upp: <b>en otaggad rad räknas som {@code fromYear} 0,
+     * alltså äldst</b>, så utan den här posten hade en 2020:a fått faceliftens siffror ändå.
+     */
+    private static final Generation M3_GEN1 = new Generation("Model 3 pre-facelift", 2019);
+    private static final Generation M3_GEN2 = new Generation("Model 3 Highland", 2024);
+
+    /**
+     * Kia EV6 före och efter faceliften (2024, i handeln 2025). Enda modellen i hela tabellen
+     * där BÅDA generationerna redan fanns som rader men ingen var taggad — inventeringen
+     * 2026-08-13 gick igenom alla 539 rader och hittade bara det här fallet.
+     *
+     * <p>Skiljelinjen är batteriet: pre-facelift såldes som 58/77,4 kWh, faceliften som
+     * 63/84 kWh. Raderna utan kWh i namnet (60, 80) är nettoangivelser av samma paket som
+     * 63 respektive 84 — {@code verifiedEngineOptions} slår redan ihop dem eftersom räckvidden
+     * är identisk, så de hör till samma generation som sin bruttotvilling.
+     */
+    private static final Generation EV6_GEN1 = new Generation("EV6 pre-facelift", 2021);
+    private static final Generation EV6_GEN2 = new Generation("EV6 facelift", 2025);
+
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
             Map.entry("mg4 urban comfort long range", MG4_GEN2),
@@ -421,7 +455,27 @@ public class EvSpecService {
             Map.entry("skoda enyaq coupe 60",         ENYAQ_GEN2),
             Map.entry("skoda enyaq coupe 85",         ENYAQ_GEN2),
             Map.entry("skoda enyaq coupe 85x",        ENYAQ_GEN2),
-            Map.entry("skoda enyaq coupe rs",         ENYAQ_GEN2));
+            Map.entry("skoda enyaq coupe rs",         ENYAQ_GEN2),
+            Map.entry("renault zoe 22 kwh",           ZOE_GEN1),
+            Map.entry("renault zoe ze40 41 kwh",      ZOE_GEN2),
+            Map.entry("renault zoe",                  ZOE_GEN3),
+            Map.entry("tesla model 3 standard range plus 55 kwh", M3_GEN1),
+            Map.entry("tesla model 3 long range 82 kwh",          M3_GEN1),
+            Map.entry("tesla model 3",                            M3_GEN2),
+            Map.entry("tesla model 3 rwd (highland)",             M3_GEN2),
+            Map.entry("tesla model 3 premium rwd (highland)",     M3_GEN2),
+            Map.entry("tesla model 3 premium awd (highland)",     M3_GEN2),
+            Map.entry("tesla model 3 performance (highland)",     M3_GEN2),
+            Map.entry("kia ev6 long range awd 77.4 kwh", EV6_GEN1),
+            Map.entry("kia ev6 long range 2wd 77.4 kwh", EV6_GEN1),
+            Map.entry("kia ev6 gt 77.4 kwh",             EV6_GEN1),
+            Map.entry("kia ev6 standard range 2wd",      EV6_GEN2),
+            Map.entry("kia ev6 standard range 63 kwh",   EV6_GEN2),
+            Map.entry("kia ev6 long range awd",          EV6_GEN2),
+            Map.entry("kia ev6 long range 2wd",          EV6_GEN2),
+            Map.entry("kia ev6 gt",                      EV6_GEN2),
+            Map.entry("kia ev6 long range 2wd 84 kwh",   EV6_GEN2),
+            Map.entry("kia ev6 long range awd 84 kwh",   EV6_GEN2));
 
 
     /**
