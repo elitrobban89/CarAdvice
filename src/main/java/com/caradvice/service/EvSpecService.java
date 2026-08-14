@@ -195,10 +195,30 @@ public class EvSpecService {
      * och räknats som elbil av {@link #isKnownEv}. Bara de modellnamn där basordet också finns
      * som förbränningsbil står med — "Audi Q4 e-tron" behöver inget skydd, det finns ingen
      * bensin-Q4 att förväxla den med.
+     *
+     * <p><b>Plus-suffixade modellnamn hör hit av exakt samma skäl (2026-08-14).</b> Skarpt fall:
+     * ett SUV/bensin-sök på 250 000 kr gav kortet "Toyota C-HR (2021)" rådet <i>ladda var 13:e
+     * dag</i>. Blocket-matchningen och drivmedelsfiltret gjorde rätt — bilen ÄR en hybrid-C-HR —
+     * men pass 1 i {@link #matchByTitle} matchar titelns ord som delsträngar i hela det lagrade
+     * namnet, och {@code "c-hr"} är en delsträng av {@code "c-hr+"}. Plustecknet är det ENDA som
+     * skiljer den eldrivna C-HR+ (54/72 kWh) från hybriden, så delsträngsmatchningen raderade
+     * precis det tecken som bar identiteten.
+     *
+     * <p>Inventerat ur tabellen 2026-08-14: 19 rader bär {@code +} i namnet, varav åtta gick att
+     * nå från en namnplåt som också finns i {@code ice_consumption} — C-HR+ (2 rader, mot C-HR
+     * 1.8/2.0 Hybrid), CLA 250+, GLA 250+, GLB 250+ och tre AMG GT 4-Door 4MATIC+. Mercedes-trion
+     * är värre än C-HR: en bensin-"GLA 250" träffar {@code GLA 250+} eftersom {@code "250"} är
+     * delsträng av {@code "250+"}.
+     *
+     * <p>Bara de tre tokens vars basord också finns som förbränningsbil står med. Ett generellt
+     * "alla plus-tokens" hade varit fel åt andra hållet: {@code Smart #1 Pro+}, {@code XPENG P7+},
+     * {@code Geely EX5 Pro+} och {@code Nissan Leaf e+} är elbilar hela vägen, och där SKA en
+     * enkel titel ("Smart #1") hitta trimraden. Samma gräns som för "Audi Q4 e-tron".
      */
     private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
             "phev", "hev", "gte", "plug-in",
-            "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter");
+            "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter",
+            "c-hr+", "250+", "4matic+");
 
     /**
      * Lagrat namn med samma {@code e-}-strippning som titeln får, för ordjämförelserna.

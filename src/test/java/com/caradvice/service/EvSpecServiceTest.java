@@ -266,6 +266,61 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void hybridCHRFarInteElbilsCHRnsSiffror() {
+        // Femte ingången till samma bugg, rapporterad live 2026-08-14: ett SUV/bensin-sök på
+        // 250 000 kr gav "Toyota C-HR (2021)" rådet "ladda var 13:e dag". Bilen ÄR en hybrid —
+        // Blocket-matchningen gjorde rätt — men pass 1 matchar titelns ord som DELSTRÄNGAR i
+        // det lagrade namnet, och "c-hr" är delsträng av "c-hr+". Plustecknet var det enda som
+        // bar identiteten, och delsträngsmatchningen raderade just det.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Toyota C-HR+ 57.7 kWh", 11.0, 150.0, 54.0, 458, 437_000),
+                new EvSpec("Toyota C-HR+ 77 kWh", 11.0, 150.0, 72.0, 609, 506_000)));
+
+        assertThat(service().formatForTitle("Toyota C-HR (2021)", 15000)).isNull();
+        assertThat(service().verifiedEngineOptions("Toyota C-HR (2021)")).isNull();
+        assertThat(service().isKnownEv("Toyota C-HR")).isFalse();
+        // ...men elbilen hittar fortfarande sin egen rad
+        assertThat(service().isKnownEv("Toyota C-HR+ (2026)")).isTrue();
+    }
+
+    @Test
+    void bensinMercedesFarInteEQnsSiffror() {
+        // Samma inventering 2026-08-14: Mercedes-trion är värre än C-HR, för här är även
+        // motorbeteckningen delsträng — en bensin-"GLA 250" träffar "GLA 250+" eftersom
+        // "250" är delsträng av "250+". Alla tre har rader i ice_consumption (CLA 3, GLA 5,
+        // GLB 4), så det finns en live-väg till varje.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mercedes-Benz CLA 250+", 11.0, 320.0, 85.0, 792, 0),
+                new EvSpec("Mercedes-Benz GLA 250+", 11.0, 320.0, 85.0, 700, 0),
+                new EvSpec("Mercedes-Benz GLB 250+", 11.0, 320.0, 85.0, 700, 0)));
+
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250")).isFalse();
+        assertThat(service().isKnownEv("Mercedes-Benz GLA")).isFalse();
+        assertThat(service().isKnownEv("Mercedes-Benz CLA (2020)")).isFalse();
+        assertThat(service().isKnownEv("Mercedes-Benz GLB (2021)")).isFalse();
+        assertThat(service().formatForTitle("Mercedes-Benz GLA 250 (2021)", 15000)).isNull();
+        // ...och elbilen känns igen när titeln bär plustecknet
+        assertThat(service().isKnownEv("Mercedes-Benz CLA 250+ (2026)")).isTrue();
+    }
+
+    @Test
+    void elbilarMedPlusITrimnamnSlappsIgenom() {
+        // Gränsen åt andra hållet: spärren får INTE bli ett generellt "alla plus-tokens".
+        // För de här modellerna finns inget basord som förbränningsbil, så en enkel titel
+        // ska hitta trimraden — samma resonemang som "Audi Q4 e-tron behöver inget skydd".
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Smart #1 Pro+", 22.0, 150.0, 62.0, 440, 0),
+                new EvSpec("XPENG P7+ RWD Long Range", 11.0, 168.0, 73.0, 602, 0),
+                new EvSpec("Geely EX5 Pro+", 11.0, 100.0, 68.4, 430, 0),
+                new EvSpec("Nissan Leaf e+ 62 kWh", 6.6, 100.0, 62.0, 385, 0)));
+
+        assertThat(service().isKnownEv("Smart #1")).isTrue();
+        assertThat(service().isKnownEv("XPENG P7+")).isTrue();
+        assertThat(service().isKnownEv("Geely EX5")).isTrue();
+        assertThat(service().isKnownEv("Nissan Leaf e+ (2019)")).isTrue();
+    }
+
+    @Test
     void ePrefixIRadnamnetHittasMedOrdmatchning() {
         // Titelsidan har alltid strippat "e-", den lagrade sidan inte — så rader vars MODELLORD
         // bär prefixet var omöjliga att träffa med ordmatchning och fick aldrig några
