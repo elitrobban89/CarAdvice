@@ -69,11 +69,14 @@ public class EvDatabaseScraperService {
 
     private final EvSpecRepository repo;
     private final com.caradvice.service.CargoSpecService cargoSpecService;
+    private final com.caradvice.service.EvPowerService evPowerService;
 
     public EvDatabaseScraperService(EvSpecRepository repo,
-                                    com.caradvice.service.CargoSpecService cargoSpecService) {
+                                    com.caradvice.service.CargoSpecService cargoSpecService,
+                                    com.caradvice.service.EvPowerService evPowerService) {
         this.repo = repo;
         this.cargoSpecService = cargoSpecService;
+        this.evPowerService = evPowerService;
     }
 
     public int syncFromEvDatabase() {
@@ -156,6 +159,7 @@ public class EvDatabaseScraperService {
                             continue;
                         }
                         nameMap.put(normalize(scraped.name()), newSpec);
+                        sparaEffekt(newSpec.getCarName(), scraped);
                         created++;
                         log.info("Created {}: range={}km bat={}kWh DC={}kW AC={}kW price={}kr",
                                 scraped.name(), scraped.rangeKm(), scraped.batteryKwh(),
@@ -175,6 +179,11 @@ public class EvDatabaseScraperService {
                     collisions++;
                     continue;
                 }
+
+                // Effekten skrivs EFTER kollisionsspärren, aldrig före: en bil som blockerats
+                // hade annars fått skriva sin hk till en rad den inte hör till — precis det
+                // spärren finns för att hindra på räckvidd och batteri.
+                sparaEffekt(match.getCarName(), scraped);
 
                 boolean changed = false;
                 if (scraped.rangeKm() > 0 && !Objects.equals(match.getRangeKm(), scraped.rangeKm())) {
@@ -231,6 +240,22 @@ public class EvDatabaseScraperService {
         return updated + created;
     }
 
+    /**
+     * Skriver systemeffekten till {@code ev_power}. Egen try/catch av samma skäl som
+     * bagageifyllningen: effekten är en bonus på sidan vi ändå hämtar, och ett fel där får inte
+     * sänka EV-synken, som är körningens egentliga uppdrag.
+     */
+    private void sparaEffekt(String carName, ScrapedSpec scraped) {
+        if (scraped.hk() <= 0) return;
+        try {
+            if (evPowerService.spara(carName, scraped.hk())) {
+                log.debug("Systemeffekt för {}: {} hk", carName, scraped.hk());
+            }
+        } catch (Exception e) {
+            log.warn("Systemeffekt för {} kunde inte skrivas: {}", carName, e.getMessage());
+        }
+    }
+
     private List<String> fetchCarUrls() {
         try {
             Document doc = Jsoup.connect(CHEATSHEET_URL)
@@ -276,7 +301,8 @@ public class EvDatabaseScraperService {
                     extractAc(text),
                     extractPrice(text),
                     extractCargoCell(doc, "Cargo Volume"),
-                    extractCargoCell(doc, "Cargo Volume Max")
+                    extractCargoCell(doc, "Cargo Volume Max"),
+                    parseSystemPowerHk(doc)
             );
         } catch (Exception e) {
             log.debug("Skipped {}: {}", url, e.getMessage());
@@ -322,6 +348,37 @@ public class EvDatabaseScraperService {
         if (m.find()) return Integer.parseInt(m.group(1));
         m = Pattern.compile("(?:AC|home|destination)[^\\d]{0,20}(\\d{1,3})\\s*kW", Pattern.CASE_INSENSITIVE).matcher(text);
         if (m.find()) return Integer.parseInt(m.group(1));
+        return 0;
+    }
+
+    /**
+     * Systemeffekten i hästkrafter ur bilsidans specruta, eller 0 när raden saknas.
+     *
+     * <p>Raden ser ut som {@code <td>Total Power</td><td>105 kW (143 PS)</td>}. <b>PS-talet i
+     * parentesen tas i första hand</b> — PS är metriska hästkrafter, alltså samma enhet som
+     * svenska "hk", och att läsa den siffran direkt slipper ett avrundningssteg. Saknas
+     * parentesen räknas kW om (1 kW = 1,3596 hk).
+     *
+     * <p>Etiketten matchas på hela cellens text och inte som delsträng i sidans brödtext: sidan
+     * bär även "Total Torque" och laddeffekter i kW, och en girig regex över brödtexten hade
+     * plockat vilken som helst av dem. Det är samma slags fälla som imperialkolumnen i
+     * bagagecellen hos auto-data.
+     */
+    static int parseSystemPowerHk(Document doc) {
+        if (doc == null) return 0;
+        for (Element td : doc.select("td")) {
+            if (!"total power".equalsIgnoreCase(td.text().trim())) continue;
+
+            Element varde = td.nextElementSibling();
+            if (varde == null) continue;
+            String text = varde.text();
+
+            Matcher ps = Pattern.compile("\\((\\d{2,4})\\s*(?:PS|hp|Hp|HP)\\)").matcher(text);
+            if (ps.find()) return Integer.parseInt(ps.group(1));
+
+            Matcher kw = Pattern.compile("(\\d{2,4})\\s*kW", Pattern.CASE_INSENSITIVE).matcher(text);
+            if (kw.find()) return (int) Math.round(Integer.parseInt(kw.group(1)) * 1.3596);
+        }
         return 0;
     }
 
@@ -537,7 +594,7 @@ public class EvDatabaseScraperService {
     }
 
     record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw, int priceKr,
-                       int cargoLiters, int cargoMaxLiters) {}
+                       int cargoLiters, int cargoMaxLiters, int hk) {}
 
     /**
      * Bagagevolymen ur specifikationstabellen på bilsidan.

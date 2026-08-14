@@ -75,6 +75,7 @@ public class CarController {
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
     private final IceGenerationService iceGenerationService;
+    private final com.caradvice.service.EvPowerService evPowerService;
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingInsightService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
@@ -116,8 +117,10 @@ public class CarController {
                          MobilityStatsSyncService mobilityStatsSyncService,
                          EvSpecService evSpecService, JobStatusService jobStatus,
                          UpcomingInsightService upcomingInsightService,
-                         IceGenerationService iceGenerationService) {
+                         IceGenerationService iceGenerationService,
+                         com.caradvice.service.EvPowerService evPowerService) {
         this.iceGenerationService = iceGenerationService;
+        this.evPowerService = evPowerService;
         this.jobStatus = jobStatus;
         this.upcomingInsightService = upcomingInsightService;
         this.evSpecService = evSpecService;
@@ -715,6 +718,10 @@ public class CarController {
         Map<String, Object> ut = new LinkedHashMap<>(cargoSpecService.coverage());
         try { ut.put("iceGenerations", iceGenerationService.antal()); }
         catch (Exception e) { log.warn("cargo-coverage: ice_generation kunde inte räknas: {}", e.getMessage()); }
+        // evPowers fylls av 02:00-synken, inte 03:00-jobbet, men ligger här av samma skäl som
+        // iceGenerations: en siffra som bara står i loggen går aldrig att bevaka.
+        try { ut.put("evPowers", evPowerService.antal()); }
+        catch (Exception e) { log.warn("cargo-coverage: ev_power kunde inte räknas: {}", e.getMessage()); }
         return ResponseEntity.ok(ut);
     }
 

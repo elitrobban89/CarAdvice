@@ -20,7 +20,39 @@ class EvDatabaseScraperServiceMatchTest {
 
     private final EvDatabaseScraperService service =
             new EvDatabaseScraperService(mock(EvSpecRepository.class),
-                    mock(com.caradvice.service.CargoSpecService.class));
+                    mock(com.caradvice.service.CargoSpecService.class),
+                    mock(com.caradvice.service.EvPowerService.class));
+
+    @Test
+    void systemeffektenLasesUrTotalPowerCellen() {
+        /*
+         * Kortets hk var AI:ns gissning för i praktiken varje elbil — samma två kort fick 150 hk
+         * i en körning 2026-08-14 och 95 hk dagen innan, mot riktiga 136 och 143. Sidan vi ändå
+         * hämtar bär siffran: <td>Total Power</td><td>105 kW (143 PS)</td>.
+         *
+         * PS-talet i parentesen tas i första hand — PS är metriska hästkrafter, alltså samma
+         * enhet som svenska "hk", så det slipper ett avrundningssteg.
+         *
+         * Etiketten matchas som HEL cell och inte som delsträng i brödtexten: sidan bär även
+         * "Total Torque" och laddeffekter i kW, och en girig regex hade plockat vilken som helst.
+         */
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse("""
+                <table>
+                  <tr><td>Total Power</td><td>105 kW (143 PS)</td></tr>
+                  <tr><td>Total Torque</td><td>353 Nm</td></tr>
+                  <tr><td>Fastcharge Power (max)</td><td>92 kW</td></tr>
+                </table>""");
+        assertThat(EvDatabaseScraperService.parseSystemPowerHk(doc)).isEqualTo(143);
+
+        // Utan parentes räknas kW om: 150 kW × 1,3596 ≈ 204 hk
+        assertThat(EvDatabaseScraperService.parseSystemPowerHk(org.jsoup.Jsoup.parse(
+                "<table><tr><td>Total Power</td><td>150 kW</td></tr></table>"))).isEqualTo(204);
+
+        // Saknad rad ger 0, alltså "ingen uppgift" — inte ett påhittat tal
+        assertThat(EvDatabaseScraperService.parseSystemPowerHk(org.jsoup.Jsoup.parse(
+                "<table><tr><td>Total Torque</td><td>353 Nm</td></tr></table>"))).isZero();
+        assertThat(EvDatabaseScraperService.parseSystemPowerHk(null)).isZero();
+    }
 
     @Test
     void bagagevolymLasesUrCellenEfterEtiketten() {

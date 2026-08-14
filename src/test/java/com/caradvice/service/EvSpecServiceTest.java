@@ -957,6 +957,41 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void hamtadEffektSlarDenHandskrivnaListan() {
+        /*
+         * Den handskrivna listan hade två poster mot ev_spec:s 553 rader, alltså gissade AI:n
+         * hk för i praktiken varje elbil. ev-database skriver "Total Power 105 kW (143 PS)" på
+         * varje bilsida — samma sida nattsynken redan hämtar — och siffran landar i ev_power.
+         *
+         * Uppslaget går via matchByTitle och ÄRVER därmed dess årsmodellfilter, så svaret blir
+         * generationsrätt utan egen årslogik. Det är hela skälet att nyckeln är radens car_name
+         * och inte modellnamnet.
+         */
+        EvPowerService power = org.mockito.Mockito.mock(EvPowerService.class);
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("MG ZS EV 44.5 kWh", 6.0, 76.0, 44.5, 263, 0)));
+        when(power.hkFor("MG ZS EV 44.5 kWh")).thenReturn(143);
+
+        EvSpecService s = service();
+        s.setEvPowerService(power);
+        assertThat(s.getSystemPowerHk("MG ZS EV (2019)")).isEqualTo(143);
+    }
+
+    @Test
+    void handskrivnaListanGallerNarTabellenArTom() {
+        // Tabellen fylls av nattsynken och är tom vid första uppstart. Då ska listan gälla som
+        // förut — och för modeller ev-database inte längre listar (e-Golf är utgången) är den
+        // handskrivna posten det enda som finns.
+        EvPowerService power = org.mockito.Mockito.mock(EvPowerService.class);
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volkswagen e-Golf 35.8 kWh", 7.0, 40.0, 35.8, 231, 0)));
+        when(power.hkFor(anyString())).thenReturn(null);
+
+        EvSpecService s = service();
+        s.setEvPowerService(power);
+        assertThat(s.getSystemPowerHk("Volkswagen e-Golf (2018)")).isEqualTo(136);
+    }
+
+    @Test
     void bensinbilFarInteElbilensEffekt() {
         // Nyckeln är "Volkswagen e-Golf". Elprefixet strippas ur titeln för att "Kia e-Niro" ska
         // kunna matcha nyckeln "Kia Niro" — men då måste den OSTRIPPADE formen finnas kvar också,

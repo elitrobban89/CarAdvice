@@ -14,13 +14,27 @@ import java.util.regex.Pattern;
 @Service
 public class EvSpecService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EvSpecService.class);
+
     private final EvSpecRepository repo;
 
     private final IceConsumptionService iceConsumptionService;
 
+    /**
+     * Hämtade systemeffekter. Sätts via settern och inte konstruktorn, precis som
+     * {@code IceConsumptionService.setIceGenerations} — null är ett giltigt läge och betyder att
+     * bara den handskrivna listan gäller, vilket är exakt vad som gäller innan tabellen fyllts.
+     */
+    private EvPowerService evPowerService;
+
     public EvSpecService(EvSpecRepository repo, IceConsumptionService iceConsumptionService) {
         this.repo = repo;
         this.iceConsumptionService = iceConsumptionService;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEvPowerService(EvPowerService evPowerService) {
+        this.evPowerService = evPowerService;
     }
 
     /** Alla kända bilnamn i ev_spec — används av GroqServices modellhallucinationsvakt. */
@@ -859,6 +873,22 @@ public class EvSpecService {
      */
     public Integer getSystemPowerHk(String title) {
         if (title == null) return null;
+
+        // Hämtad effekt först: den gäller den RAD titeln matchar, så den ärver årsmodellfiltret i
+        // matchByTitle och blir generationsrätt utan egen årslogik. En 2019 års MG ZS EV matchar
+        // raden "MG ZS EV 44.5 kWh" (143 hk), en 2023:a matchar "MG ZS EV" (156).
+        if (evPowerService != null) {
+            try {
+                EvSpec rad = matchByTitle(title);
+                if (rad != null) {
+                    Integer hamtad = evPowerService.hkFor(rad.getCarName());
+                    if (hamtad != null) return hamtad;
+                }
+            } catch (Exception e) {
+                log.warn("ev_power kunde inte läsas för \"{}\": {}", title, e.getMessage());
+            }
+        }
+
         String utanAr = title.replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
                 .replaceAll("(?i)\\bElectric\\b", "")
                 .trim();

@@ -31,7 +31,8 @@ class DataLoaderDedupeTest {
                 mock(NewCarPriceService.class), mock(FeedbackService.class),
                 mock(WebInsightScraperService.class), mock(IceConsumptionService.class),
                 mock(com.caradvice.service.CarVideoService.class),
-                mock(com.caradvice.service.IceGenerationService.class));
+                mock(com.caradvice.service.IceGenerationService.class),
+                mock(com.caradvice.service.EvPowerService.class));
     }
 
     @Test

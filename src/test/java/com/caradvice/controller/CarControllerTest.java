@@ -68,6 +68,7 @@ class CarControllerTest {
     @MockBean private UpcomingInsightService upcomingInsightService;
     @MockBean private IceConsumptionService iceConsumptionService;
     @MockBean private com.caradvice.service.IceGenerationService iceGenerationService;
+    @MockBean private com.caradvice.service.EvPowerService evPowerService;
     @MockBean private com.caradvice.service.CarVideoService carVideoService;
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
     @MockBean private EvSpecService evSpecService;
