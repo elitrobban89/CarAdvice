@@ -44,11 +44,51 @@ public class EvSpecService {
         return matchByTitle(title) != null;
     }
 
-    /** Fuzzy-matchning titel → ev_spec i tre pass. Null om inget hittas. */
+    /**
+     * Fuzzy-matchning titel → ev_spec i två pass. Null om inget hittas.
+     *
+     * <p><b>Passen var tre och matchade på delsträngar fram till 2026-08-14.</b> Pass 1 krävde
+     * att varje ord i titeln fanns som delsträng var som helst i det lagrade namnet, vilket är
+     * roten till en hel buggfamilj: {@code "c-hr"} ligger inuti {@code "c-hr+"}, {@code "250"}
+     * inuti {@code "250+"}, {@code "tt"} inuti {@code "quattro"}, och {@code "a"}/{@code "b"}/
+     * {@code "c"} inuti nästan varje Mercedes-rad. Varje gång felet dök upp lagades det med en
+     * ny token i {@link #DRIVLINEORD} — en lista som måste växa varje gång tabellen får ett
+     * nytt namnmönster.
+     *
+     * <p><b>Mätt offline 2026-08-14</b> (398 ICE-namnplåtar och alla 553 ev_spec-rader genom
+     * fyra varianter, samma upplägg som tröskelmätningen för {@code d9ff37b}):
+     * <ul>
+     *   <li>delsträng (dåvarande): <b>67</b> namnplåtar för förbränningsbilar nådde en elbilsrad</li>
+     *   <li>ordgräns (denna): <b>52</b> — och tre av de fyra tokens som lades in samma dag
+     *       ({@code c-hr+}, {@code 250+}, {@code 4matic+}) blev överflödiga, mätt genom att
+     *       köra varianten både med och utan dem och få exakt samma 52</li>
+     *   <li>delsträng med minst 3 tecken: 53, alltså nästan lika bra — men {@code "c-hr"} är
+     *       fyra tecken och slipper igenom, så den varianten hade behållit tokenberoendet</li>
+     * </ul>
+     * Kostnaden var två rader som inte längre hittade sig själva, båda
+     * {@code Renault Scenic E-Tech EV60/EV87 170hp (TU2025)} — se årsstrippningen nedan; det
+     * var ett parsningsfel som delsträngsmatchningen dolde, inte en äkta träff som försvann.
+     *
+     * <p><b>Gamla pass 3 är borttaget för att det var identiskt med nya pass 1.</b> Det gjorde
+     * redan exakt "titelns ord som hela ord i radens namn" — pass 1 var bara dess lösare
+     * variant. Kvar finns pass 1 (titelns ord i raden) och pass 2 (radens ord i titeln).
+     *
+     * <p><b>Kvar olöst, och det går inte att lösa här:</b> 43-52 namnplåtar når fortfarande en
+     * elbilsrad, men de flesta är modeller som finns som BÅDE förbränning och el —
+     * {@code Kia Niro}, {@code Ford Mustang}, {@code Mini Cooper}, {@code Volvo S60 T8}. Ingen
+     * strängregel kan skilja dem åt; det görs ett lager upp, av drivmedelsvakten och av regeln
+     * att {@code ice_consumption} prövas före {@code ev_spec}.
+     */
     private EvSpec matchByTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(title
-                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
+                // (?<!\w) hindrar att årtalet plockas ur mitt i ett ord. Utan den kapade
+                // strippningen "2025)" ur ev-databases tekniska uppdateringskod "(TU2025)"
+                // och lämnade skräpordet "(tu" i titeln, varpå raden inte kunde matcha ens
+                // sitt EGET namn. Delsträngsmatchningen dolde felet; ordgränsmatchningen
+                // avslöjade det. Samma vakt sitter i modelYear, som annars läste 2025 som
+                // annonsens årsmodell och kunde välja fel generation på det.
+                .replaceAll("\\s*(?<!\\w)\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
                 .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
                 .trim());
@@ -59,39 +99,28 @@ public class EvSpecService {
 
         List<EvSpec> all = repo.findAll();
 
-        // Pass 1: all title words are contained in stored name as substrings
+        // Pass 1: alla titelns ord finns som HELA ORD i det lagrade namnet.
+        // "MG4" matchar "MG4 Long Range", "Volvo EX30" matchar "Volvo EX30 Single Motor" —
+        // men "Toyota C-HR" matchar INTE "Toyota C-HR+", för "c-hr" och "c-hr+" är olika ord.
         EvSpec match = pickForYear(all.stream()
                 .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                 .filter(ev -> {
-                    String name = matchningsNamn(ev.getCarName());
-                    for (String w : titleWords) if (!name.contains(w)) return false;
+                    java.util.Set<String> nameSet = new java.util.HashSet<>(
+                            java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
+                    for (String w : titleWords) if (!nameSet.contains(w)) return false;
                     return true;
                 })
-                .collect(java.util.stream.Collectors.toList()), year, false);
+                .collect(java.util.stream.Collectors.toList()), year, true);
 
-        // Pass 2: all stored-name words are exact words in the title
-        // e.g. "Tesla Model 3" matches "Tesla Model 3 Long Range"
-        // Uses word-set so "ev" does NOT match "phev"
+        // Pass 2: alla radens ord finns som exakta ord i titeln
+        // t.ex. "Tesla Model 3 Long Range" som titel hittar raden "Tesla Model 3"
+        // Ordmängd och inte delsträng, så "ev" INTE matchar "phev"
         if (match == null) {
             match = pickForYear(all.stream()
                     .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
                         String[] nameWords = matchningsNamn(ev.getCarName()).split("\\s+");
                         for (String w : nameWords) if (!titleSet.contains(w)) return false;
-                        return true;
-                    })
-                    .collect(java.util.stream.Collectors.toList()), year, true);
-        }
-
-        // Pass 3: all title words appear as words in the stored name
-        // Handles "MG4" matching "MG4 Long Range", "Volvo EX30" matching "Volvo EX30 Single Motor"
-        if (match == null) {
-            match = pickForYear(all.stream()
-                    .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
-                    .filter(ev -> {
-                        java.util.Set<String> nameSet = new java.util.HashSet<>(
-                                java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
-                        for (String w : titleWords) if (!nameSet.contains(w)) return false;
                         return true;
                     })
                     .collect(java.util.stream.Collectors.toList()), year, true);
@@ -220,18 +249,26 @@ public class EvSpecService {
      * <p>Inventerat ur tabellen 2026-08-14: 19 rader bär {@code +} i namnet, varav åtta gick att
      * nå från en namnplåt som också finns i {@code ice_consumption} — C-HR+ (2 rader, mot C-HR
      * 1.8/2.0 Hybrid), CLA 250+, GLA 250+, GLB 250+ och tre AMG GT 4-Door 4MATIC+. Mercedes-trion
-     * är värre än C-HR: en bensin-"GLA 250" träffar {@code GLA 250+} eftersom {@code "250"} är
+     * är värre än C-HR: en bensin-"GLA 250" träffade {@code GLA 250+} eftersom {@code "250"} är
      * delsträng av {@code "250+"}.
      *
-     * <p>Bara de tre tokens vars basord också finns som förbränningsbil står med. Ett generellt
-     * "alla plus-tokens" hade varit fel åt andra hållet: {@code Smart #1 Pro+}, {@code XPENG P7+},
-     * {@code Geely EX5 Pro+} och {@code Nissan Leaf e+} är elbilar hela vägen, och där SKA en
-     * enkel titel ("Smart #1") hitta trimraden. Samma gräns som för "Audi Q4 e-tron".
+     * <p><b>De plus-tokens som lades in samma dag är sedan borttagna igen.</b> Det var
+     * symtomlagningen; roten satt i pass 1:s delsträngsmatchning, och när den gjordes
+     * ordgränsbaserad ({@link #matchByTitle}) blev {@code c-hr+}, {@code 250+} och
+     * {@code 4matic+} överflödiga — mätningen körde varianten både med och utan dem och fick
+     * exakt samma 52 felträffar. {@code "c-hr"} och {@code "c-hr+"} är helt enkelt olika ord.
+     * <b>Lägg inte tillbaka dem</b>, och lägg inte in nya plus-tokens utan att först visa att
+     * ordgränsmatchningen inte redan täcker fallet.
+     *
+     * <p>{@code recharge} står kvar, för den bär inte ett ändrat ord utan ett EXTRA: raden
+     * {@code Volvo XC40 Recharge} innehåller hela titeln "Volvo XC40" som riktiga ord, så
+     * ordgränsen hjälper inte där. Samma sak gäller {@code Mercedes-Benz CLA} mot
+     * {@code CLA 200}. Det är den kvarvarande klassen som bara en drivmedelsregel kan lösa.
      */
     private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
             "phev", "hev", "gte", "plug-in",
             "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter",
-            "c-hr+", "250+", "4matic+", "recharge");
+            "recharge");
 
     /**
      * Lagrat namn med samma {@code e-}-strippning som titeln får, för ordjämförelserna.
@@ -311,7 +348,7 @@ public class EvSpecService {
      */
     static int modelYear(String title) {
         if (title == null) return 0;
-        Matcher m = Pattern.compile("\\(?((?:19|20)\\d{2})\\+?\\)?\\s*$").matcher(title.trim());
+        Matcher m = Pattern.compile("(?<!\\w)\\(?((?:19|20)\\d{2})\\+?\\)?\\s*$").matcher(title.trim());
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
