@@ -2038,6 +2038,20 @@ function caInsurancePerYear(r) {
   return Math.round(base / 500) * 500;
 }
 
+// Ska ägandekostnaden räkna med dieselpris? Använder det VERIFIERADE drivmedlet från
+// ice_consumption när backend skickar med det (fältet fuelSpec.fuel, tillkom 2026-08-14).
+//
+// Tidigare gissade båda TCO-funktionerna på förbrukningen: "> 7 l/100 km ≈ dieselbil".
+// Det gjorde en Kia Sportage 1.6 T-GDI (8,0 l/100 km, bensin) till diesel och en snål
+// diesel under 7 till bensin — fel åt båda hållen. Tröskeln står kvar som fallback för
+// kort utan DB-träff, där vi inte har något bättre, men den ska aldrig vinna över ett
+// verifierat värde.
+function caIsDiesel(fuelSpec) {
+  if (!fuelSpec) return false;
+  if (fuelSpec.fuel) return /diesel/i.test(fuelSpec.fuel);
+  return fuelSpec.consumptionLiterPerMil > 7;
+}
+
 function caTcoCalc(r, kmPerYear) {
   var price = caParsePrice(r.price);
   if (!price) return null;
@@ -2056,8 +2070,8 @@ function caTcoCalc(r, kmPerYear) {
     // bensin: ~4.5 l/100km × (km×0.5/100) × years × dagsaktuellt bensinpris
     fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * CA_FUEL_PRICES.bensin);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
-    // AI returnerar l/100km trots fältnamnet "PerMil"; >7 l/100km ≈ dieselbil
-    var fuelPrice = r.fuelSpec.consumptionLiterPerMil > 7 ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
+    // AI returnerar l/100km trots fältnamnet "PerMil"
+    var fuelPrice = caIsDiesel(r.fuelSpec) ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
     fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fuelPrice;
   } else {
     fuelCost = 6.5 * (km / 100) * years * CA_FUEL_PRICES.bensin; // schablonbensin 6.5 l/100km
@@ -2126,7 +2140,7 @@ function caTcoLeasingCalc(r, kmPerYear, monthlyFallback) {
   } else if (isPhev) {
     fuelCost = (0.20 * km * 0.5 * years * 1.5) + (4.5 * (km * 0.5 / 100) * years * CA_FUEL_PRICES.bensin);
   } else if (r.fuelSpec && r.fuelSpec.consumptionLiterPerMil > 0) {
-    var fp = r.fuelSpec.consumptionLiterPerMil > 7 ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
+    var fp = caIsDiesel(r.fuelSpec) ? CA_FUEL_PRICES.diesel : CA_FUEL_PRICES.bensin;
     fuelCost = r.fuelSpec.consumptionLiterPerMil * (km / 100) * years * fp;
   } else {
     fuelCost = 6.5 * (km / 100) * years * CA_FUEL_PRICES.bensin;

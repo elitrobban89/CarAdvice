@@ -642,9 +642,11 @@ public class GroqService {
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
             // och räknar ägandekostnad på l/100km) — ice_consumption lagrar l/mil, därav ×10 här.
             com.caradvice.model.FuelSpecDto fuelSpec = r.fuelSpec();
+            // fuel nollställs medvetet: AI:ns egen gissning kastas och fältet fylls bara av
+            // den verifierade ice_consumption-raden nedan. Samma linje som förbrukning och hk.
             if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
                     fuelSpec.consumptionLiterPerMil(), rensaVaxellada(fuelSpec.gearbox()),
-                    fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
+                    fuelSpec.horsepower(), fuelSpec.engineVolumeLiters(), null);
             IceConsumptionService.Variant iceVariant = null;
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
                 try {
@@ -658,8 +660,13 @@ public class GroqService {
                         && fuelSpec.consumptionLiterPerMil() < 3) {
                     consumption = fuelSpec.consumptionLiterPerMil() * 10;
                 }
-                if (consumption != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
-                        consumption, fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
+                // Drivmedlet kommer ur SAMMA rad som förbrukningssiffran. Frontenden gissade
+                // tidigare på tröskeln "> 7 l/100 km = diesel", vilket gjorde en Kia Sportage
+                // 1.6 T-GDI (8,0) till diesel och en snål diesel till bensin.
+                String fuel = iceVariant != null ? iceVariant.fuel() : null;
+                if (consumption != null || fuel != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
+                        consumption != null ? consumption : fuelSpec.consumptionLiterPerMil(),
+                        fuelSpec.gearbox(), fuelSpec.horsepower(), fuelSpec.engineVolumeLiters(), fuel);
             }
 
             if (safety == null && evSpec == null && cargo == null && blocketRange == null) {
@@ -696,7 +703,8 @@ public class GroqService {
                 if (verifiedHp != null) {
                     horsepower = verifiedHp;
                     if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
-                            fuelSpec.consumptionLiterPerMil(), fuelSpec.gearbox(), verifiedHp, fuelSpec.engineVolumeLiters());
+                            fuelSpec.consumptionLiterPerMil(), fuelSpec.gearbox(), verifiedHp,
+                            fuelSpec.engineVolumeLiters(), fuelSpec.fuel());
                 }
                 // Hela motorutbudet, inte bara den variant förbrukningssiffran togs från —
                 // elbilskorten har alltid visat sina batterivarianter som lista, medan

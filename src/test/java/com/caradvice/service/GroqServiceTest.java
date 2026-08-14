@@ -1314,6 +1314,47 @@ class GroqServiceTest {
     }
 
     @Test
+    void drivmedletKommerFranIceConsumptionOchInteFranTroskeln() throws Exception {
+        // Frontenden gissade drivmedel PA FORBRUKNINGEN: "> 7 l/100 km = diesel". En Kia
+        // Sportage 1.6 T-GDI drar 8,0 och prissattes darfor som diesel i agandekostnaden,
+        // medan en snal diesel under 7 fick bensinpris - fel at bada hallen. Vardet fanns
+        // hela tiden i raden forbrukningssiffran hamtas ur, det skickades bara inte med.
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Kia", "Sportage 1.6 T-GDI 150 hk", "bensin", 0.80));
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        CarRecommendation r = result.get(0);
+        assertThat(r.fuelSpec().fuel()).isEqualTo("bensin");
+        // Kommer ur SAMMA rad som forbrukningen: 0,80 l/mil -> 8,0 l/100 km, alltsa over
+        // troskeln 7 och just darfor det fall som blev fel forut
+        assertThat(r.fuelSpec().consumptionLiterPerMil()).isEqualTo(8.0);
+    }
+
+    @Test
+    void drivmedletBlirNullUtanVerifieradVariant() throws Exception {
+        // Ingen DB-traff: faltet lamnas TOMT i stallet for att bara AI:ns gissning vidare.
+        // Frontenden faller da tillbaka pa den gamla troskeln, som ar det basta vi har dar.
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        assertThat(result.get(0).fuelSpec().fuel()).isNull();
+    }
+
+    @Test
     void aiGissningBehallsForIceBilUtanVerifieradVariant() throws Exception {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
