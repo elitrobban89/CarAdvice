@@ -642,6 +642,9 @@ public class GroqService {
             // OBS enhetskonventionen: consumptionLiterPerMil bär l/100km (frontend delar med 10 vid visning
             // och räknar ägandekostnad på l/100km) — ice_consumption lagrar l/mil, därav ×10 här.
             com.caradvice.model.FuelSpecDto fuelSpec = r.fuelSpec();
+            if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
+                    fuelSpec.consumptionLiterPerMil(), rensaVaxellada(fuelSpec.gearbox()),
+                    fuelSpec.horsepower(), fuelSpec.engineVolumeLiters());
             IceConsumptionService.Variant iceVariant = null;
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
                 try {
@@ -1299,7 +1302,7 @@ public class GroqService {
         return """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Jämför EXAKT de 2 bilar användaren anger. Svara ENDAST med JSON (EXAKT 2 bilar):
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"bilens styrka","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"vem passar bilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade; elbil: '51 kWh 170hk (420km)'","fuelSpec":null}]}
-                OBLIGATORISKT: horsepower (systemeffekt i hk som heltal, ALDRIG null — elbil ex: EX30=200hk, Model Y=300hk). Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"typ (turbo/ej)","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null, inga turbobeteckningar.
+                OBLIGATORISKT: horsepower (systemeffekt i hk som heltal, ALDRIG null — elbil ex: EX30=200hk, Model Y=300hk). Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"endast växellådan, t.ex. Automat 8-växlad — aldrig motor-/turbobeteckning","horsepower":N,"engineVolumeLiters":X.X}. Elbil/laddhybrid: fuelSpec=null.
                 Ange exakt årsmodell. Svara på svenska.
                 PRISER — fältet "price" ska ALLTID vara ett intervall som "280 000–320 000 kr". Exakta siffror med mellanslag, aldrig förkortningar, aldrig extra text.
                 %s
@@ -1635,6 +1638,47 @@ public class GroqService {
      * Listan får bara växa åt det hållet — en glömd post kostar ett tomt fält på ett elbilskort,
      * medan motsatsen ger laddråd på en bensinbil. Fail open vid DB-fel, av samma skäl.
      */
+    /**
+     * Växellådefältet med motorbeteckningar bortstädade.
+     *
+     * <p>Skarpt sök 2026-08-14 gav kortet "Volvo XC40 (2022)" växellådan
+     * <i>"Automat 8-växlad (TSI turbo)"</i>. <b>TSI är VW-koncernens motorbeteckning</b> och
+     * hör inte hemma på en Volvo, som använder T- och B-beteckningar — bilen var dessutom en
+     * B4. Samma bil hade i en tidigare körning korrekt "Automat Geartronic 8-växlad", så
+     * strängen varierade mellan körningar: den kom från AI:n, inte från databasen.
+     *
+     * <p><b>Roten satt i promptens egna exempel:</b> {@code "gearbox":"Automat DSG 7-växlad
+     * (TSI turbo)"} plus instruktionen "ange turbo/ej turbo". Modellen fyllde i den
+     * parentes prompten bad om och tog motorfamiljen ur exemplet. Det är samma mönster som
+     * MG5-fallet: <b>modellen agerar på namngivna exempel</b>, så ett exempel med ett
+     * märkesspecifikt ord blir en mall som följer med till fel märke.
+     *
+     * <p>Exemplet är utbytt och beteckningarna uttryckligen förbjudna — men regeln står på
+     * TVÅ ställen av samma skäl som utmärkelseskärpningen: en prompt kan ignoreras. Till
+     * skillnad från förbrukning, hästkrafter och motoralternativ går växellådan inte att
+     * verifiera mot {@code ice_consumption}, som inte lagrar den. Därför städning i stället
+     * för ersättning.
+     *
+     * <p>En parentes behålls bara om den innehåller ett känt VÄXELLÅDEORD — "Automat (CVT)"
+     * är vettigt, "(TSI turbo)" är det inte. Okänt innehåll faller bort, och det är rätt håll
+     * att fela åt: kvar står alltid själva växellådan, och motorn visas ändå verifierad i
+     * {@code engineOptions} och {@code horsepower}.
+     */
+    static String rensaVaxellada(String gearbox) {
+        if (gearbox == null) return null;
+        String rensad = PARENTES.matcher(gearbox)
+                .replaceAll(m -> VAXELLADEORD.matcher(m.group(1)).find()
+                        ? java.util.regex.Matcher.quoteReplacement(m.group(0)) : "");
+        rensad = rensad.replaceAll("\\s{2,}", " ").trim();
+        return rensad.isEmpty() ? null : rensad;
+    }
+
+    private static final java.util.regex.Pattern PARENTES =
+            java.util.regex.Pattern.compile("\\s*\\(([^)]*)\\)");
+    private static final java.util.regex.Pattern VAXELLADEORD = java.util.regex.Pattern.compile(
+            "(?i)\\b(cvt|e-cvt|dsg|dct|edc|imt|amt|automat\\w*|manuell\\w*|geartronic|powershift|"
+            + "steptronic|tiptronic|multitronic|xtronic|s.tronic|pdk|zf|varierbar)\\b");
+
     boolean evSpecHorInteHit(String title) {   // paketprivat: testet läser den direkt
         String rent = CarTitle.stripYear(title == null ? "" : title);
         String drivetrain = ExpertInsightService.drivetrainOf(rent);
@@ -2397,7 +2441,7 @@ public class GroqService {
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
-                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat DSG 7-växlad (TSI turbo)","horsepower":N,"engineVolumeLiters":X.X} — ange turbo/ej turbo. Elbil/laddhybrid: fuelSpec=null, aldrig turbobeteckningar.
+                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN — "Manuell 6-växlad", "Automat 8-växlad", "Automat CVT", "Automat DSG 7-växlad". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. Elbil/laddhybrid: fuelSpec=null.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
                 FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).
                 SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).

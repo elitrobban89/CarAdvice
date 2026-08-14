@@ -911,6 +911,28 @@ class GroqServiceTest {
     }
 
     @Test
+    void vaxelladefaltetStadasFranMotorbeteckningar() {
+        // Live 2026-08-14: kortet "Volvo XC40 (2022)" fick växellådan "Automat 8-växlad
+        // (TSI turbo)". TSI är VW-koncernens beteckning och bilen var en Volvo B4. Roten satt
+        // i promptens EGET exempel — "Automat DSG 7-växlad (TSI turbo)" — som blev en mall.
+        assertThat(GroqService.rensaVaxellada("Automat 8-växlad (TSI turbo)")).isEqualTo("Automat 8-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat CVT (HEV hybrid)")).isEqualTo("Automat CVT");
+        assertThat(GroqService.rensaVaxellada("Automat DCT 6-växlad (Hybrid)")).isEqualTo("Automat DCT 6-växlad");
+
+        // Parentesen behålls när den faktiskt namnger växellådan
+        assertThat(GroqService.rensaVaxellada("Automat (CVT)")).isEqualTo("Automat (CVT)");
+        assertThat(GroqService.rensaVaxellada("Automat (DSG)")).isEqualTo("Automat (DSG)");
+
+        // Oförändrat när det inte finns någon parentes att städa
+        assertThat(GroqService.rensaVaxellada("Automat Geartronic 8-växlad"))
+                .isEqualTo("Automat Geartronic 8-växlad");
+        assertThat(GroqService.rensaVaxellada("Manuell 6-växlad")).isEqualTo("Manuell 6-växlad");
+        assertThat(GroqService.rensaVaxellada(null)).isNull();
+        // Blir bara parentesen kvar finns ingen växellåda att visa
+        assertThat(GroqService.rensaVaxellada("(TSI turbo)")).isNull();
+    }
+
+    @Test
     void bensinkortFarIngenEvSpecNarIceConsumptionHarBilen() {
         // Live 2026-08-14, SUV/bensin/250 000 kr: korten "Kia Niro (2021)" och "Hyundai Kona
         // (2020)" bar en elbils evSpec ("ladda var 10:e dag" / "var 6:e dag") samtidigt som
