@@ -228,6 +228,35 @@ class EvDatabaseScraperServiceMatchTest {
     }
 
     @Test
+    void ett_riktigt_ord_traffar_inte_inuti_ett_annat_riktigt_ord() {
+        /*
+         * Uppmätt mot skarp data 2026-08-14: "BYD SEALION 7" skrev till raden "BYD Seal" — "seal"
+         * ryms i "sealion", fyra tecken, alltså långt över längdgränsen. Raden fick en annan bils
+         * räckvidd och batteri, och kollisionsspärren dolde det som "olika varianter".
+         *
+         * Längdgränsen kan inte fånga det här: orden ÄR långa. Skillnaden mot en äkta
+         * särskrivning är att "sealion" inte går att dela upp i DB-namnets egna ord — "seal" +
+         * "ion", och "ion" står ingenstans.
+         *
+         * Mätningen: 627 träffar oförändrade, 3 borta (samtliga SEALION), 0 som byter rad.
+         */
+        var seal = spec("BYD Seal", 520);
+        assertThat(service.findMatch("BYD SEALION 7 82.5 kWh RWD Comfort", 456, db(seal))).isNull();
+
+        // Gränsen åt andra hållet: den riktiga Seal-varianten träffar förstås fortfarande
+        assertThat(service.findMatch("BYD SEAL 82.5 kWh RWD Design", 520, db(seal))).isSameAs(seal);
+    }
+
+    @Test
+    void omdopt_modell_med_elprefix_traffar_fortfarande() {
+        // Volvo döpte om C40 till EC40. Utan elprefix-undantaget hade synken skapat en andra rad
+        // för samma bil — dubbletter under två namn är precis det som städades bort 2026-07-28
+        // (756 rader). Samma prefixmönster som e-Golf och e-Rifter i EvSpecService.
+        var c40 = spec("Volvo C40 Single Motor", 476);
+        assertThat(service.findMatch("Volvo EC40 Single Motor ER", 476, db(c40))).isSameAs(c40);
+    }
+
+    @Test
     void utan_skentraffar_ar_varianterna_inte_langre_oavgjorda() {
         // Bonuseffekten: de åtta Tesla-varianterna föll i oavgjort-spärren för att BÅDA de lika
         // långa DB-namnen träffade via delsträng — "y" ryms i "yoke". Nu matchar bara den rätta.

@@ -381,6 +381,50 @@ public class EvDatabaseScraperService {
     /** Hur mycket DB-radens räckvidd får avvika från den skrapade för att räknas som samma bil. */
     static final double REVERSE_RANGE_TOLERANCE = 0.10;
 
+    /**
+     * Delsträngsfallbacken i steg 2, men bara i de två former den faktiskt finns för.
+     *
+     * <p>Fri delsträngsmatchning ({@code normScraped.contains(w)}) tog längdgränsen som enda
+     * skydd, och den räcker inte för ord som är riktiga ord: uppmätt 2026-08-14 skrev
+     * <b>{@code BYD SEALION 7}</b> till raden <b>{@code BYD Seal}</b> — "seal" ryms i "sealion",
+     * fyra tecken, alltså långt över gränsen. En sjöhäst är inte en säl, och raden fick en annan
+     * bils räckvidd och batteri.
+     *
+     * <p><b>Villkoret är att hela det skrapade ordet går att göra reda för.</b> Fallbacken finns
+     * för särskrivning — "ID.3" blir "id 3" medan "ID3" blir "id3", och "Long Range" skrivs ibland
+     * "LongRange" — alltså för ord som är flera DB-ord skrivna ihop. Då är också det rimliga
+     * kravet att ordet går att dela upp i just DB-ord: "longrange" = "long" + "range", båda ur
+     * DB-namnet självt. "sealion" går inte att dela så ("seal" + "ion", och "ion" står ingenstans),
+     * och det är skillnaden mellan en särskrivning och två olika bilar.
+     *
+     * <p>Ett undantag utöver det: <b>ordet med ett e före</b> — "c40" i "ec40". Volvo döpte om
+     * C40 till EC40, och utan undantaget hade synken skapat en andra rad för samma bil.
+     * Dubbletter under två namn är precis det som städades bort 2026-07-28 (756 rader). Samma
+     * elprefix som {@code EvSpecService} redan hanterar för e-Golf och e-Rifter.
+     *
+     * <p>Mätt mot skarp data (553 DB-rader mot 645 bilar på cheatsheeten): <b>627 träffar
+     * oförändrade, 3 borta, 0 som byter rad</b> — och de tre är samtliga SEALION-raderna ovan.
+     * Att de nu blir utan träff är rätt utfall: synken skapar då en egen rad för Sealion, alltså
+     * ett synligt tillskott i stället för en tyst överskrivning.
+     */
+    static boolean delstrangTraff(Set<String> scrapedWords, String dbWord, String[] dbWords) {
+        for (String s : scrapedWords) {
+            if (s.equals("e" + dbWord)) return true;
+            if (s.contains(dbWord) && garAttDelaIDbOrd(s, dbWords)) return true;
+        }
+        return false;
+    }
+
+    /** Sant när ordet är en följd av DB-namnets egna ord skrivna ihop ("longrange"). */
+    private static boolean garAttDelaIDbOrd(String ord, String[] dbWords) {
+        if (ord.isEmpty()) return true;
+        for (String w : dbWords) {
+            if (!w.isEmpty() && ord.startsWith(w) && garAttDelaIDbOrd(ord.substring(w.length()), dbWords))
+                return true;
+        }
+        return false;
+    }
+
     EvSpec findMatch(String scrapedName, Map<String, EvSpec> nameMap) {
         return findMatch(scrapedName, 0, nameMap);
     }
@@ -410,7 +454,8 @@ public class EvDatabaseScraperService {
             for (String w : dbWords) {
                 // Korta DB-ord måste stå som eget ord — se MIN_DB_WORD_FOR_SUBSTRING för varför.
                 boolean hit = scrapedWords.contains(w)
-                        || (w.length() >= MIN_DB_WORD_FOR_SUBSTRING && normScraped.contains(w));
+                        || (w.length() >= MIN_DB_WORD_FOR_SUBSTRING
+                            && delstrangTraff(scrapedWords, w, dbWords));
                 if (!hit) { allMatch = false; break; }
             }
             if (!allMatch) continue;
