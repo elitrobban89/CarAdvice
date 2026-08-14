@@ -38,6 +38,28 @@ class CarTitleTest {
     }
 
     @Test
+    void typografisktBindestreckBlirVanligtBindestreck() {
+        /*
+         * Live 2026-08-14, elbilssök 175 000 kr: AI:n skrev "Volkswagen e‑Golf (2018)" med
+         * U+2011 (non-breaking hyphen). Namnet såg rätt ut för ögat men var en annan sträng, så
+         * EvSpecService hittade ingen rad — kortet fick evSpec null och visade AI:ns egen text
+         * "44 kWh 95hk (400km)" i stället för verifierade 35,8 kWh / 231 km. Bilen har aldrig
+         * funnits med 44 kWh, och kortets EGEN nackdelstext sa "Batterikapacitet 35 kWh".
+         *
+         * Samma familj som det smala mellanslaget ovan, fast på skiljetecknet. Värst för de
+         * modeller vars namn bygger på strecket: e-Golf, e-tron, C-HR, Skyactiv-G, T-GDI.
+         *
+         * OBS: strecken nedan är riktiga U+2011, U+2013 och U+2212 — ser ut som vanliga
+         * bindestreck i editorn. Byts de mot ASCII testar raderna ingenting.
+         */
+        assertThat(CarTitle.normalize("Volkswagen e‑Golf (2018)")).isEqualTo("Volkswagen e-Golf (2018)");
+        assertThat(CarTitle.stripYear("Toyota C–HR Hybrid (2020)")).isEqualTo("Toyota C-HR Hybrid");
+        assertThat(CarTitle.normalize("Audi Q4 e−tron (2022)")).isEqualTo("Audi Q4 e-tron (2022)");
+        // Vanligt bindestreck rörs förstås inte
+        assertThat(CarTitle.normalize("Kia EV6 GT-Line (2022)")).isEqualTo("Kia EV6 GT-Line (2022)");
+    }
+
+    @Test
     void tomParentesForsvinnerMedTeknikuppgiften() {
         // Utan den här raden blir "Nissan Leaf (62 kWh) (2020)" till "Nissan Leaf ( ) (2020)" —
         // parentesen står kvar tom och följer med in i ordmatchningen mot ev_spec

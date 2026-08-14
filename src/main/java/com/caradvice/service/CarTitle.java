@@ -53,14 +53,37 @@ public final class CarTitle {
     private static final Pattern INVISIBLE = Pattern.compile("\\p{Cf}");
     private static final Pattern ODD_SPACE = Pattern.compile("\\p{Zs}");
 
+    /**
+     * Bindestreckets alla typografiska syskon, tillbaka till vanligt ASCII-bindestreck.
+     *
+     * <p>Samma fälla som de smala mellanslagen ovan, fast på skiljetecknet — och den kostade
+     * ett live-kort 2026-08-14: <b>"Volkswagen e‑Golf (2018)"</b> skrevs med U+2011
+     * (non-breaking hyphen). Modellnamnet såg rätt ut för ögat men var en annan sträng, så
+     * {@code EvSpecService} hittade ingen rad: kortet fick <b>{@code evSpec: null}</b> och visade
+     * AI:ns egen text "44 kWh 95hk (400km)" i stället för verifierade 35,8 kWh / 231 km. Bilen
+     * har aldrig funnits med 44 kWh, och kortet motsade sig självt — dess egen nackdelstext sa
+     * "Batterikapacitet 35 kWh".
+     *
+     * <p>Värst drabbas just de modeller vars namn <i>bygger</i> på bindestrecket: e-Golf,
+     * e-tron, C-HR, ID.3-varianter, Skyactiv-G, T-GDI. För dem är strecket inte dekoration utan
+     * en del av modellordet, och {@code EvSpecService}:s e-prefixhantering letar efter "e-".
+     *
+     * <p>U+00AD (mjukt bindestreck) fångas redan av {@link #INVISIBLE} eftersom det är {@code Cf}.
+     */
+    private static final Pattern DASH = Pattern.compile("[\\u2010-\\u2015\\u2212]");
+
     /** "(62 kWh)" blir "( )" när tekniken lyfts ut — parentesen ska följa med. */
     private static final Pattern EMPTY_PARENS = Pattern.compile("\\(\\s*\\)");
 
     private CarTitle() {}
 
-    /** Titeln med bara vanliga mellanslag, så {@code \s} i mönstren nedan biter. */
+    /**
+     * Titeln med bara vanliga mellanslag och vanliga bindestreck, så {@code \s} i mönstren nedan
+     * biter och modellnamnen blir samma sträng som i databasen.
+     */
     private static String plainSpaces(String title) {
-        return ODD_SPACE.matcher(INVISIBLE.matcher(title).replaceAll("")).replaceAll(" ");
+        String utanOsynliga = INVISIBLE.matcher(title).replaceAll("");
+        return DASH.matcher(ODD_SPACE.matcher(utanOsynliga).replaceAll(" ")).replaceAll("-");
     }
 
     /**
