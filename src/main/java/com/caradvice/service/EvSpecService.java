@@ -16,8 +16,11 @@ public class EvSpecService {
 
     private final EvSpecRepository repo;
 
-    public EvSpecService(EvSpecRepository repo) {
+    private final IceConsumptionService iceConsumptionService;
+
+    public EvSpecService(EvSpecRepository repo, IceConsumptionService iceConsumptionService) {
         this.repo = repo;
+        this.iceConsumptionService = iceConsumptionService;
     }
 
     /** Alla kända bilnamn i ev_spec — används av GroqServices modellhallucinationsvakt. */
@@ -39,9 +42,41 @@ public class EvSpecService {
      * när titeln inte säger det själv ("Kia EV6" innehåller inget drivlineord — "ev6" är
      * ETT ord). Går via samma matchning som specsiffrorna på kortet: en andra
      * implementation hade kunnat glida isär från den bil kortet faktiskt visar specar för.
+     *
+     * <p><b>En namnträff räcker inte som svar — {@code ice_consumption} har företräde</b>
+     * (2026-08-14). "Hyundai Kona" och "Kia Niro" finns som både bensinbil och elbil, och
+     * matchningen svarar ja på den nakna titeln eftersom radens ord ("Kona Electric") är en
+     * äkta övermängd av titelns. Kortet klassades då som ren elbil och tappade sina
+     * förbränningsinsikter — kamrems- och oljeråd som hör hemma just där.
+     *
+     * <p><b>Regeln bodde först hos anroparen, och det var för klent.</b> Samma företräde fanns
+     * redan i {@link GroqService} på två ställen (drivmedelsvakten sedan 2026-08-09,
+     * kortbygget sedan {@code ef26242}), och insiktsfiltret fick sin egen kopia i
+     * {@code 128d829}. Tre kopior av en regel är tre chanser att glida isär, och en fjärde
+     * anropare hade gått i samma fälla igen. Den bor nu här, i metoden som besvarar frågan.
+     *
+     * <p>Ingen {@code electric}-token: {@code Dacia Spring} och {@code Alpine A290} bär ordet
+     * men finns BARA som elbil, så en ordlista hade tystat deras kort. Samma gräns som för
+     * e-prefixen. Företrädet frågar databasen i stället och behöver ingen lista.
+     *
+     * <p>Fail open vid DB-fel: namnträffen finns, och en trasig uppslagning får inte göra en
+     * elbil till något annat.
      */
     public boolean isKnownEv(String title) {
-        return matchByTitle(title) != null;
+        if (matchByTitle(title) == null) return false;
+        // Bär titeln ett drivlineord har den pekat ut sin variant själv, och raden finns —
+        // då är namnet inte tvetydigt och företrädet behövs inte. Villkoret är avsiktligt
+        // "drivetrain != null" och inte "ev": PHEV-titlar svarade sant före 2026-08-14 och
+        // ska fortsätta göra det, annars ändras kontraktet för anropare som inte bett om det.
+        // Den enda anroparen (ExpertInsightService.titleDrivetrain) når hit bara när ordet
+        // saknas, så företrädet biter exakt där skadan fanns.
+        String drivetrain = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title == null ? "" : title));
+        if (drivetrain != null) return true;
+        try {
+            return iceConsumptionService.consumptionForTitle(title, null, null) == null;
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /**

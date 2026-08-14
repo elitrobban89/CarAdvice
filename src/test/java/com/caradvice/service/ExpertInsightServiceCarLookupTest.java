@@ -20,8 +20,7 @@ class ExpertInsightServiceCarLookupTest {
     private final ExpertInsightRepository repo = mock(ExpertInsightRepository.class);
     private final EvSpecService evSpecService = mock(EvSpecService.class);
     private final UpcomingInsightService upcomingService = mock(UpcomingInsightService.class);
-    private final IceConsumptionService iceConsumptionService = mock(IceConsumptionService.class);
-    private final ExpertInsightService service = new ExpertInsightService(repo, evSpecService, upcomingService, iceConsumptionService);
+    private final ExpertInsightService service = new ExpertInsightService(repo, evSpecService, upcomingService);
 
     private static ExpertInsight insight(String expert, String make, String model, String text, Integer rating) {
         return new ExpertInsight(expert, make, model, "el", "kombi", text, rating);

@@ -26,15 +26,12 @@ public class ExpertInsightService {
     private final ExpertInsightRepository repo;
     private final EvSpecService evSpecService;
     private final UpcomingInsightService upcomingService;
-    private final IceConsumptionService iceConsumptionService;
 
     public ExpertInsightService(ExpertInsightRepository repo, EvSpecService evSpecService,
-                                UpcomingInsightService upcomingService,
-                                IceConsumptionService iceConsumptionService) {
+                                UpcomingInsightService upcomingService) {
         this.repo = repo;
         this.evSpecService = evSpecService;
         this.upcomingService = upcomingService;
-        this.iceConsumptionService = iceConsumptionService;
     }
 
     /**
@@ -171,21 +168,11 @@ public class ExpertInsightService {
         String fromText = drivetrainOf(flattened);
         if (fromText != null) return fromText;
         try {
-            // ice_consumption FÖRE ev_spec — tredje stället samma företräde behövs, och det
-            // hittades först 2026-08-14 när de två andra redan var lagade. "Hyundai Kona" och
-            // "Kia Niro" finns som både bensinbil och elbil, och ev_spec:s matchning svarar
-            // "ev" på den nakna titeln eftersom radens ord ("Kona Electric") är en övermängd
-            // av titelns. Kortet klassades då som ren elbil och TAPPADE sina
-            // förbränningsinsikter — kamrems- och oljeråd som hör hemma just där.
-            //
-            // Ingen token-lista: ett generellt krav på ordet "electric" i titeln hade fällt
-            // Dacia Spring och Alpine A290 också, och de finns BARA som elbil. Företrädet
-            // frågar i stället databasen, precis som GroqService.isNonEv och kortbygget gör.
-            //
-            // Svaret blir null och inte "ice": okänd drivlina släpper igenom allt innehåll,
-            // så en felaktig ice-stämpel kan inte i sin tur släcka elbilsinsikter. Att fälla
-            // åt fel håll är hela poängen med att inte gissa.
-            if (iceConsumptionService.consumptionForTitle(rawTitle, null, null) != null) return null;
+            // isKnownEv bär själv företrädet ice_consumption-före-ev_spec sedan 2026-08-14:
+            // "Hyundai Kona" och "Kia Niro" finns som både bensinbil och elbil, och en naken
+            // titel svarade tidigare "ev" — varpå kortet klassades som ren elbil och tappade
+            // sina förbränningsinsikter. Kopian låg först här; den flyttades in i metoden så
+            // att alla anropare får samma svar. Rör den inte här.
             return evSpecService.isKnownEv(rawTitle) ? "ev" : null;
         } catch (Exception e) {
             return null;

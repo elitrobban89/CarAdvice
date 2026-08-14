@@ -38,11 +38,8 @@ class ExpertInsightServiceTest {
     @Mock
     private UpcomingInsightService upcomingService;
 
-    @Mock
-    private IceConsumptionService iceConsumptionService;
-
     private ExpertInsightService service() {
-        return new ExpertInsightService(repo, evSpecService, upcomingService, iceConsumptionService);
+        return new ExpertInsightService(repo, evSpecService, upcomingService);
     }
 
     private static CarPreferences prefs(String category, String fuelType) {
@@ -355,39 +352,7 @@ class ExpertInsightServiceTest {
         assertThat(service().findForCarTitle("Volvo V60 (2021)")).hasSize(1);
     }
 
-    @Test
-    void tvetydigNamnplatTapparInteSinaForbranningsinsikter() {
-        // Tredje stället företrädet ice_consumption-före-ev_spec behövdes, hittat 2026-08-14
-        // när de två andra redan var lagade. "Hyundai Kona" finns som både bensinbil och
-        // elbil, och isKnownEv svarar "ev" på den nakna titeln eftersom radens ord
-        // ("Kona Electric") är en övermängd av titelns. Kortet klassades då som ren elbil och
-        // tappade sina förbränningsinsikter — kamrems- och oljeråd som hör hemma just där.
-        ExpertInsight kamrem = insikt("CarUp", "Hyundai", "Kona",
-                "Kamremmen i olja är ett känt fel och kräver strikt service.", 7);
-        when(repo.findAll()).thenReturn(List.of(kamrem));
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
-                .thenReturn(new IceConsumptionService.Variant("Hyundai", "Kona 1.6 T-GDI 198 hk", "bensin", 0.68));
-        // Ingen isKnownEv-stubb: företrädet returnerar INNAN ev_spec hinner tillfrågas, och
-        // Mockitos strikta läge fäller testet om stubben ligger kvar oanvänd. Att den blir
-        // överflödig är alltså i sig beviset för att ordningen blev rätt.
 
-        assertThat(service().findForCarTitle("Hyundai Kona (2020)")).hasSize(1);
-    }
-
-    @Test
-    void rentElbilsnamnUtanForbranningsradFiltrerarFortfarande() {
-        // Gränsen åt andra hållet, och skälet att INTE lösa det här med en "electric"-token:
-        // Dacia Spring och Alpine A290 finns BARA som elbil, så ett generellt krav på ordet
-        // "electric" i titeln hade tystat deras kort. Företrädet frågar databasen i stället,
-        // och utan förbränningsrad står ev_spec-svaret kvar.
-        ExpertInsight kamrem = insikt("CarUp", "Dacia", "Spring",
-                "Kamremmen i olja är ett känt fel och kräver strikt service.", 7);
-        when(repo.findAll()).thenReturn(List.of(kamrem));
-        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
-
-        assertThat(service().findForCarTitle("Dacia Spring (2022)")).isEmpty();
-    }
 
     @Test
     void drivetrainOfSkiljerPaVarianterna() {

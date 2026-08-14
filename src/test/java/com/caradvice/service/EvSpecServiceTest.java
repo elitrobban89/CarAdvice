@@ -11,6 +11,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -24,8 +26,13 @@ class EvSpecServiceTest {
     @Mock
     private EvSpecRepository repo;
 
+    // Lenient: de allra flesta testerna gäller matchByTitle och når aldrig företrädeskollen
+    // i isKnownEv, så en strikt stubb hade fällt dem på "unnecessary stubbing".
+    @Mock(lenient = true)
+    private IceConsumptionService iceConsumptionService;
+
     private EvSpecService service() {
-        return new EvSpecService(repo);
+        return new EvSpecService(repo, iceConsumptionService);
     }
 
     private static EvSpec spec(String name) {
@@ -329,6 +336,49 @@ class EvSpecServiceTest {
         // ...men elbilen hittar fortfarande sin egen rad när titeln bär namnet
         assertThat(service().isKnownEv("Volvo XC40 Recharge (2022)")).isTrue();
         assertThat(service().verifiedEngineOptions("Volvo XC40 Recharge (2022)")).isNotNull();
+    }
+
+    @Test
+    void isKnownEvGerIceConsumptionForetrade() {
+        // "Hyundai Kona" och "Kia Niro" finns som BÅDE bensinbil och elbil, och matchningen
+        // svarar ja på den nakna titeln eftersom radens ord ("Kona Electric") är en äkta
+        // övermängd av titelns. Kortet klassades då som ren elbil och tappade sina
+        // förbränningsinsikter — kamrems- och oljeråd som hör hemma just där.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Hyundai Kona Electric 64 kWh", 11.0, 77.0, 64.8, 484, 0)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Hyundai", "Kona 1.6 T-GDI 198 hk", "bensin", 0.68));
+
+        assertThat(service().isKnownEv("Hyundai Kona (2020)")).isFalse();
+        // Säger titeln själv att den är elbil vinner den över förbränningsraden
+        assertThat(service().isKnownEv("Hyundai Kona Electric (2020)")).isTrue();
+        // Spec-chipsen är en annan fråga och rörs inte — matchningen finns kvar
+        assertThat(service().formatForTitle("Hyundai Kona Electric (2020)", 15000)).isNotNull();
+    }
+
+    @Test
+    void rentElbilsnamnUtanForbranningsradForblirElbil() {
+        // Skälet att INTE lösa det med en "electric"-token: Dacia Spring och Alpine A290 bär
+        // ordet men finns BARA som elbil, så en ordlista hade tystat deras kort. Samma gräns
+        // som för e-prefixen. Utan förbränningsrad står ev_spec-svaret kvar.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Dacia Spring Electric 100", 7.0, 30.0, 24.0, 220, 0),
+                new EvSpec("Alpine A290 Electric 220 hp", 11.0, 100.0, 52.0, 380, 0)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+
+        assertThat(service().isKnownEv("Dacia Spring (2022)")).isTrue();
+        assertThat(service().isKnownEv("Alpine A290 (2025)")).isTrue();
+    }
+
+    @Test
+    void isKnownEvFailarOpenVidDbFel() {
+        // Namnträffen finns — en trasig uppslagning får inte göra en elbil till något annat.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 0)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenThrow(new RuntimeException("db nere"));
+
+        assertThat(service().isKnownEv("Volvo EX30 (2024)")).isTrue();
     }
 
     @Test
