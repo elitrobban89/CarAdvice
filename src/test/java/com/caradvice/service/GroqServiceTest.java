@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -1299,7 +1300,7 @@ class GroqServiceTest {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
         when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any(), any()))
                 .thenReturn(new IceConsumptionService.Variant("Volkswagen", "Golf 1.5 TSI 150 hk", "bensin", 0.55));
 
         List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
@@ -1322,7 +1323,7 @@ class GroqServiceTest {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
         when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any(), any()))
                 .thenReturn(new IceConsumptionService.Variant("Kia", "Sportage 1.6 T-GDI 150 hk", "bensin", 0.80));
 
         List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
@@ -1344,7 +1345,7 @@ class GroqServiceTest {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
         when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any(), any())).thenReturn(null);
 
         List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
         @SuppressWarnings("unchecked")
@@ -1359,7 +1360,7 @@ class GroqServiceTest {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
         when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
-        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any(), any())).thenReturn(null);
 
         List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
         @SuppressWarnings("unchecked")
@@ -1370,6 +1371,34 @@ class GroqServiceTest {
         assertThat(r.horsepower()).isEqualTo(999);
         assertThat(r.fuelSpec().horsepower()).isEqualTo(999);
         assertThat(r.engineOptions()).isEqualTo("1.4 TFSI 999hk manuell");
+    }
+
+    @Test
+    void arsmodellenSkickasMedTillForbrukningsuppslaget() throws Exception {
+        /*
+         * Generationsvakten satt först bara på motorlistan, och då räckte den inte: kortets
+         * förbrukning, drivmedel och hk kommer ur EN rad ur samma generationsblinda tabell, och
+         * förbrukningen räknas dessutom om till kronor i ägandekostnaden. Vakten kan bara bita
+         * om året faktiskt når fram — därför verifieras argumentet, inte bara utfallet.
+         *
+         * Faller raden bort behåller kortet AI:ns egen text. Det är samma utfall som för en bil
+         * vi saknar helt, och det är med flit: ett tomt påstående är bättre än ett falskt.
+         */
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+        when(evSpecService.getSystemPowerHk(anyString())).thenReturn(null);
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any(), any())).thenReturn(null);
+
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + ICE_BIL + "]}");
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        verify(iceConsumptionService).consumptionForTitle("Volkswagen Golf (2020)", 999, null, 2020);
+        // Ingen verifierad rad ⇒ motorlistan får inte hämtas fram bakvägen. Fallbacken skrev
+        // förr ut den fällda radens EGEN beteckning när listan tystnade, alltså precis den
+        // generation vi just vägrade visa.
+        assertThat(result.get(0).engineOptions()).isEqualTo("1.4 TFSI 999hk manuell");
     }
 
     @Test

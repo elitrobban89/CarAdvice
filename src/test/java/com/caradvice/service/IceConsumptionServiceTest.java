@@ -246,6 +246,49 @@ class IceConsumptionServiceTest {
     }
 
     @Test
+    void aldreArsmodellFarIngenForbrukningssiffraHeller() {
+        /*
+         * Skarpt fall 2026-08-14: vakten satt bara på motorlistan, så en Kia Sportage (2020)
+         * fick INGEN lista (rätt) men behöll gen 5:ans förbrukning, drivmedel och hk från
+         * samma generationsblinda rad — märkt som verifierad och omräknad till kronor i
+         * ägandekostnaden. Siffran måste falla med listan.
+         */
+        IceGenerationService gen = mock(IceGenerationService.class);
+        when(gen.franArFor("Kia sportage")).thenReturn(2022);
+        service.setIceGenerations(gen);
+        try {
+            assertThat(service.consumptionForTitle("Kia Sportage (2020)", 230, "bensin", 2020)).isNull();
+            assertThat(service.consumptionSummaryForTitle("Kia Sportage (2020)", 2020)).isNull();
+
+            // Gränsen åt andra hållet: generationens egna år får sina siffror som förut
+            assertThat(service.consumptionForTitle("Kia Sportage (2023)", 230, "bensin", 2023)).isNotNull();
+            assertThat(service.consumptionSummaryForTitle("Kia Sportage (2023)", 2023)).isNotNull();
+        } finally {
+            service.setIceGenerations(null);
+        }
+    }
+
+    @Test
+    void existensprovningenPaverkasInteAvGenerationen() {
+        /*
+         * Treargsvarianten används som EXISTENSPRÖVNING av isKnownEv, isNonEv och
+         * evSpecHorInteHit: "finns namnet som förbränningsbil?" avgör kortets drivlina. Skulle
+         * vakten svara null där blir en 2018 års Golf en ELBIL — den får evSpec-fält, laddråd
+         * och elpris i ägandekostnaden. Generationen säger något om siffran, inte om vad bilen är.
+         */
+        IceGenerationService gen = mock(IceGenerationService.class);
+        when(gen.franArFor("Volkswagen golf")).thenReturn(2020);
+        service.setIceGenerations(gen);
+        try {
+            assertThat(service.consumptionForTitle("Volkswagen Golf (2018)", null, "bensin")).isNotNull();
+            // ...och samma sak när året uttryckligen inte skickas med
+            assertThat(service.consumptionForTitle("Volkswagen Golf (2018)", null, "bensin", null)).isNotNull();
+        } finally {
+            service.setIceGenerations(null);
+        }
+    }
+
+    @Test
     void utanArtalEllerUtanKantGenerationsarVisasListanSomForut() {
         // Tabellen fylls över flera nätter och ett kort får inte tappa sina motoralternativ
         // under tiden — okänd generation betyder "ingen åsikt", inte "dölj".

@@ -176,6 +176,27 @@ public class IceConsumptionService {
      * en titel kan inte trolla fram rader vi inte har.
      */
     public Variant consumptionForTitle(String title, Integer horsepower, String fuelPref) {
+        return consumptionForTitle(title, horsepower, fuelPref, null);
+    }
+
+    /**
+     * Som ovan, men tyst när årsmodellen är äldre än den generation tabellen beskriver — samma
+     * vakt som {@link #engineOptionsForTitle(String, Integer)}, se {@link IceGenerationService}.
+     *
+     * <p><b>Varför siffran måste falla med listan.</b> Vakten satt först bara på motorlistan, och
+     * det räckte inte: förbrukningen, drivmedlet och hästkrafterna på kortet kommer ur EN rad ur
+     * samma generationsblinda tabell. En Kia Sportage (2020) fick gen 5:ans (2022+) siffra märkt
+     * som verifierad, och den siffran räknas dessutom om till kronor i ägandekostnaden. Värre
+     * ändå: när listan tystnade föll anroparen tillbaka på den fällda radens egen beteckning, så
+     * generationen kom in genom bakdörren ändå.
+     *
+     * <p><b>Treargsvarianten behåller det gamla beteendet med flit.</b> Den används som
+     * EXISTENSPRÖVNING — {@code EvSpecService.isKnownEv}, {@code GroqService.isNonEv} och
+     * {@code evSpecHorInteHit} frågar "finns namnet som förbränningsbil?" för att avgöra
+     * drivlinan. Att svara null där för att bilen är gammal hade gjort en 2018 års Golf till
+     * elbil. Generationen säger något om SIFFRAN, inte om vad bilen är.
+     */
+    public Variant consumptionForTitle(String title, Integer horsepower, String fuelPref, Integer arsmodell) {
         if (title == null || title.isBlank()) return null;
         String t = normalize(CarTitle.stripYear(title));
         java.util.Set<String> tokens = titleTokens(t);
@@ -186,6 +207,7 @@ public class IceConsumptionService {
             if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
+        if (aldreAnGenerationen(candidates, arsmodell)) return null;
 
         String titelnsBransle = fuelFromTitle(title);
         if (titelnsBransle != null) {
@@ -240,6 +262,30 @@ public class IceConsumptionService {
     }
 
     /**
+     * Sant när kortets årsmodell är äldre än den generation kandidatraderna beskriver — då har vi
+     * ingenting sant att säga om bilen och ska avstå helt.
+     *
+     * <p>Regeln står på ETT ställe med flit. Den satt först bara i {@code engineOptionsForTitle},
+     * och då kunde samma generationsblinda rad ändå nå kortet via förbrukningssiffran, drivmedlet,
+     * hästkrafterna och listans fallback. Alla uppslag som lämnar ifrån sig ett värde ur tabellen
+     * ska ställa samma fråga, precis som drivmedelsföreträdet flyttade in i {@code isKnownEv}.
+     *
+     * <p>Nyckeln byggs ur FÖRSTA kandidaten: alla kandidater delar märke och modellord (det är
+     * villkoret för att komma med), så vilken av dem vi frågar på spelar ingen roll — och formen
+     * "märke modellord-i-gemener" måste vara identisk med den {@code allModelNames} bygger,
+     * annars matchar uppslaget aldrig ifyllningen.
+     *
+     * <p>Okänd generation eller saknat årtal betyder INGEN ÅSIKT, inte "dölj": tabellen fylls
+     * över flera nätter och ett kort får inte tappa sina siffror under tiden.
+     */
+    private boolean aldreAnGenerationen(List<Variant> candidates, Integer arsmodell) {
+        if (arsmodell == null || iceGenerations == null || candidates.isEmpty()) return false;
+        Variant forsta = candidates.get(0);
+        Integer franAr = iceGenerations.franArFor(forsta.brand() + " " + modelWord(forsta));
+        return franAr != null && arsmodell < franAr;
+    }
+
+    /**
      * Samtliga verifierade motoralternativ för en modell, som elbilskorten redan visar.
      *
      * <p>Tabellen bär 957 varianter fördelat på 304 modeller, och 197 av dem har fler än en —
@@ -291,12 +337,7 @@ public class IceConsumptionService {
             if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
-
-        if (arsmodell != null && iceGenerations != null) {
-            Variant forsta = candidates.get(0);
-            Integer franAr = iceGenerations.franArFor(forsta.brand() + " " + modelWord(forsta));
-            if (franAr != null && arsmodell < franAr) return null;
-        }
+        if (aldreAnGenerationen(candidates, arsmodell)) return null;
 
         List<String> namn = candidates.stream()
                 .sorted(Comparator.comparingInt(v -> {
@@ -312,6 +353,16 @@ public class IceConsumptionService {
 
     /** Kompakt förbrukningsrad för jämförelseprompten: median per drivmedel för modellen. */
     public String consumptionSummaryForTitle(String title) {
+        return consumptionSummaryForTitle(title, null);
+    }
+
+    /**
+     * Som ovan, med samma generationsvakt som kortets siffra — medianen räknas ju på exakt de
+     * rader som beskriver fel generation, och det den matar är AI:ns jämförelsetext, alltså
+     * något användaren läser. Faller raden bort resonerar modellen utan den, precis som för en
+     * bil vi saknar helt.
+     */
+    public String consumptionSummaryForTitle(String title, Integer arsmodell) {
         if (title == null || title.isBlank()) return null;
         String t = normalize(CarTitle.stripYear(title));
         java.util.Set<String> tokens = titleTokens(t);
@@ -322,6 +373,7 @@ public class IceConsumptionService {
             if (tokens.contains(modelWord(v))) candidates.add(v);
         }
         if (candidates.isEmpty()) return null;
+        if (aldreAnGenerationen(candidates, arsmodell)) return null;
 
         // l/100km i prompten — AI:n svarar i den enheten i consumptionLiterPerMil (frontend-konventionen)
         StringBuilder sb = new StringBuilder();

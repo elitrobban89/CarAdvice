@@ -651,7 +651,12 @@ public class GroqService {
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
                 try {
                     Integer hp = fuelSpec.horsepower() != null ? fuelSpec.horsepower() : r.horsepower();
-                    iceVariant = iceConsumptionService.consumptionForTitle(r.title(), hp, fuelPref);
+                    // Årsmodellen skickas med av samma skäl som till motorlistan nedan: tabellen
+                    // bär EN generations motorer per modell. Utan den fick en Kia Sportage (2020)
+                    // gen 5:ans (2022+) förbrukning märkt som verifierad, och den siffran räknas
+                    // vidare till kronor i ägandekostnaden.
+                    iceVariant = iceConsumptionService.consumptionForTitle(
+                            r.title(), hp, fuelPref, CarTitle.year(r.title()));
                 } catch (Exception ignored) {}
 
                 Double consumption = iceVariant != null ? iceVariant.literPerMil() * 10 : null;
@@ -711,6 +716,12 @@ public class GroqService {
                 // förbränningskorten visade en enda motor fast databasen bar flera.
                 // Årsmodellen skickas med: tabellen bär EN generations motorer per modell, så
                 // ett äldre kort ska hellre få AI:ns egen text än 2020 års motorutbud.
+                //
+                // Fallbacken nedan var en bakdörr så länge vakten satt enbart här: när listan
+                // tystnade för en för gammal årsmodell skrevs i stället den fällda generationens
+                // EGEN beteckning ut. Nu bär consumptionForTitle samma vakt, så iceVariant är
+                // redan null i det läget och hela blocket hoppas över — descriptorn kan bara nå
+                // hit när modellen har en verifierad rad som vakten släppt igenom.
                 String allaMotorer = iceConsumptionService.engineOptionsForTitle(
                         r.title(), CarTitle.year(r.title()));
                 engineOptions = allaMotorer != null ? allaMotorer
@@ -1348,7 +1359,10 @@ public class GroqService {
 
     private void appendConsumption(StringBuilder sb, String carName) {
         try {
-            String summary = iceConsumptionService.consumptionSummaryForTitle(carName);
+            // Årsmodellen ur namnet: medianen räknas på tabellens rader, och de beskriver EN
+            // generation. En för gammal bil ska inte få en nyare generations siffra i prompten.
+            String summary = iceConsumptionService.consumptionSummaryForTitle(
+                    carName, CarTitle.year(carName));
             if (summary != null) sb.append(carName).append(": ").append(summary).append("\n");
         } catch (Exception ignored) {}
     }
@@ -2281,7 +2295,10 @@ public class GroqService {
             try { legroom = cargoSpecService.getLegroom(name); } catch (Exception ignored) {}
             try { chem = evSpecService.getBatteryChemistry(name); } catch (Exception ignored) {}
             try { safety = safetyRatingService.formatForTitle(name); } catch (Exception ignored) {}
-            try { consumption = iceConsumptionService.consumptionSummaryForTitle(name); } catch (Exception ignored) {}
+            // Årtalet plockas ur den ORÖRDA raden — name har fått det bortstrippat, men vakten
+            // behöver det för att kunna avstå när bilen är äldre än tabellens generation.
+            try { consumption = iceConsumptionService.consumptionSummaryForTitle(
+                    name, CarTitle.year(raw)); } catch (Exception ignored) {}
             if (legroom == null && chem == null && safety == null && consumption == null) continue;
             sb.append(name).append(": ");
             boolean needsComma = false;
