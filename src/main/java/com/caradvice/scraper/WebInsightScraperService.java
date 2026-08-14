@@ -203,6 +203,16 @@ public class WebInsightScraperService {
               Blocket i 49 exemplar från 58 000 kr. Detsamma gäller VW e-Golf och äldre
               Nissan Leaf. Gränsen går vid bilar som aldrig sålts här, inte vid bilar som
               slutat säljas NYA.
+              Regeln gäller lika mycket en HELT NY modell: den andra gränsen går mellan
+              "ännu inte här" och "aldrig här". Gäller lanseringen uttryckligen en annan
+              marknad är bilen IRRELEVANT hur ny och opresenterad den än är, för den är
+              inte på väg hit — Mitsubishi ASX VR-e säljs enligt avtalet med Foxconn bara
+              i Oceanien, och VW ID. ERA 5X är en Kina-modell där en europaversion ännu
+              bara övervägs (båda parkerades felaktigt som KOMMANDE i stället, 2026-08-14).
+              Är modellen däremot bekräftad för Europa — EU-typgodkännande, europeisk
+              prislista eller säljstart utsatt här — är den på väg hit och ska BEHÅLLAS:
+              Tesla Model Y L debuterade i Kina men har EU-typgodkännande och ligger i
+              Teslas nordiska konfigurator, och hör alltså hemma i kön.
               Att bilen ännu inte går att köpa här är däremot INGEN uteslutningsgrund.
               Konkreta uppgifter om en bekräftad modell — mått, effekt, räckvidd, batteri,
               plattform, teknik, testvärden, pris — är RELEVANTA oavsett när den når
@@ -309,6 +319,10 @@ public class WebInsightScraperService {
             säljstart. Är du osäker på om en presenterad modell når Sverige: BEHÅLL raden.
             Tillgängligheten prövas i nästa steg, och en bil som ännu inte går att köpa
             parkeras där utan att synas för köparen — en kastad rad är däremot borta.
+            Men VET du att lanseringen gäller en annan marknad är det inte osäkerhet, och
+            då gäller uteslutningen ovan: nästa steg avgör bara OM bilen går att köpa här
+            idag, aldrig OM den någonsin kommer hit. Går den frågan vidare dit blir svaret
+            alltid "kommande", och kön fylls med bilar som aldrig når en svensk köpare.
 
             Svara ENDAST med valid JSON:
             {"irrelevant": [index...]}
@@ -327,6 +341,13 @@ public class WebInsightScraperService {
      * <p>Frågan är binär och besvaras därför separat, utan att konkurrera med
      * relevansbedömningen om modellens uppmärksamhet. Vakten kan bara PARKERA rader, aldrig
      * kasta dem: relevansen är redan avgjord när den körs.
+     *
+     * <p><b>Den frågar "går bilen att köpa här IDAG", inte "kommer den någonsin hit".</b> En
+     * Kina- eller Australien-modell får därför alltid svaret KOMMANDE — den går ju inte att
+     * köpa här — och hamnar i kön för evigt. Marknadsfrågan hör hemma i
+     * {@link #RELEVANCE_PROMPT} och måste vara avgjord innan raden når hit; kön granskades
+     * 2026-08-14 och tre av tretton rader var sådana bilar. Lägg alltså aldrig
+     * marknadsfrågan här: den här vakten har ingen dom att fälla den med.
      */
     static final String UPCOMING_PROMPT = """
             Du avgör en enda sak om varje rad: går bilen att köpa i Sverige idag?

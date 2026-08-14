@@ -468,6 +468,47 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void relevanspromptenSkiljerAnnuIntteHarFranAldrigHar() {
+        /*
+         * Kögranskning 2026-08-14: tre av tretton parkerade rader var bilar för ANDRA
+         * marknader — Mitsubishi ASX VR-e (Oceanien enligt Foxconn-avtalet) och VW ID. ERA 5X
+         * (Kina, europaversion bara övervägd). De borde stoppats som IRRELEVANTA, inte
+         * parkerats som kommande.
+         *
+         * Regeln fanns redan ("modeller som bara säljs på andra marknader") men stod i SAMMA
+         * punkt som undantaget som upphäver den ("att bilen ännu inte går att köpa här är
+         * INGEN uteslutningsgrund"), och undantaget vann. Nästa steg kunde inte rädda det:
+         * UPCOMING_PROMPT frågar om bilen går att köpa här IDAG, och för en Kina-modell är
+         * svaret alltid nej, alltså KOMMANDE. Kön blev slutstationen för bilar som aldrig
+         * kommer hit. Samma familj som prompt-motsägelsen 2026-08-12: läs hela regelblocket
+         * runt en skärpning.
+         */
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("\"ännu inte här\" och \"aldrig här\"")
+                .contains("inte på väg hit")
+                // osäkerhetsregeln från 2026-08-08 står kvar och får inte tas för en
+                // uteslutningsgrund — men VETSKAP om en annan marknad är inte osäkerhet
+                .contains("BEHÅLL raden")
+                .contains("inte osäkerhet");
+    }
+
+    @Test
+    void marknadsregelnOverblockerarInteEuropabekraftadModell() {
+        // Gränsen åt andra hållet, och den enda av de tre köraderna som visade sig vara
+        // korrekt parkerad: Tesla Model Y L debuterade i Kina men har EU-typgodkännande och
+        // ligger i Teslas nordiska konfigurator. En modell bekräftad för Europa är på väg
+        // hit, och en marknadsregel utan den gränsen hade tömt kön på riktiga träffar.
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("bekräftad för Europa")
+                .contains("Model Y L");
+        // Marknadsfrågan får inte flyttas till kommande-vakten: den kan bara parkera, aldrig
+        // kasta, så ett "nej" därifrån blir en rad i kön i stället för en utesluten rad
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .doesNotContain("\"irrelevant\"")
+                .doesNotContain("annan marknad");
+    }
+
+    @Test
     void relevanspromptenStopparModellspecifikFordonsskatt() {
         // Natten 2026-08-10 sparades två skatterader (V60 Recharge 360 kr/år, Cayenne Turbo
         // E-Hybrid 2 714 kr/år) fast "skatter" redan stod i uteslutningslistan — vakten läste
