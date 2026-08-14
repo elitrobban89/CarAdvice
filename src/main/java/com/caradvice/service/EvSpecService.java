@@ -183,10 +183,23 @@ public class EvSpecService {
      * av Prius PHEV och RAV4 PHEV under en annan konvention — de raderas inte, eftersom
      * nattsynken skulle kunna återskapa dem, och spärren gör dem ofarliga där de står.
      *
-     * <p>Följande ser ut som laddhybridmarkörer men är det INTE, och får inte in i listan:
-     * "Recharge" är Volvos namn för både elbil och laddhybrid och våra XC40 Recharge-rader är
-     * 75 kWh-elbilar; DS "E-Tense" likaså (50,8 och 58,3 kWh); "Jeep Compass Electric 4xe"
-     * är 96,1 kWh. Ett för brett filter hade tystat riktiga elbilskort.
+     * <p>DS "E-Tense" (50,8 och 58,3 kWh) och "Jeep Compass Electric 4xe" (96,1 kWh) ser ut som
+     * laddhybridmarkörer men är det inte, och står därför inte i listan — ett för brett filter
+     * hade tystat riktiga elbilskort.
+     *
+     * <p><b>"Recharge" stod på samma undantagslista fram till 2026-08-14, och det var fel.</b>
+     * Motiveringen var riktig i sak: Volvo använder namnet för både elbil och laddhybrid, och
+     * våra två rader ({@code Volvo XC40 Recharge}, {@code Volvo XC40 Recharge Twin}) är båda
+     * 75 kWh-elbilar. Men den skyddade bara elbilskorten — inte bensinbilen. Skarpt sök
+     * 2026-08-14 (SUV/bensin/250 000 kr) gav kortet "Volvo XC40 (2022)" en elbils
+     * {@code evSpec} — 75 kWh, 530 km, <i>ladda var 11:e dag</i> — samtidigt som dess
+     * {@code fuelSpec} korrekt visade bensinmotorn B4 197 hk och 0,8 l/mil. Kortet bar alltså
+     * en elbils laddråd och en bensinbils förbrukning på samma gång.
+     *
+     * <p>Priset för spärren är att ett äkta elbils-XC40 vars titel bara säger "Volvo XC40"
+     * tappar sina spec-chips. Det är samma avvägning som redan gäller för e-Golf och
+     * PHEV-raderna, och den går åt rätt håll: <b>fel data på en bensinbil är värre än
+     * utebliven data på en elbil</b> — vakterna kräver positivt bevis.
      *
      * <p><b>e-prefixade modellnamn hör hit av samma skäl.</b> "e-Golf" är inte "Golf" — den ena
      * är en elbil, den andra en av Sveriges vanligaste bensinbilar. Matchningen strippar
@@ -218,7 +231,7 @@ public class EvSpecService {
     private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
             "phev", "hev", "gte", "plug-in",
             "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter",
-            "c-hr+", "250+", "4matic+");
+            "c-hr+", "250+", "4matic+", "recharge");
 
     /**
      * Lagrat namn med samma {@code e-}-strippning som titeln får, för ordjämförelserna.
@@ -1152,6 +1165,15 @@ public class EvSpecService {
         return Normalizer.normalize(s, Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}", "")
                 .replaceAll("\\p{Cf}", "")          // osynliga styrtecken: zero-width space, BOM, mjukt bindestreck
+                // Streckvarianter → vanligt bindestreck. Samma sorts fälla som de smala
+                // mellanslagen nedan, upptäckt i ett skarpt sök 2026-08-14: AI:n skrev
+                // "Toyota C‑HR" med U+2011 (icke-brytande bindestreck), och eftersom det
+                // lagrade namnet bär U+002D kunde titeln aldrig matcha någon rad alls.
+                // Tyst fel — kortet föll bara tillbaka på AI:ns fritext utan felutskrift.
+                // Drabbar varje modell med bindestreck: C-HR, e-tron, Mach-E, I-Pace, ë-C4.
+                // U+2010 hyphen, U+2011 non-breaking hyphen, U+2012 figure dash,
+                // U+2013 en dash, U+2014 em dash, U+2015 horizontal bar, U+2212 minus.
+                .replaceAll("[\\u2010-\\u2015\\u2212]", "-")
                 .replaceAll("[\\p{Z}\\s]+", " ")    // hårt/smalt/typografiskt mellanslag → vanligt
                 .trim()
                 .toLowerCase();

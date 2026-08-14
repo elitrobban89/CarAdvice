@@ -304,6 +304,43 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void bensinXC40FarInteRechargeSiffror() {
+        // Sjätte ingången, hittad i det skarpa söket 2026-08-14 som verifierade C-HR-fixen:
+        // SUV/bensin/250 000 kr gav kortet "Volvo XC40 (2022)" en elbils evSpec (75 kWh,
+        // 530 km, "ladda var 11:e dag") SAMTIDIGT som fuelSpec korrekt visade bensinmotorn
+        // B4 197 hk / 0,8 l per mil. "Recharge" var medvetet undantagen ur spärren för att
+        // elbilskorten skulle fungera — men undantaget skyddade inte bensinbilen.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 75.0, 530, 465_000),
+                new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 424, 0)));
+
+        assertThat(service().formatForTitle("Volvo XC40 (2022)", 15000)).isNull();
+        assertThat(service().verifiedEngineOptions("Volvo XC40 (2022)")).isNull();
+        assertThat(service().isKnownEv("Volvo XC40")).isFalse();
+        // ...men elbilen hittar fortfarande sin egen rad när titeln bär namnet
+        assertThat(service().isKnownEv("Volvo XC40 Recharge (2022)")).isTrue();
+        assertThat(service().verifiedEngineOptions("Volvo XC40 Recharge (2022)")).isNotNull();
+    }
+
+    @Test
+    void streckvarianterINormaliseringen() {
+        // Samma sorts fälla som de smala mellanslagen: AI:n skrev "Toyota C‑HR" med
+        // icke-brytande bindestreck i det skarpa söket 2026-08-14. Lagrade namn bär U+002D,
+        // så en sådan titel kunde aldrig matcha någon rad alls — tyst fel, kortet föll bara
+        // tillbaka på AI:ns fritext. Måste fungera åt BÅDA håll: en riktig träff ska bli av,
+        // och spärrarna ska fortsätta bita fast strecket är av en annan sort.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Ford Mustang Mach-E", 11.0, 150.0, 88.0, 600, 0),
+                new EvSpec("Toyota C-HR+ 77 kWh", 11.0, 150.0, 72.0, 609, 506_000)));
+
+        assertThat(service().isKnownEv("Ford Mustang Mach‑E (2021)")).isTrue();   // U+2011
+        assertThat(service().isKnownEv("Ford Mustang Mach–E (2021)")).isTrue();   // U+2013
+        assertThat(service().isKnownEv("Ford Mustang Mach-E (2021)")).isTrue();        // U+002D
+        // Plus-spärren biter även när titeln bär en annan streckvariant
+        assertThat(service().isKnownEv("Toyota C‑HR (2021)")).isFalse();
+    }
+
+    @Test
     void elbilarMedPlusITrimnamnSlappsIgenom() {
         // Gränsen åt andra hållet: spärren får INTE bli ett generellt "alla plus-tokens".
         // För de här modellerna finns inget basord som förbränningsbil, så en enkel titel
