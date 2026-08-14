@@ -102,9 +102,21 @@ public class AutoDataScraperService {
     /**
      * Motoralternativen på en generationssida, i sidans egen ordning (starkast först).
      *
-     * <p>Raderna ser ut som {@code <th class="i"><a href="..."><strong><span class="tit">1.5 TSI
-     * (150 Hp)</span> <span class="end">2020 - 2024</span></strong></a></th>}. Varje rad har
-     * dessutom en andra länk till samma sida i sin datacell — därför plockas bara {@code th}:s.
+     * <p>Raderna ser ut som {@code <div class="thi"><a href="..."><strong><span class="tit">1.5
+     * TSI (150 Hp)</span> <span class="cur">2024 - </span></strong></a></div>}. Varje rad har
+     * dessutom en andra länk till samma sida i sin datacell ({@code div.tdi}) — därför plockas
+     * bara rubrikcellen, annars står varje motor två gånger på kortet.
+     *
+     * <p><b>Sajten bytte markup någon gång mellan 2026-08-12 och 2026-08-14</b>: tabellen är nu
+     * divar ({@code div.thi}) där den förut var {@code th.i}, och årsspannet ligger i
+     * {@code span.cur} för en pågående generation där en avslutad har {@code span.end}. Effekten
+     * var total tystnad — parsern gav noll rader på varje sida, alltså returnerade
+     * {@link #bagageForBil} null för varenda bil. Skadan syntes inte i {@code cargo-coverage}
+     * eftersom arbetslistan råkade vara tom (602/602/0), och det är läxan: <b>ett jobb som inte
+     * har något att göra kan inte skilja "inget kvar att fylla" från "trasig".</b>
+     *
+     * <p>Båda formerna godtas. Den gamla kostar ingenting att behålla, sparade sidor från
+     * 2026-08-12 ligger kvar som fixturer, och sajten har visat att den byter fram och tillbaka.
      *
      * @return tom lista när sidan inte har någon variantlista (fel URL, eller struktur som ändrats)
      */
@@ -113,14 +125,14 @@ public class AutoDataScraperService {
         if (html == null || html.isBlank()) return ut;
 
         Document doc = Jsoup.parse(html);
-        for (Element lank : doc.select("th.i > a[href]")) {
+        for (Element lank : doc.select("div.thi > a[href], th.i > a[href]")) {
             Element titel = lank.selectFirst("span.tit");
             if (titel == null) continue;
 
             String namn = titel.text().trim();
             if (namn.isEmpty()) continue;
 
-            Element ar = lank.selectFirst("span.end");
+            Element ar = lank.selectFirst("span.end, span.cur");
             ut.add(new MotorAlternativ(namn, effektAv(namn),
                     ar != null ? ar.text().trim() : null, lank.attr("href")));
         }
@@ -379,23 +391,71 @@ public class AutoDataScraperService {
         return generationForBil(bilnamn, null);
     }
 
-    /** Märkes- och modelluppslaget, delat av båda ingångarna ovan. */
+    /**
+     * Startåret för den generation motorlistan beskriver — <b>faceliftens år räknas inte</b>.
+     *
+     * <p>Uppmätt 2026-08-14: auto-datas senaste generation är nästan alltid en facelift, och dess
+     * {@code franAr} är faceliftens år, inte generationens. Golf VIII står som
+     * "Volkswagen Golf VIII (facelift 2024)" med start 2024 fast generationen kom 2020; Kia
+     * Sportage V likaså 2024 mot 2021, Volvo XC60 II 2025 mot 2017. Sparas faceliftåret fäller
+     * vakten varje kort från 2020–2023 — modeller där listan hade varit helt riktig.
+     *
+     * <p>Det är inte ett litet fel: vakten avstår hellre än gissar, så överblockering syns aldrig
+     * som ett felaktigt värde utan som ett <b>tomt fält</b>, och sedan 2026-08-14 tappar kortet
+     * dessutom förbrukning, drivmedel och hk i samma svep.
+     *
+     * <p>Därför tas det MINSTA startåret bland generationerna med samma bastitel, alltså
+     * "Golf VIII" oavsett facelift. Ett för lågt årtal är den ofarliga riktningen: då visas listan
+     * som förut. Ett för högt tystar en bil som hade fått rätt svar.
+     *
+     * @return startåret, eller null när modellen eller årtalet inte gick att slå upp
+     */
+    public Integer basgenerationsStartAr(String bilnamn) {
+        return basgenerationsStartAr(generationerFor(bilnamn), bilnamn);
+    }
+
+    /** Samma regel utan hämtning, så den kan provas mot en sparad modellsida. */
+    public static Integer basgenerationsStartAr(List<Generation> alla, String bilnamn) {
+        Generation senaste = valjGeneration(alla, bilnamn, null);
+        if (senaste == null) return null;
+
+        String bas = basTitel(senaste.titel());
+        Integer minsta = senaste.franAr();
+        for (Generation g : alla) {
+            if (!bas.equals(basTitel(g.titel()))) continue;
+            if (g.franAr() != null && (minsta == null || g.franAr() < minsta)) minsta = g.franAr();
+        }
+        return minsta;
+    }
+
+    /** Generationstiteln utan faceliftmarkering: "Skoda Octavia IV (facelift 2024)" → "skoda octavia iv". */
+    static String basTitel(String titel) {
+        if (titel == null) return "";
+        return normalisera(titel.replaceAll("(?i)\\((facelift|restyling)[^)]*\\)", " "));
+    }
+
+    /** Märkes- och modelluppslaget, delat av ingångarna ovan. */
     private Generation generationForBil(String bilnamn, Integer arsmodell) {
-        if (bilnamn == null || bilnamn.isBlank()) return null;
+        return valjGeneration(generationerFor(bilnamn), bilnamn, arsmodell);
+    }
+
+    /** Alla generationer på modellens sida, tom lista när märket eller modellen inte hittas. */
+    private List<Generation> generationerFor(String bilnamn) {
+        if (bilnamn == null || bilnamn.isBlank()) return List.of();
 
         Map<String, String> marken = parseMarken(hamta(BAS + "/en/volkswagen-brand-80"));
         String markessida = markessidaFor(bilnamn, marken);
         if (markessida == null) {
             log.debug("auto-data: inget märke matchar {}", bilnamn);
-            return null;
+            return List.of();
         }
 
         String modellsida = modellsidaFor(bilnamn, parseModeller(hamta(markessida)));
         if (modellsida == null) {
             log.debug("auto-data: ingen modell matchar {}", bilnamn);
-            return null;
+            return List.of();
         }
-        return valjGeneration(parseGenerationer(hamta(modellsida)), bilnamn, arsmodell);
+        return parseGenerationer(hamta(modellsida));
     }
 
     /** Längsta märkesnamnet som inleder bilnamnet vinner — "Land Rover" före "Land". */

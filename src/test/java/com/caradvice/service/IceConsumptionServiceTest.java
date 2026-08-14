@@ -269,6 +269,21 @@ class IceConsumptionServiceTest {
     }
 
     @Test
+    void effekterForModellGerModellensEgnaHastkrafter() {
+        // Generationsifyllningen jämför de här siffrorna med auto-datas lista: delar de ingen
+        // enda effekt beskriver de olika generationer, och då sparas inget årtal. Mazda CX-5 är
+        // det uppmätta fallet — vår CSV bär CX-5 II (150-230 hk), auto-datas nyaste är CX-5 III
+        // (2025) med en enda 141 hk-motor.
+        var hk = service.effekterForModell("Mazda cx-5");
+
+        assertThat(hk).contains(165, 194, 230, 150, 184).doesNotContain(141);
+        // Nyckeln är allModelNames-formen; fel skiftläge eller fel modellord ger tom mängd
+        assertThat(service.effekterForModell("Mazda CX-5")).isEqualTo(hk);   // skiftlägesokänslig
+        assertThat(service.effekterForModell("Mazda cx-3000")).isEmpty();
+        assertThat(service.effekterForModell(null)).isEmpty();
+    }
+
+    @Test
     void existensprovningenPaverkasInteAvGenerationen() {
         /*
          * Treargsvarianten används som EXISTENSPRÖVNING av isKnownEv, isNonEv och

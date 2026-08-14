@@ -93,6 +93,17 @@ public class IceGenerationService {
         cache = null;
     }
 
+    /**
+     * Tömmer tabellen så att nattjobbet fyller om den. Se {@code DELETE /api/admin/ice-generations}
+     * för varför: arbetslistan hoppar över modeller som redan har ett årtal, så ett felaktigt
+     * värde blir permanent tills raden tas bort.
+     */
+    public int rensa() {
+        int n = jdbc.update("DELETE FROM ice_generation");
+        cache = null;
+        return n;
+    }
+
     /** Sant när modellen redan har ett årtal — arbetslistan hoppar över den. */
     public boolean harArtal(String modelName) {
         return franArFor(modelName) != null;

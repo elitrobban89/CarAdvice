@@ -124,6 +124,26 @@ public class IceConsumptionService {
     }
 
     /**
+     * Effekterna vi har för en modell, i {@link #allModelNames()}-form ("Volkswagen golf").
+     *
+     * <p>Används av generationsifyllningen för att avgöra om auto-datas "senaste generation"
+     * verkligen är den vår lista beskriver: delar de inte en enda hästkraftssiffra är det troligen
+     * två olika generationer, och då ska inget årtal sparas. Uppmätt fall 2026-08-14: Mazda CX-5
+     * III lanserades 2025 med en enda motor (141 hk) medan vår CSV bär CX-5 II:s sju varianter
+     * (150-230 hk) — ett sparat 2025 hade tystat varje CX-5-kort från 2017 till 2024.
+     */
+    public java.util.Set<Integer> effekterForModell(String modelName) {
+        java.util.Set<Integer> ut = new java.util.HashSet<>();
+        if (modelName == null) return ut;
+        for (Variant v : findAll()) {
+            if (!(v.brand() + " " + modelWord(v)).equalsIgnoreCase(modelName)) continue;
+            Integer hk = parseHp(v.variant());
+            if (hk != null) ut.add(hk);
+        }
+        return ut;
+    }
+
+    /**
      * Modellordet i variant-strängen — hoppar över en inledande upprepning av märkesnamnet
      * (t.ex. "Mazda 3 2.0 Skyactiv-X 186 hk" → "3", inte "mazda"). Utan detta matchar en rad
      * som "Mazda 3 ..." ALLA Mazda-titlar (modellordet "mazda" finns per definition redan i

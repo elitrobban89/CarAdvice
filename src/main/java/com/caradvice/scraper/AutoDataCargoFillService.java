@@ -158,16 +158,22 @@ public class AutoDataCargoFillService {
             if (forsokta >= MAX_PER_KORNING) break;
             forsokta++;
             try {
-                // Utan årsmodell väljer generationForBil den SENASTE generationen — och det är
-                // precis den som tabellens motorlista beskriver, så genvägen är rätt här.
-                var gen = autoData.generationForNamn(modell);
-                if (gen == null || gen.franAr() == null) {
+                // Senaste generationen är nästan alltid en FACELIFT, och dess franAr är
+                // faceliftens år — 2024 för Golf VIII som kom 2020. Sparat rakt av fällde vakten
+                // varje kort från 2020-2023, alltså modeller där listan var helt riktig.
+                // basgenerationsStartAr går tillbaka till generationens eget startår.
+                Integer franAr = autoData.basgenerationsStartAr(modell);
+                if (franAr == null) {
                     utanTraff++;
                     continue;
                 }
-                iceGenerations.spara(modell, gen.franAr());
+                if (!beskriverSammaGeneration(modell)) {
+                    utanTraff++;
+                    continue;
+                }
+                iceGenerations.spara(modell, franAr);
                 fyllda++;
-                log.info("auto-data generation: {} → från {}", modell, gen.franAr());
+                log.info("auto-data generation: {} → från {}", modell, franAr);
             } catch (Exception e) {
                 log.warn("auto-data generation: {} misslyckades — {}", modell, e.getMessage());
                 utanTraff++;
@@ -176,5 +182,38 @@ public class AutoDataCargoFillService {
         log.info("auto-data generation: {} fyllda, {} utan träff, {} försökta av {} kvar",
                 fyllda, utanTraff, forsokta, namn.size());
         return fyllda;
+    }
+
+    /**
+     * Sant när auto-datas senaste generation rimligen är den vår motorlista beskriver.
+     *
+     * <p><b>Årtalet är bara rätt om antagandet håller</b> att {@code ice_consumption} bär
+     * modellens NUVARANDE generation. För de allra flesta stämmer det, men inte för en modell som
+     * just bytt generation: Mazda CX-5 III kom 2025 med en enda motor (141 hk) medan vår CSV bär
+     * CX-5 II:s sju varianter (150-230 hk). Ett sparat 2025 hade tystat varje CX-5-kort mellan
+     * 2017 och 2024 — kort som fick en helt korrekt lista innan.
+     *
+     * <p>Provet är hästkrafterna: delar listorna inte en enda siffra beskriver de olika bilar.
+     * Vid tveksamhet sparas inget, och då gäller "ingen åsikt" precis som för en modell vi ännu
+     * inte hunnit fylla. <b>Överblockering är den dyra riktningen här</b> — den syns aldrig som
+     * ett felaktigt värde utan som ett tomt fält på kortet.
+     *
+     * <p>Kostar en extra sidhämtning per modell (generationssidan). Märkes- och modellsidan ligger
+     * redan i scraperns cache efter uppslaget ovan.
+     */
+    private boolean beskriverSammaGeneration(String modell) {
+        java.util.Set<Integer> vara = iceConsumption.effekterForModell(modell);
+        if (vara.isEmpty()) return true;   // inget att jämföra med — låt årtalet stå
+
+        java.util.Set<Integer> deras = new java.util.HashSet<>();
+        for (var m : autoData.motorerForBil(modell, null)) if (m.hk() != null) deras.add(m.hk());
+        if (deras.isEmpty()) return true;  // tom lista är ett hämtningsfel, inte ett bevis
+
+        if (java.util.Collections.disjoint(vara, deras)) {
+            log.info("auto-data generation: {} hoppas över — vår motorlista {} delar ingen effekt "
+                    + "med generationens {}, alltså troligen olika generationer", modell, vara, deras);
+            return false;
+        }
+        return true;
     }
 }

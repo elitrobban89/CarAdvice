@@ -718,6 +718,25 @@ public class CarController {
         return ResponseEntity.ok(ut);
     }
 
+    /**
+     * Tömmer {@code ice_generation} så att 03:00-jobbet fyller om den från grunden.
+     *
+     * <p>Finns för att raderna 2026-08-14 visade sig bära <b>faceliftens</b> årtal i stället för
+     * generationens — Golf VIII stod som 2024 fast den kom 2020 — och arbetslistan hoppar över
+     * varje modell som redan har ett årtal, så ett fel värde hade blivit permanent. Tabellen är
+     * härledd data som kostar ett par nätter att bygga om, aldrig något användaren matat in.
+     *
+     * <p>Behåll endpointen: samma sak händer nästa gång sajtens generationsindelning ändras.
+     */
+    @DeleteMapping("/admin/ice-generations")
+    public ResponseEntity<?> rensaIceGenerations(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int borttagna = iceGenerationService.rensa();
+        log.info("ice_generation tömd på begäran — {} rader borta, 03:00-jobbet fyller om", borttagna);
+        return ResponseEntity.ok(Map.of("deleted", borttagna));
+    }
+
     // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning
     @GetMapping("/admin/insights")
     public ResponseEntity<?> listInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key,

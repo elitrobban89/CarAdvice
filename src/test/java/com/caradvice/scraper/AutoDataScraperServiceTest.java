@@ -69,6 +69,33 @@ class AutoDataScraperServiceTest {
     }
 
     @Test
+    void nyaMarkupenGerSammaMotorlista() {
+        /*
+         * Sajten bytte markup mellan 2026-08-12 och 2026-08-14: tabellen är nu divar
+         * (div.thi) där den förut var th.i, och årsspannet ligger i span.cur för en PÅGÅENDE
+         * generation där en avslutad har span.end. Parsern gav noll rader på varje sida, alltså
+         * returnerade bagageForBil null för varenda bil.
+         *
+         * Det syntes inte i cargo-coverage eftersom arbetslistan råkade vara tom (602/602/0).
+         * Ett jobb som inte har något att göra kan inte skilja "inget kvar att fylla" från
+         * "trasig" — det var mätningen av motorjoinen som råkade avslöja det.
+         *
+         * Fixturen är Skoda Octavia IV (facelift 2024), hämtad 2026-08-14.
+         */
+        var motorer = AutoDataScraperService.parseMotorAlternativ(fixtur("octavia-iv-generation-nymarkup.html"));
+
+        assertThat(motorer).hasSize(8);
+        assertThat(motorer).extracting(AutoDataScraperService.MotorAlternativ::namn)
+                .contains("2.0 TDI (150 Hp) DSG", "1.5 TSI (150 Hp) Mild Hybrid DSG",
+                        "RS 2.0 TSI (265 Hp) DSG");
+        // Varje rad har två länkar till samma variantsida — rubrikcellen och datacellen
+        assertThat(motorer).extracting(AutoDataScraperService.MotorAlternativ::sokvag).doesNotHaveDuplicates();
+        // span.cur i stället för span.end: utan den går årsspannet förlorat för alla nya bilar
+        assertThat(motorer).allSatisfy(m -> assertThat(m.arsspann()).isNotNull());
+        assertThat(motorer.get(0).hk()).isEqualTo(265);
+    }
+
+    @Test
     void sidaUtanVariantlistaGerTomLista() {
         // Fel URL eller ändrad struktur ska ge tom lista, inte krascha nattkörningen.
         assertThat(AutoDataScraperService.parseMotorAlternativ("<html><body>ingen bil här</body></html>")).isEmpty();
@@ -156,6 +183,44 @@ class AutoDataScraperServiceTest {
 
         assertThat(vald.titel()).isEqualTo("Volkswagen Golf VIII");
         assertThat(vald.kaross()).isEqualTo("Hatchback");
+    }
+
+    @Test
+    void generationsaretArGenerationensEgetOchInteFaceliftens() {
+        /*
+         * Uppmätt live 2026-08-14: auto-datas SENASTE generation är nästan alltid en facelift,
+         * och dess franAr är faceliftens år. Golf VIII står som "Volkswagen Golf VIII (facelift
+         * 2024)" med start 2024 fast generationen kom 2020 — och det är 2020 års motorlista vår
+         * CSV bär. Samma sak på Kia Sportage V (2024 mot 2021) och Volvo XC60 II (2025 mot 2017).
+         *
+         * Sparas faceliftåret i ice_generation fäller vakten varje kort från 2020-2023, alltså
+         * modeller där listan hade varit helt riktig. Överblockering syns aldrig som ett fel
+         * värde utan som ett TOMT fält, och sedan 2026-08-14 tappar kortet dessutom förbrukning,
+         * drivmedel och hk i samma svep — vakten är delad.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("golf-model.html"));
+
+        // Senaste generationen ÄR faceliften...
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Volkswagen Golf", null).titel())
+                .isEqualTo("Volkswagen Golf VIII (facelift 2024)");
+        // ...men årtalet vi sparar ska vara generationens eget
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Volkswagen Golf")).isEqualTo(2020);
+
+        // Karossen följer med som förut: kombin har sin egen generation och sitt eget startår
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Volkswagen Golf Variant"))
+                .isEqualTo(2020);
+        assertThat(AutoDataScraperService.basgenerationsStartAr(List.of(), "Volkswagen Golf")).isNull();
+    }
+
+    @Test
+    void faceliftmarkeringenStrippasUrTiteln() {
+        assertThat(AutoDataScraperService.basTitel("Skoda Octavia IV (facelift 2024)"))
+                .isEqualTo("skoda octavia iv");
+        assertThat(AutoDataScraperService.basTitel("Volvo XC60 II (restyling 2025)"))
+                .isEqualTo("volvo xc60 ii");
+        // ...men generationsnumret och karossordet får INTE strippas — de skiljer generationer åt
+        assertThat(AutoDataScraperService.basTitel("Volkswagen Golf VIII Variant"))
+                .isEqualTo("volkswagen golf viii variant");
     }
 
     @Test
