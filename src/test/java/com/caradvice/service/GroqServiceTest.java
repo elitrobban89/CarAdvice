@@ -911,6 +911,50 @@ class GroqServiceTest {
     }
 
     @Test
+    void bensinkortFarIngenEvSpecNarIceConsumptionHarBilen() {
+        // Live 2026-08-14, SUV/bensin/250 000 kr: korten "Kia Niro (2021)" och "Hyundai Kona
+        // (2020)" bar en elbils evSpec ("ladda var 10:e dag" / "var 6:e dag") samtidigt som
+        // fuelSpec korrekt visade bensinmotorn. Företrädesregeln fanns i isNonEv sedan 08-09
+        // men användes bara av drivmedelsvakten — kortbygget hämtade evSpec oavsett.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Kia", "Niro 1.6 GDI HEV 141 hk", "hybrid", 0.62));
+        assertThat(service().evSpecHorInteHit("Kia Niro (2021)")).isTrue();
+        assertThat(service().evSpecHorInteHit("Hyundai Kona (2020)")).isTrue();
+        // Titeln säger själv att den är elbil → siffrorna hör hit
+        assertThat(service().evSpecHorInteHit("Kia Niro EV (2021)")).isFalse();
+        assertThat(service().evSpecHorInteHit("Hyundai Kona Electric (2020)")).isFalse();
+    }
+
+    @Test
+    void laddbaraKortBeharSinEvSpec() {
+        // Gränsen åt andra hållet — tre sätt att vara laddbar, alla ska behålla batteridatan.
+        // En glömd post här kostar ett tomt fält på ett elbilskort; motsatsen ger laddråd på
+        // en bensinbil, så listan får bara växa åt det här hållet.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Volvo", "XC60 T8 PHEV 350 hk", "laddhybrid", 0.55));
+        assertThat(service().evSpecHorInteHit("Volvo XC60 T8 (2021)")).isFalse();   // ice-träffen ÄR laddhybrid
+
+        // Märkesnamnet för den laddbara varianten räcker, även när basmodellen finns som bensin
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Volvo", "XC40 B4 197 hk", "bensin", 0.80));
+        assertThat(service().evSpecHorInteHit("Volvo XC40 Recharge (2022)")).isFalse();
+        assertThat(service().evSpecHorInteHit("Jeep Compass 4xe (2021)")).isFalse();
+        // ...men den nakna bensinbilen fälls
+        assertThat(service().evSpecHorInteHit("Volvo XC40 (2022)")).isTrue();
+    }
+
+    @Test
+    void okandBilBeharSinEvSpec() {
+        // Fail open: ingen förbränningsträff är inget bevis, och ett DB-fel får inte släcka
+        // batteridatan på ett kort. Samma linje som isNonEv.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any())).thenReturn(null);
+        assertThat(service().evSpecHorInteHit("Volvo EX30 (2024)")).isFalse();
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenThrow(new RuntimeException("db nere"));
+        assertThat(service().evSpecHorInteHit("Volvo EX30 (2024)")).isFalse();
+    }
+
+    @Test
     void sammaModellMedEvITitelnSlapsIgenom() throws Exception {
         // "Kia Niro EV" har drivlineordet och når aldrig databasuppslaget — inga stubbar
         List<CarRecommendation> parsed = parsatSvarMed("Kia Niro EV (2021)");

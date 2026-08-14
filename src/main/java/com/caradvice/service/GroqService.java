@@ -590,6 +590,9 @@ public class GroqService {
                         else if (!isPhev && titleYear < 2011) evSpec = null; // consumer EVs before 2011 don't exist
                     }
                 }
+                // ice_consumption har företräde: en bensinbil eller självladdande hybrid ska
+                // inte bära laddråd. Se evSpecHorInteHit för de skarpa fallen.
+                if (evSpec != null && evSpecHorInteHit(r.title())) evSpec = null;
             } catch (Exception ignored) {}
             try { cargo = cargoSpecService.formatForTitle(r.title()); } catch (Exception ignored) {}
             try { blocketRange = blocketFutures.get(i).get(6, TimeUnit.SECONDS); } catch (Exception ignored) {}
@@ -1602,6 +1605,55 @@ public class GroqService {
      * fäller en träff i ice_consumption ("Toyota Prius 2.5 Hybrid", "Honda HR-V 1.5 e:HEV").
      * Fail open vid DB-fel — en trasig uppslagning får inte fälla korrekta bilar.
      */
+    /**
+     * Ska kortet bära {@code ev_spec} alls?
+     *
+     * <p>Skarpt sök 2026-08-14 (SUV/bensin/250 000 kr) gav korten "Kia Niro (2021)" och
+     * "Hyundai Kona (2020)" en elbils {@code evSpec} — <i>ladda var 10:e dag</i> respektive
+     * <i>var 6:e dag</i> — samtidigt som deras {@code fuelSpec} korrekt visade bensinmotorn
+     * (6,2 och 6,8 l per mil). Samma symtom som C-HR-buggen dagen innan, men via en helt annan
+     * väg: här är namnmatchningen inte fel. {@code Kia Niro} <b>finns</b> som elbil, och radens
+     * ord är en äkta övermängd av titelns, så ingen strängregel i {@link EvSpecService} kan
+     * skilja dem åt.
+     *
+     * <p><b>Företrädesregeln fanns redan men satt på fel ställe.</b> {@link #isNonEv} har sedan
+     * 2026-08-09 regeln att {@code ice_consumption} prövas före {@code ev_spec} — men den
+     * användes bara av drivmedelsvakten, alltså för att avgöra om ett ELBILSSÖK fått riktiga
+     * elbilar. Kortbygget hämtade {@code evSpec} för varje titel oavsett vad användaren sökt på,
+     * med en årsmodellkoll som enda filter. Samma princip gäller nu båda.
+     *
+     * <p>Tre saker behåller sin {@code ev_spec}, för de har faktiskt en sladd:
+     * <ul>
+     *   <li>titeln säger själv {@code ev} eller {@code phev}</li>
+     *   <li>förbränningsträffen är en <b>laddhybrid</b> — den har batteri och elräckvidd, och
+     *       {@code Volvo XC60 T8} ska visa dem</li>
+     *   <li>titeln bär ett märkesnamn för den laddbara varianten som inte är ett generellt
+     *       drivlineord: Volvos {@code Recharge}, DS {@code E-Tense}, Jeeps {@code 4xe},
+     *       Renaults {@code E-Tech}. Utan dem hade ett äkta elbils-XC40 tappat sina chips,
+     *       eftersom XC40 också finns som bensinbil i {@code ice_consumption}.</li>
+     * </ul>
+     * Listan får bara växa åt det hållet — en glömd post kostar ett tomt fält på ett elbilskort,
+     * medan motsatsen ger laddråd på en bensinbil. Fail open vid DB-fel, av samma skäl.
+     */
+    boolean evSpecHorInteHit(String title) {   // paketprivat: testet läser den direkt
+        String rent = CarTitle.stripYear(title == null ? "" : title);
+        String drivetrain = ExpertInsightService.drivetrainOf(rent);
+        if ("ev".equals(drivetrain) || "phev".equals(drivetrain)) return false;
+        if (LADDBAR_VARIANT.matcher(rent.toLowerCase()).find()) return false;
+        if ("hev".equals(drivetrain)) return true;   // självladdande hybrid — ingen sladd
+        try {
+            IceConsumptionService.Variant v = iceConsumptionService.consumptionForTitle(title, null, null);
+            if (v == null) return false;             // ingen förbränningsträff — inget bevis, behåll
+            return !"laddhybrid".equalsIgnoreCase(v.fuel());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Märkesnamn för den laddbara varianten. Se {@link #evSpecHorInteHit}. */
+    private static final java.util.regex.Pattern LADDBAR_VARIANT =
+            java.util.regex.Pattern.compile("\\b(recharge|e-tense|4xe|e-tech)\\b");
+
     private boolean isNonEv(String title) {
         String drivetrain = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title == null ? "" : title));
         if ("hev".equals(drivetrain) || "phev".equals(drivetrain) || "ice".equals(drivetrain)) return true;
