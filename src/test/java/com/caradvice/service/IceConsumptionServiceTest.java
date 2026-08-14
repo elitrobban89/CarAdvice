@@ -139,6 +139,66 @@ class IceConsumptionServiceTest {
         assertThat(service.allModelNames()).doesNotContain("Mazda mazda", "DS ds");
     }
 
+    // --- titelns drivlineord slår sökningens drivmedelsval ---
+
+    @Test
+    void hybridITitelnSlarSokningensBensinval() {
+        /*
+         * Skarpt fall 2026-08-14: bensinsök på SUV gav kortet "Kia Sportage Hybrid (2020)" med
+         * 9,2 l/100 km och verifierat drivmedel "bensin". fuelPref="bensin" filtrerade bort
+         * modellens hybridrader, och hästkraftsvalet tog den bensinrad som råkade ha samma
+         * effekt: 1.6 T-GDI 230 hk 4x4 (0,92) i stället för 1.6 T-GDI HEV 230 hk (0,68).
+         * Titeln säger vilken bil kortet visar — sökningen säger bara vad användaren letar efter.
+         */
+        IceConsumptionService.Variant v =
+                service.consumptionForTitle("Kia Sportage Hybrid (2020)", 230, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.fuel()).isEqualTo("hybrid");
+        assertThat(v.variant()).contains("HEV");
+        assertThat(v.literPerMil()).isEqualTo(0.68);
+    }
+
+    @Test
+    void hybridITitelnGallerAvenNarVariantenStavarUtOrdet() {
+        // Hyundai skriver "Hybrid" där Kia skriver "HEV" — regeln får inte hänga på stavningen
+        IceConsumptionService.Variant v =
+                service.consumptionForTitle("Hyundai Tucson Hybrid (2020)", 265, "bensin");
+        assertThat(v).isNotNull();
+        assertThat(v.fuel()).isEqualTo("hybrid");
+        assertThat(v.variant()).doesNotContain("2.0 T-GDI 265");
+    }
+
+    @Test
+    void laddhybridITitelnProvasForeHybrid() {
+        // "Plug-in Hybrid" bär BÅDA orden — utan ordningen hade den dömts som självladdande
+        for (String titel : new String[]{"Kia Sportage PHEV (2023)",
+                                         "Kia Sportage Plug-in Hybrid (2023)"}) {
+            IceConsumptionService.Variant v = service.consumptionForTitle(titel, 265, "bensin");
+            assertThat(v).as(titel).isNotNull();
+            assertThat(v.fuel()).as(titel).isEqualTo("laddhybrid");
+        }
+    }
+
+    @Test
+    void utanDrivlineordITitelnStyrFuelPrefSomForut() {
+        // Gränsen åt andra hållet: de allra flesta titlar säger inget om drivlinan, och då
+        // ska sökningens val fortsätta gälla precis som innan
+        IceConsumptionService.Variant v =
+                service.consumptionForTitle("Kia Sportage (2023)", null, "diesel");
+        assertThat(v).isNotNull();
+        assertThat(v.fuel()).isEqualTo("diesel");
+    }
+
+    @Test
+    void titelnsDrivlinaUtanRaderFallerTillbakaPaFuelPref() {
+        // En titel kan inte trolla fram rader vi saknar — Giulia finns bara som bensin/diesel.
+        // Fallbacken måste vara fuelPref, inte null: annars tappar kortet sin siffra helt.
+        IceConsumptionService.Variant v =
+                service.consumptionForTitle("Alfa Romeo Giulia Hybrid (2020)", null, "diesel");
+        assertThat(v).isNotNull();
+        assertThat(v.fuel()).isEqualTo("diesel");
+    }
+
     // --- engineDescriptor (motorbeteckning utan modellnamn, för engineOptions-kortet) ---
 
     @Test

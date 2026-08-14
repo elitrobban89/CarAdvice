@@ -160,7 +160,20 @@ public class IceConsumptionService {
      * Verifierad förbrukning för en rekommenderad bil, t.ex. "Volkswagen Golf (2019)".
      * Kandidater: märket förekommer i titeln OCH variantens modellord (första ordet)
      * förekommer i titeln. Vid flera kandidater väljs närmast hästkraftstal (om angivet),
-     * annars medianvarianten. fuelPref ("bensin"/"diesel"/"hybrid") filtrerar om möjligt.
+     * annars medianvarianten.
+     *
+     * <p><b>Titelns eget drivlineord väger tyngre än fuelPref.</b> "Kia Sportage Hybrid" ÄR en
+     * hybrid — det står i namnet — medan fuelPref bara är sökningens önskemål om hela träfflistan.
+     * Ett bensinsök får hybridkort (en hybrid tankas ju med bensin), och då filtrerade fuelPref
+     * bort modellens hybridrader och lämnade kvar de rena bensinraderna. Hästkraftsvalet plockade
+     * sedan den som råkade ha samma effekt: {@code Kia Sportage 1.6 T-GDI 230 hk 4x4} (bensin,
+     * 0,92 l/mil) i stället för {@code 1.6 T-GDI HEV 230 hk} (hybrid, 0,68) — samma effekt, fel
+     * bil, 35 % fel förbrukning. Sedan 2026-08-14 bär kortet dessutom radens {@code fuel} som
+     * VERIFIERAT värde, så felet blev till "bensin" på ett kort som heter Hybrid och ett
+     * bensinpris i ägandekostnaden.
+     *
+     * <p>Saknar modellen den drivlina titeln utlovar faller vi tillbaka på fuelPref som förut —
+     * en titel kan inte trolla fram rader vi inte har.
      */
     public Variant consumptionForTitle(String title, Integer horsepower, String fuelPref) {
         if (title == null || title.isBlank()) return null;
@@ -174,12 +187,24 @@ public class IceConsumptionService {
         }
         if (candidates.isEmpty()) return null;
 
+        String titelnsBransle = fuelFromTitle(title);
+        if (titelnsBransle != null) {
+            List<Variant> efterTitel = candidates.stream()
+                    .filter(v -> v.fuel().equals(titelnsBransle)).toList();
+            if (!efterTitel.isEmpty()) return pickVariant(efterTitel, horsepower);
+        }
+
         if (fuelPref != null && !fuelPref.isBlank()) {
             String fp = fuelPref.toLowerCase(Locale.ROOT);
             List<Variant> filtered = candidates.stream().filter(v -> v.fuel().equals(fp)).toList();
             if (!filtered.isEmpty()) candidates = filtered;
         }
 
+        return pickVariant(candidates, horsepower);
+    }
+
+    /** Närmast angivet hästkraftstal, annars medianvarianten på förbrukning. */
+    private static Variant pickVariant(List<Variant> candidates, Integer horsepower) {
         if (horsepower != null && horsepower > 0) {
             return candidates.stream()
                     .min(Comparator.comparingInt(v -> {
@@ -191,6 +216,27 @@ public class IceConsumptionService {
         List<Variant> sorted = candidates.stream()
                 .sorted(Comparator.comparingDouble(Variant::literPerMil)).toList();
         return sorted.get(sorted.size() / 2);
+    }
+
+    /**
+     * Drivmedlet som titeln själv utpekar, översatt till tabellens {@code fuel}-värden — null när
+     * titeln inte säger något om drivlinan (de allra flesta: "Volkswagen Golf (2019)").
+     *
+     * <p>Samma markörer som insiktsfiltret och {@code isKnownEv} redan dömer på
+     * ({@link ExpertInsightService#drivetrainOf}), så ordlistan står på ETT ställe: "Plug-in
+     * Hybrid"/"PHEV" prövas före "Hybrid", annars hade en laddhybrid dömts som självladdande.
+     * {@code ev} och {@code ice} ger null med flit — en elbilstitel har inget att hämta här, och
+     * "bensin"/"diesel" står praktiskt taget aldrig i en biltitel (motorbeteckningen gör jobbet).
+     *
+     * <p>Titeln plattas först med {@code flattenSpaces}: AI-titlar bär ibland smalt hårt
+     * mellanslag (U+202F), och den fällan har redan kostat en gång i CarTitle.
+     */
+    private static String fuelFromTitle(String title) {
+        String d = ExpertInsightService.drivetrainOf(
+                ExpertInsightService.flattenSpaces(CarTitle.stripYear(title)));
+        if ("phev".equals(d)) return "laddhybrid";
+        if ("hev".equals(d))  return "hybrid";
+        return null;
     }
 
     /**
