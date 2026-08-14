@@ -859,28 +859,86 @@ public class EvSpecService {
      */
     public Integer getSystemPowerHk(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title
-                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
+        String utanAr = title.replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
                 .replaceAll("(?i)\\bElectric\\b", "")
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
-                .trim());
-        java.util.Set<String> cleanedSet = new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
+                .trim();
 
-        return SYSTEM_POWER_HK.entrySet().stream()
+        // Både med och utan elprefixet: "Kia e-Niro" ska kunna matcha nyckeln "Kia Niro", medan
+        // nyckeln "Volkswagen e-Golf" INTE får matcha en bensin-Golf. Utan den osträckta formen i
+        // mängden hade prefixet varit osynligt för nyckeln och en Golf fått e-Golfens effekt.
+        java.util.Set<String> ord = new java.util.HashSet<>();
+        ord.addAll(java.util.Arrays.asList(normalize(utanAr).split("\\s+")));
+        ord.addAll(java.util.Arrays.asList(
+                normalize(utanAr.replaceAll("(?i)\\be-(?=[A-Za-z])", "")).split("\\s+")));
+
+        List<Systemeffekt> traffar = SYSTEM_POWER_HK.stream()
                 .filter(e -> {
-                    String[] keyWords = normalize(e.getKey()).split("\\s+");
-                    for (String w : keyWords) if (!cleanedSet.contains(w)) return false;
+                    for (String w : normalize(e.namn()).split("\\s+")) if (!ord.contains(w)) return false;
                     return true;
                 })
-                .max(java.util.Comparator.comparingInt(
-                        (Map.Entry<String, Integer> e) -> normalize(e.getKey()).split("\\s+").length))
-                .map(Map.Entry::getValue)
+                .toList();
+        if (traffar.isEmpty()) return null;
+
+        // Mest specifika namnet vinner, så "MG Marvel R Performance" inte tas av "MG Marvel R"
+        int flest = traffar.stream().mapToInt(e -> normalize(e.namn()).split("\\s+").length).max().orElse(0);
+        List<Systemeffekt> kvar = traffar.stream()
+                .filter(e -> normalize(e.namn()).split("\\s+").length == flest).toList();
+
+        Integer arsmodell = CarTitle.year(title);
+        if (arsmodell == null) {
+            // Utan årtal går generationerna inte att skilja åt. Bär de samma effekt spelar det
+            // ingen roll; skiljer de sig är rätt svar att avstå — en "verifierad" siffra som
+            // gäller halva årsspannet är sämre än AI:ns gissning, för den bär vår etikett.
+            long olika = kvar.stream().mapToInt(Systemeffekt::hk).distinct().count();
+            return olika == 1 ? kvar.get(0).hk() : null;
+        }
+
+        // Senaste generationen som hunnit börja. Är bilen äldre än alla poster tas den äldsta —
+        // årtalet kan vara AI:ns egen felgissning, och listans äldsta rad är då bästa svaret.
+        final int ar = arsmodell;
+        return kvar.stream()
+                .filter(e -> e.franAr() <= ar)
+                .max(java.util.Comparator.comparingInt(Systemeffekt::franAr))
+                .or(() -> kvar.stream().min(java.util.Comparator.comparingInt(Systemeffekt::franAr)))
+                .map(Systemeffekt::hk)
                 .orElse(null);
     }
 
-    private static final Map<String, Integer> SYSTEM_POWER_HK = Map.ofEntries(
-        Map.entry("MG Marvel R",             180),
-        Map.entry("MG Marvel R Performance", 288)
+    /**
+     * En modells systemeffekt från och med ett visst år.
+     *
+     * <p>Årtalet finns för att samma modellnamn bär olika effekt mellan generationer, och titeln
+     * är det enda vi har att skilja dem på: e-Golf gick från 115 till 136 hk med det större
+     * batteriet 2017, MG ZS EV från 143 till 156 hk med faceliften. En namnnyckel utan årtal hade
+     * gett fel siffra åt halva årsspannet — och till skillnad från AI:ns gissning hade den burit
+     * vår verifieringsetikett.
+     *
+     * @param franAr 0 när modellen bara haft en effekt, eller för den äldsta generationen
+     */
+    private record Systemeffekt(String namn, int franAr, int hk) {}
+
+    /**
+     * Verifierad systemeffekt (hk) för modeller där AI:n gissar fel.
+     *
+     * <p><b>Listan är en lapp, inte en täckning:</b> den innehåller de modeller som råkat fällas
+     * på ett kort, och för alla andra av {@code ev_spec}s rader står AI:ns gissning kvar. Uppmätt
+     * 2026-08-14 gav två elbilskort <b>150 hk</b> var (riktiga siffror 136 och 143), och samma
+     * sökning dagen innan gav <b>95 hk</b> på tre kort — talet varierar mellan körningar, alltså
+     * är det påhittat. En hållbar lösning är egen tabell fylld av nattsynken från sidan den redan
+     * hämtar, samma mönster som {@code ice_generation}; tills dess växer listan en modell i taget.
+     *
+     * <p>Källor kontrollerade 2026-08-14 (auto-data.net + EVKX/automobile-catalog):
+     * e-Golf 24,2 kWh = 85 kW, 35,8 kWh = 100 kW; ZS EV 44,5 kWh = 105 kW, 72,6 kWh = 115 kW.
+     */
+    private static final List<Systemeffekt> SYSTEM_POWER_HK = List.of(
+        new Systemeffekt("MG Marvel R",             0, 180),
+        new Systemeffekt("MG Marvel R Performance", 0, 288),
+        // e-Golf: 24,2 kWh (2014-2016) mot 35,8 kWh (facelift 2017-2020) — båda rader i ev_spec
+        new Systemeffekt("Volkswagen e-Golf",       0, 115),
+        new Systemeffekt("Volkswagen e-Golf",    2017, 136),
+        // ZS EV: 44,5 kWh (2019-2021) mot Long Range 72,6 kWh (facelift, europapremiär 2022)
+        new Systemeffekt("MG ZS EV",                0, 143),
+        new Systemeffekt("MG ZS EV",             2022, 156)
     );
 
     /**

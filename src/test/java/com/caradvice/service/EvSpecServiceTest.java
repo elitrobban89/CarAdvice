@@ -929,6 +929,44 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void arsmodellenValjerGenerationensEffekt() {
+        /*
+         * Live 2026-08-14: ett elbilssök gav "Volkswagen e-Golf (2018)" och "MG ZS EV (2019)"
+         * med 150 hk var — AI:ns gissning, eftersom listan bara innehöll MG Marvel R. Samma
+         * sökning dagen innan gav 95 hk på tre kort, alltså ett tal som varierar mellan
+         * körningar.
+         *
+         * Båda modellerna har TVÅ generationer med olika effekt, och en namnnyckel utan årtal
+         * hade gett fel siffra åt halva årsspannet — med vår verifieringsetikett på.
+         * Källkontrollerat 2026-08-14: e-Golf 24,2 kWh = 85 kW, 35,8 kWh = 100 kW;
+         * ZS EV 44,5 kWh = 105 kW, Long Range 72,6 kWh = 115 kW.
+         */
+        assertThat(service().getSystemPowerHk("Volkswagen e-Golf (2018)")).isEqualTo(136);
+        assertThat(service().getSystemPowerHk("Volkswagen e-Golf (2015)")).isEqualTo(115);
+        assertThat(service().getSystemPowerHk("MG ZS EV (2019)")).isEqualTo(143);
+        assertThat(service().getSystemPowerHk("MG ZS EV (2023)")).isEqualTo(156);
+    }
+
+    @Test
+    void utanArtalAvstarNarGenerationernaSkiljerSig() {
+        // Två generationer, olika effekt, inget år att välja på: en "verifierad" siffra som
+        // gäller halva årsspannet är sämre än AI:ns gissning, för den bär vår etikett.
+        assertThat(service().getSystemPowerHk("Volkswagen e-Golf")).isNull();
+        // ...men en modell med en enda känd effekt behöver inget årtal
+        assertThat(service().getSystemPowerHk("MG Marvel R")).isEqualTo(180);
+    }
+
+    @Test
+    void bensinbilFarInteElbilensEffekt() {
+        // Nyckeln är "Volkswagen e-Golf". Elprefixet strippas ur titeln för att "Kia e-Niro" ska
+        // kunna matcha nyckeln "Kia Niro" — men då måste den OSTRIPPADE formen finnas kvar också,
+        // annars ser nyckeln ingen skillnad på e-Golf och en vanlig bensin-Golf. Samma
+        // åtkomstväg som gav en bensin-XC60 elbilssiffror 2026-08-11.
+        assertThat(service().getSystemPowerHk("Volkswagen Golf (2018)")).isNull();
+        assertThat(service().getSystemPowerHk("Volkswagen Golf GTI (2018)")).isNull();
+    }
+
+    @Test
     void nullTitelGerNullForVerifieradHk() {
         assertThat(service().getSystemPowerHk(null)).isNull();
     }
