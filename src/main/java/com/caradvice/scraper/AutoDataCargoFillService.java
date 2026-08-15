@@ -145,11 +145,15 @@ public class AutoDataCargoFillService {
      * @return antal modeller som fick ett årtal
      */
     public int fyllGenerationsar() {
+        // Kända nej filtreras bort tillsammans med de redan fyllda: taket räknar FÖRSÖK, och
+        // utan det här filtret gick 118 av nattens 150 försök till modeller som missat förut.
+        // Se IceGenerationService.noteraMiss för hur fronten annars stannar mitt i alfabetet.
         List<String> namn = iceConsumption.allModelNames().stream()
                 .filter(n -> !iceGenerations.harArtal(n))
+                .filter(n -> !iceGenerations.harFarskMiss(n))
                 .toList();
         if (namn.isEmpty()) {
-            log.info("auto-data generation: alla modeller har årtal");
+            log.info("auto-data generation: inga modeller kvar att pröva (fyllda eller nyligen missade)");
             return 0;
         }
 
@@ -164,10 +168,12 @@ public class AutoDataCargoFillService {
                 // basgenerationsStartAr går tillbaka till generationens eget startår.
                 Integer franAr = autoData.basgenerationsStartAr(modell);
                 if (franAr == null) {
+                    iceGenerations.noteraMiss(modell);
                     utanTraff++;
                     continue;
                 }
                 if (!beskriverSammaGeneration(modell)) {
+                    iceGenerations.noteraMiss(modell);
                     utanTraff++;
                     continue;
                 }
@@ -175,12 +181,15 @@ public class AutoDataCargoFillService {
                 fyllda++;
                 log.info("auto-data generation: {} → från {}", modell, franAr);
             } catch (Exception e) {
+                // Antecknas INTE som miss: ett undantag är ett nätverksfel eller en tillfälligt
+                // trasig sida, och den modellen ska prövas igen redan nästa natt. Bara ett
+                // svar vi förstått — ingen träff, eller fel generation — är ett riktigt nej.
                 log.warn("auto-data generation: {} misslyckades — {}", modell, e.getMessage());
                 utanTraff++;
             }
         }
-        log.info("auto-data generation: {} fyllda, {} utan träff, {} försökta av {} kvar",
-                fyllda, utanTraff, forsokta, namn.size());
+        log.info("auto-data generation: {} fyllda, {} utan träff, {} försökta av {} kvar ({} kända nej)",
+                fyllda, utanTraff, forsokta, namn.size(), iceGenerations.antalMissar());
         return fyllda;
     }
 

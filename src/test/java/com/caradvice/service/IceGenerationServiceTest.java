@@ -29,6 +29,43 @@ class IceGenerationServiceTest {
     }
 
     @Test
+    void farskMissHindrarNyttForsokMenGlomsEfterFonstret() {
+        // Missen finns för att frigöra nattens budget, inte för att döma modellen för alltid:
+        // 2026-08-13 missade varenda modell därför att sajten bytt markup och parsern var död,
+        // och ett permanent nej hade fryst det haveriet till ett tomt bord.
+        long idag = java.time.LocalDate.now().toEpochDay();
+        when(jdbc.queryForList("SELECT model_name, forsokt_dag FROM ice_generation_miss")).thenReturn(List.of(
+                Map.of("model_name", "ford ecosport", "forsokt_dag", (int) (idag - 1)),
+                Map.of("model_name", "mazda cx-5",
+                        "forsokt_dag", (int) (idag - IceGenerationService.MISS_GILTIG_DAGAR))));
+
+        assertThat(service.harFarskMiss("Ford ecosport")).isTrue();     // igår → hoppas över
+        assertThat(service.harFarskMiss("Mazda cx-5")).isFalse();       // fönstret ute → prövas om
+        assertThat(service.harFarskMiss("Volkswagen golf")).isFalse();  // aldrig prövad
+    }
+
+    @Test
+    void missenGarBortNarModellenAndaGerEttArtal() {
+        // Träffen är färskare än anteckningen, och en kvarglömd rad hade räknats i antalMissar
+        // utan att betyda något — talet är till för att visa hur långt ifyllningen kommit.
+        service.spara("Volkswagen golf", 2020);
+
+        org.mockito.Mockito.verify(jdbc).update(
+                "DELETE FROM ice_generation_miss WHERE model_name = ?", "Volkswagen golf");
+    }
+
+    @Test
+    void tomningenTarMedMissarna() {
+        // DELETE-endpointen används när källan gett fel data. Då är "vi prövade och fick inget"
+        // lika opålitligt som årtalen, och kvarliggande missar hade dessutom spärrat just de
+        // modeller ombyggnaden ska nå.
+        service.rensa();
+
+        org.mockito.Mockito.verify(jdbc).update("DELETE FROM ice_generation");
+        org.mockito.Mockito.verify(jdbc).update("DELETE FROM ice_generation_miss");
+    }
+
+    @Test
     void listanGerTomListaOmTabellenInteGarAttLasa() {
         // Samma fail-soft som franArFor: en granskningsendpoint får aldrig fälla ett anrop.
         // Talet i cargo-coverage kommer från en egen query, så en tom lista mot ett positivt

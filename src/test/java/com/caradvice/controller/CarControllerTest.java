@@ -591,10 +591,14 @@ class CarControllerTest {
         when(iceGenerationService.lista()).thenReturn(List.of(
                 new java.util.LinkedHashMap<>(Map.of("model", "volkswagen golf", "franAr", 2020)),
                 new java.util.LinkedHashMap<>(Map.of("model", "volvo xc60", "franAr", 2017))));
+        when(iceGenerationService.antalMissar()).thenReturn(118L);
 
         mvc.perform(get("/api/admin/ice-generations").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.total").value(2))
+           // total + missar är hur långt ifyllningen kommit av 310 modeller; står summan
+           // still natt efter natt är arbetslistan slut, inte jobbet trasigt
+           .andExpect(jsonPath("$.missar").value(118))
            .andExpect(jsonPath("$.generations[0].model").value("volkswagen golf"))
            .andExpect(jsonPath("$.generations[0].franAr").value(2020));
     }

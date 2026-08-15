@@ -45,8 +45,17 @@ public class IceGenerationService {
 
     private final JdbcTemplate jdbc;
 
+    /**
+     * Hur länge en miss får hindra ett nytt försök. Se {@link #noteraMiss} — fönstret finns
+     * för att en död parser annars hade frusit ett tomt bord permanent.
+     */
+    static final int MISS_GILTIG_DAGAR = 30;
+
     /** Hela tabellen i minnet — den är liten (≤310 rader) och läses på varje kortrendering. */
     private volatile Map<String, Integer> cache = null;
+
+    /** Samma sak för missarna — läses bara av nattjobbet, men är lika liten. */
+    private volatile Map<String, Integer> missCache = null;
 
     public IceGenerationService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -57,6 +66,12 @@ public class IceGenerationService {
             CREATE TABLE IF NOT EXISTS ice_generation (
                 model_name VARCHAR(120) PRIMARY KEY,
                 fran_ar INT NOT NULL
+            )
+            """);
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS ice_generation_miss (
+                model_name VARCHAR(120) PRIMARY KEY,
+                forsokt_dag INT NOT NULL
             )
             """);
     }
@@ -91,6 +106,14 @@ public class IceGenerationService {
         jdbc.update("DELETE FROM ice_generation WHERE model_name = ?", modelName);
         jdbc.update("INSERT INTO ice_generation(model_name, fran_ar) VALUES (?, ?)", modelName, franAr);
         cache = null;
+        // En modell som gett ett årtal ska inte ligga kvar som miss: träffen är färskare än
+        // anteckningen, och en kvarglömd rad hade räknats i antalMissar utan att betyda något
+        try {
+            jdbc.update("DELETE FROM ice_generation_miss WHERE model_name = ?", modelName);
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte rensas för {}: {}", modelName, e.getMessage());
+        }
     }
 
     /**
@@ -101,12 +124,86 @@ public class IceGenerationService {
     public int rensa() {
         int n = jdbc.update("DELETE FROM ice_generation");
         cache = null;
+        // Missarna töms med: anledningen att tömma är att källan gett fel data, och då är
+        // "vi prövade och fick inget" lika opålitligt som årtalen. Ligger de kvar spärrar de
+        // dessutom just de modeller ombyggnaden ska nå.
+        try {
+            jdbc.update("DELETE FROM ice_generation_miss");
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte tömmas: {}", e.getMessage());
+        }
         return n;
     }
 
     /** Sant när modellen redan har ett årtal — arbetslistan hoppar över den. */
     public boolean harArtal(String modelName) {
         return franArFor(modelName) != null;
+    }
+
+    /**
+     * Antecknar att modellen prövats utan att ge ett årtal, så att nattens försök går till
+     * modeller vi inte testat i stället för till kända nej.
+     *
+     * <p><b>Varför det behövdes.</b> Arbetslistan filtrerade bara på {@link #harArtal} och
+     * betades i CSV-ordning, alltså bokstavsordning, med ett tak på 150 <i>försök</i> per
+     * körning. Natten 2026-08-15 gav 32 årtal — de övriga 118 försöken gick till modeller som
+     * missade, och eftersom en miss inte lämnade något spår provades samma 118 om först
+     * nästa natt, före varje modell som aldrig testats. Budgeten för nya modeller krymper då
+     * 150 → 32 → ~7 → ~0 och fronten stannar runt märke 20 av 42. Volkswagen är märke 41 och
+     * Volvo 42: <b>Golf och XC60 hade aldrig fått ett årtal.</b>
+     *
+     * <p><b>Varför missen ändå glöms efter {@link #MISS_GILTIG_DAGAR} dagar.</b> En miss betyder
+     * inte att modellen saknar generationsdata för alltid — den 2026-08-13 missade <i>varenda</i>
+     * modell därför att sajten bytt markup och parsern var död. Ett permanent nej hade
+     * frusit det haveriet till ett tomt bord som aldrig fyllts igen. Fönstret gör listan
+     * självläkande utan att kosta något i det normala fallet.
+     */
+    public void noteraMiss(String modelName) {
+        if (modelName == null) return;
+        try {
+            long dag = java.time.LocalDate.now().toEpochDay();
+            jdbc.update("DELETE FROM ice_generation_miss WHERE model_name = ?", modelName);
+            jdbc.update("INSERT INTO ice_generation_miss(model_name, forsokt_dag) VALUES (?, ?)",
+                    modelName, (int) dag);
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte skriva {}: {}", modelName, e.getMessage());
+        }
+    }
+
+    /**
+     * Sant när modellen prövats utan träff inom fönstret — arbetslistan hoppar över den.
+     *
+     * <p>Fail-open vid läsfel: hellre ett bortkastat försök än en modell som aldrig prövas.
+     */
+    public boolean harFarskMiss(String modelName) {
+        if (modelName == null) return false;
+        Map<String, Integer> m = missCache;
+        if (m == null) {
+            m = new HashMap<>();
+            try {
+                for (Map<String, Object> r : jdbc.queryForList("SELECT model_name, forsokt_dag FROM ice_generation_miss")) {
+                    m.put(((String) r.get("model_name")).toLowerCase(), ((Number) r.get("forsokt_dag")).intValue());
+                }
+            } catch (Exception e) {
+                log.warn("ice_generation_miss: kunde inte läsas: {}", e.getMessage());
+            }
+            missCache = m;
+        }
+        Integer dag = m.get(modelName.toLowerCase());
+        if (dag == null) return false;
+        return java.time.LocalDate.now().toEpochDay() - dag < MISS_GILTIG_DAGAR;
+    }
+
+    /** Antal modeller som ligger som miss just nu, oavsett ålder — syns i granskningslistan. */
+    public long antalMissar() {
+        try {
+            Long n = jdbc.queryForObject("SELECT COUNT(*) FROM ice_generation_miss", Long.class);
+            return n == null ? 0 : n;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     /**

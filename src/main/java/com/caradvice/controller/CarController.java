@@ -741,7 +741,12 @@ public class CarController {
             @RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         List<Map<String, Object>> rader = iceGenerationService.lista();
-        return ResponseEntity.ok(Map.of("total", rader.size(), "generations", rader));
+        // missar med i svaret: total + missar är hur långt ifyllningen kommit av 310 modeller,
+        // och står summan still natt efter natt är arbetslistan slut — inte jobbet trasigt
+        return ResponseEntity.ok(Map.of(
+                "total", rader.size(),
+                "missar", iceGenerationService.antalMissar(),
+                "generations", rader));
     }
 
     /**
