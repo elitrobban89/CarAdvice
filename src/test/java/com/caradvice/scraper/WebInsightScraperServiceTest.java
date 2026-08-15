@@ -509,6 +509,39 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandevaktenParkerarInteVeteranbilar() {
+        /*
+         * Natten 2026-08-15 hamnade fyra rader ur en retroartikel i kön: Audi 100 5E från
+         * 1977 (två rader), Audi quattro från 1980 och Golf GTI:s 0-100-tid. Prompten frågade
+         * ordagrant "går bilen att köpa i Sverige idag", och för en femtio år gammal bil är
+         * svaret nej — alltså KOMMANDE. Samma lucka som Kina-modellerna 2026-08-14, fast åt
+         * andra tidshållet: vakten skiljde inte "ännu inte här" från "inte längre här".
+         *
+         * Sex av tio rader parkerades den natten och fyra blev synliga. Fixen är riktningen:
+         * KOMMANDE gäller bara framtiden, och en modell som en gång sålts här kan aldrig bli
+         * kommande igen. Utan tidsriktningen utskriven svälter kön ut nattens skörd.
+         */
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("KOMMANDE handlar bara om framtiden")
+                .contains("NÅGON GÅNG har sålts i Sverige")
+                .contains("veteranbil")
+                // Zoe-regelns motsvarighet här: utgången modell är KÖPBAR, inte kommande
+                .contains("inte om den slutat tillverkas");
+
+        // Nya varianter av en modell som redan säljs bedöms på modellen — Golf GTI Edition 50
+        // och Q6 e-tron parkerades trots att båda bilarna står hos handlarna
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("bedöms på modellen, inte på varianten")
+                // men en HEL ny generation som inte börjat levereras är fortfarande kommande
+                .contains("en hel ny generation som ännu inte");
+
+        // Osäkerhetsregeln pekar fortfarande åt kö-hållet, men bara för osläppta modeller:
+        // annars hade den ätit upp regeln ovan varje gång texten var vag om årsmodellen
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("Osäkerhetsregeln gäller bara framåt");
+    }
+
+    @Test
     void relevanspromptenStopparModellspecifikFordonsskatt() {
         // Natten 2026-08-10 sparades två skatterader (V60 Recharge 360 kr/år, Cayenne Turbo
         // E-Hybrid 2 714 kr/år) fast "skatter" redan stod i uteslutningslistan — vakten läste

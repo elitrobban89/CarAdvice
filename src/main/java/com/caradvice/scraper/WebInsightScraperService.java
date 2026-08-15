@@ -342,15 +342,25 @@ public class WebInsightScraperService {
      * relevansbedömningen om modellens uppmärksamhet. Vakten kan bara PARKERA rader, aldrig
      * kasta dem: relevansen är redan avgjord när den körs.
      *
-     * <p><b>Den frågar "går bilen att köpa här IDAG", inte "kommer den någonsin hit".</b> En
-     * Kina- eller Australien-modell får därför alltid svaret KOMMANDE — den går ju inte att
-     * köpa här — och hamnar i kön för evigt. Marknadsfrågan hör hemma i
+     * <p><b>Den frågar "har modellen nått marknaden än", inte "kommer den någonsin hit".</b>
+     * En Kina- eller Australien-modell får därför alltid svaret KOMMANDE — den har ju aldrig
+     * nått hit — och hamnar i kön för evigt. Marknadsfrågan hör hemma i
      * {@link #RELEVANCE_PROMPT} och måste vara avgjord innan raden når hit; kön granskades
      * 2026-08-14 och tre av tretton rader var sådana bilar. Lägg alltså aldrig
      * marknadsfrågan här: den här vakten har ingen dom att fälla den med.
+     *
+     * <p><b>Frågan är riktad framåt i tiden, och det måste stå utskrivet.</b> Natten
+     * 2026-08-15 parkerades fyra rader ur en retroartikel i Teknikens Värld — Audi 100 5E
+     * från 1977 och Audi quattro från 1980. Ingen av dem går att köpa ny i Sverige idag, så
+     * den bokstavliga frågan svarar KOMMANDE på en femtio år gammal bil. Samma lucka som
+     * Kina-modellerna, fast åt andra tidshållet: vakten skiljer inte "ännu inte" från
+     * "inte längre". Regeln nedan om att en modell som EN GÅNG sålts här aldrig är kommande
+     * stänger det, och är samma gränsdragning som Zoe-regeln i {@link #RELEVANCE_PROMPT} —
+     * en utgången modell med levande begagnatmarknad är det mest köparnyttiga som finns.
      */
     static final String UPCOMING_PROMPT = """
-            Du avgör en enda sak om varje rad: går bilen att köpa i Sverige idag?
+            Du avgör en enda sak om varje rad: har modellen ännu inte nått den svenska
+            marknaden?
 
             Raderna är redan godkända som köpvärd information. Du ska INTE bedöma
             innehållets kvalitet eller nytta — bara modellens tillgänglighet.
@@ -359,6 +369,17 @@ public class WebInsightScraperService {
             prissatt, annonserad säljstart längre fram, eller en ny generation som ännu inte
             nått marknaden (även när föregående generation säljs idag).
 
+            KOMMANDE handlar bara om framtiden. En modell som NÅGON GÅNG har sålts i Sverige
+            är aldrig kommande — inte om den slutat tillverkas, inte om den bara finns
+            begagnad, och inte om den är en veteranbil. Renault Zoe, VW e-Golf och BMW i3 är
+            i det läget, och en artikel om en Audi 100 från 1977 eller en Audi quattro från
+            1980 handlar om en bil som redan varit här. Svara KÖPBAR på dem alla.
+
+            En ny variant, motor, utrustningsnivå eller specialutgåva av en modell som redan
+            säljs bedöms på modellen, inte på varianten: Golf GTI och Audi Q6 e-tron säljs
+            här, alltså är de KÖPBARA. Undantaget är just en hel ny generation som ännu inte
+            börjat levereras — den regeln står kvar.
+
             Gränsen går vid leveranserna, inte vid hur ny bilen är. Har svenska kunder redan
             fått sina bilar är modellen KÖPBAR — även om den kallas ny eller nyss lanserad,
             och även om texten handlar om barnsjukdomar hos de första exemplaren. Volvo
@@ -366,8 +387,10 @@ public class WebInsightScraperService {
             bilar längre bort: utan säljstart, eller med lansering ett år eller mer fram
             i tiden (Volvo EX50 med säljstart 2027 är arketypen).
 
-            Är du osäker på om leveranserna börjat — svara KOMMANDE. En rad i kön går att
-            släppa fram, en osläppt bil på ett bilkort går inte att ta tillbaka.
+            Är du osäker på om leveranserna för en ÄNNU INTE SLÄPPT modell börjat — svara
+            KOMMANDE. En rad i kön går att släppa fram, en osläppt bil på ett bilkort går
+            inte att ta tillbaka. Osäkerhetsregeln gäller bara framåt: gäller texten en bil
+            som redan funnits på marknaden är svaret KÖPBAR, inte KOMMANDE.
 
             Svara ENDAST med valid JSON:
             {"upcoming": [index...]}
