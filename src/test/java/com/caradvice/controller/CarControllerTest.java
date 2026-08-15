@@ -576,6 +576,29 @@ class CarControllerTest {
            .andExpect(jsonPath("$.utanVolym").value(0));
     }
 
+    // --- GET /api/admin/ice-generations ---
+
+    @Test
+    void iceGenerationListanKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/ice-generations"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void iceGenerationListanVisarArtalenInteBaraAntalet() throws Exception {
+        // Räknaren i cargo-coverage stod på 44 medan varenda rad bar faceliftens årtal —
+        // antalet kan inte avslöja ett fel som sitter i värdet. Golf VIII kom 2020, inte 2024.
+        when(iceGenerationService.lista()).thenReturn(List.of(
+                new java.util.LinkedHashMap<>(Map.of("model", "volkswagen golf", "franAr", 2020)),
+                new java.util.LinkedHashMap<>(Map.of("model", "volvo xc60", "franAr", 2017))));
+
+        mvc.perform(get("/api/admin/ice-generations").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.total").value(2))
+           .andExpect(jsonPath("$.generations[0].model").value("volkswagen golf"))
+           .andExpect(jsonPath("$.generations[0].franAr").value(2020));
+    }
+
     // --- GET /api/admin/ev-specs ---
 
     @Test

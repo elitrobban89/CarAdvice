@@ -726,6 +726,25 @@ public class CarController {
     }
 
     /**
+     * Hela {@code ice_generation} — modellnamn och generationens startår.
+     *
+     * <p>Räknaren i {@link #cargoCoverage} visar bara HUR MÅNGA rader som fyllts, aldrig VILKA
+     * årtal de bär, och det är årtalen felet sitter i: raderna 2026-08-14 bar faceliftens år
+     * (Golf VIII som 2024 i stället för 2020) och räknaren stod på 44 hela tiden utan att
+     * avslöja något. Efter ombyggnaden 2026-08-15 gick den till 32, men om årtalen blivit rätt
+     * gick bara att avgöra med ett skarpt sök — och varje sådant drar ur den fria sökkvoten
+     * (10/h). Samma skäl som räknaren själv finns: en siffra som inte går att läsa går inte
+     * att bevaka.
+     */
+    @GetMapping("/admin/ice-generations")
+    public ResponseEntity<?> listaIceGenerations(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = iceGenerationService.lista();
+        return ResponseEntity.ok(Map.of("total", rader.size(), "generations", rader));
+    }
+
+    /**
      * Tömmer {@code ice_generation} så att 03:00-jobbet fyller om den från grunden.
      *
      * <p>Finns för att raderna 2026-08-14 visade sig bära <b>faceliftens</b> årtal i stället för

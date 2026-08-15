@@ -109,6 +109,31 @@ public class IceGenerationService {
         return franArFor(modelName) != null;
     }
 
+    /**
+     * Hela tabellen, modellnamn i bokstavsordning — underlaget för
+     * {@code GET /api/admin/ice-generations}.
+     *
+     * <p>Läser förbi {@link #cache} med flit: cachen är byggd för uppslag och skulle behöva
+     * sorteras om vid varje anrop ändå, och en granskning ska se vad som STÅR i tabellen,
+     * inte vad processen råkar minnas. Tabellen är som mest 310 rader.
+     */
+    public java.util.List<Map<String, Object>> lista() {
+        try {
+            return jdbc.queryForList("SELECT model_name, fran_ar FROM ice_generation ORDER BY model_name")
+                    .stream()
+                    .map(r -> {
+                        Map<String, Object> rad = new java.util.LinkedHashMap<String, Object>();
+                        rad.put("model", r.get("model_name"));
+                        rad.put("franAr", ((Number) r.get("fran_ar")).intValue());
+                        return rad;
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.warn("ice_generation: kunde inte listas: {}", e.getMessage());
+            return java.util.List.of();
+        }
+    }
+
     public long antal() {
         try {
             Long n = jdbc.queryForObject("SELECT COUNT(*) FROM ice_generation", Long.class);
