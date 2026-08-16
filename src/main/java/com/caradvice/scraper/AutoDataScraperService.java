@@ -95,9 +95,37 @@ public class AutoDataScraperService {
     /**
      * Ord i en generationstitel som aldrig står i ett bilnamn hos oss och därför inte får
      * diskvalificera en träff: generationsnumret, faceliftmarkeringen och dörrantalet.
+     *
+     * <p><b>Chassikoderna lades till 2026-08-16</b> och var den enskilt största orsaken till att
+     * generationsifyllningen stod stilla. Auto-data sätter fabrikskoden i varje titel — "Lexus IS
+     * III (XE30, facelift 2020)", "BMW X3 (G01)", "Audi RS4 Avant (B9)" — och koden stod inte i
+     * listan. {@link #titelnRymsIBilnamnet} kräver att varje kvarvarande ord finns i bilnamnet,
+     * så {@code xe30} fällde <b>varenda</b> generation på modellsidan och hela modellen
+     * antecknades som ett nej. Av 139 parkerade missar låg 56 på BMW och 28 på Audi, två märken
+     * där auto-data sätter kod på i princip varje generation. Koden bär ingen information vi kan
+     * använda: den står aldrig i ett bilnamn, och den skiljer inte kaross från kaross.
+     *
+     * <p>Mönstret kräver <b>både</b> en bokstav och en siffra, vilket är det som skiljer en
+     * chassikod från de två sorters ord som måste överleva: rena karossord ("Avant", "Coupe",
+     * "Sportback") saknar siffra, och serienummer som bär betydelse ("3" i "3 Series") saknar
+     * bokstav. Att skala bort ett ord kan bara göra filtret mer tillåtande, aldrig få fel
+     * generation vald — karossvalet ligger kvar i {@link #titelnRymsIBilnamnet}.
      */
     private static final Pattern TITELBRUS = Pattern.compile(
-            "(?i)\\b(facelift|restyling|\\d{4}|[ivx]+|\\d-door|door|doors)\\b|[()\\-,]");
+            "(?i)\\b(facelift|restyling|\\d{4}|[ivx]+|\\d-door|door|doors)\\b"
+                    + "|\\b(?=[a-z0-9]*[a-z])(?=[a-z0-9]*\\d)[a-z]{0,3}\\d{1,3}[a-z]{0,2}\\b"
+                    + "|[()\\-,]");
+
+    /**
+     * Bilnamn där vår CSV bär motorbeteckningen men auto-data listar serien.
+     *
+     * <p>{@code ice_consumption} har 56 BMW-rader som "BMW 320d" och "BMW 330e", medan auto-data
+     * bara känner "3 Series" — modellvalet hittade därför ingenting alls och varje rad blev ett
+     * nej. Serien står i beteckningens första siffra, och det gäller även M-varianterna
+     * ("m135i" → 1 Series). Ren bokstavsmodell ("BMW X3", "BMW M3") träffar auto-datas egen
+     * modellista direkt och får inte översättas.
+     */
+    private static final Pattern BMW_SERIEBETECKNING = Pattern.compile("^bmw m?([1-8])\\d{2}[a-z]*$");
 
     /**
      * Motoralternativen på en generationssida, i sidans egen ordning (starkast först).
@@ -265,22 +293,59 @@ public class AutoDataScraperService {
      * siffror, vilket var själva felet i Leaf- och MG4-fallen.
      */
     public static Generation valjGeneration(List<Generation> alla, String bilnamn, Integer arsmodell) {
+        return valjGeneration(alla, bilnamn, arsmodell, true);
+    }
+
+    /**
+     * Samma val, men karosskravet går att stänga av.
+     *
+     * <p><b>Varför någon skulle vilja det.</b> De två uppslagen har olika tålighet för kaross.
+     * Bagagevolymen <i>är</i> karossberoende — en halvkombi som får kombins volym är ett rakt
+     * fel, och därför måste karossordet stämma. Generationens <b>startår</b> är det inte: Audi
+     * TT Coupe och TT Roadster är samma generation samma år, och Golf VIII kom 2020 oavsett
+     * kaross. Med karosskravet påslaget fanns det för många modeller ingen titel som kunde
+     * passera: alla sju RS4-generationer är Avant, Cabrio eller Saloon och alla 28 TT-titlar bär
+     * Coupe eller Roadster, så modellen kunde aldrig dateras hur väl parsern än fungerade.
+     *
+     * <p>Att släppa karossen är ofarligt just här därför att årtalet ändå passerar
+     * {@code beskriverSammaGeneration}: delar auto-datas motorlista ingen hästkraftssiffra med
+     * vår, sparas inget årtal. Väljer vi alltså fel kaross fångas det ett steg senare.
+     */
+    public static Generation valjGeneration(List<Generation> alla, String bilnamn, Integer arsmodell,
+                                            boolean karossMasteStamma) {
         if (alla == null || alla.isEmpty()) return null;
 
         List<Generation> kvar = new ArrayList<>();
         for (Generation g : alla) {
             if (arsmodell != null && !g.galler(arsmodell)) continue;
-            if (bilnamn != null && !titelnRymsIBilnamnet(g.titel(), bilnamn)) continue;
+            if (karossMasteStamma && bilnamn != null && !titelnRymsIBilnamnet(g.titel(), bilnamn)) continue;
             kvar.add(g);
         }
         if (kvar.isEmpty()) return null;
 
         // Mest specifika titeln först, precis som ev_spec- och insiktsmatchningen: "Golf VIII"
         // ryms i varje Golf-namn, så utan det steget hade basmodellen tagit Alltrackens plats.
+        //
+        // Utan karosskrav vänds ordningen: då har ingen titel valts bort på kaross, och den MEST
+        // specifika är en undermodell — "Audi TT RS Roadster" i stället för "Audi TT Coupe", vars
+        // startår är RS-versionens 2016 och inte generationens 2014. Minst karossord är basbilen,
+        // alltså den vars generationsår är det vi vill datera.
+        if (karossMasteStamma) {
+            return kvar.stream()
+                    .max(java.util.Comparator
+                            .comparingInt((Generation g) -> karossordAntal(g.titel()))
+                            .thenComparingInt(g -> g.franAr() != null ? g.franAr() : Integer.MIN_VALUE))
+                    .orElse(null);
+        }
+        // Utan karosskrav har ingen titel valts bort, och då är "mest specifika" fel fråga: varje
+        // kaross och varje undermodell ligger kvar i högen. Den nyaste generationen är den vår
+        // motorlista beskriver — kortare titel bryter lika, så valet är stabilt mellan sedan och
+        // kombi samma år. Att det blir en undermodell ("TT RS" i stället för "TT") gör inget:
+        // basgenerationsStartAr grupperar på chassikod och tar generationens lägsta år ändå.
         return kvar.stream()
                 .max(java.util.Comparator
-                        .comparingInt((Generation g) -> karossordAntal(g.titel()))
-                        .thenComparingInt(g -> g.franAr() != null ? g.franAr() : Integer.MIN_VALUE))
+                        .comparingInt((Generation g) -> g.franAr() != null ? g.franAr() : Integer.MIN_VALUE)
+                        .thenComparingInt(g -> -g.titel().length()))
                 .orElse(null);
     }
 
@@ -339,19 +404,47 @@ public class AutoDataScraperService {
     /** Sidor vi redan hämtat under körningen. En Golf-generation delas av alla Golf-rader. */
     private final Map<String, String> sidcache = new ConcurrentHashMap<>();
 
+    /**
+     * En hämtning som inte gick fram. Se {@link #hamta} för varför det inte får bli tomsträng.
+     */
+    public static class HamtningsFel extends RuntimeException {
+        HamtningsFel(String url, Throwable orsak) {
+            super("auto-data: kunde inte hämta " + url + " — " + orsak.getMessage(), orsak);
+        }
+    }
+
+    /**
+     * Sidans html. Kastar {@link HamtningsFel} när hämtningen inte gick fram.
+     *
+     * <p><b>Varför den inte längre returnerar tomsträng</b> (2026-08-16). Varje undantag —
+     * timeout, 429, 5xx — svaldes och kom tillbaka som {@code ""}. Parsern gjorde då en tom lista
+     * av det, uppslaget returnerade {@code null}, och generationsifyllningen kunde inte skilja det
+     * från ett svar vi förstått. Den antecknade alltså ett <b>nej</b> och parkerade modellen i 30
+     * dagar för något som var ett nätverksfel.
+     *
+     * <p>Löftet fanns redan i {@code AutoDataCargoFillService.fyllGenerationsar}: ett undantag ska
+     * inte antecknas som miss, bara ett svar vi förstått. Det löftet gick inte att hålla så länge
+     * felet aldrig nådde dit som ett undantag. Båda nattjobbens loopar fångar per modell, så en
+     * trasig sida fäller fortfarande aldrig hela körningen.
+     *
+     * <p>Felet cachas inte heller längre. Förut låste ett {@code ""} fast sidan som tom för resten
+     * av körningen, så ett enda hicka-svar tidigt kunde döma varje modell som delade märkessida.
+     */
     String hamta(String url) {
-        return sidcache.computeIfAbsent(url, u -> {
-            try {
-                Thread.sleep(PAUS_MS);
-                return Jsoup.connect(u).userAgent(UA).timeout(TIMEOUT_MS).get().html();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return "";
-            } catch (Exception e) {
-                log.warn("auto-data: kunde inte hämta {} — {}", u, e.getMessage());
-                return "";
-            }
-        });
+        String cachad = sidcache.get(url);
+        if (cachad != null) return cachad;
+        try {
+            Thread.sleep(PAUS_MS);
+            String html = Jsoup.connect(url).userAgent(UA).timeout(TIMEOUT_MS).get().html();
+            sidcache.put(url, html);
+            return html;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new HamtningsFel(url, e);
+        } catch (Exception e) {
+            log.warn("auto-data: kunde inte hämta {} — {}", url, e.getMessage());
+            throw new HamtningsFel(url, e);
+        }
     }
 
     /**
@@ -385,10 +478,39 @@ public class AutoDataScraperService {
      * Senaste generationen för en modell, utan årsmodell att gå på.
      *
      * <p>Publik ingång åt generationsifyllningen: {@code ice_consumption}s motorlista beskriver
-     * modellens NUVARANDE generation, så det är just den senaste vi vill datera.
+     * modellens NUVARANDE generation, så det är just den senaste vi vill datera. Karosskravet är
+     * avstängt och seriealiaset påslaget — se {@link #valjGeneration(List, String, Integer, boolean)}
+     * respektive {@link #uppslagsnamn}.
      */
     public Generation generationForNamn(String bilnamn) {
-        return generationForBil(bilnamn, null);
+        String uppslag = uppslagsnamn(bilnamn);
+        return valjGeneration(generationerFor(uppslag), uppslag, null, false);
+    }
+
+    /**
+     * Motoralternativen för generationsprövningen, med samma tolerans som {@link #generationForNamn}.
+     *
+     * <p>Egen ingång därför att {@link #motorerForBil} används av bagagehämtningen, som måste ha
+     * kvar karosskravet. Utan den här hade hästkraftsjämförelsen i generationsifyllningen fått
+     * en tom lista för varje modell som räddas av toleransen — och en tom lista räknas som
+     * hämtningsfel, alltså hade årtalet sparats <b>utan</b> att ha prövats mot vår motorlista.
+     */
+    public List<MotorAlternativ> motorerForGenerationsprovning(String bilnamn) {
+        Generation gen = generationForNamn(bilnamn);
+        return gen == null ? List.of() : parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+    }
+
+    /**
+     * Bilnamnet som auto-data känner igen det, eller namnet oförändrat.
+     *
+     * <p>Bara BMW:s serier hittills — se {@link #BMW_SERIEBETECKNING}. Översättningen används
+     * genomgående i uppslaget och inte bara vid modellvalet: titelkontrollen jämför mot samma
+     * namn, och "BMW 3 Series Sedan" ryms inte i "BMW 320d".
+     */
+    static String uppslagsnamn(String bilnamn) {
+        if (bilnamn == null) return null;
+        Matcher m = BMW_SERIEBETECKNING.matcher(normalisera(bilnamn));
+        return m.matches() ? "bmw " + m.group(1) + " series" : bilnamn;
     }
 
     /**
@@ -411,27 +533,83 @@ public class AutoDataScraperService {
      * @return startåret, eller null när modellen eller årtalet inte gick att slå upp
      */
     public Integer basgenerationsStartAr(String bilnamn) {
-        return basgenerationsStartAr(generationerFor(bilnamn), bilnamn);
+        String uppslag = uppslagsnamn(bilnamn);
+        return basgenerationsStartAr(generationerFor(uppslag), uppslag);
     }
 
     /** Samma regel utan hämtning, så den kan provas mot en sparad modellsida. */
     public static Integer basgenerationsStartAr(List<Generation> alla, String bilnamn) {
-        Generation senaste = valjGeneration(alla, bilnamn, null);
+        Generation senaste = valjGeneration(alla, bilnamn, null, false);
         if (senaste == null) return null;
 
-        String bas = basTitel(senaste.titel());
+        String nyckel = grupperingsnyckel(senaste.titel());
         Integer minsta = senaste.franAr();
         for (Generation g : alla) {
-            if (!bas.equals(basTitel(g.titel()))) continue;
+            if (!nyckel.equals(grupperingsnyckel(g.titel()))) continue;
             if (g.franAr() != null && (minsta == null || g.franAr() < minsta)) minsta = g.franAr();
         }
         return minsta;
     }
 
-    /** Generationstiteln utan faceliftmarkering: "Skoda Octavia IV (facelift 2024)" → "skoda octavia iv". */
+    /**
+     * Nyckeln som samlar en generations alla rader: chassikoden när den finns, annars bastiteln.
+     *
+     * <p><b>Varför koden vinner över titeln.</b> Bastiteln skiljer karosserna åt, och det är rätt
+     * för bagage men fel för ett årtal: "Audi TT Coupe (8S)" från 2014 och "Audi TT RS Coupe (8S)"
+     * från 2016 är samma generation, men olika bastitlar. Årtalet blev då undermodellens 2016, och
+     * ett för högt årtal tystar varje kort mellan generationens start och det året — precis den
+     * överblockering som {@link #basgenerationsStartAr} finns för att undvika. Chassikoden är
+     * generationens egen identitet hos auto-data och samlar både karosser och faceliftar: 8S ger
+     * 2014, XE30 ger 2013, B9 ger 2017, G20 ger 2018.
+     *
+     * <p>Saknas kod faller vi tillbaka på bastiteln, som förut — Volkswagen skriver "Golf VIII
+     * (facelift 2024)" utan kod, och där gör generationsnumret samma jobb (2020).
+     */
+    private static String grupperingsnyckel(String titel) {
+        String kod = chassiKod(titel);
+        return kod != null ? "kod:" + kod : basTitel(titel);
+    }
+
+    /**
+     * Chassikoden ur titelns parentes: "BMW 3 Series Sedan (G20 LCI, facelift 2022)" → "g20".
+     *
+     * <p>Bara det första ordet i parentesen räknas, och bara om det bär både bokstav och siffra —
+     * så "(facelift 2024)" ger null och BMW:s faceliftmarkering "LCI" följer inte med in i
+     * nyckeln, vilket är det som får G20 och G20 LCI att hamna i samma generation.
+     */
+    static String chassiKod(String titel) {
+        if (titel == null) return null;
+        Matcher m = CHASSIKOD.matcher(titel);
+        return m.find() ? m.group(1).toLowerCase() : null;
+    }
+
+    private static final Pattern CHASSIKOD = Pattern.compile(
+            "(?i)\\(\\s*((?=[a-z0-9]*[a-z])(?=[a-z0-9]*\\d)[a-z]{0,3}\\d{1,3}[a-z]{0,2})\\b");
+
+    /**
+     * Generationstiteln utan faceliftmarkering: "Skoda Octavia IV (facelift 2024)" → "skoda octavia iv".
+     *
+     * <p><b>Chassikoden måste bort här också</b> (2026-08-16). Regeln letade efter en parentes som
+     * <i>börjar</i> med "facelift", vilket bara stämmer när koden saknas. Auto-data skriver oftare
+     * "Lexus IS III (XE30, facelift 2020)", och då matchade inget: faceliftversionen fick en egen
+     * bastitel, gruppen blev ensam och {@link #basgenerationsStartAr} returnerade faceliftens år.
+     * Det är exakt felet metoden skrevs för att hindra — Golf VIII som 2024 i stället för 2020 —
+     * bara på de titlar där koden råkade stå först i parentesen.
+     *
+     * <p><b>Chassikoden ska däremot vara kvar här</b>, till skillnad från i {@link #TITELBRUS}.
+     * Den är generationens identitet: BMW skiljer inte sina generationer med romerska siffror utan
+     * bara med kod, så "3 Series Sedan (G20)" och "3 Series Sedan (F30)" blir samma bastitel om
+     * koden skalas bort — och {@link #basgenerationsStartAr} tar det minsta årtalet i gruppen,
+     * alltså F30:s 2011 för en G20 från 2018. Samma fälla som att slå ihop Golf VII och VIII.
+     * Modellbeteckningar som "XC60" är dessutom kodformade, och de måste självklart stå kvar.
+     *
+     * <p>Kvar blir alltså precis faceliftmarkeringen, oavsett om den står ensam i parentesen
+     * eller efter en kod — och romerska siffror rörs aldrig, eftersom generationsnumret är hela
+     * poängen med en bastitel.
+     */
     static String basTitel(String titel) {
         if (titel == null) return "";
-        return normalisera(titel.replaceAll("(?i)\\((facelift|restyling)[^)]*\\)", " "));
+        return normalisera(titel.replaceAll("(?i),?\\s*\\b(facelift|restyling)\\b\\s*\\d{0,4}", " "));
     }
 
     /** Märkes- och modelluppslaget, delat av ingångarna ovan. */

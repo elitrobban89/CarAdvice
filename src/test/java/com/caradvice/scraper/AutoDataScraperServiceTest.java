@@ -224,6 +224,118 @@ class AutoDataScraperServiceTest {
     }
 
     @Test
+    void faceliftmarkeringenStrippasAvenNarChassikodenStarForst() {
+        /*
+         * 2026-08-16: regeln letade efter en parentes som BÖRJAR med "facelift", vilket bara
+         * stämmer när chassikoden saknas. Auto-data skriver oftare "(XE30, facelift 2020)" —
+         * då matchade inget, faceliftversionen fick en egen bastitel, gruppen blev ensam och
+         * basgenerationsStartAr returnerade faceliftens år. Alltså exakt felet metoden skrevs
+         * för att hindra: Golf VIII som 2024 i stället för 2020.
+         */
+        assertThat(AutoDataScraperService.basTitel("Lexus IS III (XE30, facelift 2020)"))
+                .isEqualTo("lexus is iii xe30");
+        // samma bastitel som basgenerationen, alltså samma grupp — det är hela poängen
+        assertThat(AutoDataScraperService.basTitel("Lexus IS III (XE30)"))
+                .isEqualTo("lexus is iii xe30");
+
+        /*
+         * Gränsen åt andra hållet: chassikoden ska vara KVAR i bastiteln. BMW skiljer inte sina
+         * generationer med romerska siffror utan bara med kod, så skalas koden bort blir G20 och
+         * F30 samma grupp — och basgenerationsStartAr tar det minsta årtalet i gruppen, alltså
+         * F30:s 2011 för en G20 från 2018.
+         */
+        assertThat(AutoDataScraperService.basTitel("BMW 3 Series Sedan (G20)"))
+                .isNotEqualTo(AutoDataScraperService.basTitel("BMW 3 Series Sedan (F30)"));
+    }
+
+    @Test
+    void chassikodenFallerInteEnGeneration() {
+        /*
+         * Den enskilt största orsaken till att generationsifyllningen stod stilla (2026-08-16):
+         * titelnRymsIBilnamnet kräver att varje kvarvarande ord finns i bilnamnet, och
+         * chassikoden stod inte i TITELBRUS. "xe30" fällde alltså VARENDA generation på
+         * modellsidan och hela modellen antecknades som ett nej. 56 av 139 parkerade missar låg
+         * på BMW och 28 på Audi, två märken där auto-data sätter kod på nästan varje titel.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("lexus-is-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Lexus is", null, false)).isNotNull();
+        // IS III (XE30) kom 2013 — inte faceliftens 2020 eller 2025
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Lexus is")).isEqualTo(2013);
+    }
+
+    @Test
+    void karossordetFallerGenerationenBaraNarKarossenAvgor() {
+        /*
+         * Alla sju RS4-generationer är Avant, Cabrio eller Saloon — det finns ingen titel som kan
+         * passera karosskravet, så modellen kunde aldrig dateras hur väl parsern än fungerade.
+         * För ÅRTALET spelar karossen ingen roll: Avant och Saloon är samma generation samma år.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("audi-rs4-model.html"));
+
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Audi rs4", null, false)).isNotNull();
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Audi rs4")).isEqualTo(2017);
+
+        /*
+         * Gränsen åt andra hållet, och den är inte teoretisk: bagagevolymen ÄR karossberoende, och
+         * en halvkombi som får kombins liter är ett rakt fel. Med karosskravet påslaget står
+         * filtret kvar precis som förut.
+         */
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Audi rs4", null, true)).isNull();
+
+        var golf = AutoDataScraperService.parseGenerationer(fixtur("golf-model.html"));
+        assertThat(AutoDataScraperService.valjGeneration(golf, "Volkswagen Golf", 2021, true).titel())
+                .isEqualTo("Volkswagen Golf VIII");
+    }
+
+    @Test
+    void utanKarosskravValjsBasbilenInteUndermodellen() {
+        /*
+         * Ordningen måste vändas när karosskravet är av. Med "mest specifika titeln först" — rätt
+         * regel när karossen valts — vinner en UNDERMODELL: "Audi TT RS Roadster" i stället för
+         * "Audi TT Coupe", och dess startår är RS-versionens 2016, inte generationens 2014.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("audi-tt-model.html"));
+
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Audi tt")).isEqualTo(2014);
+    }
+
+    @Test
+    void bmwSeriebeteckningOversattsTillSerie() {
+        /*
+         * ice_consumption har 56 BMW-rader som "BMW 320d" och "BMW 330e", medan auto-data bara
+         * känner "3 Series". Modellvalet hittade därför ingenting alls. Serien står i första
+         * siffran, och det gäller även M-varianterna.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW 320d")).isEqualTo("bmw 3 series");
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW 330e")).isEqualTo("bmw 3 series");
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW 128ti")).isEqualTo("bmw 1 series");
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW m135i")).isEqualTo("bmw 1 series");
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW m760i")).isEqualTo("bmw 7 series");
+
+        /*
+         * Gränsen åt andra hållet: bokstavsmodellerna finns som egna modeller hos auto-data och
+         * får INTE översättas. X3 är ingen 3-serie, och M3 är en egen modellsida.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW x3")).isEqualTo("BMW x3");
+        assertThat(AutoDataScraperService.uppslagsnamn("BMW m3")).isEqualTo("BMW m3");
+        assertThat(AutoDataScraperService.uppslagsnamn("Volkswagen golf")).isEqualTo("Volkswagen golf");
+        assertThat(AutoDataScraperService.uppslagsnamn(null)).isNull();
+    }
+
+    @Test
+    void bmwSerienGarAttDateraEfterOversattningen() {
+        // Hela kedjan för en översatt rad: 3-seriens sida ska ge G20:ans startår, inte F30:ans.
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("bmw-3-series-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 330e");
+        assertThat(AutoDataScraperService.valjGeneration(gen, uppslag, null, false)).isNotNull();
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, uppslag)).isEqualTo(2018);
+    }
+
+    @Test
     void kombinValjsBaraNarBilnamnetSagerKombi() {
         // Golf VIII och Golf VIII Variant delar årsspann men har olika bagagevolym. Utan
         // karossfiltret hade en halvkombi kunnat få kombins liter.

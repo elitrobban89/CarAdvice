@@ -74,4 +74,47 @@ class IceGenerationServiceTest {
 
         assertThat(service.lista()).isEmpty();
     }
+
+    @Test
+    void missenBarSinOrsakSaEttDottUppslagGarAttSkiljaFranEttAvstaende() {
+        /*
+         * 2026-08-16: jobbet räknade alla nej i EN siffra, "utan träff". Den dolde att 139
+         * parkerade missar nästan uteslutande var ett DÖTT UPPSLAG (chassikoden fällde varenda
+         * generation) och inte vakten som avstod med flit. Med orsaken sparad syns skillnaden
+         * direkt i granskningen: domineras svaret av ej-hittad är det vi som är trasiga.
+         */
+        service.noteraMiss("Lexus is", IceGenerationService.ORSAK_EJ_HITTAD);
+
+        org.mockito.Mockito.verify(jdbc).update(
+                "INSERT INTO ice_generation_miss(model_name, forsokt_dag, orsak) VALUES (?, ?, ?)",
+                "Lexus is", (int) java.time.LocalDate.now().toEpochDay(),
+                IceGenerationService.ORSAK_EJ_HITTAD);
+    }
+
+    @Test
+    void orsaksrakningenTalerEnTabellUtanOrsakskolumn() {
+        // Kolumnen läggs till i efterhand på en befintlig tabell, så rader från före 2026-08-16
+        // saknar orsak. De ska räknas som "okand" och inte fälla granskningen.
+        when(jdbc.queryForList(anyString())).thenReturn(List.of(
+                Map.of("orsak", "ej-hittad", "antal", 131L),
+                Map.of("orsak", "okand", "antal", 8L)));
+
+        assertThat(service.missarPerOrsak())
+                .containsEntry("ej-hittad", 131L)
+                .containsEntry("okand", 8L);
+    }
+
+    @Test
+    void missarnaGarAttGlommaSaEnRattningFarVerkanDirekt() {
+        /*
+         * En miss är ett nej på frågan vi ställde, och rättar vi frågan är gamla nej inte längre
+         * svar. Utan den här hade 2026-08-16 års rättningar legat verkningslösa till mitten av
+         * september, eftersom MISS_GILTIG_DAGAR är 30.
+         */
+        when(jdbc.update("DELETE FROM ice_generation_miss")).thenReturn(139);
+
+        assertThat(service.rensaMissar()).isEqualTo(139);
+        // cachen måste släppas, annars ser nattjobbet samma missar som före rensningen
+        assertThat(service.harFarskMiss("Lexus is")).isFalse();
+    }
 }

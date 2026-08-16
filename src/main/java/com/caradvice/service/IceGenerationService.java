@@ -74,7 +74,20 @@ public class IceGenerationService {
                 forsokt_dag INT NOT NULL
             )
             """);
+        // Orsaken kom till 2026-08-16 och finns för att jobbet räknade alla nej i EN siffra:
+        // "utan träff" var både ett dött uppslag och en vakt som avstod med flit. Skillnaden
+        // syntes inte i loggen, och 139 falska nej kunde ligga parkerade i en månad utan att
+        // något såg trasigt ut. Läggs till separat så en befintlig tabell inte behöver byggas om.
+        try {
+            jdbc.execute("ALTER TABLE ice_generation_miss ADD COLUMN IF NOT EXISTS orsak VARCHAR(40)");
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte lägga till orsak-kolumnen: {}", e.getMessage());
+        }
     }
+
+    /** Orsaker {@link #noteraMiss} känner till. Lagras som text — de läses av människor. */
+    public static final String ORSAK_EJ_HITTAD = "ej-hittad";
+    public static final String ORSAK_VAKTEN_AVSTOD = "vakten-avstod";
 
     /**
      * Startåret för modellens nuvarande generation, eller null när vi inte vet.
@@ -159,17 +172,47 @@ public class IceGenerationService {
      * frusit det haveriet till ett tomt bord som aldrig fyllts igen. Fönstret gör listan
      * självläkande utan att kosta något i det normala fallet.
      */
-    public void noteraMiss(String modelName) {
+    public void noteraMiss(String modelName, String orsak) {
         if (modelName == null) return;
         try {
             long dag = java.time.LocalDate.now().toEpochDay();
             jdbc.update("DELETE FROM ice_generation_miss WHERE model_name = ?", modelName);
-            jdbc.update("INSERT INTO ice_generation_miss(model_name, forsokt_dag) VALUES (?, ?)",
-                    modelName, (int) dag);
+            jdbc.update("INSERT INTO ice_generation_miss(model_name, forsokt_dag, orsak) VALUES (?, ?, ?)",
+                    modelName, (int) dag, orsak);
             missCache = null;
         } catch (Exception e) {
             log.warn("ice_generation_miss: kunde inte skriva {}: {}", modelName, e.getMessage());
         }
+    }
+
+    /** Antal parkerade missar per orsak — svarar på "avstår vakten, eller är uppslaget dött?". */
+    public Map<String, Long> missarPerOrsak() {
+        Map<String, Long> ut = new java.util.LinkedHashMap<>();
+        try {
+            for (Map<String, Object> r : jdbc.queryForList(
+                    "SELECT COALESCE(orsak, 'okand') AS orsak, COUNT(*) AS antal "
+                            + "FROM ice_generation_miss GROUP BY COALESCE(orsak, 'okand') ORDER BY 2 DESC")) {
+                ut.put((String) r.get("orsak"), ((Number) r.get("antal")).longValue());
+            }
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte räknas per orsak: {}", e.getMessage());
+        }
+        return ut;
+    }
+
+    /**
+     * Glömmer alla parkerade missar så nattjobbet prövar om dem.
+     *
+     * <p>Behövs efter varje rättning i uppslaget: en miss betyder "auto-data hade inget att ge",
+     * och den domen är bara giltig så länge frågan ställdes rätt. När 2026-08-16 års rättningar
+     * visade att chassikoder fällde varenda generation för BMW, Audi och Lexus var de 139
+     * parkerade raderna inte längre nej utan obesvarade — och utan den här hade de legat kvar i
+     * 30 dagar och gjort rättningen verkningslös till mitten av september.
+     */
+    public int rensaMissar() {
+        int n = jdbc.update("DELETE FROM ice_generation_miss");
+        missCache = null;
+        return n;
     }
 
     /**

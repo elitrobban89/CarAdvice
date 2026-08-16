@@ -3,6 +3,7 @@ package com.caradvice.scraper;
 import com.caradvice.service.CargoSpecService;
 import com.caradvice.service.CarTitle;
 import com.caradvice.service.IceConsumptionService;
+import com.caradvice.service.IceGenerationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -157,7 +158,7 @@ public class AutoDataCargoFillService {
             return 0;
         }
 
-        int fyllda = 0, forsokta = 0, utanTraff = 0;
+        int fyllda = 0, forsokta = 0, ejHittad = 0, vaktenAvstod = 0, hamtningsfel = 0;
         for (String modell : namn) {
             if (forsokta >= MAX_PER_KORNING) break;
             forsokta++;
@@ -168,13 +169,13 @@ public class AutoDataCargoFillService {
                 // basgenerationsStartAr går tillbaka till generationens eget startår.
                 Integer franAr = autoData.basgenerationsStartAr(modell);
                 if (franAr == null) {
-                    iceGenerations.noteraMiss(modell);
-                    utanTraff++;
+                    iceGenerations.noteraMiss(modell, IceGenerationService.ORSAK_EJ_HITTAD);
+                    ejHittad++;
                     continue;
                 }
                 if (!beskriverSammaGeneration(modell)) {
-                    iceGenerations.noteraMiss(modell);
-                    utanTraff++;
+                    iceGenerations.noteraMiss(modell, IceGenerationService.ORSAK_VAKTEN_AVSTOD);
+                    vaktenAvstod++;
                     continue;
                 }
                 iceGenerations.spara(modell, franAr);
@@ -184,12 +185,21 @@ public class AutoDataCargoFillService {
                 // Antecknas INTE som miss: ett undantag är ett nätverksfel eller en tillfälligt
                 // trasig sida, och den modellen ska prövas igen redan nästa natt. Bara ett
                 // svar vi förstått — ingen träff, eller fel generation — är ett riktigt nej.
+                // Sedan 2026-08-16 håller det löftet: AutoDataScraperService.hamta kastar i
+                // stället för att lämna tomsträng, så felet når hit i stället för att förklä
+                // sig till ett nej. Se HamtningsFel.
                 log.warn("auto-data generation: {} misslyckades — {}", modell, e.getMessage());
-                utanTraff++;
+                hamtningsfel++;
             }
         }
-        log.info("auto-data generation: {} fyllda, {} utan träff, {} försökta av {} kvar ({} kända nej)",
-                fyllda, utanTraff, forsokta, namn.size(), iceGenerations.antalMissar());
+        // Orsakerna räknas var för sig: "utan träff" var förut EN siffra för både ett dött
+        // uppslag och en vakt som avstod med flit, och just den hopslagningen gjorde att 139
+        // falska nej kunde parkeras i 30 dagar utan att något såg fel ut. Stiger ejHittad mot
+        // antalet försök är uppslaget trasigt — inte auto-data som saknar bilarna.
+        log.info("auto-data generation: {} fyllda, {} ej hittade, {} vakten avstod, {} hämtningsfel, "
+                        + "{} försökta av {} kvar ({} kända nej)",
+                fyllda, ejHittad, vaktenAvstod, hamtningsfel, forsokta, namn.size(),
+                iceGenerations.antalMissar());
         return fyllda;
     }
 
@@ -214,8 +224,11 @@ public class AutoDataCargoFillService {
         java.util.Set<Integer> vara = iceConsumption.effekterForModell(modell);
         if (vara.isEmpty()) return true;   // inget att jämföra med — låt årtalet stå
 
+        // Samma tolerans som årtalsuppslaget: motorerForBil kräver att karossordet stämmer, och
+        // med det kravet får varje modell som räddas av karosstoleransen en TOM lista här — vilket
+        // räknas som hämtningsfel och släpper igenom årtalet oprövat. Se motorerForGenerationsprovning.
         java.util.Set<Integer> deras = new java.util.HashSet<>();
-        for (var m : autoData.motorerForBil(modell, null)) if (m.hk() != null) deras.add(m.hk());
+        for (var m : autoData.motorerForGenerationsprovning(modell)) if (m.hk() != null) deras.add(m.hk());
         if (deras.isEmpty()) return true;  // tom lista är ett hämtningsfel, inte ett bevis
 
         if (java.util.Collections.disjoint(vara, deras)) {

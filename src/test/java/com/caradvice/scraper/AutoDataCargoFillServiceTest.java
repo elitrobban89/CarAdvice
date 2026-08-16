@@ -64,7 +64,7 @@ class AutoDataCargoFillServiceTest {
 
         service.fyllGenerationsar();
 
-        verify(iceGenerations).noteraMiss("Ford ecosport");
+        verify(iceGenerations).noteraMiss("Ford ecosport", IceGenerationService.ORSAK_EJ_HITTAD);
         verify(iceGenerations, never()).spara(anyString(), org.mockito.ArgumentMatchers.anyInt());
     }
 
@@ -76,12 +76,12 @@ class AutoDataCargoFillServiceTest {
         modeller("Mazda cx-5");
         when(autoData.basgenerationsStartAr("Mazda cx-5")).thenReturn(2025);
         when(iceConsumption.effekterForModell("Mazda cx-5")).thenReturn(Set.of(150, 194, 230));
-        when(autoData.motorerForBil(eq("Mazda cx-5"), any())).thenReturn(List.of(
+        when(autoData.motorerForGenerationsprovning("Mazda cx-5")).thenReturn(List.of(
                 new AutoDataScraperService.MotorAlternativ("2.5 e-Skyactiv G", 141, "2025-", "/x")));
 
         service.fyllGenerationsar();
 
-        verify(iceGenerations).noteraMiss("Mazda cx-5");
+        verify(iceGenerations).noteraMiss("Mazda cx-5", IceGenerationService.ORSAK_VAKTEN_AVSTOD);
         verify(iceGenerations, never()).spara(anyString(), org.mockito.ArgumentMatchers.anyInt());
     }
 
@@ -95,6 +95,44 @@ class AutoDataCargoFillServiceTest {
 
         service.fyllGenerationsar();
 
-        verify(iceGenerations, never()).noteraMiss(anyString());
+        verify(iceGenerations, never()).noteraMiss(anyString(), anyString());
+    }
+
+    @Test
+    void hamtningsfelIMotorlistanParkerarInteModellen() {
+        /*
+         * Kärnan i felet 2026-08-16: AutoDataScraperService.hamta svalde varje undantag och
+         * lämnade tomsträng, så ett 429-svar kom hit som ett prydligt null — omöjligt att skilja
+         * från ett svar vi förstått. Modellen parkerades då i 30 dagar för ett nätverksfel.
+         * Nu kastar hamta i stället, och löftet i catch-grenen går att hålla.
+         */
+        modeller("Lexus is");
+        when(autoData.basgenerationsStartAr("Lexus is"))
+                .thenThrow(new AutoDataScraperService.HamtningsFel("/en/lexus-is", new RuntimeException("429")));
+
+        service.fyllGenerationsar();
+
+        verify(iceGenerations, never()).noteraMiss(anyString(), anyString());
+        verify(iceGenerations, never()).spara(anyString(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void hastkraftsprovningenAnvanderDetKarosstolerantaUppslaget() {
+        /*
+         * motorerForBil kräver att karossordet stämmer. Med det kravet får varje modell som
+         * räddas av karosstoleransen — Audi RS4, Audi TT, hela BMW-serien — en TOM motorlista,
+         * och en tom lista räknas som hämtningsfel och släpper igenom årtalet OPRÖVAT. Vakten
+         * hade alltså tystnat exakt för de modeller rättningen släppte in.
+         */
+        modeller("Audi rs4");
+        when(autoData.basgenerationsStartAr("Audi rs4")).thenReturn(2017);
+        when(iceConsumption.effekterForModell("Audi rs4")).thenReturn(Set.of(450));
+        when(autoData.motorerForBil(anyString(), any())).thenReturn(List.of());
+        when(autoData.motorerForGenerationsprovning("Audi rs4")).thenReturn(List.of(
+                new AutoDataScraperService.MotorAlternativ("RS4 Avant 2.9 V6", 450, "2019-", "/x")));
+
+        service.fyllGenerationsar();
+
+        verify(iceGenerations).spara("Audi rs4", 2017);
     }
 }

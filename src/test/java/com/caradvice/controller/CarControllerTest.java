@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -617,6 +618,42 @@ class CarControllerTest {
            .andExpect(jsonPath("$.missar").value(118))
            .andExpect(jsonPath("$.generations[0].model").value("volkswagen golf"))
            .andExpect(jsonPath("$.generations[0].franAr").value(2020));
+    }
+
+    @Test
+    void iceGenerationListanDelarUppMissarnaPaOrsak() throws Exception {
+        // "Utan träff" var förut EN siffra för både ett dött uppslag och en vakt som avstod med
+        // flit, och just den hopslagningen lät 139 falska nej ligga parkerade i 30 dagar utan att
+        // något såg fel ut. Domineras svaret av ej-hittad är det uppslaget som är trasigt.
+        when(iceGenerationService.lista()).thenReturn(List.of());
+        when(iceGenerationService.antalMissar()).thenReturn(139L);
+        when(iceGenerationService.missarPerOrsak()).thenReturn(
+                new java.util.LinkedHashMap<>(Map.of("ej-hittad", 131L, "vakten-avstod", 8L)));
+
+        mvc.perform(get("/api/admin/ice-generations").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.missarPerOrsak.ej-hittad").value(131))
+           .andExpect(jsonPath("$.missarPerOrsak.vakten-avstod").value(8));
+    }
+
+    // --- DELETE /api/admin/ice-generations/missar ---
+
+    @Test
+    void missrensningenKraverNyckel() throws Exception {
+        mvc.perform(delete("/api/admin/ice-generations/missar"))
+           .andExpect(status().isForbidden());
+        verify(iceGenerationService, never()).rensaMissar();
+    }
+
+    @Test
+    void missrensningenLaterEnRattningFaVerkanSammaNatt() throws Exception {
+        // En miss är ett nej på frågan vi ställde. Rättas uppslaget är gamla nej inte längre
+        // svar, och utan den här överlever de sin rättning i upp till 30 dagar.
+        when(iceGenerationService.rensaMissar()).thenReturn(139);
+
+        mvc.perform(delete("/api/admin/ice-generations/missar").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.deleted").value(139));
     }
 
     // --- GET /api/admin/ev-specs ---

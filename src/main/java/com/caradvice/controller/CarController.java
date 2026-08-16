@@ -787,11 +787,31 @@ public class CarController {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         List<Map<String, Object>> rader = iceGenerationService.lista();
         // missar med i svaret: total + missar är hur långt ifyllningen kommit av 310 modeller,
-        // och står summan still natt efter natt är arbetslistan slut — inte jobbet trasigt
+        // och står summan still natt efter natt är arbetslistan slut — inte jobbet trasigt.
+        // missarPerOrsak skiljer de två nej som förut låg i samma siffra: "ej-hittad" är ett
+        // dött uppslag, "vakten-avstod" är ett medvetet avstående. Domineras svaret av det
+        // första är det uppslaget som är trasigt, inte auto-data som saknar bilarna.
         return ResponseEntity.ok(Map.of(
                 "total", rader.size(),
                 "missar", iceGenerationService.antalMissar(),
+                "missarPerOrsak", iceGenerationService.missarPerOrsak(),
                 "generations", rader));
+    }
+
+    /**
+     * Glömmer de parkerade missarna så nattjobbet prövar om dem redan i natt.
+     *
+     * <p>Hör ihop med varje rättning i auto-data-uppslaget: en miss är ett nej på frågan vi
+     * ställde, och rättar vi frågan är gamla nej inte längre svar. Utan den här överlever ett
+     * felaktigt nej sin rättning med upp till {@code MISS_GILTIG_DAGAR} dagar.
+     */
+    @DeleteMapping("/admin/ice-generations/missar")
+    public ResponseEntity<?> rensaIceGenerationMissar(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int borttagna = iceGenerationService.rensaMissar();
+        log.info("ice_generation_miss tömd på begäran — {} rader borta, 03:00-jobbet prövar om dem", borttagna);
+        return ResponseEntity.ok(Map.of("deleted", borttagna));
     }
 
     /**
