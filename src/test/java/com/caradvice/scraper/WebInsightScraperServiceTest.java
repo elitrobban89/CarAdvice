@@ -25,6 +25,43 @@ class WebInsightScraperServiceTest {
                 mock(JobStatusService.class), mock(UpcomingInsightService.class));
     }
 
+    /**
+     * Elbilen hämtas från TVÅ wp-json-endpoints ("tester" + "artiklar") eftersom sajten inte
+     * lägger sitt redaktionella material i standardtypen "posts". Förut lät loopen första
+     * felet bubbla upp, så en timeout på "tester" gjorde att "artiklar" aldrig ens provades
+     * och hela källan föll — vilket är precis vad statusraden visade nätterna 08-15 och 08-16.
+     */
+    @Test
+    void wpjsonKallanOverleverAttEnEndpointFaller() throws Exception {
+        var service = org.mockito.Mockito.spy(service());
+        var elbilen = WebInsightScraperService.sourceByName("Elbilen");
+
+        org.mockito.Mockito.doThrow(new java.net.SocketTimeoutException("Connect timed out"))
+                .when(service).fetchRaw(org.mockito.ArgumentMatchers.contains("/tester"));
+        org.mockito.Mockito.doReturn("[{\"link\":\"https://elbilen.se/artiklar/test-av-ev6\"}]")
+                .when(service).fetchRaw(org.mockito.ArgumentMatchers.contains("/artiklar"));
+
+        assertThat(service.discoverWpJson(elbilen))
+                .containsExactly("https://elbilen.se/artiklar/test-av-ev6");
+    }
+
+    /**
+     * Faller ALLA endpoints ska felet kastas vidare så statusraden visar FEL. Att svälja det
+     * och returnera en tom lista hade gjort ett totalhaveri till ett oskyldigt "0 nya" —
+     * samma fälla som höll cargo-parsern död bakom en 100-procentig täckningssiffra.
+     */
+    @Test
+    void wpjsonKallanKastarVidareNarAllaEndpointsFaller() throws Exception {
+        var service = org.mockito.Mockito.spy(service());
+        var elbilen = WebInsightScraperService.sourceByName("Elbilen");
+
+        org.mockito.Mockito.doThrow(new java.net.SocketTimeoutException("Connect timed out"))
+                .when(service).fetchRaw(anyString());
+
+        assertThatThrownBy(() -> service.discoverWpJson(elbilen))
+                .hasMessageContaining("Connect timed out");
+    }
+
     @Test
     void tomtVaktsvarSkiljsFranTomLista() {
         // gpt-oss-120b är en reasoning-modell: med för snål tokenbudget svarar den 200 med

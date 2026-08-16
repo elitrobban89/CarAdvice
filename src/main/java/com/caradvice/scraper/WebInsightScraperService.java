@@ -1349,11 +1349,27 @@ public class WebInsightScraperService {
      * Elbilen lägger sitt redaktionella material i egna posttyper i stället för "posts",
      * och då räcker inte en enda endpoint. Länkarna varvas inte, de läggs i tur och ordning.
      */
-    private List<String> discoverWpJson(Source source) throws Exception {
+    List<String> discoverWpJson(Source source) throws Exception {   // paketsynlig: testerna spionerar på fetchRaw
+        String[] endpoints = source.url().split(",");
         List<String> links = new ArrayList<>();
-        for (String endpoint : source.url().split(",")) {
-            links.addAll(parseWpJsonLinks(fetchRaw(endpoint.trim())));
+        Exception sistaFelet = null;
+        int misslyckade = 0;
+        for (String endpoint : endpoints) {
+            try {
+                links.addAll(parseWpJsonLinks(fetchRaw(endpoint.trim())));
+            } catch (Exception e) {
+                misslyckade++;
+                sistaFelet = e;
+                log.warn("Web insights [{}]: endpoint {} svarade inte: {}",
+                        source.expert(), endpoint.trim(), e.getMessage());
+            }
         }
+        // Föll BARA någon endpoint körs källan vidare på det som kom fram — förut tog den
+        // första som strulade med sig de övriga, så en tillfällig timeout på Elbilens
+        // "tester" gjorde att "artiklar" aldrig ens provades. Föll ALLA kastas felet vidare,
+        // så statusraden visar FEL och inte ett oskyldigt "0 nya": ett tomt jobb som ser
+        // friskt ut är samma fälla som cargo-parsern gick i.
+        if (misslyckade == endpoints.length && sistaFelet != null) throw sistaFelet;
         return links;
     }
 
@@ -1410,7 +1426,7 @@ public class WebInsightScraperService {
 
     // ── Hämtning ──────────────────────────────────────────────────────────────
 
-    private String fetchRaw(String url) throws Exception {
+    String fetchRaw(String url) throws Exception {   // paketsynlig så testerna kan stubba hämtningen
         return Jsoup.connect(url)
                 .userAgent(USER_AGENT)
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
