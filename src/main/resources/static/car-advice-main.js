@@ -2401,7 +2401,14 @@ function caOpenSubscribe() {
   window.open(CA_API_BASE + '/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
 }
 
-function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
+/* Måste spegla CarController: ANON_SEARCHES_PER_DAY och
+   MAX_LOGGED_IN_REQUESTS_PER_HOUR. Baren räknar ner mot de här talen, så ändras
+   gränserna i backend måste de ändras här. /api/search-status skickar numera med
+   limit + period, och när de finns vinner de över konstanterna nedan. */
+var CA_ANON_PER_DAY = 5;
+var CA_LOGGED_IN_PER_HOUR = 30;
+
+function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
   var bar = document.getElementById('ca-sub-bar');
   var title = document.getElementById('ca-sub-title');
   var desc = document.getElementById('ca-sub-desc');
@@ -2427,7 +2434,9 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     var evPromo = document.getElementById('ca-ev-promo');
     if (evPromo) evPromo.style.display = 'none';
     title.textContent = 'Inloggad';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 30 s\xf6kningar kvar denna timme' : ' – 30 s\xf6kningar per timme';
+    var inLim = limit || CA_LOGGED_IN_PER_HOUR;
+    var inPer = (period === 'day') ? 'i dag' : 'denna timme';
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av ' + inLim + ' s\xf6kningar kvar ' + inPer : ' – ' + inLim + ' s\xf6kningar per timme';
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 49\xa0kr/m\xe5n';
@@ -2438,8 +2447,10 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else {
     title.textContent = 'Demo';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av 10 s\xf6kningar kvar denna timme' : ' – 10 gratis s\xf6kningar per timme';
-    if (remaining !== null && remaining <= 3) bar.classList.add('ca-sub-bar-limited');
+    var anonLim = limit || CA_ANON_PER_DAY;
+    var anonPer = (period === 'hour') ? 'denna timme' : 'i dag';
+    desc.textContent = remaining !== null ? ' – ' + remaining + ' av ' + anonLim + ' s\xf6kningar kvar ' + anonPer : ' – ' + anonLim + ' gratis s\xf6kningar per dygn';
+    if (remaining !== null && remaining <= 2) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera / Logga in';
     loginLink.style.display = 'none';

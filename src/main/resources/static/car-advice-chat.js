@@ -537,14 +537,16 @@
     if (caSubBtn) caSubBtn.addEventListener("click", caChatShowSubscriptionInfo);
   }
 
-  // Hämtar aktuell status ur timpotten (peek, förbrukar inget) och uppdaterar
-  // demoräknaren i sub-baren så en chattfråga syns räkna ner "N av 10 sökningar kvar".
+  // Hämtar aktuell status ur potten (peek, förbrukar inget) och uppdaterar demoräknaren
+  // i sub-baren så en chattfråga syns räkna ner "N av 5 sökningar kvar i dag" — chatten
+  // drar ur SAMMA pott som sökningarna, så den måste synas där.
+  // limit + period skickas vidare: servern äger talet och perioden, baren ska inte gissa.
   function caChatRefreshSearchCounter() {
     if (typeof window.caUpdateSubBar !== 'function') return;
     var token = localStorage.getItem('ca_token');
     fetch(CA_CHAT_API + "/api/search-status", { headers: token ? { "Authorization": "Bearer " + token } : {} })
       .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){ if (d) window.caUpdateSubBar(d.subscriber, d.loggedIn, d.remaining); })
+      .then(function(d){ if (d) window.caUpdateSubBar(d.subscriber, d.loggedIn, d.remaining, d.limit, d.period); })
       .catch(function(){});
   }
 

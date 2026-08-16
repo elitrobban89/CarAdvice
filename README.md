@@ -289,8 +289,12 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 `ca_token` lagras i `localStorage` under domänen `elitrobban.se` och delas automatiskt mellan sidorna. `ev-charging.js` (serveras av CarAdvice-backenden) agerar access guard på elbilsladdning-sidan — kontrollerar token mot `/api/auth/me` och visar antingen innehållet eller ett betalvägg-kort.
 
-- Ej inloggad: **max 10 sökningar/timme** — en *kombinerad* timpott där rekommendationer, jämförelser **och chattfrågor** räknas mot samma 10 (IP-baserat), plus en per-minut-burstspärr på chatten (20/min)
+- Ej inloggad: **max 5 sökningar per rullande dygn** — en *kombinerad* pott där rekommendationer, jämförelser **och chattfrågor** räknas mot samma 5 (IP-baserat), plus en per-minut-burstspärr på chatten (20/min)
 - Inloggad (gratis konto): **30 sökningar/timme** kombinerat (samma pott för sök + chatt), burst 50/min
+- **Varför anonymnivån ströps 2026-08-16:** den låg på 10/timme *med påfyllning varje timme* — alltså 240/dygn, medan en bilköpare gör 5–10 sökningar totalt. Den kunde per konstruktion aldrig ta slut, så ingen fick någonsin en anledning att skapa konto. Första trattmätningen (`/api/admin/usage`) visade följden: **ett enda konto i hela databasen, utvecklarens eget.** Den stora skillnaden mellan 5/dygn och 30/timme är hela poängen — det är det enda som gör ett gratiskonto värt att skapa
+- **Rullande dygn, inte kalenderdygn:** nyckeln är en IP, och svenska mobiloperatörer kör CGNAT där tusentals abonnenter delar utgående IPv4. Med ett kalenderdygn hade en handfull användare kunnat låsa ute alla andra bakom samma NAT ända till midnatt; rullande fönster frigör potten gradvis och har ingen klippkant. Av samma skäl gallras `ipRequestLog` alltid mot det **längsta** fönstret (dygnet) medan bara posterna inom anroparens eget fönster räknas — annars hade en inloggads timfönster tömt den anonyma dygnspotten vid utloggning
+- `rate_limit_log` sparas **48 h** och återställs vid uppstart från de senaste **24 h** (var 2 h respektive 1 h) — utan det ger varje Render-deploy alla en ny full dygnspott
+- `/api/search-status` returnerar `limit` och `period` (`day`/`hour`) vid sidan av `remaining`, så demoräknaren i sub-baren kan skriva rätt period. Klienten har fallback-konstanter (`CA_ANON_PER_DAY`, `CA_LOGGED_IN_PER_HOUR` i `car-advice-main.js`) för de anrop som bara bär `remainingSearches` — de måste hållas i synk med `CarController`
 - Aktiv prenumerant (49 kr/mån): **obegränsade sökningar och chatt på båda tjänsterna**
 - Konto skapas på `/subscribe.html` — öppnas i nytt fönster
 - Betalning via Stripe Checkout (hosted betalningssida)

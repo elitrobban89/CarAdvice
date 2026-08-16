@@ -81,8 +81,37 @@ public class CarController {
     private final com.caradvice.service.UsageStatsService usageStatsService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
-    private static final int MAX_REQUESTS_PER_HOUR = 10;
+    /*
+     * Gratisnivån hade fram till 2026-08-16 timvis påfyllning i BÅDA leden (10 anonymt,
+     * 30 inloggad). Anonymnivån kunde därmed aldrig ta slut — 10/h är 240/dygn, och en
+     * bilköpare gör 5-10 sökningar totalt. Första trattmätningen samma dag visade följden:
+     * ETT konto i hela databasen, och det var utvecklarens eget. Ingen hade någonsin fått
+     * en anledning att registrera sig, eftersom anonymnivån redan räckte hela vägen.
+     *
+     * Anonymt är nu 5 per RULLANDE dygn. Rullande och inte kalenderdygn av två skäl:
+     * ingen klippkant vid midnatt, och potten frigörs gradvis i stället för allt-eller-inget
+     * — vilket spelar roll eftersom nyckeln är en IP. Svenska mobiloperatörer kör CGNAT, så
+     * tusentals abonnenter delar utgående IPv4; med ett kalenderdygn hade en handfull
+     * användare kunnat låsa ute alla andra bakom samma NAT till midnatt.
+     *
+     * Inloggad ligger kvar på 30/timme. Den stora skillnaden mot 5/dygn ÄR poängen: det är
+     * det enda som gör ett gratiskonto värt att skapa.
+     */
+    private static final int ANON_SEARCHES_PER_DAY = 5;
+    private static final long ANON_WINDOW_MS = 24 * 60 * 60 * 1000L;
     private static final int MAX_LOGGED_IN_REQUESTS_PER_HOUR = 30;
+    private static final long LOGGED_IN_WINDOW_MS = 3_600_000L;
+
+    /**
+     * Poster äldre än så gallras ur {@link #ipRequestLog}. MÅSTE vara det LÄNGSTA fönstret:
+     * anonym och inloggad delar samma karta och samma nyckel (IP), så om den inloggades
+     * timfönster fick gallra hade en utloggning gett en tömd dygnspott på köpet.
+     */
+    private static final long PRUNE_WINDOW_MS = ANON_WINDOW_MS;
+
+    /** Persistensen måste täcka dygnsfönstret — se {@link #cleanupRateLimitLogs}. */
+    private static final int RATE_LOG_RETENTION_HOURS = 48;
+    private static final int RATE_LOG_RESTORE_HOURS = 24;
 
     private static final int CHAT_RATE_LIMIT = 20;
     private static final int CHAT_LOGGED_IN_RATE_LIMIT = 50;
@@ -147,7 +176,9 @@ public class CarController {
     @PostConstruct
     public void initRateLimits() {
         try {
-            LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(1);
+            // Måste täcka dygnsfönstret, annars ger varje omdeploy alla en ny full pott
+            // — och Render deployar ofta.
+            LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(RATE_LOG_RESTORE_HOURS);
             rateLimitLogRepo.findRecentRecommend(cutoff).forEach(entry -> {
                 long ts = entry.getRequestTime().toEpochSecond(ZoneOffset.UTC) * 1000;
                 ipRequestLog.computeIfAbsent(entry.getIp(), k -> new ArrayList<>()).add(ts);
@@ -161,7 +192,8 @@ public class CarController {
     @Scheduled(cron = "0 15 * * * *")
     public void cleanupRateLimitLogs() {
         try {
-            rateLimitLogRepo.deleteByRequestTimeBefore(LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+            rateLimitLogRepo.deleteByRequestTimeBefore(
+                    LocalDateTime.now(ZoneOffset.UTC).minusHours(RATE_LOG_RETENTION_HOURS));
         } catch (Exception ignored) {}
     }
 
@@ -317,14 +349,10 @@ public class CarController {
         String ip = getClientIp(request);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
-        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (!subscriber && isRateLimited(ip, limit)) {
-            String msg = loggedIn
-                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
-                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!";
+        if (!subscriber && isRateLimited(ip, loggedIn)) {
             return ResponseEntity.status(429).body(Map.of(
                     "success", false,
-                    "error", msg,
+                    "error", limitMessage(loggedIn),
                     "rateLimited", true
             ));
         }
@@ -336,7 +364,7 @@ public class CarController {
             body.put("recommendations", result.recommendations());
             body.put("subscriber", subscriber);
             body.put("loggedIn", loggedIn);
-            if (!subscriber) body.put("remainingSearches", remainingSearches(ip, limit));
+            if (!subscriber) body.put("remainingSearches", remainingSearches(ip, loggedIn));
             if (result.fromCache()) {
                 body.put("cached", true);
                 body.put("cachedAgeMinutes", result.cacheAgeSeconds() / 60);
@@ -375,11 +403,9 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
-        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (!subscriber && isRateLimited(ip, limit)) {
+        if (!subscriber && isRateLimited(ip, loggedIn)) {
             return ResponseEntity.status(429).body(Map.of("success", false,
-                    "error", loggedIn ? "För många förfrågningar. Försök igen om en stund."
-                                      : "Du har använt alla gratis förfrågningar. Prenumerera för obegränsat!",
+                    "error", limitMessage(loggedIn),
                     "rateLimited", true));
         }
         if (!subscriber) persistRateLimit(ip);
@@ -402,8 +428,7 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
-        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (!subscriber && isRateLimited(ip, limit)) {
+        if (!subscriber && isRateLimited(ip, loggedIn)) {
             return ResponseEntity.status(429).body(Map.of("success", false, "rateLimited", true));
         }
         if (!subscriber) persistRateLimit(ip);
@@ -425,11 +450,14 @@ public class CarController {
         String ip = getClientIp(request);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
-        int limit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
         Map<String, Object> body = new HashMap<>();
         body.put("subscriber", subscriber);
         body.put("loggedIn", loggedIn);
-        body.put("remaining", subscriber ? null : remainingSearches(ip, limit));
+        body.put("remaining", subscriber ? null : remainingSearches(ip, loggedIn));
+        // Baren behöver veta VILKEN pott siffran gäller — "kvar i dag" och "kvar denna
+        // timme" är olika texter, och klienten kan inte gissa det ur remaining ensam.
+        body.put("limit", subscriber ? null : limitFor(loggedIn));
+        body.put("period", subscriber ? null : (loggedIn ? "hour" : "day"));
         return ResponseEntity.ok(body);
     }
 
@@ -439,13 +467,10 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
-        // Timvis kombinerad pott: chattfrågor räknas mot SAMMA 10/h (30 inloggad) som
-        // rekommendationer/jämförelser — en fråga i chatten drar en sökning.
-        int hourLimit = loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (!subscriber && isRateLimited(ip, hourLimit))
-            return ResponseEntity.status(429).body(Map.of("error", loggedIn
-                    ? "Du har använt dina 30 sökningar denna timme. Försök igen om en stund."
-                    : "Du har använt dina 10 gratis sökningar denna timme. Logga in för 30 sökningar per timme!",
+        // Kombinerad pott: chattfrågor räknas mot SAMMA pott som rekommendationer och
+        // jämförelser (5/dygn anonymt, 30/h inloggad) — en fråga i chatten drar en sökning.
+        if (!subscriber && isRateLimited(ip, loggedIn))
+            return ResponseEntity.status(429).body(Map.of("error", limitMessage(loggedIn),
                     "rateLimited", true));
         int chatLimit = loggedIn ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
@@ -475,9 +500,8 @@ public class CarController {
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedInStream = subscriber || userService.isLoggedIn(auth);
-        // Timvis kombinerad pott: chattfrågor drar en sökning ur samma 10/h (30 inloggad).
-        int hourLimitStream = loggedInStream ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : MAX_REQUESTS_PER_HOUR;
-        if (!subscriber && isRateLimited(ip, hourLimitStream))
+        // Kombinerad pott: chattfrågor drar en sökning ur samma pott som sök/jämförelse.
+        if (!subscriber && isRateLimited(ip, loggedInStream))
             return ResponseEntity.status(429).build();
         int chatLimitStream = loggedInStream ? CHAT_LOGGED_IN_RATE_LIMIT : CHAT_RATE_LIMIT;
         long now = System.currentTimeMillis();
@@ -883,20 +907,53 @@ public class CarController {
         return request.getRemoteAddr();
     }
 
-    private boolean isRateLimited(String ip, int limit) {
+    private int limitFor(boolean loggedIn) {
+        return loggedIn ? MAX_LOGGED_IN_REQUESTS_PER_HOUR : ANON_SEARCHES_PER_DAY;
+    }
+
+    private long windowFor(boolean loggedIn) {
+        return loggedIn ? LOGGED_IN_WINDOW_MS : ANON_WINDOW_MS;
+    }
+
+    /**
+     * Gallringen och räkningen använder OLIKA fönster med flit: listan rensas mot det
+     * längsta ({@link #PRUNE_WINDOW_MS}) så ingen historik går förlorad för den andra
+     * nivån, medan bara posterna inom anroparens eget fönster räknas mot gränsen.
+     */
+    private boolean isRateLimited(String ip, boolean loggedIn) {
         long now = System.currentTimeMillis();
-        long windowStart = now - 3_600_000;
+        long pruneBefore = now - PRUNE_WINDOW_MS;
         List<Long> updated = ipRequestLog.compute(ip, (k, times) -> {
             List<Long> list = (times == null) ? new ArrayList<>() : times;
-            list.removeIf(t -> t < windowStart);
+            list.removeIf(t -> t < pruneBefore);
             list.add(now);
             return list;
         });
-        return updated.size() > limit;
+        long windowStart = now - windowFor(loggedIn);
+        long used = updated.stream().filter(t -> t >= windowStart).count();
+        return used > limitFor(loggedIn);
     }
 
-    private int remainingSearches(String ip, int limit) {
+    /**
+     * Kvarvarande sökningar utan att förbruka någon. Fönstret filtreras om här — förut
+     * räknades hela listan, vilket var ofarligt när båda nivåerna delade ett timfönster
+     * men blir fel så fort de har olika: en anonym besökares dygnsposter hade annars
+     * dragits av från en inloggads timpott.
+     */
+    private int remainingSearches(String ip, boolean loggedIn) {
+        long windowStart = System.currentTimeMillis() - windowFor(loggedIn);
         List<Long> times = ipRequestLog.getOrDefault(ip, List.of());
-        return Math.max(0, limit - times.size());
+        long used = times.stream().filter(t -> t >= windowStart).count();
+        return (int) Math.max(0, limitFor(loggedIn) - used);
+    }
+
+    /** Väggen ska peka på nästa steg i trappan, inte bara konstatera att det tog slut. */
+    private String limitMessage(boolean loggedIn) {
+        return loggedIn
+                ? "Du har använt dina " + MAX_LOGGED_IN_REQUESTS_PER_HOUR
+                  + " sökningar denna timme. Försök igen om en stund."
+                : "Du har använt dina " + ANON_SEARCHES_PER_DAY
+                  + " gratis sökningar i dag. Skapa ett gratiskonto för "
+                  + MAX_LOGGED_IN_REQUESTS_PER_HOUR + " sökningar i timmen!";
     }
 }

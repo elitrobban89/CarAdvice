@@ -281,7 +281,7 @@ class CarControllerTest {
            .andExpect(jsonPath("$.success").value(true))
            .andExpect(jsonPath("$.loggedIn").value(false))
            .andExpect(jsonPath("$.subscriber").value(false))
-           .andExpect(jsonPath("$.remainingSearches").value(9))
+           .andExpect(jsonPath("$.remainingSearches").value(4))   // 5 anonyma per dygn, en förbrukad
            .andExpect(jsonPath("$.cached").doesNotExist());
     }
 
@@ -386,11 +386,11 @@ class CarControllerTest {
     }
 
     @Test
-    void rekommendationRateLimitGer429EfterTioSokningar() throws Exception {
+    void rekommendationRateLimitGer429EfterFemAnonymaSokningar() throws Exception {
         when(groqService.getRecommendation(any()))
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             mvc.perform(post("/api/recommend")
                     .header("X-Forwarded-For", "10.3.3.3")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -403,7 +403,9 @@ class CarControllerTest {
                 .content("{}"))
            .andExpect(status().isTooManyRequests())
            .andExpect(jsonPath("$.rateLimited").value(true))
-           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Logga in")));
+           // Väggen ska peka på nästa steg i trappan: det fria kontot
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("gratiskonto")))
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("i dag")));
     }
 
     @Test
@@ -463,38 +465,41 @@ class CarControllerTest {
     }
 
     @Test
-    void chattFragorRaknasMotSammaTimpottSomRekommendationer() throws Exception {
+    void chattFragorRaknasMotSammaPottSomRekommendationer() throws Exception {
         when(groqService.chat(any(), any())).thenReturn("svar");
         String body = "{\"messages\":[{\"role\":\"user\",\"content\":\"fråga\"}]}";
-        // 10 chattfrågor drar hela timpotten (samma pool som /recommend)
-        for (int i = 0; i < 10; i++) {
+        // 5 chattfrågor drar hela dygnspotten (samma pool som /recommend)
+        for (int i = 0; i < 5; i++) {
             mvc.perform(post("/api/chat")
                     .header("X-Forwarded-For", "10.6.6.6")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
                .andExpect(status().isOk());
         }
-        // 11:e blockeras med timgräns-meddelandet
+        // 6:e blockeras med dygnsgränsens meddelande
         mvc.perform(post("/api/chat")
                 .header("X-Forwarded-For", "10.6.6.6")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests())
            .andExpect(jsonPath("$.rateLimited").value(true))
-           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("timme")));
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("i dag")));
     }
 
     @Test
     void searchStatusPeekarUtanAttForbruka() throws Exception {
         mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.remaining").value(10))
+           .andExpect(jsonPath("$.remaining").value(5))
+           // limit + period måste med: baren kan inte gissa "i dag" vs "denna timme"
+           .andExpect(jsonPath("$.limit").value(5))
+           .andExpect(jsonPath("$.period").value("day"))
            .andExpect(jsonPath("$.subscriber").value(false))
            .andExpect(jsonPath("$.loggedIn").value(false));
         // Andra anropet ger SAMMA remaining = peek förbrukar ingen sökning
         mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.remaining").value(10));
+           .andExpect(jsonPath("$.remaining").value(5));
     }
 
     // --- /api/insights ---
