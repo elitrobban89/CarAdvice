@@ -28,6 +28,14 @@ import java.util.Map;
 @Service
 public class UsageStatsService {
 
+    /**
+     * Så många konton krävs innan {@code conversionPct} får ett värde. Gränsen är satt lågt
+     * med flit — den ska stoppa de vilseledande talen (1 av 1 = 100 %), inte vänta på
+     * statistisk signifikans. Höj den inte utan att komma ihåg att ett tomt fält läses som
+     * "vet inte", vilket är rätt svar så länge trafiken är enstaka besökare.
+     */
+    private static final int MIN_KONTON_FOR_KONVERTERING = 20;
+
     private final UserRepository userRepo;
     private final SavedSearchRepository savedSearchRepo;
     private final RateLimitLogRepository rateLimitLogRepo;
@@ -58,10 +66,17 @@ public class UsageStatsService {
         out.put("cancelPending", userRepo.countByCancelAtPeriodEndTrue());
         out.put("savedSearches", savedSearchRepo.count());
 
-        // Andelen som konverterar; null i stället för division med noll så en tom databas
-        // inte rapporterar "0 %" som om det vore ett mätresultat.
-        out.put("conversionPct", accounts == 0 ? null
-                : Math.round(everPaid * 1000.0 / accounts) / 10.0);
+        // Andelen som konverterar. Talet lämnas tomt tills underlaget bär det: med ett enda
+        // konto som en gång betalat blir svaret "100 %", vilket är det bästa tänkbara talet
+        // och samtidigt helt innehållslöst — och det är precis den siffran betalmodellen
+        // skulle bedömas på. En kvot vars nämnare är ensiffrig är inget mätresultat.
+        boolean barUnderlaget = accounts >= MIN_KONTON_FOR_KONVERTERING;
+        out.put("conversionPct", barUnderlaget
+                ? Math.round(everPaid * 1000.0 / accounts) / 10.0 : null);
+        out.put("conversionNote", barUnderlaget
+                ? accounts + " konton bakom talet."
+                : "För få konton (" + accounts + " av " + MIN_KONTON_FOR_KONVERTERING
+                        + ") — andelen säger inget än.");
 
         Map<String, Object> searches = new LinkedHashMap<>();
         searches.put("last24h", rateLimitLogRepo.countRecentRecommend(now.minusHours(24)));
