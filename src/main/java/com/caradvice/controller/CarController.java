@@ -78,6 +78,7 @@ public class CarController {
     private final com.caradvice.service.EvPowerService evPowerService;
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingInsightService;
+    private final com.caradvice.service.UsageStatsService usageStatsService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final int MAX_REQUESTS_PER_HOUR = 10;
@@ -118,7 +119,9 @@ public class CarController {
                          EvSpecService evSpecService, JobStatusService jobStatus,
                          UpcomingInsightService upcomingInsightService,
                          IceGenerationService iceGenerationService,
-                         com.caradvice.service.EvPowerService evPowerService) {
+                         com.caradvice.service.EvPowerService evPowerService,
+                         com.caradvice.service.UsageStatsService usageStatsService) {
+        this.usageStatsService = usageStatsService;
         this.iceGenerationService = iceGenerationService;
         this.evPowerService = evPowerService;
         this.jobStatus = jobStatus;
@@ -225,6 +228,24 @@ public class CarController {
         return upcomingInsightService.release(id)
                 ? ResponseEntity.ok(Map.of("released", id))
                 : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte markerad som kommande"));
+    }
+
+    /**
+     * Trattmätning: konton, prenumeranter, sparade sökningar och sökvolym.
+     *
+     * <p>Fanns inte förrän 2026-08-16, och utan den gick betalmodellen inte att bedöma —
+     * Stripe visar bara dem som nått kassan, aldrig dem som registrerat sig och avstått.
+     * Se {@link com.caradvice.service.UsageStatsService} för vad varje siffra betyder.
+     */
+    @GetMapping("/admin/usage")
+    public ResponseEntity<?> usage(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        try {
+            return ResponseEntity.ok(usageStatsService.snapshot());
+        } catch (Exception e) {
+            log.warn("Kunde inte läsa användningsstatistik: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Admin: senaste körningens status för de schemalagda jobben.

@@ -72,6 +72,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.CarVideoService carVideoService;
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
     @MockBean private EvSpecService evSpecService;
+    @MockBean private com.caradvice.service.UsageStatsService usageStatsService;
 
     // --- health ---
 
@@ -403,6 +404,16 @@ class CarControllerTest {
            .andExpect(status().isTooManyRequests())
            .andExpect(jsonPath("$.rateLimited").value(true))
            .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Logga in")));
+    }
+
+    @Test
+    void usageKraverAdminNyckel() throws Exception {
+        mvc.perform(get("/api/admin/usage")).andExpect(status().isForbidden());
+
+        when(usageStatsService.snapshot()).thenReturn(Map.of("accounts", 7L, "activeSubscribers", 0L));
+        mvc.perform(get("/api/admin/usage").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.accounts").value(7));
     }
 
     @Test
