@@ -357,6 +357,18 @@ public class WebInsightScraperService {
      * "inte längre". Regeln nedan om att en modell som EN GÅNG sålts här aldrig är kommande
      * stänger det, och är samma gränsdragning som Zoe-regeln i {@link #RELEVANCE_PROMPT} —
      * en utgången modell med levande begagnatmarknad är det mest köparnyttiga som finns.
+     *
+     * <p><b>Testbeviset: vakten behöver inte VETA om bilen säljs, texten visar det.</b> Tre
+     * gånger har en säljande bil parkerats av samma skäl — Subaru Uncharted 2026-08-12
+     * (dörrar som låser sig, störande larmljud), veteranbilarna 2026-08-15 och Dacia Bigster
+     * Hybrid 2026-08-17 (når inte sin angivna topphastighet på 180 km/h förrän batteriet är
+     * laddat). Varje gång var raden ett körprov med uppmätta värden, och varje gång fick den
+     * släppas för hand. Regeln bygger på att osäkerhetsregeln vann: modellen kände inte till
+     * säljstarten, och "osäker → KOMMANDE" avgjorde. Fixen ger vakten ett skäl som ligger i
+     * TEXTEN i stället för i marknadskunskap den inte har — en uppmätt avvikelse från
+     * tillverkarens egen siffra kan bara komma ur en bil någon haft i handen. Undantaget för
+     * förserier och utskriven framtida säljstart skyddar överblockeringshållet: A2 e-tron och
+     * EX50 bär förhandsuppgifter, inte mätvärden, och ska fortsätta parkeras.
      */
     static final String UPCOMING_PROMPT = """
             Du avgör en enda sak om varje rad: har modellen ännu inte nått den svenska
@@ -387,10 +399,22 @@ public class WebInsightScraperService {
             bilar längre bort: utan säljstart, eller med lansering ett år eller mer fram
             i tiden (Volvo EX50 med säljstart 2027 är arketypen).
 
+            Ett självständigt test av en färdig bil är i sig ett bevis på att modellen finns
+            i handeln. Skriver texten ut EGNA uppmätta värden, avvikelser från tillverkarens
+            egna uppgifter eller fel som uppstått under körning, då har någon haft bilen i
+            sin ägo och kört den. Typiska exempel:
+            "når inte sin angivna topphastighet", "dörrarna låser sig av sig själva",
+            "störande larmljud".
+            Tillverkarens pressmaterial innehåller aldrig sådant. Svara KÖPBAR, även om du
+            inte känner till modellens säljstart. Undantaget är när texten SJÄLV säger att
+            bilen var en förserie eller att säljstarten ligger fram i tiden.
+
             Är du osäker på om leveranserna för en ÄNNU INTE SLÄPPT modell börjat — svara
             KOMMANDE. En rad i kön går att släppa fram, en osläppt bil på ett bilkort går
             inte att ta tillbaka. Osäkerhetsregeln gäller bara framåt: gäller texten en bil
-            som redan funnits på marknaden är svaret KÖPBAR, inte KOMMANDE.
+            som redan funnits på marknaden är svaret KÖPBAR, inte KOMMANDE. Den gäller
+            heller inte när texten bär ett testbevis enligt stycket ovan — bär den det är
+            det inte längre osäkerhet om bilen finns.
 
             Svara ENDAST med valid JSON:
             {"upcoming": [index...]}
@@ -508,14 +532,39 @@ public class WebInsightScraperService {
      * gav förut samma "0" i scrape-status som en källa där allt fungerade men dedupen tog
      * allt — en layoutändring hos källan kunde alltså gå obemärkt förbi hur länge som helst.
      * warning != null lyfts därför fram i statusraden i stället för antalet.
+     *
+     * <p><b>{@code lasta} skiljer de två sista sortens nollor.</b> Natten 2026-08-17 stod
+     * åtta av nio källor på ett naket "0" och bara CarUp levererade — tredje natten i rad, och
+     * omöjligt att skilja från ett haveri utan att gräva i Render-loggen. Diagnosen visade sig
+     * vara ofarlig: Teknikens Värld hade inte publicerat sedan 08-15 (13 artiklar hela augusti,
+     * sitemap och RSS eniga), M Sverige och Bytbil är listningssidor som ändras långsamt, och
+     * Folksam är EN statisk sida som per definition är dedupad efter första natten. CarUp är
+     * den enda källan som publicerar flera inlägg om dagen, alltså den enda som säkert har
+     * olästa URL:er varje natt. Men det gick inte att LÄSA ut ur statusraden.
+     *
+     * <p>Antalet nyligen lästa artiklar gör nollan självförklarande: {@code "0 av 0 lästa"} är
+     * en tyst natt hos källan, {@code "0 av 7 lästa"} betyder att sju färska artiklar gick
+     * genom extraktionen och att vakterna åt upp allt — det är först då något är fel.
+     * <b>Medvetet ingen varning</b> på det andra fallet: en källa som M3 eller Auto Motor &amp;
+     * Sport publicerar mest motorsport, där noll insikter ur några lästa artiklar är det
+     * normala. En falsk avvikelse varje morgon gör att rapporten slutar läsas.
      */
-    record SourceResult(int saved, String warning) {
-        static SourceResult of(int saved) { return new SourceResult(saved, null); }
+    record SourceResult(int saved, int lasta, String warning) {
+
+        /** Sidkällor läser ingen artikellista — då finns inget "av N" att visa. */
+        static final int LASTA_EJ_TILLAMPLIG = -1;
+
+        static SourceResult of(int saved) { return new SourceResult(saved, LASTA_EJ_TILLAMPLIG, null); }
+
+        static SourceResult problem(String warning) {
+            return new SourceResult(0, LASTA_EJ_TILLAMPLIG, warning);
+        }
 
         String label() {
-            if (warning == null) return String.valueOf(saved);
+            String antal = lasta < 0 ? String.valueOf(saved) : saved + " av " + lasta + " lästa";
+            if (warning == null) return antal;
             // en varnande källa kan ändå ha levererat — dölj inte siffran bakom varningen
-            return saved > 0 ? saved + " (" + warning + ")" : warning;
+            return saved > 0 ? antal + " (" + warning + ")" : warning;
         }
     }
 
@@ -548,6 +597,19 @@ public class WebInsightScraperService {
             // Elbilen publicerar inte i standardtypen "posts" (den innehåller 3 poster totalt)
             // utan i egna posttyper. tester + artiklar är de redaktionella; "nyheter" (7 000+)
             // är kort notisflöde och ger sällan konkreta insikter — därför medvetet utelämnad.
+            //
+            // OÅTKOMLIG FRÅN RENDER sedan 2026-08-15 (FEL "Connect timed out" varje natt
+            // 08-15, 08-16, 08-17). Diagnosen är klar och behöver inte göras om:
+            //  - båda wp-json-endpointerna svarar 200 på ~0,2 s från en vanlig uppkoppling
+            //  - ingen Cloudflare/bot-vägg, inget 403 — paketen släpps tyst
+            //  - elbilen.se OCH www.elbilen.se pekar båda på 13.49.199.225 (AWS eu-north-1),
+            //    ingen AAAA-post, alltså varken IPv6-fälla eller en andra värd att prova
+            // Spärren sitter på IP-nivå mot Renders utgång (ser ut som en blockering hos
+            // värdtjänsten one.com), och går därför INTE att koda sig runt: en annan
+            // User-Agent hjälper inte när avbrottet sker före HTTP, och det finns ingen
+            // alternativ värd. Källan står kvar med flit — den läker av sig själv om
+            // spärren lyfts, och 121ba1c ser till att felet stannar hos Elbilen i stället
+            // för att ta med sig de åtta andra källorna. Kostnaden är 2 × 20 s per natt.
             new Source("Elbilen", Mode.ARTICLES, Discover.WPJSON,
                     "https://elbilen.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
                             + "https://elbilen.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link", null, null,
@@ -731,7 +793,7 @@ public class WebInsightScraperService {
         List<String> urls = new ArrayList<>(source.extraUrls());
         urls.addAll(discover(source));
         Set<String> unique = new LinkedHashSet<>(urls);
-        if (unique.isEmpty()) return new SourceResult(0, "INGA LANKAR (0 artikel-URL:er)");
+        if (unique.isEmpty()) return SourceResult.problem("INGA LANKAR (0 artikel-URL:er)");
 
         // Elbilen svalt i det tysta: endpointen svarade 200 men innehöll bara 3 artiklar, så
         // dedupen tog allt varje natt och statusraden visade ett oskyldigt "0". Ett magert men
@@ -790,7 +852,7 @@ public class WebInsightScraperService {
         int saved = saveInsights(source.expert(), collected, null);
         // Först efter sparandet — annars tappas artiklar tyst om körningen dör i filtreringen
         extracted.forEach(this::markSeen);
-        return new SourceResult(saved, warning);
+        return new SourceResult(saved, processed, warning);
     }
 
     // ── Sidkällor (car.info, Folksam) ─────────────────────────────────────────
@@ -799,12 +861,12 @@ public class WebInsightScraperService {
         String text = fetchPageText(source.url());
         if (text.length() < MIN_TEXT_CHARS) {
             log.warn("Web insights [{}]: för lite text på sidan ({} tecken) — JS-renderad?", source.expert(), text.length());
-            return new SourceResult(0, "FOR LITE TEXT (" + text.length() + " tecken, JS-renderad?)");
+            return SourceResult.problem("FOR LITE TEXT (" + text.length() + " tecken, JS-renderad?)");
         }
         List<JsonNode> insights = extractInsights(text, source.kind(), source.url());
         if (insights == null) {
             log.warn("Web insights [{}]: ingen extraktion (Groq svarade inte)", source.expert());
-            return new SourceResult(0, "GROQ SVARADE INTE");
+            return SourceResult.problem("GROQ SVARADE INTE");
         }
         int saved = saveInsights(source.expert(), insights, source.expert());
         Thread.sleep(GROQ_DELAY_MS);

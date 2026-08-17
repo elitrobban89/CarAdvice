@@ -579,6 +579,55 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandevaktenParkerarInteEnProvkordBil() {
+        /*
+         * Tredje gången samma feltyp mättes upp, och signalen var densamma alla tre
+         * gångerna: raden är ett körprov med uppmätta värden.
+         *
+         *  - 2026-08-12: fem Subaru Uncharted-rader (id 1166-1170) låg dolda i kön fast
+         *    bilen sålts här från 429 900 kr. Raderna beskrev dörrar som låser sig själva
+         *    och störande larmljud.
+         *  - 2026-08-15: fyra veteranbilsrader — täcks av tidsriktningen i testet ovan.
+         *  - 2026-08-17: id 1250 Dacia Bigster Hybrid, "når inte sin angivna topphastighet
+         *    på 180 km/h förrän batteriet är laddat; utan laddat batteri stannar den på
+         *    175-177 km/h". Bilen säljs här sedan 2025 och har till och med en egen
+         *    ice_generation-rad.
+         *
+         * Roten är att osäkerhetsregeln vann: vakten kände inte till Bigsters säljstart och
+         * "osäker → KOMMANDE" avgjorde. Den kan inte lösas med mer marknadskunskap — vakten
+         * har ingen. Den löses med ett skäl som ligger i TEXTEN: en uppmätt avvikelse från
+         * tillverkarens egen siffra kan bara komma ur en bil någon haft i handen, och
+         * tillverkarens pressmaterial innehåller aldrig ett underkänt mätvärde.
+         */
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("Ett självständigt test av en färdig bil")
+                .contains("EGNA uppmätta värden")
+                .contains("avvikelser från tillverkarens")
+                // Bigster-raden ordagrant som exempel, så nästa omskrivning inte tappar fallet
+                .contains("når inte sin angivna topphastighet")
+                // Subaru-raden ordagrant, samma skäl
+                .contains("dörrarna låser sig av sig själva");
+
+        // ÖVERBLOCKERINGSGRÄNSEN: en förserie eller en utskriven framtida säljstart väger
+        // tyngre än testbeviset. Utan undantaget hade en presskörning av EX50 (säljstart
+        // 2027) släppts fram, och då är kön meningslös åt det håll den faktiskt fungerar.
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("förserie")
+                .contains("säljstarten ligger fram i tiden");
+
+        // Testbeviset får INTE upphäva de två reglerna som redan bär kön: en hel ny
+        // generation och en modell med säljstart långt fram står kvar oförändrade
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("en hel ny generation som ännu inte")
+                .contains("EX50 med säljstart 2027");
+
+        // Osäkerhetsregeln finns kvar men är inte längre den som avgör när texten själv
+        // bär beviset — det var precis den ordningen som parkerade Bigster
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("inte längre osäkerhet om bilen finns");
+    }
+
+    @Test
     void relevanspromptenStopparModellspecifikFordonsskatt() {
         // Natten 2026-08-10 sparades två skatterader (V60 Recharge 360 kr/år, Cayenne Turbo
         // E-Hybrid 2 714 kr/år) fast "skatter" redan stod i uteslutningslistan — vakten läste
@@ -919,8 +968,35 @@ class WebInsightScraperServiceTest {
         // ingenting att skrapa" — en layoutändring hos källan kunde gå obemärkt förbi
         assertThat(WebInsightScraperService.SourceResult.of(0).label()).isEqualTo("0");
         assertThat(WebInsightScraperService.SourceResult.of(3).label()).isEqualTo("3");
-        assertThat(new WebInsightScraperService.SourceResult(0, "INGA LANKAR (0 artikel-URL:er)").label())
+        assertThat(WebInsightScraperService.SourceResult.problem("INGA LANKAR (0 artikel-URL:er)").label())
                 .isEqualTo("INGA LANKAR (0 artikel-URL:er)");
+    }
+
+    @Test
+    void statusradenSkiljerTystNattFranUppatenSkord() {
+        /*
+         * Natten 2026-08-17 stod åtta av nio källor på ett naket "0" och bara CarUp
+         * levererade — tredje natten i rad. Att avgöra om det var ett haveri krävde att
+         * källorna hämtades för hand: Teknikens Värld hade inte publicerat sedan 08-15
+         * (13 artiklar hela augusti, sitemap och RSS eniga), M Sverige och Bytbil är
+         * listningssidor som ändras långsamt, Folksam är EN statisk sida som är dedupad
+         * efter första natten. Alla nollor var alltså ärliga — men statusraden kunde inte
+         * visa det.
+         *
+         * Antalet LÄSTA artiklar (olästa URL:er som gick genom extraktionen) gör skillnaden
+         * synlig utan att någon behöver gräva i Render-loggen.
+         */
+        // tyst natt hos källan: inget nytt att läsa, alltså inget att larma om
+        assertThat(new WebInsightScraperService.SourceResult(0, 0, null).label())
+                .isEqualTo("0 av 0 lästa");
+        // sju färska artiklar lästa och ingenting överlevde vakterna — DET är signalen
+        assertThat(new WebInsightScraperService.SourceResult(0, 7, null).label())
+                .isEqualTo("0 av 7 lästa");
+        // normalfallet: skörd ur lästa artiklar
+        assertThat(new WebInsightScraperService.SourceResult(6, 12, null).label())
+                .isEqualTo("6 av 12 lästa");
+        // sidkällor (Folksam) läser ingen artikellista — då finns inget "av N" att visa
+        assertThat(WebInsightScraperService.SourceResult.of(2).label()).isEqualTo("2");
     }
 
     @Test
@@ -944,9 +1020,9 @@ class WebInsightScraperServiceTest {
     @Test
     void varningDoljerInteAntaletSparadeInsikter() {
         // en magert levererande källa kan ändå ha gett träffar — siffran får inte försvinna
-        assertThat(new WebInsightScraperService.SourceResult(2, "MAGERT UTBUD (3 artikel-URL:er)").label())
-                .isEqualTo("2 (MAGERT UTBUD (3 artikel-URL:er))");
-        assertThat(new WebInsightScraperService.SourceResult(0, "MAGERT UTBUD (3 artikel-URL:er)").label())
+        assertThat(new WebInsightScraperService.SourceResult(2, 3, "MAGERT UTBUD (3 artikel-URL:er)").label())
+                .isEqualTo("2 av 3 lästa (MAGERT UTBUD (3 artikel-URL:er))");
+        assertThat(new WebInsightScraperService.SourceResult(0, 3, "MAGERT UTBUD (3 artikel-URL:er)").label())
                 .isEqualTo("MAGERT UTBUD (3 artikel-URL:er)");
     }
 
