@@ -41,12 +41,13 @@ class GroqServiceTest {
     @Mock private FuelPriceService fuelPriceService;
     @Mock private ElectricityPriceService electricityPriceService;
     @Mock private LeasingPriceService leasingPriceService;
+    @Mock private ValueRetentionClient valueRetentionClient;
 
     private GroqService service() {
         return new GroqService(expertInsightService, safetyRatingService,
                 evSpecService, cargoSpecService, blocketPriceService, newCarPriceService,
                 feedbackService, iceConsumptionService, fuelPriceService, electricityPriceService,
-                leasingPriceService);
+                leasingPriceService, valueRetentionClient);
     }
 
     /** Stubbar pristabellerna som buildSystemPrompt hämtar via prisreferens-cachen. */

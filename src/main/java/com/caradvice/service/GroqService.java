@@ -129,6 +129,7 @@ public class GroqService {
     private String watchedModels;
 
     private final ExpertInsightService expertInsightService;
+    private final ValueRetentionClient valueRetentionClient;
     private final SafetyRatingService safetyRatingService;
     private final EvSpecService evSpecService;
     private final CargoSpecService cargoSpecService;
@@ -145,7 +146,9 @@ public class GroqService {
                        BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
                        FeedbackService feedbackService, IceConsumptionService iceConsumptionService,
                        FuelPriceService fuelPriceService, ElectricityPriceService electricityPriceService,
-                       LeasingPriceService leasingPriceService) {
+                       LeasingPriceService leasingPriceService,
+                       ValueRetentionClient valueRetentionClient) {
+        this.valueRetentionClient = valueRetentionClient;
         this.leasingPriceService = leasingPriceService;
         this.expertInsightService = expertInsightService;
         this.safetyRatingService = safetyRatingService;
@@ -2259,6 +2262,14 @@ public class GroqService {
         }
         if (expertContext != null && !expertContext.isBlank())
             base += "\n\n" + expertContext;
+        // Värdetappslistan från systerprojektet Elbilsladdning — samma tal som dess fyndtabell
+        // visar, så en fråga om värdeminskning på el får ETT svar oavsett var den ställs.
+        // Fail-open var för sig: ligger systertjänsten nere (den kör gratisnivå och spinner ner)
+        // får chatten helt enkelt inget värdetappsavsnitt och svarar som förut.
+        try {
+            String varde = valueRetentionClient.chatKontext();
+            if (!varde.isBlank()) base += "\n\n" + varde;
+        } catch (Exception ignored) {}
         return withEnergyPrices(base);
     }
 

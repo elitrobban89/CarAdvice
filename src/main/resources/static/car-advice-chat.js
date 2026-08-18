@@ -319,6 +319,21 @@
       .ca-chat-bubble.bot strong { color:#c4b5fd; }
       .ca-chat-bubble.bot ul { margin:6px 0 2px 16px;padding:0;display:flex;flex-direction:column;gap:3px; }
       .ca-chat-bubble.bot li { list-style:disc; }
+      /* Tabeller i chatten (värdetappslistan m.fl.). Bubblan är smal, så tabellen får
+         scrolla i sitt EGET spann — annars spiller den ut över kortkanten på mobil. */
+      .ca-chat-table-wrap { overflow-x:auto;margin:8px 0 4px;-webkit-overflow-scrolling:touch; }
+      .ca-chat-table { border-collapse:collapse;font-size:12px;width:100%;min-width:280px; }
+      .ca-chat-table th {
+        text-align:left;padding:5px 8px;white-space:nowrap;
+        color:#c4b5fd;font-weight:700;font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;
+        border-bottom:1px solid rgba(196,181,253,0.28);
+      }
+      .ca-chat-table td {
+        padding:5px 8px;border-bottom:1px solid rgba(196,181,253,0.10);color:#e9d5ff;white-space:nowrap;
+      }
+      .ca-chat-table tbody tr:last-child td { border-bottom:none; }
+      /* Första raden är den med störst värdetapp — den ska sticka ut, det är svaret. */
+      .ca-chat-table tbody tr:first-child td { color:#fff;font-weight:600; }
       .ca-chat-bubble.user {
         background:linear-gradient(135deg,rgba(109,40,217,0.74),rgba(139,92,246,0.64));
         backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
@@ -635,15 +650,61 @@
   window.addEventListener("scroll", caChatSyncGlassSoon, { passive: true });
   window.addEventListener("resize", caChatSyncGlassSoon);
 
+  /*
+   * Pipe-tabeller → riktig <table>.
+   *
+   * Tillagt 2026-08-18 för värdetappslistan: chatten har numera hela fyndtabellen i sin
+   * kontext, och en fråga som "vilken elbil har tappat mest i värde?" besvaras bäst med
+   * tabellen och inte med en uppräkning i löptext. Utan det här steget skrev modellen ut
+   * pipe-tecken som blev en oläslig radsallad.
+   *
+   * Körs FÖRE radbrytningsersättningen — annars har raderna redan blivit <br> och går inte
+   * att gruppera. Avgränsarraden (|---|---|) hoppas över.
+   */
+  function caChatTables(html) {
+    var rader = html.split("\n");
+    var ut = [], i = 0;
+    function celler(rad) {
+      return rad.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map(function (c) { return c.trim(); });
+    }
+    var arTabellrad = function (r) { return /^\s*\|.*\|\s*$/.test(r); };
+    var arAvgransare = function (r) { return /^\s*\|[\s:|-]+\|\s*$/.test(r); };
+
+    while (i < rader.length) {
+      if (arTabellrad(rader[i]) && i + 1 < rader.length && arAvgransare(rader[i + 1])) {
+        var rubriker = celler(rader[i]);
+        i += 2;
+        var kropp = [];
+        while (i < rader.length && arTabellrad(rader[i])) { kropp.push(celler(rader[i])); i++; }
+        var t = '<div class="ca-chat-table-wrap"><table class="ca-chat-table"><thead><tr>'
+              + rubriker.map(function (h) { return "<th>" + h + "</th>"; }).join("")
+              + "</tr></thead><tbody>"
+              + kropp.map(function (r) {
+                  return "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
+                }).join("")
+              + "</tbody></table></div>";
+        ut.push(t);
+      } else {
+        ut.push(rader[i]);
+        i++;
+      }
+    }
+    return ut.join("\n");
+  }
+
   function caChatMarkdown(text) {
-    return text
+    var html = text
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>");
+    html = caChatTables(html);
+    return html
       .replace(/^[-•]\s+(.+)$/gm, "<li>$1</li>")
       .replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>")
       .replace(/(<li>[\s\S]*<\/li>)/, "<ul>$1</ul>")
-      .replace(/\n/g, "<br>");
+      // Radbrytningar sist, och inte inne i en tabell — <br> mellan <tr> ger tomrum i tabellen
+      .replace(/\n(?![^<]*<\/t[dhr]>)/g, "<br>")
+      .replace(/(<\/div>)<br>/g, "$1");
   }
 
   function caChatAppendBot(text, animate) {
