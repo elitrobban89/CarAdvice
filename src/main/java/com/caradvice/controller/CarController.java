@@ -75,6 +75,7 @@ public class CarController {
     private final MobilityStatsSyncService mobilityStatsSyncService;
     private final EvSpecService evSpecService;
     private final IceGenerationService iceGenerationService;
+    private final com.caradvice.service.VpicYearCheckService vpicYearCheckService;
     private final com.caradvice.service.EvPowerService evPowerService;
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingInsightService;
@@ -149,7 +150,9 @@ public class CarController {
                          UpcomingInsightService upcomingInsightService,
                          IceGenerationService iceGenerationService,
                          com.caradvice.service.EvPowerService evPowerService,
-                         com.caradvice.service.UsageStatsService usageStatsService) {
+                         com.caradvice.service.UsageStatsService usageStatsService,
+                         com.caradvice.service.VpicYearCheckService vpicYearCheckService) {
+        this.vpicYearCheckService = vpicYearCheckService;
         this.usageStatsService = usageStatsService;
         this.iceGenerationService = iceGenerationService;
         this.evPowerService = evPowerService;
@@ -812,6 +815,42 @@ public class CarController {
         int borttagna = iceGenerationService.rensaMissar();
         log.info("ice_generation_miss tömd på begäran — {} rader borta, 03:00-jobbet prövar om dem", borttagna);
         return ResponseEntity.ok(Map.of("deleted", borttagna));
+    }
+
+    /**
+     * Granskar årtalen i {@code ice_generation} mot NHTSA:s öppna register vPIC.
+     *
+     * <p>Svarar på frågan räknaren aldrig kunde: <b>är värdena rimliga?</b> Felet 2026-08-18 —
+     * "Volvo s90" daterad till 1997 fast motorlistan beskriver 2016 års bil — hittades genom att
+     * en människa ögnade 172 rader. vPIC ser samma sak automatiskt: den har S90 i dag men saknar
+     * den 2000 och 2003, alltså ligger ett generationsbyte mellan vårt årtal och nu.
+     *
+     * <p><b>Rapporten är rådgivande och skriver aldrig något.</b> Amerikanska modellår ligger ett
+     * år före de europeiska, och täckningen är amerikansk — Škoda, Renault, Dacia och Cupra har
+     * noll modeller i vPIC. Därför är {@code INGEN_DATA} en egen post i räkningen och aldrig ett
+     * godkännande; den är den vanligaste utgången, och det är väntat.
+     *
+     * <p>Kör den efter en rättning i uppslaget, eller när generationslistan vuxit. Den är
+     * medvetet ingen nattlig kontroll: den hade larmat varje morgon på de ~100 modeller vPIC
+     * inte känner till, och ett larm som är falskt varje dag slutar läsas.
+     *
+     * @param make valfritt märkesfilter ("Volvo") — utan det granskas alla rader inom anropstaket
+     */
+    @GetMapping("/admin/ice-generations/vpic-check")
+    public ResponseEntity<?> vpicArtalskoll(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestParam(required = false) String make) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        var rapport = vpicYearCheckService.granska(
+                iceGenerationService.lista(), make, iceConsumptionService::delaModellnamn);
+        return ResponseEntity.ok(Map.of(
+                "kontrollerade", rapport.kontrollerade(),
+                // hoppade > 0 betyder att anropstaket tog slut, inte att raderna var friska —
+                // en tyst kapning hade gjort en halv granskning omöjlig att skilja från en hel.
+                "hoppade", rapport.hoppade(),
+                "vpicAnrop", rapport.anrop(),
+                "perStatus", rapport.perStatus(),
+                "avvikelser", rapport.avvikelser()));
     }
 
     /**

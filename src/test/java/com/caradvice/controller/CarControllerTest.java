@@ -75,6 +75,7 @@ class CarControllerTest {
     @MockBean private MobilityStatsSyncService mobilityStatsSyncService;
     @MockBean private EvSpecService evSpecService;
     @MockBean private com.caradvice.service.UsageStatsService usageStatsService;
+    @MockBean private com.caradvice.service.VpicYearCheckService vpicYearCheckService;
 
     // --- health ---
 
@@ -685,6 +686,59 @@ class CarControllerTest {
 
         // ...och den stora rensningen får inte gå igång på vägen
         verify(iceGenerationService, never()).rensa();
+    }
+
+    // --- GET /api/admin/ice-generations/vpic-check ---
+
+    @Test
+    void vpicKollenKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/ice-generations/vpic-check"))
+           .andExpect(status().isForbidden());
+        verify(vpicYearCheckService, never()).granska(any(), any(), any());
+    }
+
+    @Test
+    void vpicKollenRedovisarVarjeStatusForSigOchKapningen() throws Exception {
+        /*
+         * Rapporten måste kunna svara på "hur mycket granskades?" och inte bara "hittade du
+         * något?" — en halv granskning som ser ut som en hel är samma fälla som täckningsmätaren
+         * på 602/602/0. Och INGEN_DATA är en egen post, aldrig ett godkännande: mätt 2026-08-18
+         * har vPIC noll modeller för Škoda, Renault, Dacia och Cupra, så den utgången är den
+         * vanligaste och säger ingenting om raden.
+         */
+        var avvikelse = new com.caradvice.service.VpicYearCheckService.Dom(
+                "Volvo s90", 1997,
+                com.caradvice.service.VpicYearCheckService.Status.AVVIKER,
+                "vPIC saknar modellen [2000, 2003] men har den 2017");
+        when(vpicYearCheckService.granska(any(), eq(null), any())).thenReturn(
+                new com.caradvice.service.VpicYearCheckService.Rapport(
+                        170, 4, 96,
+                        new java.util.LinkedHashMap<>(Map.of("OK", 62L, "AVVIKER", 1L, "INGEN_DATA", 107L)),
+                        List.of(avvikelse)));
+
+        mvc.perform(get("/api/admin/ice-generations/vpic-check").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.kontrollerade").value(170))
+           // hoppade > 0 = anropstaket tog slut, inte att raderna var friska
+           .andExpect(jsonPath("$.hoppade").value(4))
+           .andExpect(jsonPath("$.vpicAnrop").value(96))
+           .andExpect(jsonPath("$.perStatus.INGEN_DATA").value(107))
+           .andExpect(jsonPath("$.avvikelser[0].model").value("Volvo s90"))
+           .andExpect(jsonPath("$.avvikelser[0].vartArtal").value(1997));
+    }
+
+    @Test
+    void vpicKollenSlapperIgenomMarkesfiltret() throws Exception {
+        when(vpicYearCheckService.granska(any(), eq("Volvo"), any())).thenReturn(
+                new com.caradvice.service.VpicYearCheckService.Rapport(
+                        18, 0, 12, new java.util.LinkedHashMap<>(Map.of("OK", 18L)), List.of()));
+
+        mvc.perform(get("/api/admin/ice-generations/vpic-check")
+                        .param("make", "Volvo")
+                        .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.kontrollerade").value(18))
+           .andExpect(jsonPath("$.avvikelser").isEmpty());
     }
 
     // --- GET /api/admin/ev-specs ---

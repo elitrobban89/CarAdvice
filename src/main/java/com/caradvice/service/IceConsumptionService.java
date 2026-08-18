@@ -124,6 +124,29 @@ public class IceConsumptionService {
     }
 
     /**
+     * Delar ett {@link #allModelNames}-namn i märke och modellord, t.ex.
+     * {@code "Alfa Romeo giulia"} → {@code ["Alfa Romeo", "giulia"]}.
+     *
+     * <p><b>Varför den frågar tabellen i stället för att dela på blanksteg.</b> Märket kan vara
+     * flerordigt — "Alfa Romeo", "Land Rover", "Mercedes-Benz" — och en delning på första
+     * blanksteget hade gett märket "Alfa" och modellen "Romeo giulia". Namnet byggs av
+     * {@code brand() + " " + modelWord()}, så den enda pålitliga vägen tillbaka är att fråga
+     * samma rader som byggde det.
+     *
+     * @return tvåelementsfält, eller null när namnet inte finns i tabellen
+     */
+    public String[] delaModellnamn(String modelName) {
+        if (modelName == null) return null;
+        for (Variant v : findAll()) {
+            String ord = modelWord(v);
+            if ((v.brand() + " " + ord).equalsIgnoreCase(modelName)) {
+                return new String[] { v.brand(), ord };
+            }
+        }
+        return null;
+    }
+
+    /**
      * Effekterna vi har för en modell, i {@link #allModelNames()}-form ("Volkswagen golf").
      *
      * <p>Används av generationsifyllningen för att avgöra om auto-datas "senaste generation"
