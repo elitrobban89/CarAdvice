@@ -174,7 +174,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 ### Expertinsikter (RAG)
 - PostgreSQL-tabell `expert_insight` lagrar bilexpertis som injiceras i AI-prompten
 - Relevanta insikter väljs automatiskt utifrån sökt kategori och drivmedel; källnamnet visas i AI:ns svar (t.ex. "Teknikens Värld: bäst i test")
-- **761 insikter** i drift (avläst via `GET /api/stats` 2026-07-28) från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, Auto Motor & Sport, Elbilen, CarUp, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter (car.info-omdömen finns kvar historiskt men källan skrapas inte längre)
+- **850 insikter** i drift (avläst via `GET /api/stats` 2026-08-18) från namngivna källor: Teknikens Värld, Vi Bilägare, M Sverige, Bytbil, M3, Auto Motor & Sport, Elbilen, CarUp, Folksams krocksäkerhetsstudie, Bilprovningens besiktningsstatistik samt äldre kuraterade "Bilexpert"-insikter (car.info-omdömen finns kvar historiskt men källan skrapas inte längre)
 - Fylls på **automatiskt varje natt** av insiktsscrapern (se nedan); manuell import via `POST /api/admin/import/insights?expert=Namn`
 
 ### Insiktsscraper (9 motorsajter, nattlig)
