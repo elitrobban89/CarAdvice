@@ -130,9 +130,34 @@ public class IceGenerationService {
     }
 
     /**
+     * Tar bort EN modells årtal, och dess eventuella miss, så nattjobbet prövar om just den.
+     *
+     * <p>Felen kommer modellvis: 2026-08-18 bar två av 172 rader fel generation medan de övriga
+     * 170 var riktiga. {@link #rensa} hade kostat tre nätter utan generationsdata för att laga
+     * dem. Missen måste med — en modell som ligger som miss hoppas över lika säkert som en som
+     * har ett årtal, och då hade raderingen inte gett något nytt försök.
+     *
+     * @return antal borttagna årtalsrader, alltså 0 eller 1
+     */
+    public int radera(String modelName) {
+        if (modelName == null) return 0;
+        int n = jdbc.update("DELETE FROM ice_generation WHERE LOWER(model_name) = LOWER(?)", modelName);
+        cache = null;
+        try {
+            jdbc.update("DELETE FROM ice_generation_miss WHERE LOWER(model_name) = LOWER(?)", modelName);
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte rensas för {}: {}", modelName, e.getMessage());
+        }
+        return n;
+    }
+
+    /**
      * Tömmer tabellen så att nattjobbet fyller om den. Se {@code DELETE /api/admin/ice-generations}
      * för varför: arbetslistan hoppar över modeller som redan har ett årtal, så ett felaktigt
      * värde blir permanent tills raden tas bort.
+     *
+     * <p>Gäller felet bara enstaka modeller — använd {@link #radera} i stället.
      */
     public int rensa() {
         int n = jdbc.update("DELETE FROM ice_generation");

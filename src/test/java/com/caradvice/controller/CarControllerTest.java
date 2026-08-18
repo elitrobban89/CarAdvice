@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -654,6 +655,36 @@ class CarControllerTest {
         mvc.perform(delete("/api/admin/ice-generations/missar").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.deleted").value(139));
+    }
+
+    // --- DELETE /api/admin/ice-generations/modell ---
+
+    @Test
+    void riktadGenerationsraderingKraverNyckel() throws Exception {
+        mvc.perform(delete("/api/admin/ice-generations/modell").param("model", "Volvo s90"))
+           .andExpect(status().isForbidden());
+        verify(iceGenerationService, never()).radera(anyString());
+    }
+
+    @Test
+    void riktadGenerationsraderingLagarEnRadUtanAttTommaTabellen() throws Exception {
+        /*
+         * 2026-08-18 bar två av 172 rader fel generation — "Volvo s90" 1997 och "Volvo v90"
+         * 1996, den ombadgade 960:an i stället för 2016 års bil — medan de övriga 170 var
+         * riktiga. Enda vägen tillbaka var DELETE /api/admin/ice-generations, som tömmer HELA
+         * tabellen och alla missar: tre nätter utan generationsdata för att laga två rader.
+         */
+        when(iceGenerationService.radera("Volvo s90")).thenReturn(1);
+
+        mvc.perform(delete("/api/admin/ice-generations/modell")
+                        .param("model", "Volvo s90")
+                        .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.model").value("Volvo s90"))
+           .andExpect(jsonPath("$.deleted").value(1));
+
+        // ...och den stora rensningen får inte gå igång på vägen
+        verify(iceGenerationService, never()).rensa();
     }
 
     // --- GET /api/admin/ev-specs ---

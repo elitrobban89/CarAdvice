@@ -369,6 +369,16 @@ public class WebInsightScraperService {
      * tillverkarens egen siffra kan bara komma ur en bil någon haft i handen. Undantaget för
      * förserier och utskriven framtida säljstart skyddar överblockeringshållet: A2 e-tron och
      * EX50 bär förhandsuppgifter, inte mätvärden, och ska fortsätta parkeras.
+     *
+     * <p><b>Ett mätvärde behöver inte vara ett klagomål</b> (2026-08-18). Regeln bet inte på
+     * id 1259, Ford Puma Gen-E: "uppvisade en förbrukning på endast 10 kWh/100 km i samma test".
+     * Raden bär ett eget uppmätt värde och är alltså precis det stycket beskriver — men alla tre
+     * exemplen var fel som uppstått under körning, och en snål förbrukning är inget fel. Vakten
+     * läste exemplen som definitionen. <b>Beviskraften sitter i mätningen, inte i domen:</b>
+     * ingen kan mäta upp 10 kWh/100 km utan att ha kört bilen, och pressmaterial anger WLTP,
+     * aldrig "vi mätte". Att raden dessutom kom ur SAMMA test som id 1258 Volvo EX30 — som
+     * släpptes igenom — visar att det var osäkerhet om just Puma Gen-E och inte om testet:
+     * bilen fanns hos tolv svenska handlare för 329 000-417 000 kr samma morgon.
      */
     static final String UPCOMING_PROMPT = """
             Du avgör en enda sak om varje rad: har modellen ännu inte nått den svenska
@@ -404,10 +414,15 @@ public class WebInsightScraperService {
             egna uppgifter eller fel som uppstått under körning, då har någon haft bilen i
             sin ägo och kört den. Typiska exempel:
             "når inte sin angivna topphastighet", "dörrarna låser sig av sig själva",
-            "störande larmljud".
-            Tillverkarens pressmaterial innehåller aldrig sådant. Svara KÖPBAR, även om du
-            inte känner till modellens säljstart. Undantaget är när texten SJÄLV säger att
-            bilen var en förserie eller att säljstarten ligger fram i tiden.
+            "störande larmljud", "drog 10 kWh/100 km i testet", "0-100 km/h på 7,2 sekunder
+            enligt vår mätning", "räckvidden blev 38 mil i vinterkyla".
+            Det spelar ingen roll om mätvärdet är berömmande eller kritiskt — beviset ligger i
+            att någon MÄTT, inte i vad mätningen visade. En förbrukning uppmätt i ett test
+            väger alltså exakt lika tungt som ett fel som uppstått under körning.
+            Tillverkarens pressmaterial innehåller aldrig sådant; det anger WLTP-siffror och
+            typgodkända värden, aldrig egna mätningar. Svara KÖPBAR, även om du inte känner
+            till modellens säljstart. Undantaget är när texten SJÄLV säger att bilen var en
+            förserie eller att säljstarten ligger fram i tiden.
 
             Är du osäker på om leveranserna för en ÄNNU INTE SLÄPPT modell börjat — svara
             KOMMANDE. En rad i kön går att släppa fram, en osläppt bil på ett bilkort går
@@ -599,7 +614,7 @@ public class WebInsightScraperService {
             // är kort notisflöde och ger sällan konkreta insikter — därför medvetet utelämnad.
             //
             // OÅTKOMLIG FRÅN RENDER sedan 2026-08-15 (FEL "Connect timed out" varje natt
-            // 08-15, 08-16, 08-17). Diagnosen är klar och behöver inte göras om:
+            // 08-15, 08-16, 08-17, 08-18). Diagnosen är klar och behöver inte göras om:
             //  - båda wp-json-endpointerna svarar 200 på ~0,2 s från en vanlig uppkoppling
             //  - ingen Cloudflare/bot-vägg, inget 403 — paketen släpps tyst
             //  - elbilen.se OCH www.elbilen.se pekar båda på 13.49.199.225 (AWS eu-north-1),

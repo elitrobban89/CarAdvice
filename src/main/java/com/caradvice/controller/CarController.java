@@ -815,7 +815,38 @@ public class CarController {
     }
 
     /**
+     * Tar bort EN modells årtal så att 03:00-jobbet fyller om just den i natt.
+     *
+     * <p>Finns därför att felen kommer modellvis. 2026-08-18 bar två av 172 rader fel generation
+     * — "Volvo s90" 1997 och "Volvo v90" 1996, den ombadgade 960:an i stället för 2016 års bil —
+     * medan de övriga 170 var riktiga. Enda vägen tillbaka var {@code DELETE
+     * /api/admin/ice-generations}, som tömmer <b>hela</b> tabellen OCH alla missar: 310 modeller
+     * att beta om på 150 försök per natt, alltså tre nätter utan generationsdata för att laga två
+     * rader. Arbetslistan hoppar över varje modell som redan har ett årtal, så utan en riktad
+     * radering blir ett fel värde permanent.
+     *
+     * <p>Missen tas bort i samma svep ({@code spara} gör det åt andra hållet): en modell som
+     * ligger som miss hoppas över lika säkert som en som har ett årtal, och då hade raderingen
+     * inte gett något nytt försök.
+     *
+     * @param model modellnamnet exakt som det står i {@code GET /api/admin/ice-generations}
+     */
+    @DeleteMapping("/admin/ice-generations/modell")
+    public ResponseEntity<?> raderaIceGeneration(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestParam String model) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int borttagna = iceGenerationService.radera(model);
+        log.info("ice_generation: {} borttagen på begäran ({} rader), 03:00-jobbet fyller om den",
+                model, borttagna);
+        return ResponseEntity.ok(Map.of("model", model, "deleted", borttagna));
+    }
+
+    /**
      * Tömmer {@code ice_generation} så att 03:00-jobbet fyller om den från grunden.
+     *
+     * <p>Gäller felet bara enstaka modeller — använd {@code DELETE
+     * /api/admin/ice-generations/modell?model=...} i stället. Den här kostar tre nätter.
      *
      * <p>Finns för att raderna 2026-08-14 visade sig bära <b>faceliftens</b> årtal i stället för
      * generationens — Golf VIII stod som 2024 fast den kom 2020 — och arbetslistan hoppar över

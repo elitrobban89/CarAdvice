@@ -224,6 +224,91 @@ class AutoDataScraperServiceTest {
     }
 
     @Test
+    void dateringenIParentesenStrippasOcksa() {
+        /*
+         * 2026-08-18: där generationsnumret saknas daterar auto-data raden i stället, och då
+         * hamnade basgenerationen i en annan grupp än sin egen facelift.
+         *
+         *   "Volvo S90 (facelift 2020)"  →  volvo s90
+         *   "Volvo S90 (2016)"           →  volvo s90 2016   ← egen grupp, fel
+         *   "Volvo S90"       (1997)     →  volvo s90        ← samma grupp som faceliften
+         *
+         * Faceliftraden grupperades alltså med den ombadgade 960:an från 1997 i stället för med
+         * bilen den är en facelift av, och gruppens minsta år blev 1997.
+         */
+        assertThat(AutoDataScraperService.basTitel("Volvo S90 (2016)")).isEqualTo("volvo s90");
+        assertThat(AutoDataScraperService.basTitel("Volvo S90 (facelift 2020)")).isEqualTo("volvo s90");
+        assertThat(AutoDataScraperService.basTitel("Volvo S90")).isEqualTo("volvo s90");
+
+        // Även när ordet skalats bort ur en parentes som bar båda delarna
+        assertThat(AutoDataScraperService.basTitel("Volvo XC60 I (2013 facelift)")).isEqualTo("volvo xc60 i");
+
+        // Undermodellen behåller sitt eget namn och ska INTE dras in i basbilens grupp
+        assertThat(AutoDataScraperService.basTitel("Volvo S90 L (2016)")).isEqualTo("volvo s90 l");
+
+        // Chassikoden är ingen datering och står kvar — den är generationens identitet
+        assertThat(AutoDataScraperService.basTitel("BMW 3 Series Sedan (G20)"))
+                .isEqualTo("bmw 3 series sedan g20");
+    }
+
+    @Test
+    void enNamneIEnAnnanEpokDrarInteNerStartaret() {
+        /*
+         * Uppmätt i drift 2026-08-18: ice_generation stod på "Volvo s90" → 1997 och
+         * "Volvo v90" → 1996, alltså den ombadgade 960:an. Vår CSV bär B4/B5/B6/T8 PHEV =
+         * andra generationen (2016-), så årtalet var två decennier fel.
+         *
+         * Felet är farligare än ett tomt fält: matchByTitle ÄRVER filtret, så en S90 från 1997
+         * hade fått 2016 års motorlista i stället för ingen alls. Gruppens minsta år går alltså
+         * inte att använda när nyckeln bara är en bastitel — bastitlar återanvänds mellan
+         * generationer som ligger tjugo år isär.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("volvo-s90-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        // Senaste raden ÄR faceliften från 2020...
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Volvo s90", null, false).titel())
+                .isEqualTo("Volvo S90 (facelift 2020)");
+        // ...och kedjan bakåt stannar på basgenerationen 2016, inte på 1997 års namne
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Volvo s90")).isEqualTo(2016);
+    }
+
+    @Test
+    void faceliftkedjanNarAldrigForegaendeGeneration() {
+        /*
+         * Gränsen åt andra hållet. XC90-sidan bär två generationer med VAR SIN facelift:
+         *
+         *   Volvo XC90 II (facelift 2024)   2024 -
+         *   Volvo XC90 II (facelift 2019)   2019 - 2024
+         *   Volvo XC90 II                   2015 - 2019
+         *   Volvo XC90 (facelift 2007)      2007 - 2014
+         *   Volvo XC90                      2002 - 2006
+         *
+         * Kedjan tar två steg (2024 → 2019 → 2015) och stannar på XC90 II, som inte själv är en
+         * facelift. Att den stannar där är inte en slump utan skarvkravet: 2014 möter inte 2015
+         * i den riktningen kedjan går, och romerska siffran håller dessutom grupperna isär.
+         * Ett svar på 2002 hade gett varje XC90-kort mellan 2002 och 2014 andra generationens
+         * motorlista.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("volvo-xc90-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Volvo xc90")).isEqualTo(2015);
+    }
+
+    @Test
+    void faceliftmarkeringenKannsIgenVarSomHelstITiteln() {
+        assertThat(AutoDataScraperService.arFacelift("Volvo S90 (facelift 2020)")).isTrue();
+        assertThat(AutoDataScraperService.arFacelift("Volvo XC60 I (2013 facelift)")).isTrue();
+        assertThat(AutoDataScraperService.arFacelift("BMW 3 Series Sedan (G20 LCI, facelift 2022)")).isTrue();
+        assertThat(AutoDataScraperService.arFacelift("Volvo XC60 II (restyling 2025)")).isTrue();
+        // Basraden är per definition ingen facelift — det är den som avslutar kedjan
+        assertThat(AutoDataScraperService.arFacelift("Volvo S90 (2016)")).isFalse();
+        assertThat(AutoDataScraperService.arFacelift("Volkswagen Golf VIII")).isFalse();
+        assertThat(AutoDataScraperService.arFacelift(null)).isFalse();
+    }
+
+    @Test
     void faceliftmarkeringenStrippasAvenNarChassikodenStarForst() {
         /*
          * 2026-08-16: regeln letade efter en parentes som BÖRJAR med "facelift", vilket bara

@@ -608,6 +608,26 @@ class WebInsightScraperServiceTest {
                 // Subaru-raden ordagrant, samma skäl
                 .contains("dörrarna låser sig av sig själva");
 
+        /*
+         * 2026-08-18, fjärde gången: id 1259 Ford Puma Gen-E, "uppvisade en förbrukning på
+         * endast 10 kWh/100 km i samma test". Raden bär ett eget uppmätt värde och är alltså
+         * precis vad stycket ovan beskriver — men alla tre exemplen var FEL som uppstått under
+         * körning, och en snål förbrukning är inget fel. Vakten läste exemplen som definitionen.
+         *
+         * Att id 1258 Volvo EX30 kom ur SAMMA test och släpptes igenom visar vad som avgjorde:
+         * osäkerhet om just Puma Gen-E, inte om testet. Bilen låg hos tolv svenska handlare för
+         * 329 000-417 000 kr samma morgon (Blockets API, kontrollerat 08-18).
+         *
+         * Beviskraften sitter i att någon MÄTT, inte i vad mätningen visade — därför måste ett
+         * berömmande mätvärde stå med bland exemplen, annars är feltypen bara halvt stängd.
+         */
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                // Puma-raden ordagrant, samma skäl som de två ovan
+                .contains("drog 10 kWh/100 km i testet")
+                // ...och regeln som gör exemplet generellt i stället för ett fjärde specialfall
+                .contains("berömmande eller kritiskt")
+                .contains("beviset ligger i");
+
         // ÖVERBLOCKERINGSGRÄNSEN: en förserie eller en utskriven framtida säljstart väger
         // tyngre än testbeviset. Utan undantaget hade en presskörning av EX50 (säljstart
         // 2027) släppts fram, och då är kön meningslös åt det håll den faktiskt fungerar.

@@ -526,9 +526,24 @@ public class AutoDataScraperService {
      * som ett felaktigt värde utan som ett <b>tomt fält</b>, och sedan 2026-08-14 tappar kortet
      * dessutom förbrukning, drivmedel och hk i samma svep.
      *
-     * <p>Därför tas det MINSTA startåret bland generationerna med samma bastitel, alltså
-     * "Golf VIII" oavsett facelift. Ett för lågt årtal är den ofarliga riktningen: då visas listan
-     * som förut. Ett för högt tystar en bil som hade fått rätt svar.
+     * <p>Därför tas det MINSTA startåret bland generationerna med samma <b>chassikod</b>, alltså
+     * 8S oavsett kaross och facelift. Ett för lågt årtal är den ofarliga riktningen: då visas
+     * listan som förut. Ett för högt tystar en bil som hade fått rätt svar.
+     *
+     * <p><b>Utan chassikod går det inte att ta gruppens minsta</b> (2026-08-18). Bastiteln är då
+     * enda nyckeln, och den återanvänds mellan generationer som ligger tjugo år isär: Volvo skriver
+     * "Volvo S90 (facelift 2020)", "Volvo S90 (2016)" och — för den ombadgade 960:an — bara
+     * "Volvo S90" 1997–1998. Alla tre får samma bastitel, och gruppens minsta blev <b>1997</b> för
+     * en motorlista som beskriver B4/B5/B6/T8, alltså andra generationen. Samma sak för V90 (1996).
+     * Ett fel årtal är farligare här än på ytan: {@code matchByTitle} ärver filtret, så en S90 från
+     * 1997 hade fått 2016 års motorer.
+     *
+     * <p>Lösningen är att följa <b>faceliftkedjan</b> i stället: en faceliftrad pekar bakåt på den
+     * rad vars årsspann SLUTAR där faceliftens börjar, och kedjan stannar på första raden som inte
+     * själv är en facelift. Det är generationens start. Namnet 1997 nås aldrig — dess spann slutar
+     * 1998, inte 2016. Kedjan går inte att använda för kodgrupperna: "Audi TT RS Coupe (8S)" är
+     * ingen facelift utan en undermodell, och den skulle stanna på sitt eget 2016 i stället för
+     * generationens 2014. Därför bär de två nyckelsorterna var sin regel.
      *
      * @return startåret, eller null när modellen eller årtalet inte gick att slå upp
      */
@@ -543,13 +558,72 @@ public class AutoDataScraperService {
         if (senaste == null) return null;
 
         String nyckel = grupperingsnyckel(senaste.titel());
-        Integer minsta = senaste.franAr();
-        for (Generation g : alla) {
-            if (!nyckel.equals(grupperingsnyckel(g.titel()))) continue;
-            if (g.franAr() != null && (minsta == null || g.franAr() < minsta)) minsta = g.franAr();
+        List<Generation> gruppen = new ArrayList<>();
+        for (Generation g : alla) if (nyckel.equals(grupperingsnyckel(g.titel()))) gruppen.add(g);
+
+        // Chassikoden ÄR generationens identitet hos auto-data — samma kod kan inte betyda två
+        // generationer, så gruppens minsta år är generationens start. Det är den regeln som ger
+        // Audi TT (8S) 2014 i stället för RS-versionens 2016.
+        if (nyckel.startsWith(KOD_PREFIX)) {
+            Integer minsta = senaste.franAr();
+            for (Generation g : gruppen) {
+                if (g.franAr() != null && (minsta == null || g.franAr() < minsta)) minsta = g.franAr();
+            }
+            return minsta;
         }
-        return minsta;
+        return faceliftKedjansStart(senaste, gruppen);
     }
+
+    /**
+     * Startåret för den generation {@code senaste} är en facelift av, hittat genom att följa
+     * kedjan bakåt rad för rad.
+     *
+     * <p>Steget bakåt kräver att den föregående radens spann <b>slutar där faceliftens börjar</b>.
+     * Det är skarvet som skiljer generationens egen basrad från en namne i en annan epok, och det
+     * är hela poängen: Volvo XC90 II (facelift 2024) → (facelift 2019) → XC90 II 2015 stannar på
+     * 2015 och når aldrig XC90 2002, trots att den raden ligger på samma modellsida.
+     *
+     * <p>Kedjan stannar också på första rad som inte själv bär en faceliftmarkering — en
+     * generations basrad är per definition ingen facelift, och därunder finns bara äldre
+     * generationer. Går inget steg att ta står faceliftens eget år kvar, vilket är samma svar
+     * som före 2026-08-14 och alltså inget nytt fel.
+     */
+    private static Integer faceliftKedjansStart(Generation senaste, List<Generation> gruppen) {
+        Generation nuvarande = senaste;
+        // Varje steg sänker franAr strikt och gruppen är ändlig, så loopen kan inte snurra.
+        while (arFacelift(nuvarande.titel()) && nuvarande.franAr() != null) {
+            Generation foregaende = null;
+            for (Generation g : gruppen) {
+                if (g == nuvarande || g.franAr() == null || g.franAr() >= nuvarande.franAr()) continue;
+                // Öppet slut hör bara den nyaste raden till, och den är redan vår utgångspunkt.
+                if (g.tillAr() == null) continue;
+                if (Math.abs(g.tillAr() - nuvarande.franAr()) > FACELIFT_SKARV_AR) continue;
+                if (foregaende == null || g.franAr() > foregaende.franAr()) foregaende = g;
+            }
+            if (foregaende == null) break;
+            nuvarande = foregaende;
+        }
+        return nuvarande.franAr();
+    }
+
+    /**
+     * Så många år får skarvet mellan en generation och dess facelift glappa.
+     *
+     * <p>Auto-data skriver oftast samma årtal på båda sidor ("Golf VIII" 2020–2024 möter
+     * "Golf VIII (facelift 2024)"), men modellåret och kalenderåret går isär ibland. Ett år
+     * räcker för det; två hade börjat nå föregående generation på modeller med korta liv.
+     */
+    private static final int FACELIFT_SKARV_AR = 1;
+
+    /** Sant när titeln bär auto-datas faceliftmarkering, oavsett var i parentesen den står. */
+    static boolean arFacelift(String titel) {
+        return titel != null && FACELIFTORD.matcher(titel).find();
+    }
+
+    private static final Pattern FACELIFTORD = Pattern.compile("(?i)\\b(facelift|restyling)\\b");
+
+    /** Prefixet som skiljer en chassikodsnyckel från en bastitelsnyckel i {@link #grupperingsnyckel}. */
+    private static final String KOD_PREFIX = "kod:";
 
     /**
      * Nyckeln som samlar en generations alla rader: chassikoden när den finns, annars bastiteln.
@@ -567,7 +641,7 @@ public class AutoDataScraperService {
      */
     private static String grupperingsnyckel(String titel) {
         String kod = chassiKod(titel);
-        return kod != null ? "kod:" + kod : basTitel(titel);
+        return kod != null ? KOD_PREFIX + kod : basTitel(titel);
     }
 
     /**
@@ -603,13 +677,24 @@ public class AutoDataScraperService {
      * alltså F30:s 2011 för en G20 från 2018. Samma fälla som att slå ihop Golf VII och VIII.
      * Modellbeteckningar som "XC60" är dessutom kodformade, och de måste självklart stå kvar.
      *
-     * <p>Kvar blir alltså precis faceliftmarkeringen, oavsett om den står ensam i parentesen
-     * eller efter en kod — och romerska siffror rörs aldrig, eftersom generationsnumret är hela
-     * poängen med en bastitel.
+     * <p><b>Ett ensamt årtal i parentesen ska också bort</b> (2026-08-18). Där generationsnumret
+     * saknas daterar auto-data raden i stället: "Volvo S90 (2016)" är basgenerationen till
+     * "Volvo S90 (facelift 2020)". Med årtalet kvar blev de två olika bastitlar, faceliftraden
+     * hamnade ensam i sin grupp — tillsammans med den ombadgade "Volvo S90" från 1997, som inte
+     * har någon parentes alls. Årtalet är auto-datas datering, inte en del av modellnamnet, och
+     * med det bortskalat hittar {@link #basgenerationsStartAr} rätt basrad. Att 1997:an nu ligger
+     * i samma grupp är ofarligt: faceliftkedjan kräver att spannen möts, och 1998 möter inte 2016.
+     *
+     * <p>Kvar blir alltså precis faceliftmarkeringen och dateringen, oavsett om de står ensamma i
+     * parentesen eller efter en kod — och romerska siffror rörs aldrig, eftersom generationsnumret
+     * är hela poängen med en bastitel.
      */
     static String basTitel(String titel) {
         if (titel == null) return "";
-        return normalisera(titel.replaceAll("(?i),?\\s*\\b(facelift|restyling)\\b\\s*\\d{0,4}", " "));
+        String utan = titel.replaceAll("(?i),?\\s*\\b(facelift|restyling)\\b\\s*\\d{0,4}", " ");
+        // Efter faceliftorden kan parentesen stå kvar med bara ett årtal i sig, både när den
+        // började så ("S90 (2016)") och när ordet skalats bort ur den ("XC60 I (2013 facelift)").
+        return normalisera(utan.replaceAll("\\(\\s*(?:19|20)\\d{2}\\s*\\)", " "));
     }
 
     /** Märkes- och modelluppslaget, delat av ingångarna ovan. */
