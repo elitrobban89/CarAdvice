@@ -113,6 +113,9 @@ public class WebInsightScraperService {
               * lastbilar, bussar och yrkesfordon; A-traktorer och mopedbilar
               * prototyper, konceptbilar, entusiastombyggnader, veteran-/samlarbilar
               * specialutgåvor/jubileumsmodeller där innehållet handlar om färger, fälgar och dekor
+                — eller om ett mått som bara skiljer utgåvan från sin EGEN standardversion
+                ("15 millimeter lägre än standardversionen"). Utrustning, räckvidd, effekt
+                och pris för utgåvan är däremot relevanta och ska extraheras
               * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar)
                 — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test")
                 är RELEVANTA och ska inkluderas. Försäljningsstatistik räknas som utmärkelse bara
@@ -249,7 +252,15 @@ public class WebInsightScraperService {
               namn eller upplaga i stället för egenskaper — färger, fälgar, dekor, emblem,
               "firar 25 år", "begränsad upplaga om 500 exemplar" (Mini Cooper Oxford Edition
               släpptes felaktigt igenom 2026-07-31). Handlar texten om utrustning, räckvidd
-              eller pris för utgåvan är den däremot RELEVANT
+              eller pris för utgåvan är den däremot RELEVANT.
+              GRÄNSEN GÅR VID VAD UPPGIFTEN GÖR FÖR KÖPAREN, inte vid om det finns en siffra.
+              Ett mått som bara skiljer utgåvan från sin EGEN standardversion är fortfarande
+              en utgåvedetalj, hur mätbart det än är: "Golf GTI Edition 50 är 15 millimeter
+              lägre än standardversionen" släpptes felaktigt igenom 2026-08-15 just därför —
+              15 mm är kontrollerbart, så raden föll varken på dekorregeln eller på kravet att
+              en insikt måste innehålla något kontrollerbart, men den hjälper ingen att välja
+              bil. Pröva så här: kan uppgiften få någon att välja en annan BIL är den relevant;
+              kan den bara få någon att välja en annan UTGÅVA av samma bil är den det inte
             - ren design- och stämningsprosa utan något kontrollerbart: "skalade ytor", "rund
               central pekskärm", "gokart-känsla", "återger arvet". En insikt måste innehålla
               minst en sak en köpare kan kontrollera eller jämföra — en siffra, ett

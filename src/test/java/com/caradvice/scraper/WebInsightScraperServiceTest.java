@@ -106,6 +106,44 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void specialutgavaFallerAvenNarMattetArKontrollerbart() {
+        /*
+         * Hålet mellan två regler, mätt i drift 2026-08-15: id 1241 "Golf GTI Edition 50 är
+         * 15 millimeter lägre än standardversionen" gick igenom och låg kvar som känd oåtgärdad
+         * läcka i tre dygn.
+         *
+         * Vakten gjorde precis vad prompten sa. Dekorregeln fäller specialutgåvor vars innehåll
+         * är "färger, fälgar, dekor, emblem" — 15 mm är inget av det. Designprosaregeln kräver
+         * "minst en sak en köpare kan kontrollera" — 15 mm ÄR kontrollerbart. Och undantaget
+         * släpper igenom "utrustning, räckvidd eller pris". Raden föll alltså mellan alla tre.
+         *
+         * Felet var att gränsen gick vid DEKOR MOT MÄTVÄRDE i stället för vid vad uppgiften gör
+         * för köparen. Ett mått som bara skiljer utgåvan från sin egen standardversion kan på sin
+         * höjd få någon att välja en annan UTGÅVA av samma bil — aldrig en annan bil.
+         *
+         * Överblockeringsgränsen står kvar i samma regel och är den dyra riktningen: utrustning,
+         * räckvidd, effekt och pris för en utgåva är fortfarande RELEVANTA. Utan det undantaget
+         * hade "GTI Clubsport har 300 hk" fallit med, och det är en äkta köpuppgift.
+         */
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                // regeln som stänger hålet, formulerad som en fråga vakten kan ställa
+                .contains("välja en annan BIL")
+                .contains("välja en annan UTGÅVA av samma bil")
+                .contains("bara skiljer utgåvan från sin EGEN standardversion")
+                // fallet ordagrant, så nästa omskrivning inte tappar det
+                .contains("15 millimeter")
+                // ...och undantaget som skyddar åt andra hållet
+                .contains("utrustning, räckvidd");
+
+        // Samma spärr måste stå i EXTRAKTIONEN också. En rad som plockas ut bara för att
+        // falla ett steg senare kostar ett Groq-anrop i onödan — samma skäl som
+        // marknadsangivelsen står i både SYSTEM_PROMPT och vakten.
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("skiljer utgåvan från sin EGEN standardversion")
+                .contains("15 millimeter lägre");
+    }
+
+    @Test
     void relevanspromptenStopparSportbilarTrotsUtskrivetPris() {
         // En begagnad Porsche 911 ("över en miljon kronor") passerade båda vakterna
         // 2026-08-01. Två hål: svenskt-pris-regeln var skriven som ett generellt RELEVANT
