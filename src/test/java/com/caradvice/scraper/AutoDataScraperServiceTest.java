@@ -571,6 +571,95 @@ class AutoDataScraperServiceTest {
         assertThat(prov.franAr()).isNotNull();
     }
 
+    @Test
+    void familjenSkiljerTvaGenerationerSomBarSammaBeteckningMedSammaEffekt() {
+        /*
+         * 730d-fallet, mätt skarpt 2026-08-19. "BMW 730d 3.0 D 286 hk" finns i BÅDA generationerna
+         * — G11 (2015) och G70 (2022) — så beteckningsprovet kan inte skilja dem åt och nyast vann.
+         * Resten av sjuan landade på 2015, alltså daterades EN rad i familjen tjugo procent fel åt
+         * det dyra hållet. Familjen avgör: G70 delar bara vår egen 286 med de sju sjuorna, medan
+         * G11 LCI bär hela lineupen.
+         *
+         * Här spelar 5-seriens fixtur samma roll: den nyaste generationen bär bara vår egen
+         * hästkraft, den äldre bär våra syskon också.
+         */
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+        java.util.Set<Integer> egna = java.util.Set.of(190);
+        java.util.Set<Integer> familjen = java.util.Set.of(190, 252, 340, 286);
+        java.util.function.Function<AutoDataScraperService.Generation,
+                java.util.List<AutoDataScraperService.MotorAlternativ>> motorer = g -> {
+            if (g.titel().contains("G60") || g.titel().contains("G61"))
+                return java.util.List.of(motor("520d (190 Hp)", 190));            // smal: bara vår egen
+            if (g.titel().contains("G30") || g.titel().contains("G31"))
+                return java.util.List.of(motor("520d (190 Hp)", 190), motor("530d (286 Hp)", 286),
+                                         motor("540i (340 Hp)", 340));
+            return motorlista(150, 218);
+        };
+
+        var utan = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", egna, motorer);
+        var med = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", egna, familjen, motorer);
+
+        assertThat(utan.franAr()).isEqualTo(2023);            // den nyaste vinner utan familj
+        assertThat(med.franAr()).isEqualTo(2017);             // familjen pekar ut rätt generation
+        assertThat(med.generation()).contains("G30");
+    }
+
+    @Test
+    void familjenFarInteDraEnBredTraffBakat() {
+        /*
+         * Motprovet, och det är hela skälet att regeln är smal. "BMW 320d 190 hk" finns i både
+         * G20 (2018) och F30 (2011), och ett svar på 2011 vore samma sorts fel som 730d:s 2022 —
+         * fast åt andra hållet. G20 bär dessutom 318d:ns 150 och 330i:ns 258, alltså delar den mer
+         * än vår egen rad med familjen: träffen är inte smal, den gamla regeln råder, och den
+         * äldre generationen hämtas aldrig ens.
+         */
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+        java.util.concurrent.atomic.AtomicInteger hamtningar = new java.util.concurrent.atomic.AtomicInteger();
+
+        var med = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d",
+                java.util.Set.of(190), java.util.Set.of(190, 252, 340, 286), g -> {
+                    hamtningar.incrementAndGet();
+                    if (g.titel().contains("G60") || g.titel().contains("G61"))
+                        return java.util.List.of(motor("520d (190 Hp)", 190), motor("530i (252 Hp)", 252));
+                    return java.util.List.of(motor("520d (190 Hp)", 190), motor("530d (286 Hp)", 286),
+                                             motor("540i (340 Hp)", 340));
+                });
+
+        assertThat(med.franAr()).isEqualTo(2023);
+        // Den breda träffen stänger sökningen direkt — annars hade varje BMW-rad kostat sex sidor.
+        assertThat(hamtningar.get()).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void enfamiljsmodellPaverkasInteAlls() {
+        // Varje icke-BMW är sin egen familj ("Volkswagen golf" slår upp sig själv), och då ska
+        // provet svara precis som före familjeregeln — samma årtal, samma antal hämtningar.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+        java.util.Set<Integer> egna = java.util.Set.of(190);
+        java.util.function.Function<AutoDataScraperService.Generation,
+                java.util.List<AutoDataScraperService.MotorAlternativ>> motorer =
+                g -> java.util.List.of(motor("520d (190 Hp)", 190));
+
+        var utan = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", egna, motorer);
+        var med = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", egna, egna, motorer);
+
+        assertThat(med.franAr()).isEqualTo(utan.franAr());
+        assertThat(med.generation()).isEqualTo(utan.generation());
+    }
+
+    @Test
+    void familjtackningenRaknarDistinktaHastkrafter() {
+        var deras = java.util.List.of(motor("730d (286 Hp)", 286), motor("740i (340 Hp)", 340),
+                                      motor("740d (340 Hp)", 340), motor("i7 (544 Hp)", 544));
+
+        assertThat(AutoDataScraperService.familjTackning(deras, java.util.Set.of(286, 340, 530))).isEqualTo(2);
+        assertThat(AutoDataScraperService.familjTackning(deras, java.util.Set.of(286))).isEqualTo(1);
+        assertThat(AutoDataScraperService.familjTackning(deras, java.util.Set.of())).isZero();
+    }
+
     private static java.util.List<AutoDataScraperService.MotorAlternativ> motorlista(int... hk) {
         java.util.List<AutoDataScraperService.MotorAlternativ> ut = new java.util.ArrayList<>();
         for (int h : hk) ut.add(new AutoDataScraperService.MotorAlternativ("520d (" + h + " Hp) Steptronic", h, "2020 - 2024", "/en/x"));

@@ -8,7 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Fyller bagagevolym för de bilar ev-database inte kan svara för — alltså bensin, diesel och
@@ -158,6 +162,16 @@ public class AutoDataCargoFillService {
             return 0;
         }
 
+        // Familjen = de av VÅRA modellrader som slår upp samma modellsida ("BMW 730i", "740i",
+        // "730d" ... är alla bmw 7 series). Den byggs ur HELA modellistan, inte ur arbetslistan:
+        // syskonen är oftast redan ifyllda, och det är just deras motorer som avgör vilken
+        // generation sidan beskriver. Se AutoDataScraperService.familjTackning.
+        Map<String, Set<Integer>> familjer = new HashMap<>();
+        for (String m : iceConsumption.allModelNames()) {
+            familjer.computeIfAbsent(AutoDataScraperService.uppslagsnamn(m), k -> new HashSet<>())
+                    .addAll(iceConsumption.effekterForModell(m));
+        }
+
         int fyllda = 0, forsokta = 0, ejHittad = 0, vaktenAvstod = 0, hamtningsfel = 0;
         for (String modell : namn) {
             if (forsokta >= MAX_PER_KORNING) break;
@@ -171,7 +185,9 @@ public class AutoDataCargoFillService {
                 // Sedan 2026-08-19 prövas dessutom flera generationer, inte bara den nyaste: vår
                 // motorlista kan vara äldre än sidans, och då är rätt svar en generation bakåt i
                 // stället för ett nej. Se AutoDataScraperService.artalMedEffektprov.
-                var prov = autoData.artalMedEffektprov(modell, iceConsumption.effekterForModell(modell));
+                Set<Integer> egna = iceConsumption.effekterForModell(modell);
+                var prov = autoData.artalMedEffektprov(modell, egna,
+                        familjer.getOrDefault(AutoDataScraperService.uppslagsnamn(modell), egna));
                 if (prov.utfall() == AutoDataScraperService.Provutfall.INGEN_TRAFF) {
                     iceGenerations.noteraMiss(modell, IceGenerationService.ORSAK_VAKTEN_AVSTOD);
                     vaktenAvstod++;

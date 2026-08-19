@@ -596,11 +596,26 @@ public class AutoDataScraperService {
      * @param varaEffekter hästkrafterna ur vår egen motorlista; tom mängd stänger av provet
      */
     public Artalsprov artalMedEffektprov(String bilnamn, java.util.Set<Integer> varaEffekter) {
+        return artalMedEffektprov(bilnamn, varaEffekter, varaEffekter);
+    }
+
+    /**
+     * Samma prov, men med FAMILJENS hela motorlista som skiljedomare när en träff är smal.
+     *
+     * <p>Familjen är de av våra modellrader som slår upp samma modellsida — "BMW 730i", "740i",
+     * "750i", "730d", "740d", "745e" och "M760i" är alla {@code bmw 7 series}. Se
+     * {@link #familjTackning} för varför det behövs.
+     *
+     * @param familjensEffekter hästkrafterna för HELA familjen; samma mängd som
+     *                          {@code varaEffekter} stänger av skiljedomaren
+     */
+    public Artalsprov artalMedEffektprov(String bilnamn, java.util.Set<Integer> varaEffekter,
+                                         java.util.Set<Integer> familjensEffekter) {
         String uppslag = uppslagsnamn(bilnamn);
         List<Generation> alla = generationerFor(uppslag);
         // bilnamn, inte uppslag: beteckningen "520d" finns bara i det otranslaterade namnet —
         // uppslagsnamnet är "bmw 5 series" och bär ingen motorbeteckning alls.
-        return artalMedEffektprov(alla, uppslag, bilnamn, varaEffekter,
+        return artalMedEffektprov(alla, uppslag, bilnamn, varaEffekter, familjensEffekter,
                 g -> parseMotorAlternativ(hamta(BAS + g.sokvag())));
     }
 
@@ -627,6 +642,14 @@ public class AutoDataScraperService {
     static Artalsprov artalMedEffektprov(List<Generation> alla, String bilnamn, String radnamn,
                                          java.util.Set<Integer> varaEffekter,
                                          java.util.function.Function<Generation, List<MotorAlternativ>> motorhamtare) {
+        return artalMedEffektprov(alla, bilnamn, radnamn, varaEffekter, varaEffekter, motorhamtare);
+    }
+
+    /** Samma regel med familjen given. Se {@link #familjTackning}. */
+    static Artalsprov artalMedEffektprov(List<Generation> alla, String bilnamn, String radnamn,
+                                         java.util.Set<Integer> varaEffekter,
+                                         java.util.Set<Integer> familjensEffekter,
+                                         java.util.function.Function<Generation, List<MotorAlternativ>> motorhamtare) {
         Generation nyaste = valjGeneration(alla, bilnamn, null, false);
         if (nyaste == null) return new Artalsprov(null, Provutfall.OPROVAD, null);
 
@@ -642,14 +665,19 @@ public class AutoDataScraperService {
                 .thenComparingInt(g -> g.titel().length()));
 
         String beteckning = motorbeteckning(radnamn);
+        java.util.Set<Integer> familjen =
+                (familjensEffekter == null || familjensEffekter.isEmpty()) ? varaEffekter : familjensEffekter;
         boolean nagonLista = false;
         Generation basta = null;
         Integer bastaAr = null;
+        int bastaTackning = -1;
+        boolean bastaArSmal = false;
         int provade = 0;
         for (Generation g : kandidater) {
             if (provade >= MAX_GENERATIONER_PROV) break;
-            // Träff funnen: fortsätt bara så länge kandidaterna kan vara samma bil i annan kaross.
-            if (basta != null && g.franAr() < basta.franAr() - NARA_AR) break;
+            // Träff funnen: fortsätt bara så länge kandidaterna kan vara samma bil i annan kaross
+            // — eller så länge träffen är SMAL och alltså kan vara ett sammanträffande.
+            if (basta != null && !bastaArSmal && g.franAr() < basta.franAr() - NARA_AR) break;
             provade++;
 
             List<MotorAlternativ> deras = motorhamtare.apply(g);
@@ -659,7 +687,19 @@ public class AutoDataScraperService {
 
             Integer ar = basgenerationsStartArFor(alla, g);
             if (ar == null) continue;
-            if (bastaAr == null || ar < bastaAr) { basta = g; bastaAr = ar; }
+
+            int tackning = familjTackning(deras, familjen);
+            // Smal = generationen delar inget MER än vår egen rads motorer med familjen, fast
+            // familjen har fler att dela med. Se familjTackning.
+            boolean smal = familjen.size() > varaEffekter.size()
+                    && tackning <= familjTackning(deras, varaEffekter);
+
+            boolean battre = basta == null
+                    || tackning > bastaTackning
+                    // Lika bra täckning: den gamla kombiregeln gäller, och bara inom sitt fönster
+                    // — annars hade en lika smal generation ett decennium bort kunnat vinna.
+                    || (tackning == bastaTackning && ar < bastaAr && ar >= bastaAr - NARA_AR);
+            if (battre) { basta = g; bastaAr = ar; bastaTackning = tackning; bastaArSmal = smal; }
         }
 
         if (basta != null) return new Artalsprov(bastaAr, Provutfall.TRAFF, basta.titel());
@@ -706,6 +746,38 @@ public class AutoDataScraperService {
         }
         java.util.Set<Integer> jamfor = designerade.isEmpty() ? allaHk : designerade;
         return !java.util.Collections.disjoint(varaEffekter, jamfor);
+    }
+
+    /**
+     * Hur många av familjens hästkrafter generationens motorlista bär.
+     *
+     * <p><b>Varför en hel familj måste vara med och bestämma</b> (mätt 2026-08-19). Två
+     * generationer kan bära samma beteckning MED samma effekt: "BMW 730d 3.0 D 286 hk" finns
+     * både i G11 (2015) och i G70 (2022), och när bara vår egen rad fick rösta vann den nyaste —
+     * 730d daterades till 2022 medan resten av sjuan landade på 2015. Ett för högt årtal är den
+     * dyra riktningen: det tystar korten för 2015-2021.
+     *
+     * <p>Familjen avgör saken utan att gissa. Våra sju sjuor är 730i 265, 740i 340, 750i 530,
+     * 730d 286, 740d 340, 745e 394 och M760i 585 hk — <b>G11 LCI:s lineup rakt av</b>. G70 delar
+     * exakt en av dem, vår egen 730d:s 286, medan G11 LCI delar alla sju. En generation som bara
+     * bär vår egen rads motor ur en hel familj den ska beskriva är ett <b>sammanträffande</b>,
+     * inte en träff.
+     *
+     * <p><b>Regeln är med flit smal.</b> Den slår bara till när den nyaste träffen delar
+     * ingenting utöver vår egen rad med familjen, och bara när familjen har mer att dela med. Det
+     * skyddar det fall som drar åt andra hållet: "BMW 320d 190 hk" finns i både G20 (2018) och
+     * F30 (2011), men G20 bär dessutom 318d:ns 150, 330i:ns 258 och 330e:ns 292 — den är alltså
+     * inte smal, den gamla regeln får råda och årtalet blir 2018. Utan den spärren hade
+     * familjetäckningen kunnat dra hela 3-serien tillbaka till F30.
+     *
+     * <p>Här jämförs rena hästkrafter utan beteckningsfilter: familjens rader har per definition
+     * andra beteckningar än vår egen, och det är just DEM vi letar efter.
+     */
+    static int familjTackning(List<MotorAlternativ> deras, java.util.Set<Integer> effekter) {
+        if (effekter == null || effekter.isEmpty()) return 0;
+        java.util.Set<Integer> traffar = new java.util.HashSet<>();
+        for (MotorAlternativ m : deras) if (m.hk() != null && effekter.contains(m.hk())) traffar.add(m.hk());
+        return traffar.size();
     }
 
     /**
