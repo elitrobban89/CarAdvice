@@ -17,6 +17,60 @@ class IceGenerationServiceTest {
     private final IceGenerationService service = new IceGenerationService(jdbc);
 
     @Test
+    void misslistanRaknarNerTillDagenModellenProvasOmIgen() {
+        // Siffran "vakten-avstod: 111" gick inte att granska — den kunde lika gärna vara en hel
+        // märkesfamilj som föll på samma fel, vilket redan hänt en gång med chassikoden i titeln.
+        // dagarKvar svarar dessutom på det räkningen aldrig kunde: när kommer modellen tillbaka
+        // på arbetslistan?
+        long idag = java.time.LocalDate.now().toEpochDay();
+        when(jdbc.queryForList(anyString())).thenReturn(List.of(
+                Map.of("model_name", "bmw 3-serie", "forsokt_dag", (int) (idag - 1), "orsak", "vakten-avstod"),
+                Map.of("model_name", "alfa romeo 147", "forsokt_dag", (int) (idag - 40), "orsak", "ej-hittad")));
+
+        List<Map<String, Object>> rader = service.listaMissar(null);
+
+        assertThat(rader).hasSize(2);
+        assertThat(rader.get(0)).containsEntry("model", "bmw 3-serie")
+                                .containsEntry("orsak", "vakten-avstod")
+                                .containsEntry("alderDagar", 1L)
+                                .containsEntry("dagarKvar", 29L);
+        // Fönstret gick ut för tio dagar sedan. "minus tio dagar kvar" är ingen upplysning —
+        // noll betyder att natten prövar om modellen.
+        assertThat(rader.get(1)).containsEntry("dagarKvar", 0L);
+    }
+
+    @Test
+    void misslistansFilterSlapperBaraGenomEnOrsak() {
+        // De två nejen kräver olika åtgärder: ett dött uppslag lagas i parsern, ett avstående är
+        // en fråga om vaktens gräns. Utan filter drunknar de 111 avståendena i resten.
+        long idag = java.time.LocalDate.now().toEpochDay();
+        when(jdbc.queryForList(anyString())).thenReturn(List.of(
+                Map.of("model_name", "bmw 3-serie", "forsokt_dag", (int) idag, "orsak", "vakten-avstod"),
+                Map.of("model_name", "alfa romeo 147", "forsokt_dag", (int) idag, "orsak", "ej-hittad")));
+
+        assertThat(service.listaMissar("ej-hittad"))
+                .singleElement()
+                .satisfies(r -> assertThat(r).containsEntry("model", "alfa romeo 147"));
+        // Tom sträng är inget filter — annars hade ett bortglömt ?orsak= tömt listan tyst.
+        assertThat(service.listaMissar("")).hasSize(2);
+    }
+
+    @Test
+    void misslistanTalarRaderSkrivnaForeOrsakskolumnen() {
+        // Kolumnen kom till 2026-08-16, efter tabellen. Rader från före det har NULL där, och
+        // en NPE i granskningen hade gjort just de äldsta missarna omöjliga att läsa.
+        long idag = java.time.LocalDate.now().toEpochDay();
+        java.util.Map<String, Object> gammal = new java.util.HashMap<>();
+        gammal.put("model_name", "audi a4");
+        gammal.put("forsokt_dag", (int) idag);
+        gammal.put("orsak", "okand");   // COALESCE i SQL:en gör NULL till okand
+        when(jdbc.queryForList(anyString())).thenReturn(List.of(gammal));
+
+        assertThat(service.listaMissar(null)).singleElement()
+                .satisfies(r -> assertThat(r).containsEntry("orsak", "okand"));
+    }
+
+    @Test
     void listanDoperOmKolumnernaTillKortetsSprak() {
         // Kolumnnamnen är SQL-sidans (model_name, fran_ar) och svaret är API:ts (model, franAr).
         // Går de isär blir endpointen tyst obrukbar: fälten finns kvar men heter fel, och en

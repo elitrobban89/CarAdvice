@@ -638,6 +638,64 @@ class CarControllerTest {
            .andExpect(jsonPath("$.missarPerOrsak.vakten-avstod").value(8));
     }
 
+    // --- GET /api/admin/ice-generations/missar ---
+
+    @Test
+    void missListanKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/ice-generations/missar"))
+           .andExpect(status().isForbidden());
+        verify(iceGenerationService, never()).listaMissar(any());
+    }
+
+    @Test
+    void missListanVisarModellernaInteBaraAntalet() throws Exception {
+        // Räkningen sa "vakten-avstod: 111" och där tog granskningen slut — en siffra kan inte
+        // skilja ett klokt avstående från en hel märkesfamilj som föll på samma fel. Precis det
+        // hade hänt: chassikoden i titeln fällde varenda BMW-, Audi- och Lexus-generation medan
+        // de 139 parkerade nejen såg friska ut i räkningen.
+        when(iceGenerationService.listaMissar(null)).thenReturn(List.of(
+                rad("bmw 3-serie", "vakten-avstod", "2026-08-18", 1L, 29L),
+                rad("lexus nx", "vakten-avstod", "2026-08-18", 1L, 29L)));
+        when(iceGenerationService.antalMissar()).thenReturn(138L);
+
+        mvc.perform(get("/api/admin/ice-generations/missar").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.antal").value(2))
+           // totalen står bredvid det filtrerade antalet: utan den läses "2 rader" som hela
+           // sanningen även när anropet bar ett filter
+           .andExpect(jsonPath("$.totalt").value(138))
+           .andExpect(jsonPath("$.missar[0].model").value("bmw 3-serie"))
+           .andExpect(jsonPath("$.missar[0].orsak").value("vakten-avstod"))
+           // dagarKvar svarar på det räkningen aldrig kunde: när prövas modellen om?
+           .andExpect(jsonPath("$.missar[0].dagarKvar").value(29));
+    }
+
+    @Test
+    void missListanSlapperIgenomOrsaksfiltret() throws Exception {
+        // Filtret finns för att de 111 vakten-avstod ska gå att läsa utan att de 27 döda
+        // uppslagen skräpar ner listan — de två nejen kräver olika åtgärder.
+        when(iceGenerationService.listaMissar("ej-hittad")).thenReturn(List.of(
+                rad("alfa romeo 147", "ej-hittad", "2026-08-18", 1L, 29L)));
+
+        mvc.perform(get("/api/admin/ice-generations/missar")
+                        .param("orsak", "ej-hittad")
+                        .header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.antal").value(1))
+           .andExpect(jsonPath("$.missar[0].orsak").value("ej-hittad"));
+        verify(iceGenerationService).listaMissar("ej-hittad");
+    }
+
+    private static Map<String, Object> rad(String model, String orsak, String dag, long alder, long kvar) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("model", model);
+        m.put("orsak", orsak);
+        m.put("forsoktDag", dag);
+        m.put("alderDagar", alder);
+        m.put("dagarKvar", kvar);
+        return m;
+    }
+
     // --- DELETE /api/admin/ice-generations/missar ---
 
     @Test

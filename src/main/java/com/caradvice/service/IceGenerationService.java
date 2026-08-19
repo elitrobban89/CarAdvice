@@ -299,6 +299,56 @@ public class IceGenerationService {
         }
     }
 
+    /**
+     * Alla parkerade missar med orsak och ålder — underlaget för
+     * {@code GET /api/admin/ice-generations/missar}.
+     *
+     * <p>Fanns inte förrän 2026-08-19, och utan den var {@link #missarPerOrsak} en siffra utan
+     * något bakom sig: 111 rader stod som {@code vakten-avstod} och det gick inte att avgöra om
+     * vakten avstod klokt eller om en hel familj föll på samma fel. Precis det hade hänt en gång
+     * redan — chassikoden i titeln fällde varenda generation för BMW, Audi och Lexus, och de 139
+     * parkerade nejen såg ut som ett friskt uppslag ända tills någon läste dem modellvis. En
+     * miss är dessutom osynlig i drift: den hoppas över i {@link #MISS_GILTIG_DAGAR} dagar utan
+     * att synas i loggen, så talet kan varken röra sig eller larma under tiden.
+     *
+     * <p>{@code dagarKvar} är det svar räkningen aldrig gav: <b>när kommer modellen tillbaka på
+     * arbetslistan?</b> Noll betyder att fönstret gått ut och att natten prövar om den. Värdet
+     * kan bli negativt om raden legat kvar längre än fönstret — det räknas ner till noll, för
+     * "minus tre dagar kvar" är ingen upplysning.
+     *
+     * <p>Orsaken normaliseras till {@code okand} på samma sätt som i {@link #missarPerOrsak}:
+     * kolumnen kom till efter tabellen, så rader skrivna före 2026-08-16 har NULL där.
+     *
+     * @param orsak filtrerar på EN orsak när den är satt — annars kommer alla med
+     */
+    public java.util.List<Map<String, Object>> listaMissar(String orsak) {
+        long idag = java.time.LocalDate.now().toEpochDay();
+        try {
+            // Sorterad på orsak först: de två nejen läses som var sitt block, och en trasig
+            // familj syns som en klump i stället för utspridd mellan friska rader.
+            String sql = "SELECT model_name, forsokt_dag, COALESCE(orsak, 'okand') AS orsak "
+                    + "FROM ice_generation_miss ORDER BY COALESCE(orsak, 'okand'), model_name";
+            return jdbc.queryForList(sql).stream()
+                    .filter(r -> orsak == null || orsak.isBlank()
+                            || orsak.equalsIgnoreCase((String) r.get("orsak")))
+                    .map(r -> {
+                        int dag = ((Number) r.get("forsokt_dag")).intValue();
+                        long alder = idag - dag;
+                        Map<String, Object> rad = new java.util.LinkedHashMap<String, Object>();
+                        rad.put("model", r.get("model_name"));
+                        rad.put("orsak", r.get("orsak"));
+                        rad.put("forsoktDag", java.time.LocalDate.ofEpochDay(dag).toString());
+                        rad.put("alderDagar", alder);
+                        rad.put("dagarKvar", Math.max(0, MISS_GILTIG_DAGAR - alder));
+                        return rad;
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.warn("ice_generation_miss: kunde inte listas: {}", e.getMessage());
+            return java.util.List.of();
+        }
+    }
+
     public long antal() {
         try {
             Long n = jdbc.queryForObject("SELECT COUNT(*) FROM ice_generation", Long.class);

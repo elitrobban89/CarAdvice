@@ -802,6 +802,38 @@ public class CarController {
     }
 
     /**
+     * Läser de parkerade missarna modellvis — vilka modeller som fick nej, varför, och när de
+     * kommer tillbaka på arbetslistan.
+     *
+     * <p>Fanns inte förrän 2026-08-19. Dittills svarade {@code GET /api/admin/ice-generations}
+     * med <b>antalet</b> missar per orsak, och den siffran går inte att granska: 111 rader stod
+     * som {@code vakten-avstod} utan att det gick att se om vakten avstod klokt eller om en hel
+     * märkesfamilj föll på samma fel. Att skillnaden spelar roll är mätt, inte befarat — 139
+     * parkerade nej såg friska ut i räkningen 2026-08-16 medan chassikoden i titeln i själva
+     * verket fällde varenda BMW-, Audi- och Lexus-generation.
+     *
+     * <p>Rapporten är därför läsning och rättar ingenting. Ser en familj trasig ut är åtgärden
+     * densamma som då: laga uppslaget och töm missarna med {@code DELETE} på samma väg, så
+     * prövas de om redan i natt.
+     *
+     * @param orsak valfritt filter, {@code vakten-avstod} eller {@code ej-hittad}
+     */
+    @GetMapping("/admin/ice-generations/missar")
+    public ResponseEntity<?> listaIceGenerationMissar(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestParam(required = false) String orsak) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = iceGenerationService.listaMissar(orsak);
+        // Totalen står bredvid det filtrerade antalet med flit: utan den läses "27 rader" som
+        // hela sanningen även när anropet bar ?orsak=ej-hittad.
+        return ResponseEntity.ok(Map.of(
+                "antal", rader.size(),
+                "totalt", iceGenerationService.antalMissar(),
+                "perOrsak", iceGenerationService.missarPerOrsak(),
+                "missar", rader));
+    }
+
+    /**
      * Glömmer de parkerade missarna så nattjobbet prövar om dem redan i natt.
      *
      * <p>Hör ihop med varje rättning i auto-data-uppslaget: en miss är ett nej på frågan vi
