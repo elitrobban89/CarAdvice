@@ -481,4 +481,179 @@ class AutoDataScraperServiceTest {
         assertThat(AutoDataScraperService.parseBagagevolym("")).isNull();
         assertThat(AutoDataScraperService.parseBagagevolym(null)).isNull();
     }
+    @Test
+    void effektprovetHittarGenerationenSomBarVaraHastkrafter() {
+        // 2026-08-19: hela BMW:s 5-serie låg som vakten-avstod (0 av 8) därför att uppslaget bara
+        // prövade den NYASTE generationen. Vår rad "BMW 520d 2.0 D 190 hk" är G30; auto-datas
+        // senaste är G61 Touring från 2024 med 197/208/299/303/489 hk. Disjunkt → nej, fast rätt
+        // svar låg tre rader ned på samma sida.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        assertThat(alla).isNotEmpty();
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+
+        // Motorlistan per generation, som sidorna faktiskt ser ut: G60/G61 bär den nya B48/B47
+        // med 197-208 hk, G30 LCI bär 190 hk-dieseln som är vår.
+        java.util.function.Function<AutoDataScraperService.Generation,
+                java.util.List<AutoDataScraperService.MotorAlternativ>> motorer = g -> {
+            if (g.titel().contains("G61") || g.titel().contains("G60"))
+                return motorlista(197, 208, 299, 489);
+            if (g.titel().contains("G30") || g.titel().contains("G31"))
+                return motorlista(190, 252, 340, 286);
+            return motorlista(150, 218);   // äldre generationer
+        };
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", java.util.Set.of(190), motorer);
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.TRAFF);
+        // G30 LCI är en facelift; kedjan/kodgruppen tar oss till generationens eget startår.
+        assertThat(prov.franAr()).isEqualTo(2017);
+        assertThat(prov.generation()).contains("G30");
+    }
+
+    @Test
+    void effektprovetAvstarNarIngenGenerationBarVaraHastkrafter() {
+        // Vakten blir inte svagare av att flera generationer prövas: bär ingen av dem vår
+        // hästkraft är svaret fortfarande nej. Det är CX-5-fallet — en ny generation med en enda
+        // motor får inte datera de sju varianter vi har.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", java.util.Set.of(999),
+                g -> motorlista(190, 197, 208));
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.INGEN_TRAFF);
+        assertThat(prov.franAr()).isNull();   // inget årtal sparas på en gissning
+    }
+
+    @Test
+    void effektprovetSlutarLetaEfterTaketSaEnSaknadModellInteHamtarHalvaSajten() {
+        // Sidhämtningen kostar 1,5 s styck. 5-seriens sida har 29 generationer, och en modell vars
+        // hästkraft inte finns någonstans skulle annars beta av allihop varje natt.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        assertThat(alla.size()).isGreaterThan(AutoDataScraperService.MAX_GENERATIONER_PROV);
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+        java.util.concurrent.atomic.AtomicInteger hamtningar = new java.util.concurrent.atomic.AtomicInteger();
+
+        AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", java.util.Set.of(999), g -> {
+            hamtningar.incrementAndGet();
+            return motorlista(190);
+        });
+
+        assertThat(hamtningar.get()).isEqualTo(AutoDataScraperService.MAX_GENERATIONER_PROV);
+    }
+
+    @Test
+    void tomMotorlistaArHamtningsfelOchParkerarInteModellen() {
+        // Ett nät som inte svarar är inget nej. Går ingen enda motorlista att läsa står den nyaste
+        // generationens årtal kvar OPRÖVAT — samma bedömning som före 2026-08-19 — i stället för
+        // att modellen parkeras i 30 dagar för något som var nätet.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", java.util.Set.of(190),
+                g -> java.util.List.of());
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.OPROVAD);
+        assertThat(prov.franAr()).isNotNull();
+    }
+
+    @Test
+    void utanEgnaHastkrafterGallerDetGamlaSvaret() {
+        // Ingen motorlista hos oss = inget att pröva mot. Då är den nyaste generationen fortfarande
+        // bästa gissningen, precis som förut, och den märks som OPRÖVAD i loggen.
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d", java.util.Set.of(),
+                g -> motorlista(190));
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.OPROVAD);
+        assertThat(prov.franAr()).isNotNull();
+    }
+
+    private static java.util.List<AutoDataScraperService.MotorAlternativ> motorlista(int... hk) {
+        java.util.List<AutoDataScraperService.MotorAlternativ> ut = new java.util.ArrayList<>();
+        for (int h : hk) ut.add(new AutoDataScraperService.MotorAlternativ("520d (" + h + " Hp) Steptronic", h, "2020 - 2024", "/en/x"));
+        return ut;
+    }
+
+    @Test
+    void bensinarenMedSammaHastkraftFarInteDateraDieseln() {
+        /*
+         * Mätt mot skarpa auto-data 2026-08-19, och det här är hela anledningen att provet inte
+         * får nöja sig med en siffra: G60:s sida från 2023 bär "520i (190 Hp)" — en BENSINARE —
+         * medan vår rad "BMW 520d 2.0 D 190 hk" är G30:ans diesel. Ett prov på bara hästkraften
+         * tog G60 som träff och hade daterat en 2017-bil till 2023, alltså precis det fel vakten
+         * finns för att stoppa. Bär listan vår beteckning jämförs bara de motorerna: 520d är
+         * 197 hk hos G60 och 190 hk hos G30 LCI.
+         */
+        var alla = AutoDataScraperService.parseGenerationer(fixtur("bmw-5-series-model.html"));
+        String uppslag = AutoDataScraperService.uppslagsnamn("BMW 520d");
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, uppslag, "BMW 520d",
+                java.util.Set.of(190), g -> g.titel().contains("G60") || g.titel().contains("G61")
+                        ? java.util.List.of(motor("520i (208 Hp)", 208), motor("520i (190 Hp)", 190),
+                                            motor("520d (197 Hp)", 197))
+                        : java.util.List.of(motor("520i (184 Hp)", 184), motor("520d (190 Hp)", 190)));
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.TRAFF);
+        assertThat(prov.generation()).contains("G30");
+        assertThat(prov.franAr()).isEqualTo(2017);
+    }
+
+    @Test
+    void utanBeteckningIListanGallerRenHastkraft() {
+        // Reservregeln, och den bär alla andra märken: "Volkswagen golf" heter inte något som
+        // liknar "1.5 TSI (150 Hp)", så utan den hade ingen icke-BMW kunnat dateras alls.
+        var deras = java.util.List.of(motor("1.5 TSI (150 Hp)", 150), motor("2.0 TDI (115 Hp)", 115));
+
+        assertThat(AutoDataScraperService.barVaraEffekter(deras, null, java.util.Set.of(150))).isTrue();
+        assertThat(AutoDataScraperService.barVaraEffekter(deras, "golf", java.util.Set.of(150))).isTrue();
+        assertThat(AutoDataScraperService.barVaraEffekter(deras, null, java.util.Set.of(999))).isFalse();
+    }
+
+    @Test
+    void beteckningenMatchasSomEgetOrdSaM5InteBlirM550i() {
+        // "m5" är en äkta delsträng av "M550i". Utan ordgräns hade en M5-rad matchat M550i:s
+        // 530 hk och daterats efter fel bil.
+        var deras = java.util.List.of(motor("M550i (530 Hp) xDrive", 530), motor("M5 (600 Hp)", 600));
+
+        assertThat(AutoDataScraperService.barVaraEffekter(deras, "m5", java.util.Set.of(600))).isTrue();
+        assertThat(AutoDataScraperService.barVaraEffekter(deras, "m5", java.util.Set.of(530))).isFalse();
+    }
+
+    @Test
+    void beteckningenPlockasBaraUrNamnSomBarEn() {
+        assertThat(AutoDataScraperService.motorbeteckning("BMW 520d")).isEqualTo("520d");
+        assertThat(AutoDataScraperService.motorbeteckning("BMW m5")).isEqualTo("m5");
+        assertThat(AutoDataScraperService.motorbeteckning("BMW 330e")).isEqualTo("330e");
+        // Modellnamn är inga beteckningar — annars hade provet letat efter "golf" bland motorerna.
+        assertThat(AutoDataScraperService.motorbeteckning("Volkswagen golf")).isNull();
+        assertThat(AutoDataScraperService.motorbeteckning("Mazda cx-5")).isNull();
+        assertThat(AutoDataScraperService.motorbeteckning(null)).isNull();
+    }
+
+    @Test
+    void kombinFarInteDateraSedanenEttArForSent() {
+        /*
+         * BMW 3-serien är sedan (G20, 2018) och kombi (G21, 2019), och vår rad "BMW 330i 258 hk"
+         * saknar karossord — den matchar båda. Nyast vinner annars, alltså kombins 2019, och ett
+         * för HÖGT årtal är den dyra riktningen: det tystar 2018 års sedan, som i dag får sin
+         * lista. Träffar inom NARA_AR vägs därför mot varandra och lägsta startåret vinner.
+         */
+        var alla = java.util.List.of(
+                new AutoDataScraperService.Generation("BMW 3 Series Touring (G21)", 2019, null, "Station wagon", "/t"),
+                new AutoDataScraperService.Generation("BMW 3 Series Sedan (G20)", 2018, null, "Sedan", "/s"));
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, "bmw 3 series", "BMW 330i",
+                java.util.Set.of(258), g -> java.util.List.of(motor("330i (258 Hp)", 258)));
+
+        assertThat(prov.utfall()).isEqualTo(AutoDataScraperService.Provutfall.TRAFF);
+        assertThat(prov.franAr()).isEqualTo(2018);
+    }
+
+    private static AutoDataScraperService.MotorAlternativ motor(String namn, int hk) {
+        return new AutoDataScraperService.MotorAlternativ(namn, hk, "2020 - 2024", "/en/x");
+    }
+
 }

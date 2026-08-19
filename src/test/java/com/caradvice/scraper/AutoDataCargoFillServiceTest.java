@@ -35,6 +35,11 @@ class AutoDataCargoFillServiceTest {
         when(iceConsumption.allModelNames()).thenReturn(new LinkedHashSet<>(List.of(namn)));
     }
 
+    /** Ett prov som svarar "årtalet är bevisat", som scrapern gör när en generation bär vår hk. */
+    private static AutoDataScraperService.Artalsprov traff(int franAr) {
+        return new AutoDataScraperService.Artalsprov(franAr, AutoDataScraperService.Provutfall.TRAFF, "gen");
+    }
+
     @Test
     void kandaNejProvasInteOmOchAterFrontenIngenBudget() {
         /*
@@ -47,20 +52,21 @@ class AutoDataCargoFillServiceTest {
          */
         modeller("Alfa Romeo 159", "Volkswagen golf");
         when(iceGenerations.harFarskMiss("Alfa Romeo 159")).thenReturn(true);
-        when(autoData.basgenerationsStartAr("Volkswagen golf")).thenReturn(2020);
         when(iceConsumption.effekterForModell(anyString())).thenReturn(Set.of());
+        when(autoData.artalMedEffektprov(eq("Volkswagen golf"), any())).thenReturn(traff(2020));
 
         service.fyllGenerationsar();
 
         // den kända missen kostar inte ett enda försök — hela budgeten går till otestad modell
-        verify(autoData, never()).basgenerationsStartAr("Alfa Romeo 159");
+        verify(autoData, never()).artalMedEffektprov(eq("Alfa Romeo 159"), any());
         verify(iceGenerations).spara("Volkswagen golf", 2020);
     }
 
     @Test
     void utebliventArtalAntecknasSomMiss() {
         modeller("Ford ecosport");
-        when(autoData.basgenerationsStartAr("Ford ecosport")).thenReturn(null);
+        when(autoData.artalMedEffektprov(eq("Ford ecosport"), any())).thenReturn(
+                new AutoDataScraperService.Artalsprov(null, AutoDataScraperService.Provutfall.OPROVAD, null));
 
         service.fyllGenerationsar();
 
@@ -70,14 +76,14 @@ class AutoDataCargoFillServiceTest {
 
     @Test
     void felGenerationAntecknasOcksaSomMiss() {
-        // CX-5-fallet: auto-datas senaste generation (141 hk) delar ingen effekt med vår CSV
-        // (150-230 hk), alltså två olika bilar. Avståendet är rätt — men det är ett svar vi
-        // förstått, och att fråga om det varje natt är rent slöseri med budgeten.
+        // CX-5-fallet: ingen av auto-datas generationer delar effekt med vår CSV (150-230 hk),
+        // alltså två olika bilar. Avståendet är rätt — men det är ett svar vi förstått, och att
+        // fråga om det varje natt är rent slöseri med budgeten. Sedan 2026-08-19 betyder ett nej
+        // dessutom att ALLA prövade generationer sagt nej, inte bara den nyaste.
         modeller("Mazda cx-5");
-        when(autoData.basgenerationsStartAr("Mazda cx-5")).thenReturn(2025);
         when(iceConsumption.effekterForModell("Mazda cx-5")).thenReturn(Set.of(150, 194, 230));
-        when(autoData.motorerForGenerationsprovning("Mazda cx-5")).thenReturn(List.of(
-                new AutoDataScraperService.MotorAlternativ("2.5 e-Skyactiv G", 141, "2025-", "/x")));
+        when(autoData.artalMedEffektprov(eq("Mazda cx-5"), any())).thenReturn(
+                new AutoDataScraperService.Artalsprov(null, AutoDataScraperService.Provutfall.INGEN_TRAFF, null));
 
         service.fyllGenerationsar();
 
@@ -91,7 +97,7 @@ class AutoDataCargoFillServiceTest {
         // avbrott mitt i natten låst ute modellen i 30 dagar — och en död sajt (2026-08-13,
         // då varenda modell missade) hade fryst hela tabellen.
         modeller("Volvo xc60");
-        when(autoData.basgenerationsStartAr("Volvo xc60")).thenThrow(new RuntimeException("timeout"));
+        when(autoData.artalMedEffektprov(eq("Volvo xc60"), any())).thenThrow(new RuntimeException("timeout"));
 
         service.fyllGenerationsar();
 
@@ -107,7 +113,7 @@ class AutoDataCargoFillServiceTest {
          * Nu kastar hamta i stället, och löftet i catch-grenen går att hålla.
          */
         modeller("Lexus is");
-        when(autoData.basgenerationsStartAr("Lexus is"))
+        when(autoData.artalMedEffektprov(eq("Lexus is"), any()))
                 .thenThrow(new AutoDataScraperService.HamtningsFel("/en/lexus-is", new RuntimeException("429")));
 
         service.fyllGenerationsar();
@@ -117,22 +123,36 @@ class AutoDataCargoFillServiceTest {
     }
 
     @Test
-    void hastkraftsprovningenAnvanderDetKarosstolerantaUppslaget() {
+    void oprovatArtalSparasAndaOchParkerarInteModellen() {
         /*
-         * motorerForBil kräver att karossordet stämmer. Med det kravet får varje modell som
-         * räddas av karosstoleransen — Audi RS4, Audi TT, hela BMW-serien — en TOM motorlista,
-         * och en tom lista räknas som hämtningsfel och släpper igenom årtalet OPRÖVAT. Vakten
-         * hade alltså tystnat exakt för de modeller rättningen släppte in.
+         * OPRÖVAD betyder att ingen motorlista gick att läsa — antingen för att vi saknar egna
+         * hästkrafter eller för att sidorna inte svarade. Det är inget nej, och modellen får inte
+         * parkeras för det: en tom motorlista drabbar just de modeller som räddas av
+         * karosstoleransen (Audi RS4, Audi TT, hela BMW-serien), alltså precis dem rättningen
+         * släppte in.
          */
         modeller("Audi rs4");
-        when(autoData.basgenerationsStartAr("Audi rs4")).thenReturn(2017);
         when(iceConsumption.effekterForModell("Audi rs4")).thenReturn(Set.of(450));
-        when(autoData.motorerForBil(anyString(), any())).thenReturn(List.of());
-        when(autoData.motorerForGenerationsprovning("Audi rs4")).thenReturn(List.of(
-                new AutoDataScraperService.MotorAlternativ("RS4 Avant 2.9 V6", 450, "2019-", "/x")));
+        when(autoData.artalMedEffektprov(eq("Audi rs4"), any())).thenReturn(
+                new AutoDataScraperService.Artalsprov(2017, AutoDataScraperService.Provutfall.OPROVAD, "RS4 (B9)"));
 
         service.fyllGenerationsar();
 
         verify(iceGenerations).spara("Audi rs4", 2017);
+        verify(iceGenerations, never()).noteraMiss(anyString(), anyString());
+    }
+
+    @Test
+    void varaEgnaHastkrafterSkickasMedTillProvet() {
+        // Provet kan inte göra sitt jobb utan vår motorlista: det är just jämförelsen mot den som
+        // skiljer "rätt generation" från "senaste generationen". Skickas en tom mängd blir varje
+        // årtal OPRÖVAT och vakten är i praktiken avstängd.
+        modeller("BMW 520d");
+        when(iceConsumption.effekterForModell("BMW 520d")).thenReturn(Set.of(190));
+        when(autoData.artalMedEffektprov(eq("BMW 520d"), eq(Set.of(190)))).thenReturn(traff(2017));
+
+        service.fyllGenerationsar();
+
+        verify(iceGenerations).spara("BMW 520d", 2017);
     }
 }

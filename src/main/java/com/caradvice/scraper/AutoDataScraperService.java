@@ -547,6 +547,197 @@ public class AutoDataScraperService {
      *
      * @return startåret, eller null när modellen eller årtalet inte gick att slå upp
      */
+    /**
+     * Hur många generationer effektprovet får hämta innan det ger upp.
+     *
+     * <p>Kostnaden är {@link #PAUS_MS} per sida som inte redan ligger i {@link #sidcache}, och
+     * betalas bara av modeller vars NYASTE generation inte matchar — de som stämmer direkt kostar
+     * som förut. Taket är mätt mot de familjer som faktiskt föll 2026-08-19: BMW 5-serien har 29
+     * generationer på sin modellsida, och G30 LCI — den vars motorlista bär vår {@code 520d}
+     * 190 hk — ligger på plats <b>3</b> sorterat nyast först. 7-serien landar på plats 3-4 och
+     * 3-seriens {@code 330i} på plats 2. Sex ger marginal utan att en modell som saknas helt ska
+     * hinna hämta halva sajten.
+     */
+    static final int MAX_GENERATIONER_PROV = 6;
+
+    /** Vad effektprovet kom fram till. Se {@link #artalMedEffektprov}. */
+    public enum Provutfall {
+        /** En generation delar hästkraft med vår motorlista — årtalet är bevisat. */
+        TRAFF,
+        /** Ingen av de prövade generationerna delade hästkraft — vi vet inte, och gissar inte. */
+        INGEN_TRAFF,
+        /** Ingen motorlista gick att läsa. Ett hämtningsfel är inget bevis, varken för eller emot. */
+        OPROVAD
+    }
+
+    /** Årtalet och hur det bevisades. {@code franAr} är null när modellen inte gick att slå upp. */
+    public record Artalsprov(Integer franAr, Provutfall utfall, String generation) {}
+
+    /**
+     * Startåret för den generation vars motorlista delar hästkraft med vår — inte nödvändigtvis
+     * den nyaste.
+     *
+     * <p><b>Varför den nyaste inte räcker</b> (2026-08-19). Uppslaget prövade bara auto-datas
+     * senaste generation, och {@code ice_consumption} är kurerad för den svenska marknaden vid en
+     * viss tidpunkt. När BMW bytte generation på 5-serien (G60/G61, 2023-24) och 7-serien (G70,
+     * 2022) blev vår motorlista äldre än sidans, hästkraftsproven blev disjunkta, och <b>hela
+     * serier</b> parkerades som {@code vakten-avstod} — 35 av 111 avståenden var BMW, med 0 av 8
+     * i 5-serien och 0 av 7 i sjuan. Datan fanns hela tiden på auto-data; vi tittade bara på sista
+     * sidan av den. Vår {@code 520d 2.0 D 190 hk} står i G30 LCI, som ger 2017 via samma
+     * grupperings- och faceliftregel som förut.
+     *
+     * <p><b>Vakten blir inte svagare av det här, den blir träffsäkrare.</b> Årtalet sparas
+     * fortfarande bara när en motorlista bär vår hästkraft; skillnaden är att frågan nu ställs
+     * till varje generation i tur och ordning i stället för bara till den första. Det som förut
+     * blev ett nej blir ett ja på RÄTT generation — och landar vi fel kaross ({@code 520d} valde
+     * förut kombin G61 och hade fått 2024) faller den kandidaten nu på hästkrafterna i stället för
+     * att bli hela svaret.
+     *
+     * @param varaEffekter hästkrafterna ur vår egen motorlista; tom mängd stänger av provet
+     */
+    public Artalsprov artalMedEffektprov(String bilnamn, java.util.Set<Integer> varaEffekter) {
+        String uppslag = uppslagsnamn(bilnamn);
+        List<Generation> alla = generationerFor(uppslag);
+        // bilnamn, inte uppslag: beteckningen "520d" finns bara i det otranslaterade namnet —
+        // uppslagsnamnet är "bmw 5 series" och bär ingen motorbeteckning alls.
+        return artalMedEffektprov(alla, uppslag, bilnamn, varaEffekter,
+                g -> parseMotorAlternativ(hamta(BAS + g.sokvag())));
+    }
+
+    /**
+     * Så många år isär två generationer får ligga och ändå räknas som samma bil i olika kaross.
+     *
+     * <p>BMW 3-serien är sedan (G20, 2018) och kombi (G21, 2019); vår rad "BMW 330i 2.0 T 258 hk"
+     * saknar karossord och matchar båda. Nyast vinner annars, alltså kombins 2019 — och ett för
+     * HÖGT årtal är den dyra riktningen: det tystar 2018 års sedan, som i dag får sin lista.
+     * Därför vägs träffar inom fönstret mot varandra och det lägsta startåret vinner.
+     */
+    static final int NARA_AR = 2;
+
+    /**
+     * Samma regel utan nät, så den kan provas mot en sparad modellsida.
+     *
+     * <p>{@code motorhamtare} slår upp en generations motorlista. Den är en parameter just för
+     * att valet ska gå att testa: allt annat i den här klassen som rör nätet är otestat med flit,
+     * och den här logiken är för viktig för att hamna i den lådan.
+     *
+     * @param bilnamn    uppslagsnamnet, för generationsvalet
+     * @param radnamn    vårt eget modellnamn, som bär motorbeteckningen ("BMW 520d")
+     */
+    static Artalsprov artalMedEffektprov(List<Generation> alla, String bilnamn, String radnamn,
+                                         java.util.Set<Integer> varaEffekter,
+                                         java.util.function.Function<Generation, List<MotorAlternativ>> motorhamtare) {
+        Generation nyaste = valjGeneration(alla, bilnamn, null, false);
+        if (nyaste == null) return new Artalsprov(null, Provutfall.OPROVAD, null);
+
+        // Utan egna hästkrafter finns inget att pröva mot. Då gäller det gamla svaret: den
+        // nyaste generationen, oprövad — vår motorlista beskriver normalt den nuvarande bilen.
+        if (varaEffekter == null || varaEffekter.isEmpty())
+            return new Artalsprov(basgenerationsStartArFor(alla, nyaste), Provutfall.OPROVAD, nyaste.titel());
+
+        List<Generation> kandidater = new ArrayList<>();
+        for (Generation g : alla) if (g.franAr() != null) kandidater.add(g);
+        kandidater.sort(java.util.Comparator
+                .comparingInt((Generation g) -> -g.franAr())
+                .thenComparingInt(g -> g.titel().length()));
+
+        String beteckning = motorbeteckning(radnamn);
+        boolean nagonLista = false;
+        Generation basta = null;
+        Integer bastaAr = null;
+        int provade = 0;
+        for (Generation g : kandidater) {
+            if (provade >= MAX_GENERATIONER_PROV) break;
+            // Träff funnen: fortsätt bara så länge kandidaterna kan vara samma bil i annan kaross.
+            if (basta != null && g.franAr() < basta.franAr() - NARA_AR) break;
+            provade++;
+
+            List<MotorAlternativ> deras = motorhamtare.apply(g);
+            if (deras.isEmpty()) continue;          // hämtningsfel — säger ingenting om generationen
+            nagonLista = true;
+            if (!barVaraEffekter(deras, beteckning, varaEffekter)) continue;
+
+            Integer ar = basgenerationsStartArFor(alla, g);
+            if (ar == null) continue;
+            if (bastaAr == null || ar < bastaAr) { basta = g; bastaAr = ar; }
+        }
+
+        if (basta != null) return new Artalsprov(bastaAr, Provutfall.TRAFF, basta.titel());
+
+        // Ingen enda motorlista gick att läsa: det är ett hämtningsfel och inget nej. Samma
+        // bedömning som före 2026-08-19 — årtalet står kvar oprövat i stället för att modellen
+        // parkeras 30 dagar för något som var nätet.
+        if (!nagonLista)
+            return new Artalsprov(basgenerationsStartArFor(alla, nyaste), Provutfall.OPROVAD, nyaste.titel());
+
+        return new Artalsprov(null, Provutfall.INGEN_TRAFF, null);
+    }
+
+    /**
+     * Sant när generationens motorlista bär vår hästkraft <b>på rätt motor</b>.
+     *
+     * <p><b>Hästkraften ensam är för svag nyckel</b> (mätt 2026-08-19). Vår rad
+     * "BMW 520d 2.0 D 190 hk" är en G30-diesel, men G60:s sida från 2023 bär
+     * {@code 520i (190 Hp)} — en BENSINARE med samma effekt. Ett prov på bara siffran tog den
+     * som träff och hade daterat en 2017-bil till 2023, alltså precis det fel vakten fanns för
+     * att stoppa. Bär listan vår beteckning alls jämförs därför bara de motorerna: {@code 520d}
+     * finns på båda sidorna, med 197 hk hos G60 och 190 hk hos G30 LCI, och skiljer dem åt.
+     *
+     *
+     * <p><b>Gränsen, mätt 2026-08-19:</b> bär två generationer samma beteckning MED samma
+     * hästkraft skiljer provet dem inte åt, och då vinner den nyaste. "BMW 730d 3.0 D 286 hk"
+     * finns både som G11 (2015) och G70 (2022) och dateras till 2022, medan resten av sjuan —
+     * 730i, 740i, 750i, 740d, 745e — landar på 2015. Att i stället alltid ta det LÄGSTA året vore
+     * värre: "BMW 320d 190 hk" finns i både G20 (2018) och F30 (2011), och 2011 hade varit fel
+     * för en rad som beskriver dagens bil. Fönstret {@link #NARA_AR} är kompromissen — det tar
+     * sedanen framför kombin utan att sträcka sig ett decennium bakåt.
+     * <p>Saknas beteckningen helt i listan faller provet tillbaka på ren hästkraft. Det är
+     * normalfallet för alla andra märken: vår "Volkswagen golf" heter inte något som liknar
+     * "1.5 TSI (150 Hp)", och utan reservregeln hade ingen icke-BMW kunnat dateras alls.
+     */
+    static boolean barVaraEffekter(List<MotorAlternativ> deras, String beteckning,
+                                   java.util.Set<Integer> varaEffekter) {
+        java.util.Set<Integer> designerade = new java.util.HashSet<>();
+        java.util.Set<Integer> allaHk = new java.util.HashSet<>();
+        for (MotorAlternativ m : deras) {
+            if (m.hk() == null) continue;
+            allaHk.add(m.hk());
+            if (beteckning != null && barBeteckningen(m.namn(), beteckning)) designerade.add(m.hk());
+        }
+        java.util.Set<Integer> jamfor = designerade.isEmpty() ? allaHk : designerade;
+        return !java.util.Collections.disjoint(varaEffekter, jamfor);
+    }
+
+    /**
+     * Motorbeteckningen i vårt eget modellnamn, eller null när namnet inte bär någon.
+     *
+     * <p>"BMW 520d" → {@code 520d}. Bara namn som ser ut som en beteckning räknas — en siffra
+     * följd av bokstäver, eventuellt med ett inledande M — annars hade "Volkswagen golf" gett
+     * beteckningen "golf" och letat efter den bland motornamnen i onödan.
+     */
+    static String motorbeteckning(String radnamn) {
+        if (radnamn == null) return null;
+        String[] ord = normalisera(radnamn).split("\\s+");
+        String sista = ord[ord.length - 1];
+        // M-bilarna har EN siffra ("m5"), sifferbeteckningarna två eller tre ("520d", "118d").
+        // Just m5/m3 är dessutom de som behöver beteckningen mest: de är delsträngar av M550i
+        // respektive M340i, och utan ordgränsprovet hade de matchat fel motor.
+        return sista.matches("(m\\d|\\d{2,3})[a-z]{0,2}") ? sista : null;
+    }
+
+    /**
+     * Sant när motornamnet bär beteckningen som eget ord.
+     *
+     * <p>Ordgränsen är inte pedanteri: {@code m5} är en äkta delsträng av {@code M550i}, och utan
+     * den hade en M5-rad matchat M550i:s 530 hk och daterats efter fel bil.
+     */
+    private static boolean barBeteckningen(String motornamn, String beteckning) {
+        if (motornamn == null) return false;
+        return Pattern.compile("(?<![a-z0-9])" + Pattern.quote(beteckning) + "(?![a-z0-9])")
+                .matcher(normalisera(motornamn)).find();
+    }
+
+
     public Integer basgenerationsStartAr(String bilnamn) {
         String uppslag = uppslagsnamn(bilnamn);
         return basgenerationsStartAr(generationerFor(uppslag), uppslag);
@@ -554,7 +745,17 @@ public class AutoDataScraperService {
 
     /** Samma regel utan hämtning, så den kan provas mot en sparad modellsida. */
     public static Integer basgenerationsStartAr(List<Generation> alla, String bilnamn) {
-        Generation senaste = valjGeneration(alla, bilnamn, null, false);
+        return basgenerationsStartArFor(alla, valjGeneration(alla, bilnamn, null, false));
+    }
+
+    /**
+     * Samma regel, men med generationen given i stället för uppslagen som den nyaste.
+     *
+     * <p>Delad av det gamla svaret och av {@link #artalMedEffektprov}: hittar effektprovet en
+     * ÄLDRE generation ska dess startår räknas ut på precis samma sätt — grupp på chassikod, annars
+     * faceliftkedjan. Utan den här hade de två vägarna kunnat ge olika årtal för samma rad.
+     */
+    static Integer basgenerationsStartArFor(List<Generation> alla, Generation senaste) {
         if (senaste == null) return null;
 
         String nyckel = grupperingsnyckel(senaste.titel());
