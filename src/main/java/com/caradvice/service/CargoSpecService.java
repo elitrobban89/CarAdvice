@@ -31,6 +31,26 @@ public class CargoSpecService {
     }
 
     /**
+     * Alla rader som har en volym, som {@code {carName, cargoLiters, cargoMaxLiters}}.
+     *
+     * <p>Räknaren i {@link #coverage()} säger hur MÅNGA rader som är fyllda, aldrig vilka tal de
+     * bär. Det räckte inte 2026-08-14: täckningen stod på 602/602/0 medan parsern var död, och
+     * en täckning på 100 % kan inte röra sig och larmar därför aldrig. Samma instrument som
+     * {@code GET /api/admin/ice-generations} är för årtalen.
+     */
+    public List<Map<String, Object>> allaMedVolym() {
+        return repo.findAllWithVolume().stream()
+                .map(c -> {
+                    Map<String, Object> rad = new LinkedHashMap<>();
+                    rad.put("carName", c.getCarName());
+                    rad.put("cargoLiters", c.getCargoLiters());
+                    rad.put("cargoMaxLiters", c.getCargoMaxLiters());
+                    return rad;
+                })
+                .toList();
+    }
+
+    /**
      * Hur stor del av tabellen som faktiskt har en uppmätt volym.
      *
      * <p>Finns för att täckningen annars inte går att mäta: admin-API:t hade `import` och

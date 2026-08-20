@@ -774,6 +774,27 @@ public class CarController {
     }
 
     /**
+     * Hela {@code cargo_spec} — bilnamn och uppmätt bagagevolym.
+     *
+     * <p>Samma instrument som {@link #listaIceGenerations} är för årtalen, och det fanns inte
+     * förrän 2026-08-20: admin-API:t hade {@code import} och {@code upsert} för bagagedata plus
+     * en RÄKNARE, men inget som visar talen. Just den luckan gjorde cargo-haveriet osynligt —
+     * täckningen stod på 602/602/0 medan parsern var död, och en täckning på 100 % kan inte
+     * röra sig och larmar därför aldrig. Ett fel som sitter i VÄRDET syns bara om värdet går
+     * att läsa.
+     *
+     * <p>Bara rader med volym listas; namnen utan siffra är arbetslistan och räknas redan av
+     * {@code utanVolym} i {@link #cargoCoverage}.
+     */
+    @GetMapping("/admin/cargo-specs")
+    public ResponseEntity<?> listaCargoSpecs(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        var rader = cargoSpecService.allaMedVolym();
+        return ResponseEntity.ok(Map.of("total", rader.size(), "cargoSpecs", rader));
+    }
+
+    /**
      * Hela {@code ice_generation} — modellnamn och generationens startår.
      *
      * <p>Räknaren i {@link #cargoCoverage} visar bara HUR MÅNGA rader som fyllts, aldrig VILKA

@@ -638,6 +638,29 @@ class CarControllerTest {
            .andExpect(jsonPath("$.missarPerOrsak.vakten-avstod").value(8));
     }
 
+    // --- GET /api/admin/cargo-specs ---
+
+    @Test
+    void cargoSpecListanKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/cargo-specs"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cargoSpecListanVisarLiterenInteBaraAntalet() throws Exception {
+        // Täckningen stod på 602/602/0 medan parsern var död: ett jobb utan arbete kan inte
+        // skilja "inget kvar att fylla" från "trasig", och en räknare avslöjar aldrig ett fel
+        // som sitter i VÄRDET. Samma lucka som ice-generations-listan fyllde för årtalen.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                new java.util.LinkedHashMap<>(Map.of("carName", "Volvo V60", "cargoLiters", 529)),
+                new java.util.LinkedHashMap<>(Map.of("carName", "Kia Niro EV", "cargoLiters", 475))));
+
+        mvc.perform(get("/api/admin/cargo-specs").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.total").value(2))
+           .andExpect(jsonPath("$.cargoSpecs[0].carName").value("Volvo V60"))
+           .andExpect(jsonPath("$.cargoSpecs[0].cargoLiters").value(529));
+    }
     // --- GET /api/admin/ice-generations/missar ---
 
     @Test
