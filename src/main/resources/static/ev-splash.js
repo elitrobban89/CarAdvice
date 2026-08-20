@@ -326,12 +326,23 @@
   }
 
   // Taket är inte förhandlingsbart: kommer datan aldrig måste splashen ändå släppa.
-  // Uppmätt kallstart på Render är ~13,3 s; animationen tar ~5,5 s, så 9 s täcker den
-  // med marginal utan att kunna låsa sidan om något går sönder längre bak.
-  var MAX_HALL_MS = 9000;
+  // Men hur länge det är rimligt att vänta beror på VARFÖR vi väntar, och det vet vi:
+  //
+  // Svarade tjänsten snabbt på kallstartsproben och datan ändå dröjer, då är något
+  // sönder längre bak — då hjälper ingen väntan och 9 s räcker gott.
+  //
+  // Är EV_COLD_START satt vaknar tjänsten, och det är en KÄND väntan med ett känt slut.
+  // 13,3 s var den uppmätta uppvakningen när regeln skrevs, men 2026-08-20 tog samma
+  // uppvakning 73 s — ett tak på 9 s hade då gett upp långt innan datan kom och lämnat
+  // besökaren med tom billista ändå. 45 s täcker det normala fallet med bred marginal.
+  // Att hålla kvar längre än så är inte försvarbart även om datan skulle komma: skip-
+  // knappen finns hela tiden, men ingen ska tvingas leta efter den.
+  var MAX_HALL_VARM_MS = 9000;
+  var MAX_HALL_KALL_MS = 45000;
 
   function narDataFinns(cb) {
     if (window.EV_DATA_READY) return cb();
+    var tak_ms = window.EV_COLD_START ? MAX_HALL_KALL_MS : MAX_HALL_VARM_MS;
     var gjort = false;
     function ga() {
       if (gjort) return;
@@ -340,9 +351,14 @@
       window.removeEventListener('ev-data-ready', ga);
       cb();
     }
-    var tak = setTimeout(ga, MAX_HALL_MS);
+    var tak = setTimeout(ga, tak_ms);
     window.addEventListener('ev-data-ready', ga);
   }
+
+  // Animationen fyller hit, inte hela vägen. De sista åtta procenten är "appen fick sin
+  // data" och sätts av finish(). Stapeln stod förr på 100 % under hela väntan, alltså
+  // läste kortet som klart medan det just då var det enda som inte var det.
+  var ANIM_PCT = 92;
 
   function markSeen() { try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {} }
   function setPct(el, p) { if (el) el.textContent = Math.round(p) + '% laddat'; }
@@ -391,8 +407,11 @@
     // det här — besökaren ska alltid kunna ta sig ur, även mitt i en väntan.
     function slutfor() {
       if (window.EV_DATA_READY) return finish();
-      if (boot) boot.stop('väntar på datan…');
-      else if (bootTx) bootTx.textContent = 'väntar på datan…';
+      // Vet vi varför det dröjer ska det stå. "väntar på datan" när tjänsten sover säger
+      // inget om att väntan har ett slut — och den kan bli lång, se taket ovan.
+      var txt = window.EV_COLD_START ? 'tjänsten vaknar — det kan ta en stund…' : 'väntar på datan…';
+      if (boot) boot.stop(txt);
+      else if (bootTx) bootTx.textContent = txt;
       narDataFinns(finish);
     }
 
@@ -408,8 +427,8 @@
       });
       animated.cars = true;
       var cEl = suba(CARS_ROW); if (cEl) cEl.innerHTML = carsText(1);
-      if (fill) fill.style.width = '100%';
-      setPct(pctEl, 100);
+      if (fill) fill.style.width = ANIM_PCT + '%';
+      setPct(pctEl, ANIM_PCT);
       timers.push(setTimeout(slutfor, 2200));
       return;
     }
@@ -425,7 +444,7 @@
       timers.push(setTimeout(function () {
         row.classList.add('done');
         row.querySelector('.ev-sp-st').innerHTML = '<span class="ev-sp-check">✓</span>';
-        var pct = (i + 1) / rows.length * 100;
+        var pct = (i + 1) / rows.length * ANIM_PCT;
         if (fill) fill.style.width = Math.round(pct) + '%';
         setPct(pctEl, pct);
         if (i === rows.length - 1) timers.push(setTimeout(slutfor, 500));
