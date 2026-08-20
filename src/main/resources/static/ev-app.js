@@ -316,11 +316,36 @@
 
   loadFavorites();
 
+  // Splashen kan inte överbrygga en kallstart som tar två minuter. Uppmätt 2026-08-20:
+  // uppvakningen tog 121 s, och splashens tak brann av efter 45 s — mellan 51 s och 121 s
+  // stod sidan färdigladdad med en rullgardin som sa "Välj bilmodell…" och innehöll noll
+  // bilar. Det är samma fel som splashen byggdes mot, ett lager längre ned: väntan syns
+  // inte, och då läser den som att tjänsten är trasig.
+  //
+  // Utbruten som egen funktion för att gå att prova: den returnerar sin egen återställare
+  // i stället för att någon annan ska minnas vad som stod där förut.
+  function bilVantetext(sel) {
+    if (!sel || !sel.options || !sel.options.length) return null;
+    const ursprunglig = sel.options[0].textContent;
+    sel.options[0].textContent = "Tjänsten startar — bilarna dyker upp strax…";
+    return function () { sel.options[0].textContent = ursprunglig; };
+  }
+
+  // Texten ska inte blinka förbi på en vaken tjänst; hinner svaret före tröskeln syns den
+  // aldrig. Uppmätt varmt svar är ~2 s, alltså räcker inte en tröskel på någon tiondel.
+  const VANTETEXT_MS = 1200;
+  let aterstallBilText = null;
+  const bilVantetimer = setTimeout(function () {
+    aterstallBilText = bilVantetext(document.getElementById("ev-car-select"));
+  }, VANTETEXT_MS);
+
   fetch(API + "/api/cars")
     .then(r => r.json())
     .then(cars => {
       state.cars = cars;
+      clearTimeout(bilVantetimer);
       const sel = document.getElementById("ev-car-select");
+      if (aterstallBilText) { aterstallBilText(); aterstallBilText = null; }
       cars.forEach((c, i) => {
         const o = document.createElement("option");
         const bat = c.batteryKwh ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + ' kWh · ' : '';
@@ -330,6 +355,7 @@
       evDataKlar();
     })
     .catch(() => {
+      clearTimeout(bilVantetimer);
       document.getElementById("ev-car-select").innerHTML = "<option>Kunde inte hämta bilar</option>";
       evDataKlar();
     });

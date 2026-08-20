@@ -332,13 +332,15 @@
   // sönder längre bak — då hjälper ingen väntan och 9 s räcker gott.
   //
   // Är EV_COLD_START satt vaknar tjänsten, och det är en KÄND väntan med ett känt slut.
-  // 13,3 s var den uppmätta uppvakningen när regeln skrevs, men 2026-08-20 tog samma
-  // uppvakning 73 s — ett tak på 9 s hade då gett upp långt innan datan kom och lämnat
-  // besökaren med tom billista ändå. 45 s täcker det normala fallet med bred marginal.
-  // Att hålla kvar längre än så är inte försvarbart även om datan skulle komma: skip-
-  // knappen finns hela tiden, men ingen ska tvingas leta efter den.
+  // Uppmätta uppvakningar: 13,3 s när regeln skrevs, 73 s senare samma dag, och 121 s vid
+  // en mätning mot en verkligt nedspunnen tjänst 2026-08-20. 75 s täcker de två första.
+  //
+  // Att sikta på det tredje vore fel: en splash som ligger kvar i två minuter är sämre än
+  // att släppa, och ingen splashlängd är rätt svar på en tjänst som tar så lång tid att
+  // vakna. Väntan som blir kvar efter taket bärs av gränssnittet i stället — rullgardinen
+  // säger att tjänsten startar, se bilVantetext() i ev-app.js.
   var MAX_HALL_VARM_MS = 9000;
-  var MAX_HALL_KALL_MS = 45000;
+  var MAX_HALL_KALL_MS = 75000;
 
   function narDataFinns(cb) {
     if (window.EV_DATA_READY) return cb();
