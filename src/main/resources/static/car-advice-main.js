@@ -811,8 +811,12 @@ function caFyllKvotrutan(serverMeddelande) {
   var rubrik = serverMeddelande || ('Du har använt dina ' + CA_ANON_PER_DAY + ' gratis sökningar i dag.');
   box.innerHTML = '<div style="font-weight:600">⏱ ' + rubrik + '</div>'
     + caTrappanHtml(true)
+    // rel="opener" och inte noopener: target="_blank" implicerar noopener i alla moderna
+    // webbläsare sedan 2021, och utan en opener-referens kan subscribe.html inte skicka
+    // tillbaka CA_LOGIN. Då skapas kontot utan att appen någonsin får veta det. Se
+    // meddelandelyssnaren nedan — den kontrollerar avsändarens origin.
     + '<div style="margin-top:10px"><a id="ca-rate-limit-link" href="' + CA_API_BASE
-    + '/subscribe.html" target="_blank" rel="noopener">Skapa gratiskonto eller prenumerera →</a></div>';
+    + '/subscribe.html" target="_blank" rel="opener">Skapa gratiskonto eller prenumerera →</a></div>';
 }
 
 function caLoadPrefs() {
@@ -2623,6 +2627,11 @@ window.addEventListener('storage', function(ev) {
 
 window.addEventListener('message', function(ev) {
   if (!ev.data || !ev.data.type) return;
+  // Avsändaren måste vara vårt eget API eller sidan själv. Meddelandet bär ett inloggnings-
+  // token som skrivs rakt in i localStorage, så utan den här kontrollen kunde vilket annat
+  // skript som helst på WordPress-sidan logga in en användare som någon annan. Kontrollen
+  // blev nödvändig när länkarna till subscribe.html fick rel="opener".
+  if (ev.origin !== CA_API_BASE && ev.origin !== window.location.origin) return;
   if (ev.data.type === 'CA_SCROLL_TO_APP') {
     var el = document.getElementById('ca-wrap');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });

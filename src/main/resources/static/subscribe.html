@@ -40,6 +40,12 @@
   .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 8px; }
   .status-active { background: #d4edda; color: #155724; }
   .status-inactive { background: #f8d7da; color: #721c24; }
+  /* Gratiskontot ar en NIVA, inte ett fel — rott marke pa nagon som just gjort det appen bad om
+     lasar som att nagot gatt snett. Bla = neutral upplysning. */
+  .status-free { background: #dbeafe; color: #1e40af; }
+  .free-tier { margin-top: 14px; padding: 12px 14px; background: #eff6ff; border: 1px solid #bfdbfe;
+               border-radius: 10px; font-size: .9rem; color: #1e3a5f; line-height: 1.5; text-align: left; }
+  .free-tier b { color: #1e40af; }
   .btn-logout { background: #f5f5f5; color: #666; border: 1px solid #ddd; margin-top: 12px; }
   .btn-logout:hover { background: #eee; }
   .btn-cancel { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; margin-top: 8px; font-size: 0.88rem; }
@@ -70,7 +76,14 @@
       <span class="status-badge" id="statusBadge"></span>
     </p>
     <div id="subscribeSection" style="display:none;">
-      <div class="divider">— Prenumeration —</div>
+      <!-- Star FORE prenumerationspitchen med flit: den som just skapat ett gratiskonto ska
+           forst se vad kontot gav, inte ett erbjudande om nagot annat. Utan den har rutan
+           namnde sidan aldrig gratisnivan alls. -->
+      <div class="free-tier">
+        ✓ <b>Ditt gratiskonto är aktivt</b> — du har <b>30 sökningar i timmen</b> i stället för 5 per dygn utan konto.<br>
+        Det kostar ingenting och gäller både bilsökningar och AI-chatten.
+      </div>
+      <div class="divider">— Vill du ha mer? —</div>
       <div class="pricing">
         <div class="price">49 kr<span>/mån</span></div>
         <ul>
@@ -250,8 +263,8 @@ function showLoggedIn(email, status, endsAt, startedAt, startedAtIso, cancelAtPe
       reactivateBtn.style.display = 'none';
     }
   } else {
-    badge.textContent = 'Inte prenumerant';
-    badge.className = 'status-badge status-inactive';
+    badge.textContent = 'Gratiskonto';
+    badge.className = 'status-badge status-free';
     document.getElementById('subscribeSection').style.display = 'block';
     document.getElementById('activeSection').style.display = 'none';
   }
