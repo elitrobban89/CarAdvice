@@ -128,6 +128,67 @@ public class AutoDataScraperService {
     private static final Pattern BMW_SERIEBETECKNING = Pattern.compile("^bmw m?([1-8])\\d{2}[a-z]*$");
 
     /**
+     * Modellnamn där vår nyckelform inte går att slå upp hos auto-data, och vad den heter där.
+     *
+     * <p><b>Varför de aldrig kunde hittas.</b> {@code IceConsumptionService.allModelNames} bygger
+     * nyckeln som märke + <b>ett enda</b> modellord — "Mercedes-Benz C 220 d" blir
+     * {@code "Mercedes-Benz c"}, "Hyundai Santa Fe" blir {@code "Hyundai santa"}. Enordsformen är
+     * med flit och får inte ändras: den finns för att en rad som "Mazda 3 ..." annars matchar
+     * varenda Mazda-titel. Men auto-datas modellista bär hela namnet ("C-class", "Santa Fe"), och
+     * {@code modellsidaFor} kräver att modellnamnet ryms i bilnamnet — därför föll uppslaget
+     * redan på modellsidan, oavsett hur väl resten av kedjan fungerade. Mätt 2026-08-20:
+     * <b>27 av 310</b> namnplåtar låg som {@code ej-hittad}, och talet stod stilla genom hela
+     * generationsarbetet eftersom orsaken satt före allt det rörde.
+     *
+     * <p><b>Namnen är avlästa skarpt</b>, inte gissade: varje värde står ordagrant i
+     * {@code a.modeli > strong} på märkets sida 2026-08-20. Tre av dem är inte den stavning man
+     * hade gissat — Kia skriver <b>"Cee'd"</b> och <b>"Pro Cee'd"</b> med apostrof (som
+     * {@code normalisera} gör till blanksteg, alltså "cee d"), Suzuki har ingen naken "SX4" utan
+     * bara <b>"SX4 S-Cross"</b>, och Mini har varken "Cooper" eller "John Cooper Works" som
+     * modeller — båda är generationer av <b>"Hatch"</b>.
+     *
+     * <p><b>Tre nycklar lämnas med flit oöversatta</b> därför att de rymmer FLERA bilar och ett
+     * årtal per nyckel då blir fel för de andra:
+     * <ul>
+     *   <li>{@code "Audi rs"} = RS Q3 <i>och</i> RS Q8 (RS3–RS7 har egna nycklar).</li>
+     *   <li>{@code "Land Rover range"} = Range Rover, Range Rover Evoque <i>och</i> Range Rover
+     *       Sport.</li>
+     *   <li>{@code "Toyota gr"} = GR Yaris, som auto-data inte har som modell alls.</li>
+     * </ul>
+     * Utan årtal är vakten inert och kortet visar listan som förut — det är det ofarliga läget,
+     * och det är bättre än att ge en Evoque en Range Rovers generationsår.
+     */
+    private static final Map<String, String> MODELLALIAS = Map.ofEntries(
+            Map.entry("mercedes benz a", "Mercedes-Benz A-class"),
+            Map.entry("mercedes benz b", "Mercedes-Benz B-class"),
+            Map.entry("mercedes benz c", "Mercedes-Benz C-class"),
+            Map.entry("mercedes benz e", "Mercedes-Benz E-class"),
+            Map.entry("mercedes benz g", "Mercedes-Benz G-class"),
+            Map.entry("mercedes benz s", "Mercedes-Benz S-class"),
+            Map.entry("hyundai santa", "Hyundai Santa Fe"),
+            Map.entry("jeep grand", "Jeep Grand Cherokee"),
+            Map.entry("toyota land", "Toyota Land Cruiser"),
+            Map.entry("kia ceed", "Kia Cee'd"),
+            Map.entry("kia proceed", "Kia Pro Cee'd"),
+            Map.entry("suzuki sx4", "Suzuki SX4 S-Cross"),
+            Map.entry("mini cooper", "Mini Hatch"),
+            Map.entry("mini john", "Mini Hatch"),
+            Map.entry("audi tts", "Audi TT"),
+            // Alla fem C5-rader hos oss är C5 Aircross; naken "C5" är en annan bil (2001-2017).
+            Map.entry("citroen c5", "Citroen C5 Aircross"));
+
+    /**
+     * Märkesindexet — <b>alla</b> märken, inte de 70 som får plats i sidfoten.
+     *
+     * <p>Sidfoten på en märkes- eller modellsida bär bara de populäraste, och {@code /en/allbrands}
+     * är sidans egen länk vidare till resten. Mätt 2026-08-20: <b>70 mot 391</b> märken, och
+     * listan är en äkta delmängd — <b>ingen</b> av våra 310 namnplåtar byter märkesträff, fyra
+     * får en de aldrig kunde få (Abarth 500/595/695 och Alpine A110, som saknades i sidfoten och
+     * därför var omöjliga att slå upp oavsett modellnamn).
+     */
+    private static final String MARKESINDEX = BAS + "/en/allbrands";
+
+    /**
      * Motoralternativen på en generationssida, i sidans egen ordning (starkast först).
      *
      * <p>Raderna ser ut som {@code <div class="thi"><a href="..."><strong><span class="tit">1.5
@@ -210,10 +271,14 @@ public class AutoDataScraperService {
     }
 
     /**
-     * Märkena, som de listas i sidfoten på varje sida ({@code /en/volkswagen-brand-80}).
+     * Märkena i en märkeslista — sidfotens eller {@link #MARKESINDEX}.
      *
-     * <p>Listan finns överallt, så den kan hämtas från vilken sida som helst — det gör att vi
+     * <p>Samma markup på båda, så den kan hämtas från vilken sida som helst — det gör att vi
      * slipper sitemapen, som är 27 MB fördelat på fyra skärvor och dessutom bär sju språk.
+     *
+     * <p><b>Men de är inte lika långa.</b> Sidfoten bär bara de 70 populäraste märkena, och det
+     * såg ut som hela listan ända tills Abarth och Alpine visade sig saknas där 2026-08-20.
+     * Nattjobbet läser därför {@link #MARKESINDEX} (391 märken), inte sidfoten.
      */
     public static Map<String, String> parseMarken(String html) {
         Map<String, String> ut = new LinkedHashMap<>();
@@ -503,14 +568,35 @@ public class AutoDataScraperService {
     /**
      * Bilnamnet som auto-data känner igen det, eller namnet oförändrat.
      *
-     * <p>Bara BMW:s serier hittills — se {@link #BMW_SERIEBETECKNING}. Översättningen används
-     * genomgående i uppslaget och inte bara vid modellvalet: titelkontrollen jämför mot samma
-     * namn, och "BMW 3 Series Sedan" ryms inte i "BMW 320d".
+     * <p>Tre lager, i tur och ordning: märkets stavning, BMW:s serier
+     * ({@link #BMW_SERIEBETECKNING}) och modellnamnstabellen ({@link #MODELLALIAS}).
+     * Översättningen används genomgående i uppslaget och inte bara vid modellvalet:
+     * titelkontrollen jämför mot samma namn, och "BMW 3 Series Sedan" ryms inte i "BMW 320d".
      */
     static String uppslagsnamn(String bilnamn) {
         if (bilnamn == null) return null;
-        Matcher m = BMW_SERIEBETECKNING.matcher(normalisera(bilnamn));
-        return m.matches() ? "bmw " + m.group(1) + " series" : bilnamn;
+        String namn = asciiMarke(bilnamn);
+        Matcher m = BMW_SERIEBETECKNING.matcher(normalisera(namn));
+        if (m.matches()) return "bmw " + m.group(1) + " series";
+        return MODELLALIAS.getOrDefault(normalisera(namn), namn);
+    }
+
+    /**
+     * Bokstäver som {@link #normalisera} SLÄNGER, utbytta mot den ASCII-form auto-data använder.
+     *
+     * <p>Auto-datas märkesnycklar kommer ur URL-sluggen och är ren ASCII ({@code citroen}), medan
+     * vår CSV skriver märket som det stavas ({@code Citroën}). {@code normalisera} släpper igenom
+     * {@code åäöéèü} men inte {@code ë} — den blir ett blanksteg, så "Citroën C3" blev
+     * <b>"citro n c3"</b> och matchade inget märke alls. Alla fem Citroën-rader låg därför som
+     * {@code ej-hittad} 2026-08-20, och felet satt i en teckenklass, inte i modellnamnet.
+     *
+     * <p>Bytet är smalt med flit: bara tecken vi mätt i vår egen data står här. Nästa märke med
+     * en bokstav utanför allow-listan faller på exakt samma sätt och ska läggas till här — den
+     * generella riktningen (fälla ALLA diakriter) är fel, för {@code åäö} bär betydelse i de
+     * svenska namn samma metod passerar.
+     */
+    private static String asciiMarke(String bilnamn) {
+        return bilnamn.replace('ë', 'e').replace('Ë', 'E');
     }
 
     /**
@@ -979,7 +1065,7 @@ public class AutoDataScraperService {
     private List<Generation> generationerFor(String bilnamn) {
         if (bilnamn == null || bilnamn.isBlank()) return List.of();
 
-        Map<String, String> marken = parseMarken(hamta(BAS + "/en/volkswagen-brand-80"));
+        Map<String, String> marken = parseMarken(hamta(MARKESINDEX));
         String markessida = markessidaFor(bilnamn, marken);
         if (markessida == null) {
             log.debug("auto-data: inget märke matchar {}", bilnamn);
@@ -995,7 +1081,7 @@ public class AutoDataScraperService {
     }
 
     /** Längsta märkesnamnet som inleder bilnamnet vinner — "Land Rover" före "Land". */
-    private static String markessidaFor(String bilnamn, Map<String, String> marken) {
+    static String markessidaFor(String bilnamn, Map<String, String> marken) {
         String namn = normalisera(bilnamn);
         String bast = null, bastUrl = null;
         for (Map.Entry<String, String> e : marken.entrySet()) {
@@ -1007,7 +1093,7 @@ public class AutoDataScraperService {
     }
 
     /** Samma regel för modellen: mest specifika namnet som ryms i bilnamnet vinner. */
-    private static String modellsidaFor(String bilnamn, List<Modell> modeller) {
+    static String modellsidaFor(String bilnamn, List<Modell> modeller) {
         String namn = " " + normalisera(bilnamn) + " ";
         Modell bast = null;
         for (Modell m : modeller) {

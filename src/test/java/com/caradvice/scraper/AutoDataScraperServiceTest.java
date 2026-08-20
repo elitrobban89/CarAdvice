@@ -135,7 +135,8 @@ class AutoDataScraperServiceTest {
 
     @Test
     void markeslistanFinnsPaVarjeSida() {
-        // Sidfoten bär alla märken, så vi slipper sitemapen (27 MB i fyra skärvor, sju språk).
+        // Sidfoten bär de populäraste märkena, så vi slipper sitemapen (27 MB, fyra skärvor, sju
+        // språk). Hela listan ligger på /en/allbrands — se markesindexetBarFlerMarkenAnSidfoten.
         var marken = AutoDataScraperService.parseMarken(fixtur("golf-model.html"));
 
         assertThat(marken).containsKeys("volkswagen", "skoda", "volvo", "land rover");
@@ -407,6 +408,111 @@ class AutoDataScraperServiceTest {
         assertThat(AutoDataScraperService.uppslagsnamn("BMW m3")).isEqualTo("BMW m3");
         assertThat(AutoDataScraperService.uppslagsnamn("Volkswagen golf")).isEqualTo("Volkswagen golf");
         assertThat(AutoDataScraperService.uppslagsnamn(null)).isNull();
+    }
+
+    @Test
+    void avkortadeModellnamnOversattsTillAutoDatasEgna() {
+        /*
+         * allModelNames ger märke + ETT modellord, så "Mercedes-Benz C 220 d" blir
+         * "Mercedes-Benz c". Auto-data listar modellen som "C-class", och modellsidaFor kräver
+         * att modellnamnet ryms i bilnamnet — därför föll uppslaget redan på modellsidan.
+         * 27 av 310 namnplåtar låg som ej-hittad av precis det skälet 2026-08-20.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("Mercedes-Benz c")).isEqualTo("Mercedes-Benz C-class");
+        assertThat(AutoDataScraperService.uppslagsnamn("Mercedes-Benz s")).isEqualTo("Mercedes-Benz S-class");
+        assertThat(AutoDataScraperService.uppslagsnamn("Hyundai santa")).isEqualTo("Hyundai Santa Fe");
+        assertThat(AutoDataScraperService.uppslagsnamn("Jeep grand")).isEqualTo("Jeep Grand Cherokee");
+        assertThat(AutoDataScraperService.uppslagsnamn("Toyota land")).isEqualTo("Toyota Land Cruiser");
+
+        /*
+         * De tre stavningarna man inte hade gissat, alla avlästa ur a.modeli > strong:
+         * Kia skriver Cee'd med apostrof, Suzuki har ingen naken SX4, och Mini har varken
+         * "Cooper" eller "John Cooper Works" som modeller — båda är generationer av Hatch.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("Kia ceed")).isEqualTo("Kia Cee'd");
+        assertThat(AutoDataScraperService.uppslagsnamn("Kia proceed")).isEqualTo("Kia Pro Cee'd");
+        assertThat(AutoDataScraperService.uppslagsnamn("Suzuki sx4")).isEqualTo("Suzuki SX4 S-Cross");
+        assertThat(AutoDataScraperService.uppslagsnamn("Mini cooper")).isEqualTo("Mini Hatch");
+        assertThat(AutoDataScraperService.uppslagsnamn("Mini john")).isEqualTo("Mini Hatch");
+    }
+
+    @Test
+    void nycklarSomRymmerFleraBilarOversattsInte() {
+        /*
+         * Gränsen åt andra hållet, och den är ett medvetet avstående. Ett årtal sparas per
+         * NYCKEL, så en nyckel som rymmer flera bilar får ett årtal som är fel för de andra:
+         * "Audi rs" är både RS Q3 och RS Q8, "Land Rover range" är Range Rover, Evoque OCH
+         * Sport. Utan årtal är vakten inert och kortet visar listan som förut — det ofarliga
+         * läget. "Toyota gr" (GR Yaris) finns inte som modell hos auto-data över huvud taget.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("Audi rs")).isEqualTo("Audi rs");
+        assertThat(AutoDataScraperService.uppslagsnamn("Land Rover range")).isEqualTo("Land Rover range");
+        assertThat(AutoDataScraperService.uppslagsnamn("Toyota gr")).isEqualTo("Toyota gr");
+    }
+
+    @Test
+    void citroensDiakritFallerTillbakaPaAsciiSomMarkessluggen() {
+        /*
+         * normalisera släpper igenom åäöéèü men INTE ë, som blir ett blanksteg: "Citroën c3"
+         * blev "citro n c3" och matchade inget märke alls, eftersom auto-datas märkesnyckel
+         * kommer ur URL-sluggen och är ren ASCII ("citroen"). Alla fem Citroën-rader låg som
+         * ej-hittad av det skälet — felet satt i en teckenklass, inte i modellnamnet.
+         */
+        assertThat(AutoDataScraperService.uppslagsnamn("Citroën c3")).isEqualTo("Citroen c3");
+        assertThat(AutoDataScraperService.uppslagsnamn("Citroën berlingo")).isEqualTo("Citroen berlingo");
+
+        // Och c5 bär BÅDA lagren: först ASCII, sedan modelltabellen. Alla våra fem C5-rader är
+        // C5 Aircross; naken "C5" är en annan bil (2001-2017) och hade gett fel generationsår.
+        assertThat(AutoDataScraperService.uppslagsnamn("Citroën c5")).isEqualTo("Citroen C5 Aircross");
+    }
+
+    @Test
+    void oversattningenTraffarModellenPaRiktigaMarkessidor() {
+        /*
+         * Det avgörande provet: alias ÄR ingenting värt om auto-datas modellista inte tar emot
+         * dem. Sidorna är hämtade skarpt 2026-08-20, och gamla formen ska falla på samma sida
+         * som den nya träffar — annars bevisar testet bara att strängen ändrats.
+         */
+        var mercedes = AutoDataScraperService.parseModeller(fixtur("mercedes-benz-brand.html"));
+        assertThat(AutoDataScraperService.modellsidaFor("Mercedes-Benz c", mercedes)).isNull();
+        assertThat(AutoDataScraperService.modellsidaFor(
+                AutoDataScraperService.uppslagsnamn("Mercedes-Benz c"), mercedes))
+                .endsWith("mercedes-benz-c-class-model-1368");
+
+        // Apostrofen är hela poängen med Kia: normalisera gör "Cee'd" till "cee d", så vårt
+        // hopskrivna "ceed" kunde aldrig träffa. Och ProCeed måste vinna över Cee'd — längsta
+        // modellnamnet som ryms vinner, annars hade en ProCeed daterats som en Cee'd.
+        var kia = AutoDataScraperService.parseModeller(fixtur("kia-brand.html"));
+        assertThat(AutoDataScraperService.modellsidaFor("Kia ceed", kia)).isNull();
+        assertThat(AutoDataScraperService.modellsidaFor(
+                AutoDataScraperService.uppslagsnamn("Kia ceed"), kia)).contains("kia-ceed-model");
+        assertThat(AutoDataScraperService.modellsidaFor(
+                AutoDataScraperService.uppslagsnamn("Kia proceed"), kia)).contains("kia-pro-ceed-model");
+
+        // Mini har ingen modell som heter Cooper — bilen ligger under Hatch.
+        var mini = AutoDataScraperService.parseModeller(fixtur("mini-brand.html"));
+        assertThat(mini).extracting(AutoDataScraperService.Modell::namn).doesNotContain("Cooper");
+        assertThat(AutoDataScraperService.modellsidaFor("Mini cooper", mini)).isNull();
+        assertThat(AutoDataScraperService.modellsidaFor(
+                AutoDataScraperService.uppslagsnamn("Mini cooper"), mini)).contains("hatch");
+    }
+
+    @Test
+    void markesindexetBarFlerMarkenAnSidfoten() {
+        /*
+         * Sidfoten såg ut som hela märkeslistan tills Abarth och Alpine visade sig saknas där:
+         * fyra av våra namnplåtar (Abarth 500/595/695, Alpine A110) kunde alltså inte slås upp
+         * hur rätt modellnamnet än var. /en/allbrands är sidans egen länk vidare till resten.
+         */
+        var sidfoten = AutoDataScraperService.parseMarken(fixtur("volkswagen-brand.html"));
+        var indexet = AutoDataScraperService.parseMarken(fixtur("allbrands.html"));
+
+        assertThat(sidfoten).doesNotContainKeys("abarth", "alpine");
+        assertThat(indexet).containsKeys("abarth", "alpine");
+        assertThat(indexet.size()).isGreaterThan(sidfoten.size() * 4);
+
+        // Äkta delmängd: inget märke tappas, alltså kan ingen befintlig rad byta märkesträff.
+        assertThat(indexet.keySet()).containsAll(sidfoten.keySet());
     }
 
     @Test
