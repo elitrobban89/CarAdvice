@@ -1775,6 +1775,21 @@ function caFetchOneImage(title, wrapId, imgId) {
     addCandidate(dropped);
     addCandidate(dropped.replace(EV_PREFIX, '$1'));
   }
+  // Wikipedia stavar märket med diakritik där vår databas skriver ASCII. För de flesta modeller
+  // spelar det ingen roll — "Skoda Octavia" är en redirect till "Škoda Octavia" — men redirecten
+  // finns inte alltid: "Skoda Enyaq" är 404 på en-wiki medan "Škoda Enyaq" är 200, och kortet
+  // blev därför helt utan bild. Diakritikformen läggs till som EGEN kandidat i stället för att
+  // ersätta ASCII-formen: den kostar en parallell hämtning och rör inte modellerna som fungerar.
+  //
+  // Riktningen är alltså den MOTSATTA mot auto-data-uppslaget, som måste fälla ë till e för att
+  // träffa märkessluggen. Samma märkesnamn, två källor, två stavningar — håll dem isär.
+  var WIKI_MARKEN = { 'Skoda': 'Škoda' };
+  Object.keys(WIKI_MARKEN).forEach(function(ascii) {
+    titles.slice().forEach(function(t) {
+      if (t.indexOf(ascii) !== 0) return;
+      addCandidate(WIKI_MARKEN[ascii] + t.slice(ascii.length));
+    });
+  });
   // de-wiki har utmärkt biltäckning och egna artiklar där en-wiki bara har redirects (Dacia Spring)
   var urls = [];
   titles.forEach(function(t) { urls.push(summaryUrl('en', t)); });

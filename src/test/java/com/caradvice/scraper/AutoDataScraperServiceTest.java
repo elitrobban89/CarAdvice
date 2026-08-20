@@ -847,6 +847,71 @@ class AutoDataScraperServiceTest {
         assertThat(prov.franAr()).isEqualTo(2018);
     }
 
+    @Test
+    void enEnsamNyckelFarInteVinnasAvEnEndaDeladHastkraft() {
+        /*
+         * Mätt på hela tabellen 2026-08-20: 24 rader hade ett årtal från en generation som bar
+         * EN av våra hästkrafter medan en annan bar fyra till sex. Mercedes GLC stod på 2026
+         * (X540, en helt ny bil som auto-data publicerat långt före säljstart) i stället för
+         * 2022 — alltså tystnade varenda GLC 2022-2025.
+         *
+         * Orsaken är att smal-regeln bara kan slå till när familjen är STÖRRE än vår egen rad,
+         * och en modell som är ensam om sitt uppslagsnamn har familjen == vår egen lista. Då
+         * bröts sökningen direkt efter första träffen, och X254 hämtades aldrig ens.
+         */
+        var alla = java.util.List.of(
+                new AutoDataScraperService.Generation("Mercedes-Benz GLC SUV (X540)", 2026, null, "SUV", "/x540"),
+                new AutoDataScraperService.Generation("Mercedes-Benz GLC (X254)", 2022, null, "SUV", "/x254"));
+        var vara = java.util.Set.of(204, 163, 197, 258, 265, 313, 421);
+        java.util.concurrent.atomic.AtomicInteger hamtningar = new java.util.concurrent.atomic.AtomicInteger();
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, "Mercedes-Benz C-class",
+                "Mercedes-Benz GLC 220 d", vara, vara, g -> {
+                    hamtningar.incrementAndGet();
+                    // X540 delar exakt EN siffra med oss — sammanträffandet som vann förut.
+                    if (g.titel().contains("X540"))
+                        return java.util.List.of(motor("GLC 300 (204 Hp)", 204), motor("GLC 400 (489 Hp)", 489));
+                    return java.util.List.of(motor("GLC 200 (204 Hp)", 204), motor("GLC 200 d (163 Hp)", 163),
+                            motor("GLC 220 d (197 Hp)", 197), motor("GLC 300 (258 Hp)", 258),
+                            motor("GLC 300 d (265 Hp)", 265), motor("GLC 300 e (313 Hp)", 313));
+                });
+
+        assertThat(prov.franAr()).isEqualTo(2022);
+        assertThat(prov.generation()).contains("X254");
+        // Sökningen MÅSTE ha gått vidare förbi den första träffen för att hitta den.
+        assertThat(hamtningar.get()).isEqualTo(2);
+    }
+
+    @Test
+    void heltackandeTraffStangerSokningenAven_narFamiljenArStorre() {
+        /*
+         * Gränsen åt andra hållet, och den är mätt: gränsen går vid VÅR EGEN lista, inte
+         * familjens. "BMW 520d 190 hk" mot en familj på fyra effekter träffar G60 som bär 190
+         * och 252 — ofullständigt mot familjen, men vår egen rad har bara 190 och den är helt
+         * täckt. Skulle familjen få avgöra hade varje bred BMW-träff fortsatt leta och dragits
+         * bakåt, alltså exakt det fel smal-regeln skrevs för att hindra.
+         *
+         * Motprovet i familjenFarInteDraEnBredTraffBakat mäter samma gräns genom hämtningarna;
+         * det här mäter den genom att säga ut villkoret.
+         */
+        var alla = java.util.List.of(
+                new AutoDataScraperService.Generation("BMW 5 Series Sedan (G60)", 2023, null, "Sedan", "/g60"),
+                new AutoDataScraperService.Generation("BMW 5 Series Sedan (G30)", 2016, null, "Sedan", "/g30"));
+        java.util.concurrent.atomic.AtomicInteger hamtningar = new java.util.concurrent.atomic.AtomicInteger();
+
+        var prov = AutoDataScraperService.artalMedEffektprov(alla, "bmw 5 series", "BMW 520d",
+                java.util.Set.of(190), java.util.Set.of(190, 252, 340, 286), g -> {
+                    hamtningar.incrementAndGet();
+                    if (g.titel().contains("G60"))
+                        return java.util.List.of(motor("520d (190 Hp)", 190), motor("530i (252 Hp)", 252));
+                    return java.util.List.of(motor("520d (190 Hp)", 190), motor("530d (286 Hp)", 286),
+                            motor("540i (340 Hp)", 340));
+                });
+
+        assertThat(prov.franAr()).isEqualTo(2023);
+        assertThat(hamtningar.get()).isEqualTo(1);
+    }
+
     private static AutoDataScraperService.MotorAlternativ motor(String namn, int hk) {
         return new AutoDataScraperService.MotorAlternativ(namn, hk, "2020 - 2024", "/en/x");
     }

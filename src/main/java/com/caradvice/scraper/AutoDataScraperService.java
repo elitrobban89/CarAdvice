@@ -757,13 +757,16 @@ public class AutoDataScraperService {
         Generation basta = null;
         Integer bastaAr = null;
         int bastaTackning = -1;
+        int bastaEgenTackning = -1;
         boolean bastaArSmal = false;
         int provade = 0;
         for (Generation g : kandidater) {
             if (provade >= MAX_GENERATIONER_PROV) break;
             // Träff funnen: fortsätt bara så länge kandidaterna kan vara samma bil i annan kaross
-            // — eller så länge träffen är SMAL och alltså kan vara ett sammanträffande.
-            if (basta != null && !bastaArSmal && g.franAr() < basta.franAr() - NARA_AR) break;
+            // — eller så länge träffen är SMAL, eller så länge den inte bär HELA vår egen
+            // motorlista och alltså kan slås av en generation som bär mer av den.
+            if (basta != null && !bastaArSmal && barHelaEgenLista(bastaEgenTackning, varaEffekter)
+                    && g.franAr() < basta.franAr() - NARA_AR) break;
             provade++;
 
             List<MotorAlternativ> deras = motorhamtare.apply(g);
@@ -775,17 +778,20 @@ public class AutoDataScraperService {
             if (ar == null) continue;
 
             int tackning = familjTackning(deras, familjen);
+            int egenTackning = familjTackning(deras, varaEffekter);
             // Smal = generationen delar inget MER än vår egen rads motorer med familjen, fast
             // familjen har fler att dela med. Se familjTackning.
-            boolean smal = familjen.size() > varaEffekter.size()
-                    && tackning <= familjTackning(deras, varaEffekter);
+            boolean smal = familjen.size() > varaEffekter.size() && tackning <= egenTackning;
 
             boolean battre = basta == null
                     || tackning > bastaTackning
                     // Lika bra täckning: den gamla kombiregeln gäller, och bara inom sitt fönster
                     // — annars hade en lika smal generation ett decennium bort kunnat vinna.
                     || (tackning == bastaTackning && ar < bastaAr && ar >= bastaAr - NARA_AR);
-            if (battre) { basta = g; bastaAr = ar; bastaTackning = tackning; bastaArSmal = smal; }
+            if (battre) {
+                basta = g; bastaAr = ar; bastaTackning = tackning;
+                bastaEgenTackning = egenTackning; bastaArSmal = smal;
+            }
         }
 
         if (basta != null) return new Artalsprov(bastaAr, Provutfall.TRAFF, basta.titel());
@@ -859,6 +865,42 @@ public class AutoDataScraperService {
      * <p>Här jämförs rena hästkrafter utan beteckningsfilter: familjens rader har per definition
      * andra beteckningar än vår egen, och det är just DEM vi letar efter.
      */
+    /**
+     * Sant när träffen inte bär hela VÅR EGEN rads motorlista och alltså kan vara ett sammanträffande.
+     *
+     * <p><b>Varför sökningen inte får sluta där.</b> {@code smal} (se {@link #familjTackning})
+     * fångar bara familjer som är större än vår egen rad, alltså i praktiken bara BMW:s
+     * sifferserier. En modell som är ENSAM om sitt uppslagsnamn har {@code familjen == våra
+     * effekter}, så {@code smal} kan aldrig bli sant — och då räckte det att en generation delade
+     * EN enda hästkraftssiffra med oss för att vinna, eftersom slingan bröts direkt efter första
+     * träffen.
+     *
+     * <p><b>Mätt 2026-08-20 på hela tabellen</b> (267 modeller, 1 329 sidor): det gav 24 rader ett
+     * årtal från en generation som bar <b>1</b> av våra hästkrafter när en annan bar <b>4-6</b>.
+     * Mercedes GLC stod på 2026 (X540, en helt ny bil) i stället för 2023, VW Tiguan på 2025 i
+     * stället för 2016, BMW X3 på 2025 i stället för 2017 — alla i den dyra riktningen, alltså
+     * kort som tystnar. Auto-data publicerar nästa generations sida långt före försäljningsstart,
+     * och tillverkare återanvänder effektsiffror mellan generationer, så sammanträffandet är
+     * regel och inte undantag.
+     *
+     * <p><b>Gränsen går vid vår EGEN lista, inte familjens</b>, och det är motprovet som satte
+     * den: "BMW 520d 190 hk" mot en familj på fyra effekter träffar G60 som bär 190 och 252 —
+     * ofullständigt mot familjen, men vår egen rad har bara 190 och den är HELT täckt. Skulle
+     * familjen få avgöra hade varje bred BMW-träff fortsatt leta och dragits bakåt, alltså exakt
+     * det fel {@code smal} skrevs för att hindra. Vår egen lista täckt = frågan är besvarad.
+     *
+     * <p><b>Riktningen är ofarlig i sig.</b> Kandidaterna gås igenom nyast först, så det enda den
+     * här vidgningen kan göra är att låta en ÄLDRE generation prövas — årtalet kan bara flyttas
+     * bakåt eller stå still, aldrig fram. Vinnaren avgörs sedan av {@code battre} precis som
+     * förut, alltså ändras inga oavgjorda fall.
+     *
+     * <p>Priset är hämtningar: en modell vars bästa träff är ofullständig betar av upp till
+     * {@link #MAX_GENERATIONER_PROV} generationssidor i stället för att stanna på första träffen.
+     */
+    private static boolean barHelaEgenLista(int egenTackning, java.util.Set<Integer> varaEffekter) {
+        return egenTackning >= varaEffekter.size();
+    }
+
     static int familjTackning(List<MotorAlternativ> deras, java.util.Set<Integer> effekter) {
         if (effekter == null || effekter.isEmpty()) return 0;
         java.util.Set<Integer> traffar = new java.util.HashSet<>();
