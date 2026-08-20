@@ -16,12 +16,12 @@ Alfa Romeo;Stelvio 2.2 Diesel 160 hk;diesel;0.62
 Alfa Romeo;Stelvio 2.2 Diesel 210 hk;diesel;0.68
 Alfa Romeo;Tonale 1.5 MHEV 160 hk;bensin;0.78
 Alfa Romeo;Tonale Plug-in Hybrid 280 hk;laddhybrid;0.45
-Alfa Romeo;147 1.6;bensin;0.72
-Alfa Romeo;147 2.0;bensin;0.82
-Alfa Romeo;147 GTA 3.2;bensin;1.05
-Alfa Romeo;156 1.8;bensin;0.78
-Alfa Romeo;156 2.5 V6;bensin;1
-Alfa Romeo;159 1.9 TDI;diesel;0.6
+Alfa Romeo;147 1.6 120 hk;bensin;0.72
+Alfa Romeo;147 2.0 150 hk;bensin;0.82
+Alfa Romeo;147 GTA 3.2 250 hk;bensin;1.05
+Alfa Romeo;156 1.8 140 hk;bensin;0.78
+Alfa Romeo;156 2.5 V6 192 hk;bensin;1
+Alfa Romeo;159 1.9 TDI 150 hk;diesel;0.6
 Alpine;A110 1.8 T 252 hk;bensin;0.82
 Alpine;A110 S 1.8 T 292 hk;bensin;0.9
 Alpine;A110 GT 1.8 T 300 hk;bensin;0.9
@@ -156,7 +156,7 @@ BMW;X1 xDrive25i 231 hk;bensin;0.85
 BMW;X1 sDrive18d 150 hk;diesel;0.55
 BMW;X1 xDrive18d 150 hk;diesel;0.58
 BMW;X1 xDrive25d 231 hk;diesel;0.64
-BMW;X1 xDrive25e PHEV;laddhybrid;0.5
+BMW;X1 xDrive25e PHEV 220 hk;laddhybrid;0.5
 BMW;X2 sDrive18i 140 hk;bensin;0.72
 BMW;X2 xDrive25i 192 hk;bensin;0.82
 BMW;X2 M35i xDrive 306 hk;bensin;0.95
@@ -168,7 +168,7 @@ BMW;X3 M40i 360 hk;bensin;1.05
 BMW;X3 xDrive20d 190 hk;diesel;0.64
 BMW;X3 xDrive30d 286 hk;diesel;0.7
 BMW;X3 M40d 326 hk;diesel;0.78
-BMW;X3 xDrive30e PHEV;laddhybrid;0.55
+BMW;X3 xDrive30e PHEV 292 hk;laddhybrid;0.55
 BMW;X3 M 3.0 T 510 hk;bensin;1.3
 BMW;X4 xDrive20i 184 hk;bensin;0.85
 BMW;X4 xDrive30i 252 hk;bensin;0.92
@@ -448,7 +448,7 @@ Lotus;Emira 2.0 T AMG 360 hk;bensin;1.02
 Lotus;Emira V6 3.5 400 hk;bensin;1.1
 Maserati;Ghibli 2.0 Mild Hybrid 330 hk;hybrid;1
 Maserati;Ghibli 3.0 V6 350 hk;bensin;1.1
-Maserati;Ghibli 3.0 V6 Diesel;diesel;0.78
+Maserati;Ghibli 3.0 V6 Diesel 275 hk;diesel;0.78
 Maserati;Ghibli Trofeo 3.8 V8 580 hk;bensin;1.42
 Maserati;Levante 2.0 Mild Hybrid 330 hk;hybrid;1.12
 Maserati;Levante 3.0 V6 350 hk;bensin;1.18
@@ -917,8 +917,8 @@ Volvo;V60 B3 163 hk;bensin;0.7
 Volvo;V60 B4 197 hk;bensin;0.78
 Volvo;V60 B5 AWD 250 hk;bensin;0.85
 Volvo;V60 T8 PHEV 455 hk;laddhybrid;0.55
-Volvo;V60 B4 D;diesel;0.55
-Volvo;V60 B5 D AWD;diesel;0.6
+Volvo;V60 B4 D 197 hk;diesel;0.55
+Volvo;V60 B5 D AWD 235 hk;diesel;0.6
 Volvo;V60 Cross Country B4 197 hk;bensin;0.82
 Volvo;V60 Cross Country B5 AWD 250 hk;bensin;0.88
 Volvo;V70 2.0 T 203 hk;bensin;0.85
@@ -927,10 +927,10 @@ Volvo;V90 B4 197 hk;bensin;0.8
 Volvo;V90 B5 AWD 250 hk;bensin;0.88
 Volvo;V90 B6 AWD 300 hk;bensin;0.95
 Volvo;V90 T8 PHEV 455 hk;laddhybrid;0.58
-Volvo;V90 B4 D;diesel;0.58
-Volvo;V90 B5 D AWD;diesel;0.62
+Volvo;V90 B4 D 197 hk;diesel;0.58
+Volvo;V90 B5 D AWD 235 hk;diesel;0.62
 Volvo;V90 Cross Country B5 AWD 250 hk;bensin;0.92
-Volvo;V90 Cross Country B5 D AWD;diesel;0.65
+Volvo;V90 Cross Country B5 D AWD 235 hk;diesel;0.65
 Volvo;S90 B4 197 hk;bensin;0.82
 Volvo;S90 B5 AWD 250 hk;bensin;0.9
 Volvo;S90 B6 AWD 300 hk;bensin;0.98
@@ -939,7 +939,7 @@ Volvo;XC40 B3 163 hk;bensin;0.75
 Volvo;XC40 B4 197 hk;bensin;0.8
 Volvo;XC40 B5 AWD 247 hk;bensin;0.88
 Volvo;XC40 T5 PHEV 262 hk;laddhybrid;0.55
-Volvo;XC40 B4 D;diesel;0.6
+Volvo;XC40 B4 D 197 hk;diesel;0.6
 Volvo;XC60 B4 197 hk;bensin;0.85
 Volvo;XC60 B5 AWD 250 hk;bensin;0.92
 Volvo;XC60 B6 AWD 300 hk;bensin;1
