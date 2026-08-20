@@ -583,6 +583,27 @@ curl -X POST https://caradvice.onrender.com/api/admin/upsert/cargospecs \
   --data-binary @cargo.csv
 ```
 
+### `GET /api/admin/cargo-specs`
+
+Listar alla rader i `cargo_spec` som **har** en uppmätt volym — bilnamn, `cargoLiters`, `cargoMaxLiters`. Samma instrument som `GET /api/admin/ice-generations` är för årtalen, och det fanns inte förrän 2026-08-20: tabellen gick att importera, uppsera och **räkna**, men inte läsa. Just den luckan gjorde cargo-haveriet osynligt — täckningen stod på 602/602/0 medan parsern var död, och **en täckning på 100 % kan inte röra sig och larmar därför aldrig**. Ett fel som sitter i VÄRDET syns bara om värdet går att läsa. Namnen utan siffra är arbetslistan och räknas redan av `utanVolym` i `cargo-coverage`.
+
+```bash
+curl -H "X-Admin-Key: DIN_ADMIN_NYCKEL"   https://caradvice.onrender.com/api/admin/cargo-specs
+```
+
+### `POST /api/admin/ice-consumption/sync`
+
+Gör `ice_consumption` lik `ice-consumption.csv` igen — **både tillägg och borttag**. Enda vägen att få en RÄTTELSE i CSV:n till drift: seedningen vid uppstart hoppar över allt så fort tabellen är minst lika stor som filen, och den enda skrivningen är ett INSERT som befintliga nycklar hoppar över. Nyckeln är `(brand, variant)`, så ett ändrat variantnamn är en **ny rad** — en rättelse hade gett två rader för samma bil och en motorlista med båda. Upptäckt när `BMW 225e Active Tourer PHEV` skulle få sin saknade hästkraftsuppgift.
+
+**Två spärrar mot att ett läsfel tömmer tabellen:** `readCsv` loggar och returnerar en TOM lista när filen inte går att läsa, så en tom CSV avbryter synken; och en synk som vill ta bort mer än en **tiondel** avbryter också — en så stor rensning är ett medvetet ingrepp, inte en sidoeffekt av ett fel.
+
+Ändras en rad som bär hästkrafter måste modellens generationsårtal räknas om efteråt med `DELETE /api/admin/ice-generations/modell?model=...` — effektprovet läser just den siffran, och ett årtal som sparats utan den är oprövat.
+
+```bash
+curl -X POST https://caradvice.onrender.com/api/admin/ice-consumption/sync   -H "X-Admin-Key: DIN_ADMIN_NYCKEL"
+# {"tillagda":1,"borttagna":1,"total":957}
+```
+
 ### `POST /api/admin/sync-web-insights`
 
 Kör insiktsscrapern manuellt (samma jobb som nattens 04:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight") eller via `GET /api/admin/scrape-status`.
@@ -996,6 +1017,42 @@ Klistra in `wordpress-snippet.html` i ett **Anpassad HTML**-block på valfri Wor
 
 > **OBS:** WordPress synkas inte automatiskt från GitHub. Vid uppdatering av `wordpress-snippet.html` måste koden klistras in manuellt i WordPress-blocket.
 
+### Därför byggs så mycket av gränssnittet från JS
+
+Två begränsningar gäller samtidigt på WP-sidorna, och tillsammans avgör de var kod får bo:
+
+1. **Sidan är en manuell kopia.** Ett nytt stycke i snippeten syns inte förrän någon klistrar om den. Text som ska kunna rättas utan omklistring måste därför skrivas av JS:et.
+2. **Inline-skript och injicerad `<style>` blockeras av sidans CSP.** Allt som ska köras måste komma från en extern fil, och all styling som JS lägger till måste vara **inline-stilar på elementen**.
+
+Följden: budgetrutan, bagagestegen, kvotrutans trappa och bränslekalkylatorns demobanderoll byggs alla av JS, inte av HTML i snippeten.
+
+### Statiska filer som WP-sidorna laddar
+
+| Fil | Används av |
+|-----|-----------|
+| `car-advice-main.js` | bilrådgivningen (formulär, kort, kontobar) |
+| `car-advice-chat.js` | chattpanelen |
+| `car-advice-splash.js` | uppstartssplashen (auto-injiceras av main.js) |
+| `fuel-guard.js` | åtkomstvakt skriven för bränslesidan — **men den laddas inte där i dag**, se nedan |
+| `bensinkostnad.js` | **hela bränslekalkylatorns frontend** |
+
+**`bensinkostnad.js` serveras härifrån sedan 2026-08-20, inte från `bilresa.onrender.com`.** Bilresa ligger på Renders gratisnivå och somnar efter ~15 minuter. Uppmätt: **13,3 s för uppvakningen, 0,09 s för nästa anrop.** Eftersom sidans *kod* hämtades därifrån blockerades hela gränssnittet av kallstarten — inte bara datan — och användaren fick **gateway timeout** i stället för en sida som kunde sagt "startar upp". CarAdvice ligger på betald plan och somnar aldrig. Bilresa behövs fortfarande för `/api/fuel-price`, men då är det bara priserna som väntar.
+
+> ⚠️ **Masterkopian är den i `static/`.** Bilresa har kvar `src/bensinkostnad-wpcode.js` och en route som serverar den. Den routen används inte längre av WordPress-sidan — redigeras den filen händer ingenting.
+
+### Nivåerna, och var de genomdrivs
+
+| Tjänst | Utan konto | Gratiskonto | Prenumerant |
+|--------|-----------|-------------|-------------|
+| Bilrådgivning | 5 sökningar/dygn | **30/timme** | obegränsat |
+| Bränslekalkylator | 3 demosökningar | 3 demosökningar | obegränsat |
+
+Bilrådgivningens gränser kommer från `CarController` (`ANON_SEARCHES_PER_DAY`, `MAX_LOGGED_IN_REQUESTS_PER_HOUR`) och speglas i `car-advice-main.js`. **Skillnaden mellan 5/dygn och 30/timme är hela erbjudandet** — står den inte utskriven finns ingen anledning att skapa konto, och det stod den inte förrän 2026-08-20. Nu bär kontobaren nästa steg även när kvoten räcker, och kvotrutan visar hela trappan med serverns eget 429-meddelande som rubrik.
+
+Kalkylatorns gräns genomdrivs av `bcHasUnlimited()` i `bensinkostnad.js`, som kräver `ca_status === 'active'`. Fram till 2026-08-20 gick beslutet genom en `bcIsLoggedIn()` som bara frågade om det fanns ett **token** — ett gratiskonto gav därför obegränsade sökningar, alltså precis det prenumerationen säljer. Två gränsfall är värda att kunna: en prenumerant får **inte** låsas ute när servern kallstartar (serversvaret uteblir, cachat `ca_status` får gälla), och ett gammalt `ca_status='active'` **utan** giltigt token ger inte tillgång. `body.logged-in` ger fri tillgång till WordPress-inloggade — sajtägarens genväg för att testa utan att betala, och förklaringen till att manuell provning kan lura.
+
+**`fuel-guard.js` är skriven för samma sida men laddas inte där**, och `#bc-content`-wrappern den kräver saknas i blocket. Den genomdriver en annan produkt — betalvägg utan demo — och är alltså inte det som gäller i dag.
+
 ---
 
 ## Token-budget (Groq gratisplan)
@@ -1018,6 +1075,11 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: 
 
 | Fix | Beskrivning |
 |-----|-------------|
+| Gratiskontot gav bort det prenumerationen säljer | Bränslekalkylatorns åtkomstbeslut gick genom `bcIsLoggedIn()`, som bara frågar om det finns ett giltigt **token** — aldrig om `subscriptionStatus`. Ett gratiskonto fick därför obegränsade sökningar och demot blev meningslöst för alla som orkade skapa ett konto. `bcHasUnlimited()` kräver nu `ca_status === 'active'`, och `bcIsLoggedIn` är **borttagen** — att lämna kvar den hade lämnat kvar exakt den fälla som orsakade buggen. Provad i åtta lägen; de två som är lätta att få fel åt varsitt håll är att en prenumerant inte får låsas ute när servern kallstartar, och att ett gammalt `ca_status='active'` utan giltigt token inte ger tillgång |
+| Kalkylatorns kod hämtades från en tjänst som sover | Sidan laddade sin frontend med `<script src>` från `bilresa.onrender.com`, som ligger på gratisnivån. Uppmätt 2026-08-20: **13,3 s för uppvakningen, 0,09 s för nästa anrop**. Eftersom sidans *kod* låg där blockerades hela gränssnittet av kallstarten, inte bara datan — resultatet blev gateway timeout. Filen serveras nu från CarAdvice (betald plan, somnar aldrig). Båda de ursprungliga skälen till att den inte är ett WPCode-snippet gäller fortfarande: git push ska räcka för utrullning, och inline-skript blockeras av CSP |
+| Kontot skapades men appen fick aldrig veta det | `subscribe.html` meddelar appen med `window.opener.postMessage`, men länkarna dit bar `rel="noopener"` — **och även utan attributet implicerar `target="_blank"` noopener i alla moderna webbläsare sedan 2021**. `window.opener` var alltid null. Kvar fanns `storage`-eventet, som bara fyras mellan flikar på samma origin: på `caradvice.onrender.com` bär det, men körs appen inbäddad på annan domän får den ingen signal alls. Länkarna bär nu `rel="opener"`, och meddelandelyssnaren kontrollerar avsändarens origin — meddelandet bär ett token som skrivs rakt in i localStorage |
+| Den som inte hade konto fick aldrig veta vad ett konto ger | Kontobaren visade bara den egna begränsningen ("3 av 5 sökningar kvar i dag") och nämnde aldrig att ett gratiskonto ger 30 i timmen. Skillnaden **är** erbjudandet. Baren bär nu nästa steg även när kvoten räcker, och kvotrutan visar hela trappan med serverns eget 429-meddelande som rubrik — den statiska texten sa "10 gratis sökningar den här timmen", sant före 2026-08-16 och fel efteråt |
+| Bagagestegen visade bensinbilar för den som sökt elbil | Ett batteri höjer lastgolvet, så samma kaross rymmer olika mycket beroende på drivlina. Rullgardinen har nu en egen stege för elbil (laddhybrid och hybrid ligger kvar på bensinstegen — samma karosser). Ankarbilarna är avlästa ur `cargo_spec`, och det behövdes: den gamla listan var fel i **tre av fem steg** — Yaris stod som "minst 300" på 286 l, Golf som "minst 400" på 381, och 700-steget bar V90 (560) och EV9 (333) |
 | Varianterna göms av ihopslagningen — en rad per variant | Följdfynd på raden nedan: även med rätt data slog `groupByBattery` ihop allt inom 8 % till ett spann, så MG4 gen 2:s fyra namngivna varianter blev två namnlösa rader (`52.8 kWh (405–416 km)`, `61.7 kWh (405–452 km)`) — trimnamnet faller bort när gruppen innehåller flera namn, alltså syntes versionerna aldrig. Räckvidden skiljer nu dubblett från variant (olika kWh + samma räckvidd = netto/brutto av samma bil; samma kWh + olika räckvidd = två varianter), och ihopslagningen söker i alla grupper i stället för bara den intilliggande, eftersom sorteringen på kapacitet lägger EV6 Long Range 2WD:s 80- och 84-rader isär trots samma 582 km. Samtidigt raderas ev-databases aliasrader för EX30 (P3/P5/P8 AWD = Single Motor/Twin Motor Performance med nettokapacitet), med spärr i synken så de inte återskapas 02:00 — annars hade bilen visat nio rader för fyra bilar. Utfall mot prod-raderna: MG4 2025 **6 rader med versionsnamn** (var 4 utan), MG4 2023 3, EX30 **4** (var 2), EV6 7 (var 3 — bilen har tre batterigenerationer × tre drivlinor) |
 | MG4:s versioner syntes inte i "Motor & batterialternativ" | Kortet visade `41.9 kWh (325 km), 52.8 kWh (405 km), 61.7 kWh (405 km), 74.4 kWh (545 km)` — inga trimnamn, och 61,7 kWh parat med 405 km fast databasen har 452 km på den raden (405 km hör till XPOWER). Listan kom alltså från AI:n, inte från `ev_spec`. Orsaken låg tre steg bort: live-svaret bar titeln `Nissan Leaf (62<U+202F>kWh) (2020)` med **smalt hårt mellanslag**, och Javas `\s` matchar bara ASCII-blanksteg, så `SPEC_JUNK` i `CarTitle.normalize` bet aldrig. Med "62 kWh" kvar i titeln hittade `verifiedEngineOptions` ingen rad och `GroqService` föll tillbaka på AI:ns text — precis som den ska när ingen träff finns, alltså utan felmeddelande eller loggrad. Fix: `CarTitle` städar `\p{Cf}` och `\p{Zs}` först och tar bort den tomma parentesen som blir kvar. Verifierat mot de nio riktiga MG4-raderna: `MG4 (2025)` ger nu `41.9 kWh (325 km) · Urban Standard Range, 52.8 kWh (405–416 km), 61.7 kWh (405–452 km), 74.4 kWh (545 km) · Premium Extended Range`, `MG4 (2023)` ger gen 1:s tre. Buggen träffade varje bil vars titel bar batteriet i parentes, inte bara MG4, och samma osynliga tecken kunde slå ut Blockets årsfilter, dedupen, nyprisuppslaget och leasingmatchningen |
 | Mobilanpassningen av bilkorten slog aldrig igenom | `@media (max-width: 520px)` låg på rad 70 i snippeten medan `.ca-card-head`/`.ca-card-body` definieras på rad ~449. Media queries ger **ingen** extra specificitet, så vid samma specificitet avgör källordningen — mobilreglerna förlorade mot varje huvudregel längre ned i filen och korten fick desktopens `22px 28px` även på 390 px. Blocket ligger nu sist (lägg nya mobilregler där). Uppmätt på 390 px: `22px 28px 18px` → `18px 20px 14px`; desktop oförändrad. Övriga överstyrningar i blocket (`#ca-hero`, `.ca-grid`, `.ca-field`) låg redan före sina huvudregler och fungerade hela tiden — buggen drabbade bara kortreglerna. Syntes inte förrän padding-resetten nedan fixats, eftersom allt ändå nollställdes dessförinnan |
