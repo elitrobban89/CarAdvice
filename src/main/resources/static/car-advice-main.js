@@ -769,6 +769,52 @@ function caFixCategoryLabels() {
     if (sel.options[i].value === 'elbil') sel.options[i].textContent = 'Elbil';
   }
 }
+/**
+ * Trappan: var du står nu, vad ett gratiskonto ger, vad en prenumeration ger.
+ *
+ * Utan den här ser en icke inloggad bara SIN EGEN gräns ("5 sökningar i dag") och får aldrig
+ * veta att ett gratiskonto ger 30 i timmen. Skillnaden mellan 5/dygn och 30/timme är hela
+ * skälet att skapa ett konto — står den inte utskriven finns ingen anledning att göra det.
+ *
+ * Byggs från JS och inte i HTML-snippeten av två skäl: WP-sidan är en manuell kopia, så ett
+ * nytt stycke i snippeten syns inte förrän den klistras om, och stegen bär INLINE-stilar
+ * eftersom ett injicerat <style> blockeras av sidans CSP — samma begränsning som budgetrutan
+ * och burnout-laddaren fick kringgå.
+ *
+ * Siffrorna kommer från CA_ANON_PER_DAY / CA_LOGGED_IN_PER_HOUR, som redan speglar
+ * CarControllers konstanter. Hårdkodas de här glider de isär vid nästa gränsändring.
+ */
+function caTrappanHtml(harRad) {
+  var rad = function(etikett, text, stark) {
+    return '<div style="display:flex;gap:8px;align-items:baseline;margin-top:6px">'
+         + '<span style="flex:0 0 auto;font-weight:700;color:' + (stark ? '#fcd34d' : 'rgba(255,255,255,.55)') + '">'
+         + etikett + '</span>'
+         + '<span style="color:rgba(255,255,255,.8)">' + text + '</span></div>';
+  };
+  return (harRad ? '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(245,158,11,.25)"></div>' : '')
+       + rad('Utan konto', CA_ANON_PER_DAY + ' sökningar per dygn', false)
+       + rad('Gratiskonto', '<b>' + CA_LOGGED_IN_PER_HOUR + ' sökningar per timme</b> — kostar ingenting', true)
+       + rad('49 kr/mån', 'obegränsat, plus AI EV Laddassistent', false);
+}
+
+/**
+ * Fyller rutan som visas när kvoten tagit slut.
+ *
+ * Rubriken kommer från SERVERNS 429-svar när det finns — den vet de riktiga gränserna och
+ * pekar redan på nästa steg. Den statiska texten i snippeten sa "10 gratis sökningar den här
+ * timmen", vilket var sant före 2026-08-16 och fel efteråt; att låta servern tala är enda
+ * sättet att slippa den sortens glidning igen.
+ */
+function caFyllKvotrutan(serverMeddelande) {
+  var box = document.getElementById('ca-rate-limit-box');
+  if (!box) return;
+  var rubrik = serverMeddelande || ('Du har använt dina ' + CA_ANON_PER_DAY + ' gratis sökningar i dag.');
+  box.innerHTML = '<div style="font-weight:600">⏱ ' + rubrik + '</div>'
+    + caTrappanHtml(true)
+    + '<div style="margin-top:10px"><a id="ca-rate-limit-link" href="' + CA_API_BASE
+    + '/subscribe.html" target="_blank" rel="noopener">Skapa gratiskonto eller prenumerera →</a></div>';
+}
+
 function caLoadPrefs() {
   try {
     var raw = localStorage.getItem('ca-prefs');
@@ -2415,6 +2461,11 @@ async function caGetRecommendation() {
 
     if (r.status === 429) {
       document.getElementById('ca-cards').innerHTML = '';
+      // Servern vet de riktiga gränserna och pekar redan på nästa steg i trappan — läs dess
+      // text i stället för att upprepa en siffra här. Ett trasigt svar får inte fälla rutan.
+      var kvotSvar = null;
+      try { kvotSvar = (await r.json()).error; } catch (e) { /* rubriken faller tillbaka */ }
+      caFyllKvotrutan(kvotSvar);
       document.getElementById('ca-rate-limit-box').style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Prenumerera och s\xf6k →';
@@ -2527,7 +2578,13 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     title.textContent = 'Demo';
     var anonLim = limit || CA_ANON_PER_DAY;
     var anonPer = (period === 'hour') ? 'denna timme' : 'i dag';
-    desc.textContent = remaining !== null ? ' – ' + remaining + ' av ' + anonLim + ' s\xf6kningar kvar ' + anonPer : ' – ' + anonLim + ' gratis s\xf6kningar per dygn';
+    // Trappans nästa steg står med i baren, inte bara i väggen: en användare som ser "3 av 5
+    // kvar" utan att veta vad ett konto ger har ingen anledning att skapa ett. Skillnaden
+    // mellan 5/dygn och 30/timme ÄR erbjudandet, så den måste synas innan kvoten tar slut.
+    var anonKvar = remaining !== null
+      ? ' – ' + remaining + ' av ' + anonLim + ' s\xf6kningar kvar ' + anonPer
+      : ' – ' + anonLim + ' gratis s\xf6kningar per dygn';
+    desc.textContent = anonKvar + ' \xb7 gratiskonto ger ' + CA_LOGGED_IN_PER_HOUR + '/timme';
     if (remaining !== null && remaining <= 2) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera / Logga in';
