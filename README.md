@@ -1035,10 +1035,14 @@ Följden: budgetrutan, bagagestegen, kvotrutans trappa och bränslekalkylatorns 
 | `car-advice-splash.js` | uppstartssplashen (auto-injiceras av main.js) |
 | `fuel-guard.js` | åtkomstvakt skriven för bränslesidan — **men den laddas inte där i dag**, se nedan |
 | `bensinkostnad.js` | **hela bränslekalkylatorns frontend** |
+| `ev-app.js` | **Elbilsladdnings hela frontend** — hör hemma i det repot, se nedan |
+| `ev-splash.js` | Elbilsladdnings uppstartssplash + kallstartsvakt |
 
 **`bensinkostnad.js` serveras härifrån sedan 2026-08-20, inte från `bilresa.onrender.com`.** Bilresa ligger på Renders gratisnivå och somnar efter ~15 minuter. Uppmätt: **13,3 s för uppvakningen, 0,09 s för nästa anrop.** Eftersom sidans *kod* hämtades därifrån blockerades hela gränssnittet av kallstarten — inte bara datan — och användaren fick **gateway timeout** i stället för en sida som kunde sagt "startar upp". CarAdvice ligger på betald plan och somnar aldrig. Bilresa behövs fortfarande för `/api/fuel-price`, men då är det bara priserna som väntar.
 
 > ⚠️ **Masterkopian är den i `static/`.** Bilresa har kvar `src/bensinkostnad-wpcode.js` och en route som serverar den. Den routen används inte längre av WordPress-sidan — redigeras den filen händer ingenting.
+
+**`ev-app.js` och `ev-splash.js` serveras härifrån sedan 2026-08-20, men hör hemma i Elbilsladdning.** Samma mönster som ovan och av samma skäl: Elbilsladdning ligger på Renders gratisnivå, och `elitrobban.se/elbilsladdning` hämtade renderingsblockerande taggar därifrån — vid kallstart syntes bara rubriken. **Men här är masterkopian INTE den i `static/`, tvärtemot raden ovan:** filerna finns i båda repona och måste vara **identiska**, och proven bor i Elbilsladdning (`backend/src/test/js/kallstart-prov.js`, 18 prov) tillsammans med ett driftprov som hämtar den serverade filen och jämför med repots kopia. Redigeras bara kopian här får ändringen inget prov som ser den. Datan hämtas fortfarande från Elbilsladdning — därför är `ASSETS` skilt från `API` i filerna, och basen härleds ur `document.currentScript` så att samma fil fungerar från båda värdarna.
 
 ### Nivåerna, och var de genomdrivs
 
