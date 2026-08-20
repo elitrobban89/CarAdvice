@@ -623,9 +623,11 @@ function caUpdateFuelVisibility() {
   }
   caUpdateMaxAgeVisibility();
   // Drivmedlet sätts här PROGRAMMATISKT (familjebil + laddbox blir "el"), och en tilldelning
-  // i JS utlöser inget change-event. Utan det här anropet visade budgetrutan bensinkombiernas
-  // priser för en sökning appen själv just gjort till en elbilssökning.
+  // i JS utlöser inget change-event. Utan de här anropen visade budgetrutan bensinkombiernas
+  // priser — och bagagestegen bensinbilarnas ankare — för en sökning appen själv just gjort
+  // till en elbilssökning.
   caRenderEvBudgetHint();
+  caRenderCargoLevels();
 }
 
 function caUpdateMaxAgeVisibility() {
@@ -670,21 +672,77 @@ function caSavePrefs() {
 // Nivåerna är satta efter KAROSSTYP och inte efter jämna hundratal: det är karossen som avgör
 // vad som får plats, och intervallen nedan är typiska för respektive klass. Modellnamnen står
 // kvar som ankare — "500 l" säger ingenting förrän det står bredvid en bil man känner igen.
-var CA_CARGO_LEVELS = [
-  { v: 0,   txt: 'Spelar ingen roll' },
-  { v: 300, txt: 'Minst 300 l — halvkombi (Zoe, Yaris)' },
-  { v: 400, txt: 'Minst 400 l — kompakt-SUV (Kamiq, Golf)' },
-  { v: 500, txt: 'Minst 500 l — mellankombi (V60, Niro EV)' },
-  { v: 600, txt: 'Minst 600 l — stor kombi eller stor SUV (Octavia Combi, MG5)' },
-  { v: 700, txt: 'Minst 700 l — stor SUV eller sk\xe5pbil (V90, EV9)' }
-];
+//
+// EGEN STEGE FÖR ELBIL (2026-08-20). Ett batteri höjer golvet, så samma kaross rymmer olika
+// mycket beroende på drivlina, och en stege med bensinbilar som ankare ljuger för den som sökt
+// elbil. Laddhybrid och hybrid ligger kvar på bensinstegen: de bygger på samma karosser.
+//
+// ALLA ANKARE ÄR UPPMÄTTA UR cargo_spec, inte valda ur minnet — och det var nödvändigt, för
+// den gamla listan var fel i tre av fem steg: Yaris stod som "minst 300" på 286 l, Golf som
+// "minst 400" på 381, Niro som "minst 500" på 475, och sämst av allt bar 700-steget V90 (560)
+// och EV9 (333), alltså två bilar som inte ens är i närheten. Ändras ett ankare: läs av
+// GET /api/admin/cargo-specs igen, hitta inte på en siffra.
+//
+// Talen i kommentarerna nedan är avläsningen 2026-08-20 och står där för att nästa läsare ska
+// kunna se att ankaret ligger ÖVER sin nivå utan att slå upp något.
+var CA_CARGO_LEVELS = {
+  // Elbilar: 600-steget är tunt med flit — mellan Model 3 (594) och Model Y (854) finns nästan
+  // inga folkliga elbilar, och det är en sann sak om marknaden, inte en lucka i datan.
+  el: [
+    { v: 0,   txt: 'Spelar ingen roll' },
+    { v: 300, txt: 'Minst 300 l — halvkombi (EX30, Zoe)' },                  // 318, 338
+    { v: 400, txt: 'Minst 400 l — kompakt-SUV (Leaf, Kona Electric)' },      // 435, 466
+    { v: 500, txt: 'Minst 500 l — mellanklass (IONIQ 5, ID.4)' },            // 527, 543
+    { v: 600, txt: 'Minst 600 l — stor SUV (XPENG G9, Smart #5)' },          // 660, 630
+    { v: 700, txt: 'Minst 700 l — stor SUV eller sk\xe5pbil (Model Y, \xeb-Berlingo)' } // 854, 775
+  ],
+  ovrigt: [
+    { v: 0,   txt: 'Spelar ingen roll' },
+    { v: 300, txt: 'Minst 300 l — halvkombi (Corolla, Golf)' },              // 361, 381
+    { v: 400, txt: 'Minst 400 l — kompakt-SUV (Kamiq, Astra)' },             // 400, 422
+    { v: 500, txt: 'Minst 500 l — mellankombi (XC60, V60)' },                // 505, 529
+    { v: 600, txt: 'Minst 600 l — stor kombi eller stor SUV (Octavia, Tiguan)' }, // 600, 615
+    { v: 700, txt: 'Minst 700 l — stor SUV eller sk\xe5pbil (Kodiaq, Sorento)' }  // 765, 898
+  ]
+};
+
+/**
+ * Stegen som gäller för nuvarande val — elbilsstegen bara när sökningen ÄR en elbilssökning.
+ *
+ * Samma villkor som caBudgetLevelsFor använder, och av samma skäl: drivmedelsrutan göms när
+ * kategorin är "elbil" eller "laddhybrid" och nollställs då till "spelar ingen roll", så
+ * kategorin måste läsas med. Laddhybrid räknas som bensin här — karossen är densamma.
+ */
+function caCargoLevels() {
+  var cat = document.getElementById('ca-category');
+  var fuel = document.getElementById('ca-fuel');
+  var elbilssok = (cat && cat.value === 'elbil') || (fuel && fuel.value === 'el');
+  return CA_CARGO_LEVELS[elbilssok ? 'el' : 'ovrigt'];
+}
+
+/**
+ * Ritar om alternativen utan att tappa användarens val.
+ *
+ * Nivåernas VÄRDEN är identiska i båda stegarna — bara texten skiljer — så det valda talet
+ * överlever alltid bytet. Vore de olika hade fältet tyst nollställts när drivmedlet ändrades,
+ * alltså samma sorts osynliga återställning som bagagefältet redan drabbats av en gång.
+ */
+function caRenderCargoLevels() {
+  var sel = document.getElementById('ca-cargo');
+  if (!sel) return;
+  var valt = sel.value;
+  sel.innerHTML = caCargoLevels().map(function(n) {
+    return '<option value="' + n.v + '">' + n.txt + '</option>';
+  }).join('');
+  sel.value = valt;
+}
 function caEnsureCargoField() {
   if (document.getElementById('ca-cargo')) return;
   var pass = document.getElementById('ca-passengers');
   if (!pass) return;
   var rad = pass.closest('.ca-grid');
   if (!rad) return;
-  var opts = CA_CARGO_LEVELS.map(function(n) {
+  var opts = caCargoLevels().map(function(n) {
     return '<option value="' + n.v + '">' + n.txt + '</option>';
   }).join('');
   var wrap = document.createElement('div');
@@ -810,11 +868,16 @@ function caBindChangeListeners() {
   var chg = document.getElementById('ca-charger');
   if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
   if (cat) cat.addEventListener('change', caRenderEvBudgetHint);
+  // Bagagestegen byter ankarbilar med drivmedlet (se caCargoLevels). Kategorin måste vara med
+  // eftersom "elbil" göms drivmedelsrutan och nollställer den — utan den här raden hade en
+  // elbilssökning fått bensinbilar som exempel.
+  if (cat) cat.addEventListener('change', caRenderCargoLevels);
   if (chg) chg.addEventListener('change', caUpdateFuelVisibility);
   // Drivmedlet styr numera VILKEN nivåstege rutan läser (se caBudgetLevelsFor) — utan den här
   // raden byttes texten först när budgeten eller kategorin rördes, alltså oftast aldrig.
   var fuel = document.getElementById('ca-fuel');
   if (fuel) fuel.addEventListener('change', caRenderEvBudgetHint);
+  if (fuel) fuel.addEventListener('change', caRenderCargoLevels);
   if (bud) bud.addEventListener('input', caUpdateSliderFill);
   if (nc)  nc.addEventListener('change', caUpdateMaxAgeVisibility);
 }
@@ -2694,6 +2757,10 @@ function caInit() {
   caFixCategoryLabels();
   caLoadPrefs();
   caReadUrlParams();
+  // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
+  // hade annars visat bensinbilar som ankare för en sparad elbilssökning ända tills användaren
+  // rörde en ruta. Samma ordningsfälla som budgetrutans nivåstege haft.
+  caRenderCargoLevels();
   caBindChangeListeners();
   caRenderHistory();
   caFcInit();
