@@ -331,16 +331,20 @@
   // Svarade tjänsten snabbt på kallstartsproben och datan ändå dröjer, då är något
   // sönder längre bak — då hjälper ingen väntan och 9 s räcker gott.
   //
-  // Är EV_COLD_START satt vaknar tjänsten, och det är en KÄND väntan med ett känt slut.
-  // Uppmätta uppvakningar: 13,3 s när regeln skrevs, 73 s senare samma dag, och 121 s vid
-  // en mätning mot en verkligt nedspunnen tjänst 2026-08-20. 75 s täcker de två första.
+  // Är EV_COLD_START satt vaknar tjänsten. Det taket är MEDVETET KORT, och det är inte
+  // en gissning om hur lång uppvakningen är — det är ett beslut om vad väntan ska se ut.
   //
-  // Att sikta på det tredje vore fel: en splash som ligger kvar i två minuter är sämre än
-  // att släppa, och ingen splashlängd är rätt svar på en tjänst som tar så lång tid att
-  // vakna. Väntan som blir kvar efter taket bärs av gränssnittet i stället — rullgardinen
-  // säger att tjänsten startar, se bilVantetext() i ev-app.js.
+  // Uppvakningen är uppmätt till 121,2 s (webbläsare, till billistan fanns) och 114,99 s
+  // (curl mot /api/health) 2026-08-20, mot en bevisat nedspunnen tjänst. Tidigare tal på
+  // 13,3 s och 73 s samma dag är alltså inte det normala. INGET TAK KAN TÄCKA TVÅ MINUTER
+  // utan att låsa besökaren bakom en splash i över en minut — och ett tak på 75 s brann av
+  // före datan varje gång ändå, alltså gav den långa väntan ingenting.
+  //
+  // Därför 20 s: splashen täcker animationen plus en kort respit, och släpper sedan fram
+  // en LÄSBAR sida. Väntan som återstår bärs av gränssnittet, som säger vad som pågår —
+  // se bilVantetext() i ev-app.js. En sida man kan läsa slår en splash man inte kan lämna.
   var MAX_HALL_VARM_MS = 9000;
-  var MAX_HALL_KALL_MS = 75000;
+  var MAX_HALL_KALL_MS = 20000;
 
   function narDataFinns(cb) {
     if (window.EV_DATA_READY) return cb();
