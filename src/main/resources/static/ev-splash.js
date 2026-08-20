@@ -325,6 +325,25 @@
     return { stop: function (finalTxt) { stopped = true; set(finalTxt); } };
   }
 
+  // Taket är inte förhandlingsbart: kommer datan aldrig måste splashen ändå släppa.
+  // Uppmätt kallstart på Render är ~13,3 s; animationen tar ~5,5 s, så 9 s täcker den
+  // med marginal utan att kunna låsa sidan om något går sönder längre bak.
+  var MAX_HALL_MS = 9000;
+
+  function narDataFinns(cb) {
+    if (window.EV_DATA_READY) return cb();
+    var gjort = false;
+    function ga() {
+      if (gjort) return;
+      gjort = true;
+      clearTimeout(tak);
+      window.removeEventListener('ev-data-ready', ga);
+      cb();
+    }
+    var tak = setTimeout(ga, MAX_HALL_MS);
+    window.addEventListener('ev-data-ready', ga);
+  }
+
   function markSeen() { try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {} }
   function setPct(el, p) { if (el) el.textContent = Math.round(p) + '% laddat'; }
 
@@ -368,6 +387,15 @@
       markSeen();
     }
 
+    // Animationen klar är inte samma sak som appen klar. Skip-knappen går medvetet förbi
+    // det här — besökaren ska alltid kunna ta sig ur, även mitt i en väntan.
+    function slutfor() {
+      if (window.EV_DATA_READY) return finish();
+      if (boot) boot.stop('väntar på datan…');
+      else if (bootTx) bootTx.textContent = 'väntar på datan…';
+      narDataFinns(finish);
+    }
+
     overlay.querySelector('.ev-splash-skip').addEventListener('click', finish);
     fetchStats();
 
@@ -382,7 +410,7 @@
       var cEl = suba(CARS_ROW); if (cEl) cEl.innerHTML = carsText(1);
       if (fill) fill.style.width = '100%';
       setPct(pctEl, 100);
-      timers.push(setTimeout(finish, 2200));
+      timers.push(setTimeout(slutfor, 2200));
       return;
     }
 
@@ -400,7 +428,7 @@
         var pct = (i + 1) / rows.length * 100;
         if (fill) fill.style.width = Math.round(pct) + '%';
         setPct(pctEl, pct);
-        if (i === rows.length - 1) timers.push(setTimeout(finish, 500));
+        if (i === rows.length - 1) timers.push(setTimeout(slutfor, 500));
       }, appear + FLIP));
     });
   }

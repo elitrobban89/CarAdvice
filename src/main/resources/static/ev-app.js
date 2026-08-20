@@ -54,6 +54,19 @@
       .then(function () { clearTimeout(larm); });
   })();
 
+  // Splashen ska ligga kvar tills datan faktiskt finns, inte tills animationen råkar ta
+  // slut. Utan signalen stängs den efter en fast tid, och vid en kallstart hann det bli
+  // ~1,7 s där appen stod tom efteråt — precis det tomrum splashen fanns till för.
+  //
+  // BÅDE träff och miss signalerar. Ett misslyckat anrop är också ett slut på väntan, och
+  // en splash som ligger kvar för data som aldrig kommer är värre än ingen splash alls.
+  function evDataKlar() {
+    if (window.EV_DATA_READY) return;
+    window.EV_DATA_READY = true;
+    try { window.dispatchEvent(new Event("ev-data-ready")); } catch (e) {}
+  }
+  window.evDataKlar = evDataKlar;
+
   let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "" };
   // ===== PRISLOGIK BÖRJAR — ren, testas av backend/src/test/js/pris-prov.js =====
   //
@@ -314,9 +327,11 @@
         o.value = i; o.textContent = `${c.name}  (${bat}AC ${c.maxAcKw} kW · DC ${c.maxDcKw} kW)`;
         sel.appendChild(o);
       });
+      evDataKlar();
     })
     .catch(() => {
       document.getElementById("ev-car-select").innerHTML = "<option>Kunde inte hämta bilar</option>";
+      evDataKlar();
     });
 
   fetch(API + "/api/ev-sales-rank")
