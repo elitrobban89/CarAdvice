@@ -1,21 +1,27 @@
 // ── Bränslekostnadsberäkningen — frontend för WordPress-sidan
 //    https://elitrobban.se/branslekostnad-berakning/
 //
-//    Sidan laddar den här filen med <script src>. Den serveras HÄRIFRÅN och inte från
-//    bilresa.onrender.com av ett enda skäl: Bilresa ligger på Renders gratisnivå och
-//    somnar efter ~15 min. Mätt 2026-08-20 tog uppvakningen 13,3 s medan nästa anrop tog
-//    0,09 s — och eftersom sidans KOD hämtades därifrån blockerades hela gränssnittet av
-//    kallstarten, inte bara datan. Användaren fick gateway timeout. CarAdvice ligger på
-//    betald plan och somnar aldrig.
+//    ⚠️ DEN HÄR FILEN FINNS I TVÅ REPON OCH MÅSTE VARA IDENTISK I BÅDA.
+//      · CarAdvice  src/main/resources/static/bensinkostnad.js  ← SERVERAS härifrån
+//      · Bilresa    src/bensinkostnad-wpcode.js                 ← TESTAS där (35 tester)
 //
-//    Filen var ursprungligen ett WPCode-snippet som klistrades in i WordPress. Det byttes
-//    till en extern fil för att en git push ska räcka för att rulla ut ändringar — och
-//    inline-skript blockeras dessutom av sidans CSP. Båda skälen gäller fortfarande; det
-//    enda som ändrats är VILKEN tjänst som serverar filen.
+//    Uppdelningen är inte snygg, men var och en av halvorna har ett skäl:
 //
-//    ⚠️ MASTERKOPIAN ÄR DEN HÄR. Bilresa har kvar src/bensinkostnad-wpcode.js och en route
-//    som serverar den. Den routen används inte längre av WordPress-sidan — redigeras den
-//    filen händer ingenting. Ändra här.
+//    SERVERAS av CarAdvice därför att Bilresa ligger på Renders gratisnivå och somnar efter
+//    ~15 min. Mätt 2026-08-20: 13,3 s för uppvakningen mot 0,09 s varm. Eftersom sidans KOD
+//    hämtades därifrån blockerades hela gränssnittet av kallstarten — inte bara datan — och
+//    användaren fick gateway timeout. CarAdvice ligger på betald plan och somnar aldrig.
+//
+//    TESTAS i Bilresa därför att testerna redan bor där: frontend.test.js kör filen i en
+//    vm-kontext med DOM-stubb. CarAdvice är ett Maven-projekt utan JS-runner, och att införa
+//    en valdes bort 2026-08-20.
+//
+//    Ändrar du något: ändra i BÅDA. Bilresas server.test.js har ett drift-test som jämför
+//    sin kopia mot den som CarAdvice faktiskt serverar och gör därför skillnaden hörbar.
+//
+//    Filen var ursprungligen ett WPCode-snippet. Den är en extern fil därför att en git push
+//    ska räcka för utrullning OCH därför att inline-skript blockeras av sidans CSP — båda
+//    skälen gäller fortfarande; det enda som ändrats är vilken tjänst som är värd.
 
 // ── Global state ─────────────────────────────────────
 var bcStartLat = null, bcStartLon = null, bcMap = null, bcRouteLayer = null;
