@@ -773,6 +773,26 @@ public class CarController {
         return ResponseEntity.ok(ut);
     }
 
+
+    /**
+     * Synkar {@code ice_consumption} mot CSV:n — enda vägen att få en RÄTTELSE till drift.
+     *
+     * <p>Seedningen vid uppstart hoppar över allt så fort tabellen är minst lika stor som CSV:n,
+     * och skriver bara INSERT för nycklar som saknas. Ett ändrat variantnamn är en ny nyckel, så
+     * en rättelse hade gett två rader för samma bil och en motorlista med båda. Se
+     * {@code IceConsumptionService.synkaFranCsv} för spärren som hindrar att ett läsfel tömmer
+     * tabellen.
+     *
+     * <p>Ändras en rad som bär hästkrafter måste modellens generationsårtal räknas om efteråt
+     * ({@code DELETE /api/admin/ice-generations/modell?model=...}) — effektprovet läser just den
+     * siffran, och ett årtal som sparats utan den är oprövat.
+     */
+    @PostMapping("/admin/ice-consumption/sync")
+    public ResponseEntity<?> synkaIceConsumption(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(iceConsumptionService.synkaFranCsv());
+    }
     /**
      * Hela {@code cargo_spec} — bilnamn och uppmätt bagagevolym.
      *

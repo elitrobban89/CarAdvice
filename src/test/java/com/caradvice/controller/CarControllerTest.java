@@ -638,6 +638,28 @@ class CarControllerTest {
            .andExpect(jsonPath("$.missarPerOrsak.vakten-avstod").value(8));
     }
 
+    // --- POST /api/admin/ice-consumption/sync ---
+
+    @Test
+    void iceConsumptionSynkKraverNyckel() throws Exception {
+        mvc.perform(post("/api/admin/ice-consumption/sync"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void iceConsumptionSynkSvararMedVadSomAndrades() throws Exception {
+        // Enda vägen att få en RÄTTELSE i CSV:n till drift: seedningen kan bara lägga till, och
+        // ett ändrat variantnamn är en ny nyckel — utan borttagningen blir den gamla raden kvar.
+        when(iceConsumptionService.synkaFranCsv()).thenReturn(
+                new java.util.LinkedHashMap<>(Map.of("tillagda", 1, "borttagna", 1, "total", 957)));
+
+        mvc.perform(post("/api/admin/ice-consumption/sync").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.tillagda").value(1))
+           .andExpect(jsonPath("$.borttagna").value(1))
+           .andExpect(jsonPath("$.total").value(957));
+    }
+
     // --- GET /api/admin/cargo-specs ---
 
     @Test

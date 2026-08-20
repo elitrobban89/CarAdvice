@@ -359,4 +359,60 @@ class IceConsumptionServiceTest {
         assertThat(service.engineOptionsForTitle("Koenigsegg Jesko (2023)")).isNull();
         assertThat(service.engineOptionsForTitle(null)).isNull();
     }
+
+    @Test
+    void synkenRattarEnAndradRadIStalletForAttDubblera() {
+        /*
+         * Seedningen kan bara LÄGGA TILL: den hoppar över allt när tabellen är minst lika stor
+         * som CSV:n, och nyckeln är (brand, variant) — ett ändrat variantnamn är en ny rad, så
+         * en rättelse hade gett två rader för samma bil och en motorlista med båda. Skarpt fall:
+         * "BMW;225e Active Tourer PHEV" saknade hästkraftsuppgift.
+         */
+        SimpleDriverDataSource ds = new SimpleDriverDataSource(new org.h2.Driver(),
+                "jdbc:h2:mem:sync_" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
+        JdbcTemplate jdbc = new JdbcTemplate(ds);
+        IceConsumptionService s = new IceConsumptionService(jdbc);
+        s.ensureTableAndSeed();
+
+        // Härma läget före rättelsen: raden utan hk-uppgift ligger kvar i drift
+        jdbc.update("DELETE FROM ice_consumption WHERE brand = 'BMW' AND variant = ?",
+                "225e Active Tourer PHEV 245 hk");
+        jdbc.update("INSERT INTO ice_consumption(brand, variant, fuel, liter_per_mil) VALUES (?,?,?,?)",
+                "BMW", "225e Active Tourer PHEV", "laddhybrid", 0.45);
+
+        Map<String, Object> ut = s.synkaFranCsv();
+
+        assertThat(ut).containsEntry("tillagda", 1).containsEntry("borttagna", 1);
+        List<String> kvar = jdbc.queryForList(
+                "SELECT variant FROM ice_consumption WHERE brand = 'BMW' AND variant LIKE '225e%'",
+                String.class);
+        assertThat(kvar).containsExactly("225e Active Tourer PHEV 245 hk");
+    }
+
+    @Test
+    void synkenTarInteBortMerAnEnTiondel() {
+        /*
+         * readCsv loggar och returnerar en TOM lista när filen inte går att läsa, och en synk
+         * som litar på det hade raderat allt. Spärren gäller även en halvläst fil: en rensning
+         * av den storleken är ett medvetet ingrepp, inte en sidoeffekt.
+         */
+        SimpleDriverDataSource ds = new SimpleDriverDataSource(new org.h2.Driver(),
+                "jdbc:h2:mem:sparr_" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
+        JdbcTemplate jdbc = new JdbcTemplate(ds);
+        IceConsumptionService s = new IceConsumptionService(jdbc);
+        s.ensureTableAndSeed();
+        int fore = jdbc.queryForObject("SELECT COUNT(*) FROM ice_consumption", Integer.class);
+
+        // 200 rader som inte finns i CSV:n — långt över tiondelen
+        for (int i = 0; i < 200; i++) {
+            jdbc.update("INSERT INTO ice_consumption(brand, variant, fuel, liter_per_mil) VALUES (?,?,?,?)",
+                    "Skräp", "rad " + i, "bensin", 0.5);
+        }
+
+        Map<String, Object> ut = s.synkaFranCsv();
+
+        assertThat(ut).containsKey("avbrutet");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ice_consumption", Integer.class))
+                .isEqualTo(fore + 200);
+    }
 }
