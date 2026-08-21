@@ -117,6 +117,62 @@ class EvDatabaseScraperServiceMatchTest {
         assertThat(EvDatabaseScraperService.isAliasName(null)).isFalse();
     }
 
+    @Test
+    void aliassidansEffektHittarSinRadAndaTrotsSparren() {
+        /*
+         * Spärren ovan hoppar över hela sidan — och därmed systemeffekten, som bara står där.
+         * Uppmätt 2026-08-21 mot alla 645 cheatsheet-sidor var EX30:s tre huvudvarianter de enda
+         * rader i ev_spec som spärren gjorde PERMANENT effektlösa: taket låg på 455 av 556, och
+         * alla andra tomma rader hade sin förklaring hos källan (bilen finns inte kvar) eller i
+         * namngivningen. Det här hålet låg hos oss.
+         *
+         * Uppslaget flyttar bara EFFEKTEN. Raden rörs fortfarande inte, för det är kWh-kolumnen
+         * (netto mot brutto) och dubblettrader spärren finns för — inte hästkrafterna.
+         */
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 P5"))
+                .isEqualTo("Volvo EX30 Single Motor");
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 P5 Long Range"))
+                .isEqualTo("Volvo EX30 Single Motor Extended Range");
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 P8 AWD"))
+                .isEqualTo("Volvo EX30 Twin Motor Performance");
+
+        // Sidnamnet normaliseras på vägen in, så skiftläge och extra mellanslag spelar ingen roll
+        assertThat(EvDatabaseScraperService.effektradForAlias("  volvo  ex30  p8  awd  "))
+                .isEqualTo("Volvo EX30 Twin Motor Performance");
+    }
+
+    @Test
+    void aliasUtanMottagareGerIngenRad() {
+        /*
+         * P3 (110 kW / 150 hk) är en MY27-instegsvariant som vi inte har någon rad för, och
+         * Cross Country fångas inte av spärren utan går den vanliga vägen. Ett uppslag som
+         * gissade åt dem skulle skriva 150 hk till en 272-hk-bil — hellre ingen effekt än fel
+         * effekt, samma regel som vakterna i övrigt följer.
+         */
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 P3")).isNull();
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 P3 Long Range")).isNull();
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX30 Cross Country P8 AWD")).isNull();
+        assertThat(EvDatabaseScraperService.effektradForAlias("Volvo EX90 P8 AWD")).isNull();
+        assertThat(EvDatabaseScraperService.effektradForAlias(null)).isNull();
+    }
+
+    @Test
+    void varjeAliasuppslagPekarPaEnRadSomFinns() {
+        /*
+         * Uppslaget är hårdkodat mot radnamn, och ett radnamn kan bytas ut i en annan fil.
+         * Testet är kopplingen som gör att en sådan omdöpning syns här i stället för att tyst
+         * lämna EX30 utan effekt igen — nyckeln slås upp i nameMap precis som i synken.
+         */
+        var db = db(spec("Volvo EX30 Single Motor", 344),
+                    spec("Volvo EX30 Single Motor Extended Range", 480),
+                    spec("Volvo EX30 Twin Motor Performance", 460));
+        for (String sidnamn : new String[]{"Volvo EX30 P5", "Volvo EX30 P5 Long Range", "Volvo EX30 P8 AWD"}) {
+            String radnamn = EvDatabaseScraperService.effektradForAlias(sidnamn);
+            assertThat(radnamn).as("uppslag saknas för " + sidnamn).isNotNull();
+            assertThat(db).as("raden '" + radnamn + "' finns inte i ev_spec").containsKey(norm(radnamn));
+        }
+    }
+
     // ── EV6-fallet: DB-namnet är mer specifikt än ev-databases ──────────────────
 
     @Test

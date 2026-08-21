@@ -67,6 +67,41 @@ public class EvDatabaseScraperService {
         return carName != null && ALIAS_NAME.matcher(carName.trim()).matches();
     }
 
+    /**
+     * Aliasets beteckning → namnet på DEN rad hos oss vars effekt sidan bär.
+     *
+     * <p><b>Varför tabellen behövs.</b> {@link #ALIAS_NAME} hoppar över hela sidan, och därmed
+     * också systemeffekten — som bara står där. Uppmätt 2026-08-21 mot alla 645 cheatsheet-sidor:
+     * EX30:s tre huvudvarianter är de enda rader i hela {@code ev_spec} som spärren gör
+     * <b>permanent</b> effektlösa. Alla andra tomma rader har en förklaring som ligger hos källan
+     * (bilen finns inte längre på sajten) eller i namngivningen. Det här hålet ligger hos oss.
+     *
+     * <p><b>Spärren är fortfarande rätt för RADEN.</b> Alias-sidan bär nettokapacitet där vi har
+     * brutto (49 mot 51 kWh, 65 mot 69) och skulle skapa en andra rad för samma bil. Effekten
+     * däremot är samma tal oavsett vad kWh-kolumnen säger — så uppslaget skriver
+     * {@code ev_power} och rör inte {@code ev_spec}. Det är hela skillnaden mot att lucka upp
+     * {@code ALIAS_NAME}.
+     *
+     * <p><b>P3 saknas med flit.</b> ev-database listar {@code EX30 P3} och {@code P3 Long Range}
+     * på 110 kW (150 hk) — en MY27-instegsvariant som vi inte har någon rad för. Ett uppslag utan
+     * mottagare skulle antingen skrivas till fel rad eller till ingen; alltså står den inte här.
+     * {@code Cross Country} står inte heller här: den fångas inte av {@code ALIAS_NAME}, går den
+     * vanliga vägen och har redan effekt.
+     *
+     * <p>Effektsiffrorna är avlästa på sidorna 2026-08-21: P5 = 200 kW (272 PS), P8 AWD = 315 kW
+     * (428 PS). De skrivs inte in här — <b>sajten är källan</b>, precis som för alla andra rader;
+     * tabellen säger bara VILKEN rad talet hör till.
+     */
+    private static final Map<String, String> ALIAS_EFFEKTRAD = Map.of(
+            "volvo ex30 p5",            "Volvo EX30 Single Motor",
+            "volvo ex30 p5 long range", "Volvo EX30 Single Motor Extended Range",
+            "volvo ex30 p8 awd",        "Volvo EX30 Twin Motor Performance");
+
+    /** Vår rads namn för ett alias vars effekt vi ändå vill ha, annars null. */
+    static String effektradForAlias(String scrapedName) {
+        return scrapedName == null ? null : ALIAS_EFFEKTRAD.get(normalize(scrapedName));
+    }
+
     private final EvSpecRepository repo;
     private final com.caradvice.service.CargoSpecService cargoSpecService;
     private final com.caradvice.service.EvPowerService evPowerService;
@@ -106,6 +141,7 @@ public class EvDatabaseScraperService {
         int failed = 0;
         int collisions = 0;
         int cargoFilled = 0;   // bagagevolymer som fylldes i cargo_spec pa kopet
+        int aliasEffekter = 0; // effekter hamtade ur en aliassida vars rad vi INTE uppdaterar
         Map<String, String> claims = new LinkedHashMap<>();   // DB-rad → första skrapade bilen, se claimRow
         for (String path : carUrls) {
             int hour = ZonedDateTime.now(STOCKHOLM).getHour();
@@ -118,7 +154,13 @@ public class EvDatabaseScraperService {
                 ScrapedSpec scraped = scrapeCarPage(BASE_URL + path);
                 if (scraped == null || scraped.name().isBlank()) { failed++; continue; }
                 if (isExcludedBrand(scraped.name())) continue;   // inte failed — medvetet bortvald
-                if (isAliasName(scraped.name())) continue;       // samma bil, ev-databases namn
+                if (isAliasName(scraped.name())) {
+                    // Raden rörs inte (nettokapacitet, dubbletter) — men EFFEKTEN på sidan är
+                    // samma tal oavsett kWh-kolumnen, och för EX30 finns den ingen annanstans.
+                    // Se ALIAS_EFFEKTRAD för varför bara vissa alias har en mottagare.
+                    aliasEffekter += sparaAliasEffekt(scraped, nameMap) ? 1 : 0;
+                    continue;                                    // samma bil, ev-databases namn
+                }
 
                 // Bagagevolymen ligger på samma sida — fyll den medan vi ändå är här. Egen
                 // try/catch: cargo_spec är en annan tabell och ett fel där får inte sänka
@@ -226,8 +268,16 @@ public class EvDatabaseScraperService {
         }
 
         int total = carUrls.size();
-        log.info("Sync complete — updated={} created={} failed={} collisions={} bagagevolymer={} total={}",
-                updated, created, failed, collisions, cargoFilled, total);
+        log.info("Sync complete — updated={} created={} failed={} collisions={} bagagevolymer={} aliaseffekter={} total={}",
+                updated, created, failed, collisions, cargoFilled, aliasEffekter, total);
+        // Noll aliaseffekter betyder att uppslaget inte längre hittar sina sidor — beteckningarna
+        // har bytt namn hos källan. Utan larmet står EX30 tyst utan effekt igen, och ingen siffra
+        // rör sig som avslöjar det: samma fälla som cargo-coverage 602/602/0 satt i.
+        if (aliasEffekter == 0 && !ALIAS_EFFEKTRAD.isEmpty()) {
+            log.warn("SCRAPER ALERT: inget alias gav en effekt den här körningen — ALIAS_EFFEKTRAD "
+                    + "({} uppslag) matchar inga sidnamn längre. EX30 blir utan systemeffekt.",
+                    ALIAS_EFFEKTRAD.size());
+        }
         if (collisions > 0) {
             log.warn("Scraper: {} bilar hoppades över för att de pekade på en redan tagen DB-rad — "
                     + "se SCRAPER ALERT-raderna ovan", collisions);
@@ -245,15 +295,43 @@ public class EvDatabaseScraperService {
      * bagageifyllningen: effekten är en bonus på sidan vi ändå hämtar, och ett fel där får inte
      * sänka EV-synken, som är körningens egentliga uppdrag.
      */
-    private void sparaEffekt(String carName, ScrapedSpec scraped) {
-        if (scraped.hk() <= 0) return;
+    private boolean sparaEffekt(String carName, ScrapedSpec scraped) {
+        if (scraped.hk() <= 0) return false;
         try {
             if (evPowerService.spara(carName, scraped.hk())) {
                 log.debug("Systemeffekt för {}: {} hk", carName, scraped.hk());
+                return true;
             }
         } catch (Exception e) {
             log.warn("Systemeffekt för {} kunde inte skrivas: {}", carName, e.getMessage());
         }
+        return false;
+    }
+
+    /**
+     * Effekten ur en aliassida, skriven till den rad {@link #ALIAS_EFFEKTRAD} pekar ut.
+     *
+     * <p>Uppslaget går via {@code nameMap} och inte rakt på namnet i tabellen: nyckeln i
+     * {@code ev_power} måste vara radens EGEN stavning (det är den {@code EvSpecService} slår
+     * upp med), och saknas raden ska ingenting skrivas alls hellre än en föräldralös nyckel.
+     * Byter vi namn på raden tystnar effekten alltså i stället för att hamna fel.
+     *
+     * @return true när ett tal faktiskt skrevs — talet räknas för att en tom körning ska larma
+     */
+    private boolean sparaAliasEffekt(ScrapedSpec scraped, Map<String, EvSpec> nameMap) {
+        String radnamn = effektradForAlias(scraped.name());
+        if (radnamn == null || scraped.hk() <= 0) return false;
+        EvSpec rad = nameMap.get(normalize(radnamn));
+        if (rad == null) {
+            log.warn("SCRAPER ALERT: aliaset '{}' pekar på raden '{}' som inte finns i ev_spec — "
+                    + "effekten {} hk skrevs inte. ALIAS_EFFEKTRAD behöver ses över.",
+                    scraped.name(), radnamn, scraped.hk());
+            return false;
+        }
+        log.info("Systemeffekt ur aliassidan {}: {} hk → {}", scraped.name(), scraped.hk(), rad.getCarName());
+        // Räknas först när talet FAKTISKT skrevs: ett orimligt hk avvisas tyst av spara(), och
+        // en räknare som ökade ändå hade gjort larmet nedan blint för precis det fallet.
+        return sparaEffekt(rad.getCarName(), scraped);
     }
 
     private List<String> fetchCarUrls() {
