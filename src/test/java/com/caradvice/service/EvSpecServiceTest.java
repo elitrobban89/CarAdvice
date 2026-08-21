@@ -148,6 +148,32 @@ class EvSpecServiceTest {
         assertThat(service().isKnownEv("Volvo XC60 PHEV")).isTrue();
     }
 
+    @Test
+    void laddhybridensTvaNamnTackerVarsinTitelform() {
+        /*
+         * Volvos laddhybrider ligger under två namn med IDENTISKA siffror, och det ser ut som
+         * dubblettrader ända tills man läser drivlinekrock: "phev" är ett DRIVLINEORD, så
+         * PHEV-raden filtreras bort för varje titel som saknar ordet. Raderna täcker alltså
+         * varsin titelform, och den som tar bort den ena tystnar korten för den andra.
+         *
+         * Testet finns för att designen är osynlig i datan — uppmätt 2026-08-21 saknade V90 sin
+         * T8-halva medan fyra syskon hade båda, och utan det här provet ser en spegling ut som
+         * slöseri nästa gång någon städar.
+         */
+        // Räckvidderna skiljer sig BARA här, som spårämne: i drift är raderna identiska, och
+        // då går det inte att se vilken av dem träffen kom från.
+        EvSpec phev = new EvSpec("Volvo V90 PHEV", 7.4, 0.0, 18.8, 68, 690_000);
+        EvSpec t8   = new EvSpec("Volvo V90 T8",   7.4, 0.0, 18.8, 60, 690_000);
+        when(repo.findAll()).thenReturn(List.of(phev, t8));
+
+        // Annonsens form: T8. Bara T8-raden är möjlig — PHEV-raden kräver ordet i titeln.
+        assertThat(service().formatForTitle("Volvo V90 T8 Recharge AWD (2021)", 15000).wltpKm())
+                .isEqualTo(60);
+        // AI:ns form: PHEV. Då är det tvärtom.
+        assertThat(service().formatForTitle("Volvo V90 PHEV (2021)", 15000).wltpKm())
+                .isEqualTo(68);
+    }
+
     // ── Årsmodellen väljer generation också i spec-chipsen ──────────────────────
 
     @Test

@@ -743,6 +743,17 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("MG Marvel R Performance", 11.0,  94.0, 70.0, 370, 505_000));
 
         // PHEVs
+        //
+        // Volvos laddhybrider ligger med FLIT under två namn med identiska siffror — det är
+        // inte dubblettrader. DRIVLINEORD i EvSpecService gör "phev" till ett krav på titeln:
+        // en rad vars namn bär ordet filtreras bort så fort titeln saknar det (drivlinekrock).
+        // "Volvo XC60 T8 (2021)" träffar därför BARA T8-raden, "Volvo XC60 PHEV (2021)" bara
+        // PHEV-raden, och en bensin-XC60 filtreras bort av båda. Tas den ena halvan bort
+        // tystnar korten för den titelformen — och svenska annonser skriver T8, inte PHEV.
+        //
+        // V90 saknade sin T8-halva medan S60, V60, XC60 och XC90 hade båda (uppmätt 2026-08-21),
+        // så "Volvo V90 T8 Recharge" fick ingenting. Raden nedan är en ren spegling av
+        // V90 PHEV — samma batteri, räckvidd och pris, inga nya uppgifter.
         if (!existing.contains("Volvo XC60 PHEV"))
             extras.add(new EvSpec("Volvo XC60 PHEV",          7.4, 0.0, 18.8,  68, 670_000, "PHEV"));
         if (!existing.contains("Volvo XC60 T8"))
@@ -757,6 +768,8 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volvo V60 T6",             3.7, 0.0, 11.6,  56, 510_000, "PHEV"));
         if (!existing.contains("Volvo V90 PHEV"))
             extras.add(new EvSpec("Volvo V90 PHEV",           7.4, 0.0, 18.8,  68, 690_000, "PHEV"));
+        if (!existing.contains("Volvo V90 T8"))
+            extras.add(new EvSpec("Volvo V90 T8",             7.4, 0.0, 18.8,  68, 690_000, "PHEV"));
         if (!existing.contains("Toyota RAV4 Plug-in"))
             extras.add(new EvSpec("Toyota RAV4 Plug-in",      3.3, 0.0, 18.1,  75, 480_000, "PHEV"));
         if (!existing.contains("Toyota Prius Plug-in"))
