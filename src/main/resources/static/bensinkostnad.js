@@ -1526,8 +1526,19 @@ function bcCountUp(id, endVal, decimals) {
   requestAnimationFrame(step);
 }
 
-// ── Demo-counter (localStorage, max 3 för utloggade) ──────────────
-var BC_DEMO_MAX = 3;
+// ── Demo-counter (localStorage, 30 per rullande timme för icke-prenumeranter) ──────────────
+/*
+ * Var 3 stycken LIVSTID fram till 2026-08-22 — en vägg, inte ett demo. Talet är nu detsamma
+ * som sökningarna i CarAdvice (CarController.SEARCHES_PER_HOUR), och av samma skäl: samma
+ * pott för alla utan prenumeration, och kontot skapas för att prenumerera.
+ *
+ * Fönstret är rullande och inte livstid, för räknaren ligger i localStorage och kostar
+ * ingenting per körning: själva beräkningen är ren matematik på redan cachad pris- och
+ * förbrukningsdata, utan ett enda AI-anrop. En livstidsvägg tog alltså betalt för något som
+ * inte kostar något — och den gick att kringgå genom att tömma webbläsarlagret.
+ */
+var BC_DEMO_MAX = 30;
+var BC_DEMO_WINDOW_MS = 3600000;
 
 // null = serverkollen har inte svarat ännu; true/false = verifierat svar från CarAdvice
 var bcAuthValid = null;
@@ -1584,9 +1595,17 @@ function bcHasUnlimited() {
   if (bcAuthValid === false) return false;
   return localStorage.getItem('ca_status') === 'active';
 }
+/** Tidsstämplar inom fönstret. Trasigt/gammalt värde ger tom lista — hellre släppa igenom. */
+function bcDemoTimes() {
+  var grans = Date.now() - BC_DEMO_WINDOW_MS;
+  try {
+    var raw = JSON.parse(localStorage.getItem('bc_demo_times') || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(function(t) { return typeof t === 'number' && t >= grans; });
+  } catch (e) { return []; }
+}
 function bcDemoRemaining() {
-  var used = parseInt(localStorage.getItem('bc_demo_count') || '0', 10);
-  return Math.max(0, BC_DEMO_MAX - used);
+  return Math.max(0, BC_DEMO_MAX - bcDemoTimes().length);
 }
 function bcUpdateDemoUI() {
   var banner   = document.getElementById('bc-demoBanner');
@@ -1608,8 +1627,9 @@ function bcUpdateDemoUI() {
 
   var rem = bcDemoRemaining();
   // Texten byggs HÄR och inte i WordPress-blocket: blocket hade "av 5" hårdkodat medan
-  // BC_DEMO_MAX är 3 (alltså "3 av 5"), och sa "Logga in för obegränsad tillgång" trots att
-  // det är prenumerationen som ger det. Byggd från JS behöver blocket inte klistras om.
+  // BC_DEMO_MAX var 3 (alltså "3 av 5"), och sa "Logga in för obegränsad tillgång" trots att
+  // det är prenumerationen som ger det. Byggd från JS behöver blocket inte klistras om —
+  // vilket är hela skälet att talet kunde höjas till 30 utan att WP-sidan rörs.
   var text = document.getElementById('bc-demoText');
   if (!text && banner) {
     text = document.createElement('span');
@@ -1618,7 +1638,7 @@ function bcUpdateDemoUI() {
     if (gammal) banner.replaceChild(text, gammal); else banner.appendChild(text);
   }
   if (text) {
-    text.innerHTML = 'Demoläge — <strong>' + rem + ' av ' + BC_DEMO_MAX + '</strong> sökningar kvar. '
+    text.innerHTML = 'Demoläge — <strong>' + rem + ' av ' + BC_DEMO_MAX + '</strong> beräkningar kvar denna timme. '
       + '<a href="#" id="bc-demoSubLink">Prenumerera</a> för obegränsad tillgång.';
     // Lyssnare i stället för inline onclick: sidans CSP tillåter inte inline-kod, och
     // attributet hade dessutom krävt tre lager av citattecken i en JS-byggd sträng.
@@ -1637,8 +1657,9 @@ function bcUpdateDemoUI() {
   if (rem === 0 && btn) btn.disabled = true;
 }
 function bcIncrementDemo() {
-  var used = parseInt(localStorage.getItem('bc_demo_count') || '0', 10);
-  localStorage.setItem('bc_demo_count', Math.min(used + 1, BC_DEMO_MAX));
+  var times = bcDemoTimes();
+  times.push(Date.now());
+  try { localStorage.setItem('bc_demo_times', JSON.stringify(times)); } catch (e) {}
   bcUpdateDemoUI();
 }
 

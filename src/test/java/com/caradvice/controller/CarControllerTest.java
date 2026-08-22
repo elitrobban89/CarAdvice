@@ -285,7 +285,7 @@ class CarControllerTest {
            .andExpect(jsonPath("$.success").value(true))
            .andExpect(jsonPath("$.loggedIn").value(false))
            .andExpect(jsonPath("$.subscriber").value(false))
-           .andExpect(jsonPath("$.remainingSearches").value(4))   // 5 anonyma per dygn, en förbrukad
+           .andExpect(jsonPath("$.remainingSearches").value(29))  // 30 i timmen för alla, en förbrukad
            .andExpect(jsonPath("$.cached").doesNotExist());
     }
 
@@ -390,11 +390,11 @@ class CarControllerTest {
     }
 
     @Test
-    void rekommendationRateLimitGer429EfterFemAnonymaSokningar() throws Exception {
+    void rekommendationRateLimitGer429EfterTrettioSokningar() throws Exception {
         when(groqService.getRecommendation(any()))
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 30; i++) {
             mvc.perform(post("/api/recommend")
                     .header("X-Forwarded-For", "10.3.3.3")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -407,9 +407,36 @@ class CarControllerTest {
                 .content("{}"))
            .andExpect(status().isTooManyRequests())
            .andExpect(jsonPath("$.rateLimited").value(true))
-           // Väggen ska peka på nästa steg i trappan: det fria kontot
-           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("gratiskonto")))
-           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("i dag")));
+           // Väggen pekar på prenumerationen — gratiskontot som mellansteg finns inte längre
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("denna timme")))
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("obegränsade")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void dygnstaketBiterAvenNarTimpottenArTom() throws Exception {
+        // Dygnstaket går inte att nå med 31 anrop i rad — timtaket stoppar långt innan. Det
+        // slår bara mot något som malt i flera timmar, alltså ett skript. Historiken seedas
+        // därför direkt: 100 sökningar spridda över dygnet men UTANFÖR den senaste timmen,
+        // så timpotten är orörd och bara dygnsbromsen kan fälla anropet.
+        when(groqService.getRecommendation(any()))
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
+        Map<String, List<Long>> logg = (Map<String, List<Long>>)
+                org.springframework.test.util.ReflectionTestUtils.getField(controller, "ipRequestLog");
+        long nu = System.currentTimeMillis();
+        List<Long> gamla = new java.util.ArrayList<>();
+        for (int i = 0; i < 100; i++) gamla.add(nu - (2L + i % 20) * 3600_000L / 2);
+        logg.put("10.9.9.9", gamla);
+
+        mvc.perform(post("/api/recommend")
+                .header("X-Forwarded-For", "10.9.9.9")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+           .andExpect(status().isTooManyRequests())
+           .andExpect(jsonPath("$.rateLimited").value(true))
+           // Dygnsbromsen och timtaket är två olika besked — "vänta en stund" duger inte här
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("senaste dygnet")));
+        logg.remove("10.9.9.9");
     }
 
     @Test
@@ -472,38 +499,38 @@ class CarControllerTest {
     void chattFragorRaknasMotSammaPottSomRekommendationer() throws Exception {
         when(groqService.chat(any(), any())).thenReturn("svar");
         String body = "{\"messages\":[{\"role\":\"user\",\"content\":\"fråga\"}]}";
-        // 5 chattfrågor drar hela dygnspotten (samma pool som /recommend)
-        for (int i = 0; i < 5; i++) {
+        // 30 chattfrågor drar hela timpotten (samma pool som /recommend)
+        for (int i = 0; i < 30; i++) {
             mvc.perform(post("/api/chat")
                     .header("X-Forwarded-For", "10.6.6.6")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
                .andExpect(status().isOk());
         }
-        // 6:e blockeras med dygnsgränsens meddelande
+        // 31:a blockeras med timgränsens meddelande
         mvc.perform(post("/api/chat")
                 .header("X-Forwarded-For", "10.6.6.6")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests())
            .andExpect(jsonPath("$.rateLimited").value(true))
-           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("i dag")));
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("denna timme")));
     }
 
     @Test
     void searchStatusPeekarUtanAttForbruka() throws Exception {
         mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.remaining").value(5))
+           .andExpect(jsonPath("$.remaining").value(30))
            // limit + period måste med: baren kan inte gissa "i dag" vs "denna timme"
-           .andExpect(jsonPath("$.limit").value(5))
-           .andExpect(jsonPath("$.period").value("day"))
+           .andExpect(jsonPath("$.limit").value(30))
+           .andExpect(jsonPath("$.period").value("hour"))
            .andExpect(jsonPath("$.subscriber").value(false))
            .andExpect(jsonPath("$.loggedIn").value(false));
         // Andra anropet ger SAMMA remaining = peek förbrukar ingen sökning
         mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.remaining").value(5));
+           .andExpect(jsonPath("$.remaining").value(30));
     }
 
     // --- /api/insights ---

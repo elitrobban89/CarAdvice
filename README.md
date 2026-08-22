@@ -340,7 +340,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-776 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+777 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -369,7 +369,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `MobilityStatsSyncServiceTest` (9) | Mobility-månadssynken: xlsx-parsning av rankingarken (in-memory-workbook), namnnormalisering (EX/XC40 → EX40, VW → Volkswagen), periodintervall, artikel-/xlsx-länkextraktion, ersättningslogik + felväg utan rapport |
 | `UsageStatsServiceTest` (5) | **Konverteringsgraden ljög på litet underlag** (2026-08-16). Trattmätningen byggdes för att avgöra om betalmodellen fungerar, men första avläsningen gav `conversionPct: 100.0` — ett enda konto, vårt eget testkonto, som en gång betalat och slutat. Det bästa tänkbara talet, på precis den siffra beslutet skulle vila på. Andelen lämnas nu tom under 20 konton med en `conversionNote` som säger varför; ett tomt fält läses som "vet inte", vilket är rätt svar så länge trafiken är enstaka besökare. Samma lärdom som `evSpecs`-uppdateringskvoten 2026-08-14: **en kvot vars nämnare kan gå mot noll är ett dåligt larmvärde**. Testet låser båda hållen (19 konton = tomt, 20 = uträknat), att tom databas varken ger tal eller division med noll, och att `churnedSubscribers` aldrig blir negativt |
 | `JobStatusServiceTest` (9) | Körstatusen för de schemalagda jobben: `track` returnerar jobbets antal och skriver start + slut, undantag ur jobbet ger `-1` och en `FEL:`-märkt rad i stället för att fälla schemaläggaren, statusskrivningen sväljer sina egna DB-fel (jobbet får aldrig krascha på loggningen), statusen härleds rätt (`OK`/`RUNNING` när sluttid saknas/`ERROR` vid felprefix/`NEVER_RUN` med schematext), och `allJobs` listar alla fyra i körordning även när DB:n svarar med fel |
-| `CarControllerTest` (77) | HTTP-lagret (MockMvc): trattmätningen (`/api/admin/usage`: 403 utan nyckel, och att snapshoten når svaret — endpointen finns just för att Stripe inte kan se registrerade konton som aldrig nått kassan), generationslistan (`/api/admin/ice-generations`: 403 utan nyckel, och att svaret bär **årtalen** och inte bara antalet — felet 2026-08-14 satt i värdet medan räknaren såg frisk ut), `DELETE /api/admin/seen-keys` (403 utan nyckel, antal borttagna rader, 400 när tjänsten avvisar värdet), admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns), jobbstatuslistan i `/api/admin/scrape-status` (`jobs`-fältet per jobb, och att endpointen fortfarande svarar om jobbtabellen kraschar), missuppdelningen per orsak i `/api/admin/ice-generations` (`missarPerOrsak`, som skiljer ett dött uppslag från ett medvetet avstående) och `DELETE /api/admin/ice-generations/missar` (403 utan nyckel, antal borttagna rader — finns för att en rättning i uppslaget annars inte får verkan förrän missfönstret på 30 dagar löpt ut) och `DELETE /api/admin/ice-generations/modell?model=...` (403 utan nyckel, antal borttagna rader, och att den **stora** rensningen inte går igång på vägen — felen kommer modellvis: 2026-08-18 bar två av 172 rader fel generation medan de övriga 170 var riktiga, och enda vägen tillbaka var att tömma hela tabellen och alla missar, alltså tre nätter utan generationsdata för att laga två rader), `GET /api/admin/ice-generations/missar` (403 utan nyckel, att svaret bär MODELLERNA och inte bara antalet — en siffra kan inte skilja ett klokt avstående från en trasig märkesfamilj — och att orsaksfiltret når tjänsten) |
+| `CarControllerTest` (78) | HTTP-lagret (MockMvc): trattmätningen (`/api/admin/usage`: 403 utan nyckel, och att snapshoten når svaret — endpointen finns just för att Stripe inte kan se registrerade konton som aldrig nått kassan), generationslistan (`/api/admin/ice-generations`: 403 utan nyckel, och att svaret bär **årtalen** och inte bara antalet — felet 2026-08-14 satt i värdet medan räknaren såg frisk ut), `DELETE /api/admin/seen-keys` (403 utan nyckel, antal borttagna rader, 400 när tjänsten avvisar värdet), admin-EV-spec-listan (`/api/admin/ev-specs`: 403 utan nyckel, rader med prisvärdhetsetikett, `kmPerYear` går att åsidosätta), X-Admin-Key-skyddet 403, sök- och feedback-rate-limits → 429, valideringsfel 400, cachemarkering, insiktslistan, admin-insiktslista + radering på id + PATCH (200/403/404/400), Mobility-statssynken (200/403/502), admin-feedbackradering, hälso-endpointen (spec-count + scrapestatus, DEGRADED vid tom databas, feltolerans vid DB-fel), Groq-hälsokollens statuskoder (503 UNCONFIGURED/MODEL_MISSING, 200 UNKNOWN/OK), versionsendpointen (unknown/local utan Render-variabler, commit-sha kortas till sju tecken när de finns), jobbstatuslistan i `/api/admin/scrape-status` (`jobs`-fältet per jobb, och att endpointen fortfarande svarar om jobbtabellen kraschar), missuppdelningen per orsak i `/api/admin/ice-generations` (`missarPerOrsak`, som skiljer ett dött uppslag från ett medvetet avstående) och `DELETE /api/admin/ice-generations/missar` (403 utan nyckel, antal borttagna rader — finns för att en rättning i uppslaget annars inte får verkan förrän missfönstret på 30 dagar löpt ut) och `DELETE /api/admin/ice-generations/modell?model=...` (403 utan nyckel, antal borttagna rader, och att den **stora** rensningen inte går igång på vägen — felen kommer modellvis: 2026-08-18 bar två av 172 rader fel generation medan de övriga 170 var riktiga, och enda vägen tillbaka var att tömma hela tabellen och alla missar, alltså tre nätter utan generationsdata för att laga två rader), `GET /api/admin/ice-generations/missar` (403 utan nyckel, att svaret bär MODELLERNA och inte bara antalet — en siffra kan inte skilja ett klokt avstående från en trasig märkesfamilj — och att orsaksfiltret når tjänsten) |
 | `CarVideoServiceTest` (10) | YouTube-uppslaget för bilkortet: årsmodellen strippas ur sökningen, tjänsten är helt passiv utan API-nyckel (ingen nyckel får aldrig bli ett anrop), och cachen skiljer på **färsk miss** (serveras ur cachen) och **gammal miss** (provas om — en nylanserad bil får recensioner först senare). Kanalrankningen: svensk kanal före engelsk före första träffen, och provkörning före nyhetsnotis inom samma kanalklass |
 | `VideoSentimentServiceTest` (6) | Kommentarsdomen under videon: för tunt underlag ger ingen ruta alls (hellre inget än en dom byggd på fem kommentarer), domen översätts till svensk etikett, cachad dom serveras utan nya Groq-anrop, och ett nytt videoval ogiltigförklarar den gamla domen. Plus att JSON plockas ur omgivande text — reasoning-modellen ramar gärna in svaret i prosa |
 | `NewCarPriceServiceTest` (7) | Nyprisuppslaget som `DEPRECIATION_RULE` räknar begagnatpris ur: **årsmodellen väljer generation**, utan årtal vinner den nyaste, längre modellnamn vinner över kortare, en årsmodell utanför generationens spann matchar inte, och modellnamnet måste matcha **hela ord** — annars blir uppslaget samma sorts delsträngsfälla som `MIN_DB_WORD_FOR_SUBSTRING` stängde i EV-matchningen |
@@ -1083,14 +1083,42 @@ Följden: budgetrutan, bagagestegen, kvotrutans trappa och bränslekalkylatorns 
 
 ### Nivåerna, och var de genomdrivs
 
-| Tjänst | Utan konto | Gratiskonto | Prenumerant |
-|--------|-----------|-------------|-------------|
-| Bilrådgivning | 5 sökningar/dygn | **30/timme** | obegränsat |
-| Bränslekalkylator | 3 demosökningar | 3 demosökningar | obegränsat |
+**Gratiskontot som egen nivå är avskaffat 2026-08-22.** Alla utan prenumeration har samma pott,
+inloggad som ej; ett konto skapas för att prenumerera.
 
-Bilrådgivningens gränser kommer från `CarController` (`ANON_SEARCHES_PER_DAY`, `MAX_LOGGED_IN_REQUESTS_PER_HOUR`) och speglas i `car-advice-main.js`. **Skillnaden mellan 5/dygn och 30/timme är hela erbjudandet** — står den inte utskriven finns ingen anledning att skapa konto, och det stod den inte förrän 2026-08-20. Nu bär kontobaren nästa steg även när kvoten räcker, och kvotrutan visar hela trappan med serverns eget 429-meddelande som rubrik.
+| Tjänst | Utan prenumeration | Prenumerant |
+|--------|--------------------|-------------|
+| Bilrådgivning | 30 sökningar/timme (dygnstak 100) | obegränsat |
+| AI-chatten | 50 meddelanden/minut | obegränsat |
+| Bränslekalkylator | 30 beräkningar/timme | obegränsat |
 
-Kalkylatorns gräns genomdrivs av `bcHasUnlimited()` i `bensinkostnad.js`, som kräver `ca_status === 'active'`. Fram till 2026-08-20 gick beslutet genom en `bcIsLoggedIn()` som bara frågade om det fanns ett **token** — ett gratiskonto gav därför obegränsade sökningar, alltså precis det prenumerationen säljer. Två gränsfall är värda att kunna: en prenumerant får **inte** låsas ute när servern kallstartar (serversvaret uteblir, cachat `ca_status` får gälla), och ett gammalt `ca_status='active'` **utan** giltigt token ger inte tillgång. `body.logged-in` ger fri tillgång till WordPress-inloggade — sajtägarens genväg för att testa utan att betala, och förklaringen till att manuell provning kan lura.
+Varför trappan togs bort: den byggdes 2026-08-16 för att ge ett skäl att registrera sig (anonymt
+sänktes då från 10/timme till 5/dygn). Sex dagar senare sa mätningen att skälet inte behövdes, för
+det fanns ingen att ge det till — **13 sökningar på sju dygn från EN distinkt nyckel**, 2 konton
+(båda utvecklarens) och 0 sparade sökningar. Kontoflödet var dessutom trasigt fram till 08-20
+(`rel="noopener"`), så nivån hann ha knappt två dygn med fungerande registrering. Flaskhalsen är
+trafik, inte kvot.
+
+**Dygnstaket är en kostnadsbroms, inte en konverteringsspärr.** 30/timme per IP är 720 sökningar
+per dygn och varje sökning är ett Groq-anrop mot en gratisplan med TPM-tak. En besökare når aldrig
+100; ett skript gör det på en kvart. Båda fönstren är rullande — med kalenderdygn hade en handfull
+användare bakom samma CGNAT-IP kunnat låsa ute alla andra till midnatt.
+
+Gränserna kommer från `CarController` (`SEARCHES_PER_HOUR`, `SEARCHES_PER_DAY`, `CHAT_RATE_LIMIT`)
+och speglas i `car-advice-main.js` (`CA_SEARCHES_PER_HOUR`). `/api/search-status` skickar med
+`limit` + `period`, och när de finns vinner de över konstanten i klienten.
+
+Kalkylatorns gräns genomdrivs av `bcHasUnlimited()` i `bensinkostnad.js`, som kräver
+`ca_status === 'active'`. Fram till 2026-08-20 gick beslutet genom en `bcIsLoggedIn()` som bara
+frågade om det fanns ett **token** — ett gratiskonto gav därför obegränsade sökningar, alltså
+precis det prenumerationen säljer. Demoräknaren var **3 stycken livstid** fram till 08-22 och är nu
+30 per rullande timme: beräkningen är ren matematik på redan cachad data utan ett enda AI-anrop, så
+en livstidsvägg tog betalt för något som inte kostar något — och den gick att kringgå genom att
+tömma webbläsarlagret. Två gränsfall är värda att kunna: en prenumerant får **inte** låsas ute när
+servern kallstartar (serversvaret uteblir, cachat `ca_status` får gälla), och ett gammalt
+`ca_status='active'` **utan** giltigt token ger inte tillgång. `body.logged-in` ger fri tillgång
+till WordPress-inloggade — sajtägarens genväg för att testa utan att betala, och förklaringen till
+att manuell provning kan lura.
 
 **`fuel-guard.js` är skriven för samma sida men laddas inte där**, och `#bc-content`-wrappern den kräver saknas i blocket. Den genomdriver en annan produkt — betalvägg utan demo — och är alltså inte det som gäller i dag.
 

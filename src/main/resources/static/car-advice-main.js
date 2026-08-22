@@ -770,19 +770,20 @@ function caFixCategoryLabels() {
   }
 }
 /**
- * Trappan: var du står nu, vad ett gratiskonto ger, vad en prenumeration ger.
+ * Trappan: var du står nu och vad en prenumeration ger.
  *
- * Utan den här ser en icke inloggad bara SIN EGEN gräns ("5 sökningar i dag") och får aldrig
- * veta att ett gratiskonto ger 30 i timmen. Skillnaden mellan 5/dygn och 30/timme är hela
- * skälet att skapa ett konto — står den inte utskriven finns ingen anledning att göra det.
+ * TVÅ steg sedan 2026-08-22, inte tre. Mellansteget "gratiskonto" är borta: alla utan
+ * prenumeration har samma pott, och ett konto skapas för att prenumerera. Trattmätningen
+ * bakom beslutet står i CarControllers kommentar — 13 sökningar på sju dygn från EN nyckel
+ * och noll organiska konton, alltså en spärr som aldrig hade någon att omvända.
  *
  * Byggs från JS och inte i HTML-snippeten av två skäl: WP-sidan är en manuell kopia, så ett
  * nytt stycke i snippeten syns inte förrän den klistras om, och stegen bär INLINE-stilar
  * eftersom ett injicerat <style> blockeras av sidans CSP — samma begränsning som budgetrutan
  * och burnout-laddaren fick kringgå.
  *
- * Siffrorna kommer från CA_ANON_PER_DAY / CA_LOGGED_IN_PER_HOUR, som redan speglar
- * CarControllers konstanter. Hårdkodas de här glider de isär vid nästa gränsändring.
+ * Siffran kommer från CA_SEARCHES_PER_HOUR, som speglar CarControllers konstant. Hårdkodas
+ * den här glider de isär vid nästa gränsändring.
  */
 function caTrappanHtml(harRad) {
   var rad = function(etikett, text, stark) {
@@ -792,9 +793,8 @@ function caTrappanHtml(harRad) {
          + '<span style="color:rgba(255,255,255,.8)">' + text + '</span></div>';
   };
   return (harRad ? '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(245,158,11,.25)"></div>' : '')
-       + rad('Utan konto', CA_ANON_PER_DAY + ' sökningar per dygn', false)
-       + rad('Gratiskonto', '<b>' + CA_LOGGED_IN_PER_HOUR + ' sökningar per timme</b> — kostar ingenting', true)
-       + rad('49 kr/mån', 'obegränsat, plus AI EV Laddassistent', false);
+       + rad('Utan konto', CA_SEARCHES_PER_HOUR + ' sökningar per timme — kostar ingenting', false)
+       + rad('49 kr/mån', '<b>obegränsat</b>, plus AI EV Laddassistent', true);
 }
 
 /**
@@ -808,7 +808,7 @@ function caTrappanHtml(harRad) {
 function caFyllKvotrutan(serverMeddelande) {
   var box = document.getElementById('ca-rate-limit-box');
   if (!box) return;
-  var rubrik = serverMeddelande || ('Du har använt dina ' + CA_ANON_PER_DAY + ' gratis sökningar i dag.');
+  var rubrik = serverMeddelande || ('Du har använt dina ' + CA_SEARCHES_PER_HOUR + ' sökningar denna timme.');
   box.innerHTML = '<div style="font-weight:600">⏱ ' + rubrik + '</div>'
     + caTrappanHtml(true)
     // rel="opener" och inte noopener: target="_blank" implicerar noopener i alla moderna
@@ -816,7 +816,7 @@ function caFyllKvotrutan(serverMeddelande) {
     // tillbaka CA_LOGIN. Då skapas kontot utan att appen någonsin får veta det. Se
     // meddelandelyssnaren nedan — den kontrollerar avsändarens origin.
     + '<div style="margin-top:10px"><a id="ca-rate-limit-link" href="' + CA_API_BASE
-    + '/subscribe.html" target="_blank" rel="opener">Skapa gratiskonto eller prenumerera →</a></div>';
+    + '/subscribe.html" target="_blank" rel="opener">Prenumerera – 49 kr/mån →</a></div>';
 }
 
 function caLoadPrefs() {
@@ -2534,12 +2534,14 @@ function caOpenSubscribe() {
   window.open(CA_API_BASE + '/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
 }
 
-/* Måste spegla CarController: ANON_SEARCHES_PER_DAY och
-   MAX_LOGGED_IN_REQUESTS_PER_HOUR. Baren räknar ner mot de här talen, så ändras
-   gränserna i backend måste de ändras här. /api/search-status skickar numera med
-   limit + period, och när de finns vinner de över konstanterna nedan. */
-var CA_ANON_PER_DAY = 5;
-var CA_LOGGED_IN_PER_HOUR = 30;
+/* Måste spegla CarController.SEARCHES_PER_HOUR. Baren räknar ner mot det här talet, så ändras
+   gränsen i backend måste den ändras här. /api/search-status skickar numera med limit +
+   period, och när de finns vinner de över konstanten nedan.
+
+   Ett enda tal sedan 2026-08-22: gratiskontot är avskaffat och alla utan prenumeration har
+   samma pott, inloggad som ej. Dygnstaket (100) står MEDVETET inte här — det är en
+   kostnadsbroms mot skript, inte ett erbjudande, och en besökare når det aldrig. */
+var CA_SEARCHES_PER_HOUR = 30;
 
 function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
   var bar = document.getElementById('ca-sub-bar');
@@ -2567,7 +2569,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     var evPromo = document.getElementById('ca-ev-promo');
     if (evPromo) evPromo.style.display = 'none';
     title.textContent = 'Inloggad';
-    var inLim = limit || CA_LOGGED_IN_PER_HOUR;
+    var inLim = limit || CA_SEARCHES_PER_HOUR;
     var inPer = (period === 'day') ? 'i dag' : 'denna timme';
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av ' + inLim + ' s\xf6kningar kvar ' + inPer : ' – ' + inLim + ' s\xf6kningar per timme';
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
@@ -2580,15 +2582,15 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else {
     title.textContent = 'Demo';
-    var anonLim = limit || CA_ANON_PER_DAY;
-    var anonPer = (period === 'hour') ? 'denna timme' : 'i dag';
-    // Trappans nästa steg står med i baren, inte bara i väggen: en användare som ser "3 av 5
-    // kvar" utan att veta vad ett konto ger har ingen anledning att skapa ett. Skillnaden
-    // mellan 5/dygn och 30/timme ÄR erbjudandet, så den måste synas innan kvoten tar slut.
+    var anonLim = limit || CA_SEARCHES_PER_HOUR;
+    var anonPer = (period === 'day') ? 'i dag' : 'denna timme';
+    // Nästa steg står med i baren, inte bara i väggen: den som ser "12 av 30 kvar" utan att
+    // veta vad en prenumeration ger har ingen anledning att skaffa en. Sedan gratiskontot
+    // avskaffades är det obegränsat som ÄR erbjudandet — inte en större gratispott.
     var anonKvar = remaining !== null
       ? ' – ' + remaining + ' av ' + anonLim + ' s\xf6kningar kvar ' + anonPer
-      : ' – ' + anonLim + ' gratis s\xf6kningar per dygn';
-    desc.textContent = anonKvar + ' \xb7 gratiskonto ger ' + CA_LOGGED_IN_PER_HOUR + '/timme';
+      : ' – ' + anonLim + ' gratis s\xf6kningar per timme';
+    desc.textContent = anonKvar + ' \xb7 prenumerant: obegr\xe4nsat';
     if (remaining !== null && remaining <= 2) bar.classList.add('ca-sub-bar-limited');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera / Logga in';
