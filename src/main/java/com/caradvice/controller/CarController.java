@@ -80,6 +80,7 @@ public class CarController {
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingInsightService;
     private final com.caradvice.service.UsageStatsService usageStatsService;
+    private final com.caradvice.service.EvFactCandidateService evFactCandidateService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -151,7 +152,9 @@ public class CarController {
                          IceGenerationService iceGenerationService,
                          com.caradvice.service.EvPowerService evPowerService,
                          com.caradvice.service.UsageStatsService usageStatsService,
-                         com.caradvice.service.VpicYearCheckService vpicYearCheckService) {
+                         com.caradvice.service.VpicYearCheckService vpicYearCheckService,
+                         com.caradvice.service.EvFactCandidateService evFactCandidateService) {
+        this.evFactCandidateService = evFactCandidateService;
         this.vpicYearCheckService = vpicYearCheckService;
         this.usageStatsService = usageStatsService;
         this.iceGenerationService = iceGenerationService;
@@ -974,6 +977,26 @@ public class CarController {
         int borttagna = iceGenerationService.rensa();
         log.info("ice_generation tömd på begäran — {} rader borta, 03:00-jobbet fyller om", borttagna);
         return ResponseEntity.ok(Map.of("deleted", borttagna));
+    }
+
+    /**
+     * Fyndlistan: vilka av nattens nya insikter som duger som karusellrad i Elbilsladdning.
+     *
+     * <p>Rådgivande på samma sätt som vPIC-vakten — den skriver ingenting och publicerar
+     * ingenting. Karusellen i {@code ev-app.js} är handkurerad, och raderna härifrån är
+     * AI-extraherad text som ingen läst mot källan; se {@link com.caradvice.service.EvFactCandidateService}
+     * för varför det steget inte går att automatisera bort.
+     *
+     * @param efterId senaste redan granskade insikts-id. Skicka tillbaka {@code hogstaId} från
+     *                förra körningen — det är hela dubblettskyddet mot karusellen. Utan värde
+     *                bedöms de 60 nyaste raderna.
+     */
+    @GetMapping("/admin/ev-fact-candidates")
+    public ResponseEntity<?> evFactCandidates(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                              @RequestParam(required = false) Long efterId,
+                                              @RequestParam(defaultValue = "25") int limit) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(evFactCandidateService.hittaKandidater(efterId, Math.max(1, Math.min(limit, 100))));
     }
 
     // Admin: lista senaste insikterna (nyast först) för kvalitetsgranskning av nattens skrapning

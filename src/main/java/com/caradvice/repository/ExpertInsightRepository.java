@@ -15,6 +15,10 @@ public interface ExpertInsightRepository extends JpaRepository<ExpertInsight, Lo
     long countByExpertName(String expertName);
     List<ExpertInsight> findAllByOrderByIdDesc(Pageable pageable);
 
+    // Fyndlistans vattenmärke: expert_insight saknar skapandetid, så id är enda ordningen
+    // som finns — allt över senast granskade id är per definition nattens nya rader.
+    List<ExpertInsight> findByIdGreaterThanOrderByIdDesc(Long id, Pageable pageable);
+
     // Prefix-match åt båda hållen fångar märkesvarianter ("Mercedes" ↔ "Mercedes-Benz"/"Mercedes-AMG")
     @Query("""
         SELECT i FROM ExpertInsight i

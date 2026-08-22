@@ -1106,6 +1106,13 @@
         { icon: '🛠️', text: 'Bilen som byggström: <strong>BYD Shark</strong> kan leverera upp till <strong>6 kW</strong> via V2L – nog för att driva hantverkarens maskinpark direkt ur batteriet (Teknikens Värld / M3).' },
         { icon: '🏕️', text: '<strong>Volkswagen ID.Buzz</strong> har ett "god-natt-paket" med campingläge som håller kupéns temperatur i upp till <strong>48 timmar</strong>, plus V2L som låter högspänningsbatteriet driva externa prylar (Vi Bilägare).' },
         { icon: '🧭', text: 'Ett laddstopp räcker långt: <strong>Mercedes GLC</strong> klarar <strong>100 mil motorväg</strong> på ett enda stopp, och <strong>Citroën e-C5 Aircross</strong> har ett 97 kWh-batteri som ger över <strong>67 mils</strong> räckvidd med 565 liter bagage på köpet (Elbilen / CarUp).' },
+        // Tredje omgången ur CarAdvice-insikterna (08-22), framplockade av fyndlistan
+        // GET /api/admin/ev-fact-candidates. Fyndlistan poängsätter och filtrerar, men
+        // formuleringen och brasklapparna nedan är handskrivna — insikterna är AI-extraherad
+        // text, och en rad som gick rakt in oläst är precis det som fällde ett berömmande
+        // mätvärde 2026-08-18 (Puma Gen-E).
+        { icon: '📏', text: 'Uppmätt räckvidd kan slå den officiella: <strong>Audi Q6 e-tron</strong> nådde <strong>542 km</strong> på standardhjul i Edmunds räckviddstest – runt 12 % mer än den officiella EPA-siffran på 484 km – med en förbrukning kring 18 kWh/100 km (Auto Motor & Sport). EPA mäts hårdare än WLTP, så jämför inte den siffran rakt av med WLTP-talet i annonsen.' },
+        { icon: '🪫', text: 'Låt inte elbilen stå oladdad för länge: en <strong>Tesla Model S</strong> som blev stående i <strong>sex månader</strong> fick ett urladdat 12-voltsbatteri och gick sedan varken att låsa upp, starta eller ladda (CarUp). Det lilla 12-voltssystemet är det som väcker högvoltsbatteriet – dör det hjälper det inte att det stora batteriet har ström kvar.' },
         // Euro 7 och batteripasset, tillagda 2026-08-18. TVÅ OLIKA förordningar som är lätta
         // att blanda ihop, och de får inte slås ihop i en rad:
         //   Euro 7 (EU 2024/1257) ställer kravet på batteriets HÄLSA — golvet nedan.
