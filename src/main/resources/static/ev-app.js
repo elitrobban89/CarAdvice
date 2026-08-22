@@ -1408,9 +1408,13 @@
    * ca_status='active' utan giltigt token ger inte tillgång.
    */
   function evHasUnlimited() {
-    if (document.body.classList.contains('logged-in')) return true; // sajtägarens genväg
+    if (document.body.classList.contains('logged-in')) return true; // sajtägarens genväg, se nedan
     if (evAuthValid === false) return false;
-    return localStorage.getItem('ca_status') === 'active';
+    // Token KRÄVS, inte bara statusen. Utan det villkoret räckte ett kvarglömt
+    // ca_status='active' i webbläsarlagret för att stänga av räkningen helt, medan
+    // statusbaren ovanför appen (ev-charging.js) samtidigt visade 'Demo 30 av 30' —
+    // den kräver token. Två olika svar på samma fråga såg ut som en trasig räknare.
+    return localStorage.getItem('ca_status') === 'active' && !!localStorage.getItem('ca_token');
   }
   /** Tidsstämplar inom fönstret. Trasigt/gammalt värde ger tom lista — hellre släppa igenom. */
   function evDemoTimes() {

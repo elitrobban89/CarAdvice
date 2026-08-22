@@ -84,8 +84,23 @@ function evFragorKvar() {
  * en fråga förbrukas. Statusen läses ur `ca_status`, samma källa som `evHasUnlimited()` där.
  */
 function evRefreshQuotaBar() {
-  var aktiv = localStorage.getItem('ca_status') === 'active';
+  var aktiv = localStorage.getItem('ca_status') === 'active' && !!localStorage.getItem('ca_token');
   evUpdateSubBar(aktiv, !aktiv && !!localStorage.getItem('ca_token'));
+}
+
+/**
+ * WordPress-inloggade har fri tillgång — sajtägarens genväg för att testa utan att betala
+ * (`document.body.logged-in`, samma villkor som `evHasUnlimited()` i ev-app.js och
+ * `bcHasUnlimited()` i bensinkostnad.js).
+ *
+ * <p><b>Genvägen SYNS nu, och det är hela poängen.</b> Fram till 2026-08-22 kände bara chatten
+ * till den: den slutade räkna, medan den här baren inte visste något om saken och fortsatte
+ * visa "Demo – 30 av 30 frågor kvar". För den som är inloggad i sin egen WordPress ser det ut
+ * som en trasig räknare — och det var precis vad som rapporterades. Att manuell provning kan
+ * luras av just den här flaggan står redan som varning i README.
+ */
+function evArWordpressInloggad() {
+  return document.body && document.body.classList.contains('logged-in');
 }
 window.evRefreshQuotaBar = evRefreshQuotaBar;
 
@@ -123,6 +138,17 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
   var prenBtn   = document.getElementById('ev-prenumerera-btn');
   var emailEl   = document.getElementById('ev-sub-email');
   bar.classList.remove('ev-limited');
+
+  // Prövas FÖRE prenumerationen: en WordPress-inloggad har fri tillgång oavsett konto, och
+  // baren måste säga det — annars lovar den en nedräkning som chatten inte gör.
+  if (evArWordpressInloggad()) {
+    title.textContent    = '✓ Obegr\xe4nsat';
+    desc.textContent     = ' – inloggad i WordPress, kvoten g\xe4ller inte dig';
+    prenBtn.style.display  = 'none';
+    loginLink.style.display = 'none';
+    if (emailEl) { emailEl.textContent = ''; emailEl.style.display = 'none'; }
+    return;
+  }
 
   if (isSubscriber) {
     title.textContent    = '✓ Prenumerant';
