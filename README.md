@@ -374,7 +374,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 
 ## Tester & CI
 
-788 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
+793 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest` och `IceConsumptionServiceTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|
@@ -408,6 +408,7 @@ En prenumeration på **49 kr/mån** ger tillgång till båda tjänsterna med sam
 | `VideoSentimentServiceTest` (6) | Kommentarsdomen under videon: för tunt underlag ger ingen ruta alls (hellre inget än en dom byggd på fem kommentarer), domen översätts till svensk etikett, cachad dom serveras utan nya Groq-anrop, och ett nytt videoval ogiltigförklarar den gamla domen. Plus att JSON plockas ur omgivande text — reasoning-modellen ramar gärna in svaret i prosa |
 | `NewCarPriceServiceTest` (7) | Nyprisuppslaget som `DEPRECIATION_RULE` räknar begagnatpris ur: **årsmodellen väljer generation**, utan årtal vinner den nyaste, längre modellnamn vinner över kortare, en årsmodell utanför generationens spann matchar inte, och modellnamnet måste matcha **hela ord** — annars blir uppslaget samma sorts delsträngsfälla som `MIN_DB_WORD_FOR_SUBSTRING` stängde i EV-matchningen |
 | `LeasingPriceServiceTest` (8) | Privatleasingpriserna från märkenas egna sidor: modell och pris plockas ur kategorierna, "Nya" strippas ur modellnamnet, månadspriset läses ur preamblen, och Volvos avvikande sidmarkup ger samma två fält. Matchningen låser att en **utrustningsnivå** matchar modellen men en **syskonmodell** inte gör det ("Enyaq iV 80" matchar "Enyaq" men aldrig "Enyaq Coupé") |
+| `TokenUsageStatsTest` (5) | Tokenmätningen som gör Groq-budgeten tunbar: att rapporten räknar mot **minuttaket** (prompt + reserverade max_tokens) och inte mot prompt + svar — svarets längd påverkar inte taket alls — att en kortare prompt ger fler anrop per minut, att snitt och max hålls isär per modell, att detaljlistan inte växer fritt medan sammanräkningen ändå behåller alla anrop, och att en tom rapport svarar `null` i stället för ett påhittat kapacitetstal |
 | `EvFactCandidateServiceTest` (16) | Fyndlistan som föreslår karusellrader till Elbilsladdning: en laddningsrelevant rad blir kandidat med rätt teman, och de fyra avslagen hålls **isär** — saknad laddkoppling, märke som inte säljer elbil här (Genesis GV90 faller där trots utmärkta laddsiffror), kommande modell och återkallelse/haveri som aldrig är ett "visste du att". Att märkeslösa rader (laddnätverk, EU-regler) slipper marknadsfiltret, att samma faktum ur två källor blir **en** rad med den andra källan under `ocksaFran` (Mercedes C 400 e låg som id 1266 och 1277), att `hogstaId` bär vattenmärket vidare, och att ett tomt svar säger ifrån i stället för att se friskt ut. Plus mätvärdet med **hårt mellanslag** (U+00A0): Javas `\s` matchar det inte, så utan teckenklassen hade "542 km" varken gett poäng eller fetstil |
 
 ```bash

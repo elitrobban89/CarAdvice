@@ -1002,6 +1002,23 @@ public class CarController {
     }
 
     /**
+     * Vad prompterna faktiskt kostar hos Groq, per modell och per anrop.
+     *
+     * <p>Fanns inte förrän 2026-08-22, och utan den gick tokenbudgeten inte att tuna: Groq mäter
+     * {@code prompt + reserverade max_tokens} mot minuttaket 8 000, men {@code usage}-fältet i
+     * svaret lästes aldrig. Det enda som avslöjade promptstorleken var 413-felen — alltså först
+     * när taket redan sprängts.
+     *
+     * <p>{@code anropSomRymsPerMinut} är svaret på "varför går det inte att söka flera gånger i
+     * rad": är prompten 4 700 och 3 000 reserverade blir talet 1.
+     */
+    @GetMapping("/admin/token-usage")
+    public ResponseEntity<?> tokenUsage(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(groqService.tokenAnvandning());
+    }
+
+    /**
      * Fyndlistan: vilka av nattens nya insikter som duger som karusellrad i Elbilsladdning.
      *
      * <p>Rådgivande på samma sätt som vPIC-vakten — den skriver ingenting och publicerar

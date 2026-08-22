@@ -212,6 +212,10 @@ public class GroqService {
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
+    /** Se {@link #registreraTokenanvandning} — läses av {@code GET /api/admin/token-usage}. */
+    private final TokenUsageStats tokenStatistik = new TokenUsageStats();
+
+    public Map<String, Object> tokenAnvandning() { return tokenStatistik.rapport(); }
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     /**
@@ -252,9 +256,47 @@ public class GroqService {
         HttpResponse<String> resp = null;
         for (Object body : bodies) {
             resp = httpClient.send(buildRequest(body), HttpResponse.BodyHandlers.ofString());
+            registreraTokenanvandning(body, resp);
             if (resp.statusCode() != 429) return resp;
         }
         return resp;
+    }
+
+    /**
+     * Groqs egen {@code usage}-räkning per anrop — <b>enda sättet att veta hur stor prompten
+     * faktiskt är</b>.
+     *
+     * <p>Fram till 2026-08-22 lästes fältet aldrig. Det enda som avslöjade promptstorleken var
+     * felmeddelanden: 413-raderna 2026-08-13 bar {@code Requested} 8044-8165, och därifrån gick
+     * det att räkna baklänges till 4 644-4 765 prompttokens. Ett tal som bara syns när det redan
+     * sprängt taket går inte att tuna mot — samma blindhet som täckningsmätaren hade när
+     * bagageparsern var död.
+     *
+     * <p>Talet spelar roll av en konkret anledning: Groq mäter {@code prompt + reserverade
+     * max_tokens} mot minuttaket 8 000. Med 3 000 reserverade fyller en prompt på 4 700 nästan
+     * hela budgeten, och då ryms bara ETT anrop per minut och modell. Varje tusen tokens som
+     * kortas bort är alltså en sökning till i samma minut.
+     *
+     * <p>Sparas i minnet och exponeras av {@code GET /api/admin/token-usage}. Inget skrivs till
+     * databasen: det här är ett mätvärde för tuning, inte historik, och en tabell till hade
+     * kostat mer än den gav.
+     */
+    private void registreraTokenanvandning(Object body, HttpResponse<String> resp) {
+        if (resp == null || resp.statusCode() < 200 || resp.statusCode() >= 300) return;
+        try {
+            JsonNode usage = mapper.readTree(resp.body()).path("usage");
+            if (usage.isMissingNode()) return;
+            String modell = (body instanceof Map<?, ?> m && m.get("model") != null)
+                    ? String.valueOf(m.get("model")) : "okänd";
+            int prompt = usage.path("prompt_tokens").asInt();
+            int svar = usage.path("completion_tokens").asInt();
+            int reserverat = (body instanceof Map<?, ?> m2 && m2.get("max_tokens") instanceof Integer i) ? i : 0;
+            tokenStatistik.registrera(modell, prompt, svar, reserverat);
+            log.info("Groq {}: prompt {} + svar {} tokens (reserverat {}, mot minuttaket räknas {})",
+                    modell, prompt, svar, reserverat, prompt + reserverat);
+        } catch (Exception ignored) {
+            // Mätningen får aldrig fälla ett svar som gick igenom.
+        }
     }
 
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt, String userPrompt) {
