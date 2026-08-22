@@ -1134,6 +1134,39 @@ sidans skript. En deploy ändrar den alltså aldrig; blocket måste klistras om 
 som `innerHTML` hade slagit ut) och **bara när den gamla lydelsen står kvar** — annars hade den
 tyst nollställt varje framtida redigering.
 
+**Elbilsappens demokvot ligger i webbläsaren, inte i backenden.** `ev-app.js` räknar frågor i
+`localStorage`-nyckeln `ev_demo_times` (30 per **rullande** timme, `EV_DEMO_MAX`), och
+`ev-charging.js` läser samma nyckel för statusbarens siffra (`EV_FRAGOR_PER_TIMME`). **Talet står
+alltså på två ställen och måste hållas lika** — det ena spärrar, det andra visar. Glider de isär
+lovar baren en pott spärren inte ger.
+
+Tre saker gjorde 2026-08-22 att kvoten *såg* trasig ut, och alla tre är värda att känna till:
+
+1. **Ruttipset räknades inte.** `triggerRouteProactiveMessage()` skickar automatiskt en fråga
+   till boten efter en ruttsökning och läser svaret via `/api/chat/stream` — samma Groq-anrop
+   som en tippad fråga. Den vägen gick förbi både spärren och räknaren. Fallbacken efter en
+   misslyckad stream (`/api/chat`) räknas fortfarande **inte**, med flit: det är samma fråga en
+   gång till.
+2. **Två barer visade kvoten.** Chattpanelens egen rad räknade rätt hela tiden; statusbaren
+   ovanför appen var ren löftestext och stod stilla. Chatten puffar den nu via
+   `window.evRefreshQuotaBar()`.
+3. **`document.body.logged-in` stänger av räkningen helt.** WordPress-inloggade har fri tillgång
+   — sajtägarens genväg för att testa utan att betala, samma villkor som i `bcHasUnlimited()`.
+   Genvägen är avsiktlig, men kände tidigare bara chatten till: baren fortsatte visa
+   "Demo – 30 av 30". Baren säger nu **"✓ Obegränsat – inloggad i WordPress, kvoten gäller inte
+   dig"**, och villkoret prövas före prenumerationen.
+
+> ⚠️ **Prova aldrig kvoter inloggad i WordPress.** Det gäller alla tre apparna, och det är
+> förklaringen till att manuell provning kan lura. Använd ett privat fönster.
+
+`evHasUnlimited()` kräver **både** giltigt token och `ca_status === 'active'`. Utan tokenkravet
+räckte ett kvarglömt statusvärde i webbläsarlagret för att tysta räkningen medan baren — som
+krävde båda — visade full pott.
+
+Elbilschatten bär samma brasklapp som bilrådgivningens ("🤖 AI-svar kan innehålla fel —
+dubbelkolla viktiga fakta"), sist i panelen. I liggande mobilläge krymps den men döljs aldrig,
+till skillnad från snabbknapparna ovanför.
+
 ### Nivåerna, och var de genomdrivs
 
 **Gratiskontot som egen nivå är avskaffat 2026-08-22.** Alla utan prenumeration har samma pott,
@@ -1189,6 +1222,24 @@ Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: 
 **Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen (`groq.reserve.model`, default `qwen/qwen3.6-27b` med `reasoning_effort: none`) innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
 
 **Rate limit på omförsöket är ett EGET fel** (`RateLimitedException`): får omförsöket 429 kastades förr det *ursprungliga* trunkeringsfelet vidare, så användaren fick "AI-svaret blev ofullständigt … prova högre budget, färre passagerare eller ett annat drivmedel" — fast kriterierna var oskyldiga och det enda som hjälpte var att vänta. Skarpt fall 2026-08-10: samma sökning gick igenom direkt efteråt. Symptomen var identiska i koden, vilket gjorde frågan "är det trunkering eller rate limit?" obesvarbar från loggen. Nu bär felet Groqs egen text via `buildRateLimitError` (som dessutom skiljer dygnstaket TPD/RPD från minuttaket och läser väntetiden ur svaret) plus raden "Dina kriterier är inte problemet", och `medRadOmKriterier` lägger aldrig till kriterierådet på den typen. **Räkneexempel bakom felet:** systemprompten är ~1 650 tokens, användarprompten ~400 och `max_tokens` 3 000 — en sökning drar alltså ~5 050 av minutbudgetens **8 000**, så två inom samma minut räcker för att utlösa det.
+
+**Vad taket egentligen är: 30/timme är INTE den bindande gränsen.** Kvoten i `CarController`
+räcker med marginal — det som stoppar en snabb serie frågor är Groqs **8 000 tokens per minut
+och modell**, mätt via de 413-svar som beskrivs ovan:
+
+| Anrop | Reserverat | Prompt | Summa av 8 000 | I en skur |
+|-------|-----------|--------|----------------|-----------|
+| Sökning | 3 000 | ~2 050 | ~5 050 | **1 per minut och modell** |
+| Chattfråga | 1 800 | ~1 500–2 500 | ~3 300–4 300 | **~2 per minut och modell** |
+
+Fallbackkedjan är det som räddar serien: varje modell har en **egen** TPM-pott, så
+rekommendationer klarar ~3 anrop i rad (120b → 20b → reserv) och chatten ~4 (20b → 120b) innan
+allt är strypt. Sedan måste minuten löpa ut.
+
+**30 frågor i sträck går alltså inte** — men 30 utspridda över timmen (en varannan minut) går
+fint, och det är så en användare faktiskt beter sig. Slår man i Groqs tak är beskedet dessutom
+inte demokvotens: `buildRateLimitError` skriver ut Groqs egen väntetid plus raden "Dina
+kriterier är inte problemet", just för att felet annars läses som att sökningen var för smal.
 
 **Priskontextar cachas:** ICE-nypristabellen och EV-prisreferenserna hämtas från DB en gång per timme och återanvänds på alla anrop — sparar ~4 DB-queries per request.
 
