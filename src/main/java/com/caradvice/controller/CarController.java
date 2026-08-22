@@ -367,8 +367,10 @@ public class CarController {
     }
 
     @PostMapping("/recommend")
-    public ResponseEntity<?> recommend(@RequestBody CarPreferences prefs, HttpServletRequest request,
+    public ResponseEntity<?> recommend(@RequestBody CarPreferences rawPrefs, HttpServletRequest request,
                                        @RequestHeader(value = "Authorization", required = false) String auth) {
+        // Gamla WP-snippets postar fortfarande kategorin "ekonomibil" — se canonical().
+        CarPreferences prefs = rawPrefs == null ? null : rawPrefs.canonical();
         String ip = getClientIp(request);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);
@@ -446,8 +448,9 @@ public class CarController {
     // gick ihop. Egen endpoint för att inte lägga ett tredje Groq-anrop plus Blocket-uppslag
     // i /api/recommend, som redan har 35 s klienttimeout. Samma timpott som sök och chatt.
     @PostMapping("/budget-alternatives")
-    public ResponseEntity<?> budgetAlternatives(@RequestBody CarPreferences prefs, HttpServletRequest httpReq,
+    public ResponseEntity<?> budgetAlternatives(@RequestBody CarPreferences rawPrefs, HttpServletRequest httpReq,
                                                 @RequestHeader(value = "Authorization", required = false) String auth) {
+        CarPreferences prefs = rawPrefs == null ? null : rawPrefs.canonical();
         String ip = getClientIp(httpReq);
         boolean subscriber = userService.isActiveSubscriber(auth);
         boolean loggedIn = subscriber || userService.isLoggedIn(auth);

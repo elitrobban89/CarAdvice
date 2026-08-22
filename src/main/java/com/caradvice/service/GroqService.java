@@ -1811,6 +1811,52 @@ public class GroqService {
                 + " \"Kia Niro PHEV\", inte \"Kia Niro Hybrid\"; \"Volvo XC60 T8\", inte \"Volvo XC60\".");
     }
 
+    /**
+     * Sant när användaren uttryckligen valt bensin eller diesel — inte "spelar ingen roll".
+     *
+     * <p>Prövas på HELA strängen och inte med {@code contains}, för substrängarna är fulla av
+     * fällor: både "diesel" och "spelar ingen roll" innehåller "el". Samma fälla som
+     * {@link #fuelIntent} redan bär en varning om.
+     */
+    static boolean requiresIceCar(CarPreferences prefs) {
+        String ft = prefs.fuelType() == null ? "" : prefs.fuelType().trim().toLowerCase(java.util.Locale.ROOT);
+        return "bensin".equals(ft) || "diesel".equals(ft);
+    }
+
+    /**
+     * Skarpt läge: väljer man BENSIN ska man inte få hybrider.
+     *
+     * <p>Mätt 2026-08-22: bensin + manuell + 150 000 kr gav <b>Toyota Corolla Hybrid, Honda Jazz
+     * Hybrid och Kia Niro Hybrid</b> — tre hybrider på ett bensinsök, och alla tre dessutom
+     * påstådda som manuella fast ingen av dem finns med manuell låda. En hybrid tankas visserligen
+     * med bensin, och därför får den sätta prisgolvet (se {@code BlocketPriceService.AdFilter}),
+     * men den är inte den bil användaren bad om: "Hybrid (ej laddhybrid)" är ett EGET val i
+     * formuläret, och finns det valet betyder bensin bensin.
+     *
+     * <p>Fäller på positivt bevis ur titelns egna ord, precis som {@link #requirePureEvCars} och
+     * {@link #requirePhevCars}. En titel utan drivlineord ("Škoda Fabia") släpps igenom.
+     */
+    static void requireIceCars(List<CarRecommendation> parsed) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            String d = ExpertInsightService.drivetrainOf(
+                    ExpertInsightService.flattenSpaces(CarTitle.stripYear(r.title() == null ? "" : r.title())));
+            if ("hev".equals(d) || "phev".equals(d) || "ev".equals(d)) avvisade.add(r.title());
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog hybrid/elbil till bensin- eller dieselsök: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException("AI:n föreslog en hybrid till ett bensin- eller dieselsök. Försök igen.",
+                kvar, avvisade,
+                "Alla tre bilar måste ha REN förbränningsmotor. En hybrid, laddhybrid eller elbil är"
+                + " ALDRIG ett giltigt svar här — hybrid är ett eget val i formuläret, och användaren"
+                + " valde bort det. Föreslå aldrig \"Toyota Corolla Hybrid\", \"Honda Jazz Hybrid\","
+                + " \"Kia Niro Hybrid\" eller liknande; välj i stället rena bensin- eller"
+                + " dieselmodeller som Škoda Fabia, Toyota Aygo, VW Polo, Hyundai i20 eller Kia Picanto.");
+    }
+
     /** Kategorin är SUV — då ska bilarna vara höga. Speglar SUV-regeln i systemprompten. */
     static boolean requiresSuvShapedCar(CarPreferences prefs) {
         return prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("suv");
@@ -2137,6 +2183,7 @@ public class GroqService {
             validator = validator.andThen(this::requirePureEvCars);
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).phev())
             validator = validator.andThen(GroqService::requirePhevCars);
+        if (requiresIceCar(prefs)) validator = validator.andThen(GroqService::requireIceCars);
         if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0) {
             int krav = prefs.minCargoLiters();
             validator = validator.andThen(p -> requireCargoCapacity(p, krav));
@@ -2772,7 +2819,8 @@ public class GroqService {
                 FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).
                 SUV (kategori "suv"): SUV betyder HÖG bil — hög sittposition, stor markfrigång, kaross i storleksklass Volvo XC40 / Škoda Kamiq eller större. En halvkombi, sedan eller låg crossover är ALDRIG en SUV: föreslå aldrig MG4, MG5, VW ID.3, Tesla Model 3, Polestar 2, Renault Zoe, Nissan Leaf, Kia Niro eller Hyundai Kona i den här kategorin, hur väl de än passar i övrigt. Drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan, Toyota RAV4/C-HR (hybrid), Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC; elbil: Volvo EX40/EC40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen), VW ID.4/ID.5, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y, Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008 (prisvärd liten el-SUV), BMW iX1/iX3, Mercedes EQB.
                 SUV OCH BUDGET: matcha SUV-storleken mot budgeten. Från ca 350 000 kr ska minst två av tre vara riktiga mellanklass-SUV:ar (VW ID.4, Hyundai Ioniq 5, Tesla Model Y, Volvo EX40, Škoda Enyaq, Kia EV6, Audi Q4 e-tron) — att svara med billiga små bilar långt under budgeten är fel svar även om de är prisvärda. Peugeot e-2008 och MG ZS EV hör hemma i de LÄGRE budgetspannen, inte som svar på en halv miljon.
-                SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
+                SMÅBIL (kategori "smaabil"): bensin/diesel t.ex. Toyota Aygo, Škoda Fabia, VW Polo, Hyundai i20, Kia Picanto, Ford Fiesta, Dacia Sandero; hybrid t.ex. Toyota Yaris Hybrid; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
+                DRIVMEDLET ÄR ETT VAL, INTE ETT UNGEFÄR: väljer användaren "bensin" eller "diesel" ska ALLA tre bilar ha ren förbränningsmotor. En hybrid är ett EGET val i formuläret ("Hybrid (ej laddhybrid)"), så ett bensinsök som svarar med Toyota Corolla Hybrid, Honda Jazz Hybrid eller Kia Niro Hybrid har svarat på fel fråga. Kontrolleras i kod efteråt; en bil som bryter mot det kastas.
                 """ + EV_PRICE_FLOORS + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte under taket är bilen fel förslag hur väl den än passar — byt till äldre årsmodell, enklare utrustning eller billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.

@@ -2170,6 +2170,63 @@ class GroqServiceTest {
     }
 
 
+
+    // --- requireIceCars (hård spärr mot hybrid i bensin-/dieselsök) ---
+
+    @Test
+    void hybridTillBensinsokAvvisas() throws Exception {
+        // Skarpt 2026-08-22: bensin + manuell + 150 000 gav Toyota Corolla Hybrid, Honda Jazz
+        // Hybrid och Kia Niro Hybrid — och alla tre påstods dessutom vara manuella.
+        String corolla = GILTIG_BIL.replace("Volvo EX30 (2024)", "Toyota Corolla Hybrid (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":[" + corolla + "]}");
+        assertThatThrownBy(() -> GroqService.requireIceCars(parsed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("hybrid");
+    }
+
+    @Test
+    void renaBensinbilarPasserarIcesparren() throws Exception {
+        String fabia = GILTIG_BIL.replace("Volvo EX30 (2024)", "Škoda Fabia (2021)");
+        String aygo = GILTIG_BIL.replace("Volvo EX30 (2024)", "Toyota Aygo (2020)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + fabia + "," + aygo + "]}");
+        GroqService.requireIceCars(parsed);
+        assertThat(parsed).hasSize(2);
+    }
+
+    @Test
+    void icesparrenGallerBaraExplicitBensinEllerDiesel() {
+        // "spelar ingen roll" och "diesel" innehåller BÅDA delsträngen "el" — därför prövas
+        // hela strängen, aldrig contains.
+        assertThat(GroqService.requiresIceCar(prefsMedDrivmedel("bensin"))).isTrue();
+        assertThat(GroqService.requiresIceCar(prefsMedDrivmedel("diesel"))).isTrue();
+        assertThat(GroqService.requiresIceCar(prefsMedDrivmedel("spelar ingen roll"))).isFalse();
+        assertThat(GroqService.requiresIceCar(prefsMedDrivmedel("hybrid"))).isFalse();
+        assertThat(GroqService.requiresIceCar(prefsMedDrivmedel("el"))).isFalse();
+    }
+
+    @Test
+    void ekonomibilKanoniserasTillSmabilOchKanInteTappaAndraFalt() {
+        // Gamla WP-snippets postar fortfarande "ekonomibil". Utan översättning möter prompten
+        // en kategori den saknar exempel för, och 08-22 gav den då tre hybrider.
+        CarPreferences gammal = new CarPreferences(150_000, "ekonomibil", false, 15_000, "pendling",
+                4, false, "bensin", "manuell", "köp", 8, 300);
+        CarPreferences ny = gammal.canonical();
+
+        assertThat(ny.carCategory()).isEqualTo("smaabil");
+        assertThat(ny.budget()).isEqualTo(150_000);
+        assertThat(ny.fuelType()).isEqualTo("bensin");
+        assertThat(ny.transmission()).isEqualTo("manuell");
+        assertThat(ny.maxAgeYears()).isEqualTo(8);
+        assertThat(ny.minCargoLiters()).isEqualTo(300);
+        // Redan kanonisk kategori returnerar samma instans
+        assertThat(ny.canonical()).isSameAs(ny);
+    }
+
+    private static CarPreferences prefsMedDrivmedel(String drivmedel) {
+        return new CarPreferences(150_000, "smaabil", false, 15_000, "pendling",
+                4, false, drivmedel, null, "köp", null, null);
+    }
     // --- requirePhevCars (hård spärr mot självladdande hybrid i laddhybridssök) ---
 
     @Test
