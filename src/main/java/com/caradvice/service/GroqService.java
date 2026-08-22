@@ -1462,6 +1462,28 @@ public class GroqService {
             "picanto", "i10", "e-up", "up!", "mii", "citigo");
 
     /**
+     * Modeller som INTE är SUV — halvkombier, sedaner och fastbacks som ändå dyker upp när
+     * kategorin är "suv".
+     *
+     * <p>Skarpt fall 2026-08-22: ett SUV-sök på elbil med 400 000 kr i budget gav <b>Kia Niro
+     * EV, MG4 och Hyundai Kona Electric</b>. MG4 är en halvkombi, och Niro och Kona är låga
+     * crossovers — ingen av dem är den höga bilen kategorin lovar. Promptregeln räckte inte,
+     * av exakt samma skäl som familjekravet och drivmedelskravet behövde kodstöd: en regel som
+     * bara står i prompten är ett önskemål.
+     *
+     * <p><b>Fäller bara på positivt bevis</b>, precis som {@link #requirePureEvCars}. Listan
+     * är namngivna modeller vi vet är låga — en okänd modell släpps igenom hellre än att en
+     * riktig SUV kastas för att den saknas i en lista.
+     *
+     * <p>Niro och Kona står med efter användarens uttryckliga besked: de marknadsförs som SUV
+     * men är inte de "höga bilar" kategorin ska ge. Gränsen går vid XC40/Kamiq-höjd och uppåt.
+     */
+    private static final List<String> NON_SUV_MARKERS = List.of(
+            "mg4", "mg 4", "mg5", "mg 5", "id.3", "id3", "model 3", "polestar 2",
+            "zoe", "leaf", "e-golf", "golf", "ioniq 6", "i4", "ë-c4", "e-c4",
+            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat");
+
+    /**
      * Lanseringsår per modell — spegel av årsmodellregeln i systemprompten ("Rekommendera ALDRIG
      * en årsmodell före modellens verkliga lansering").
      *
@@ -1561,6 +1583,41 @@ public class GroqService {
         throw new RuleViolationException("AI:n föreslog en för liten bil för profilen. Försök igen.", kvar, avvisade,
                 "Alla tre bilar måste vara familjestora: kombi, SUV eller rymlig halvkombi/sedan"
                 + " i storleksklass MG4/VW ID.4 eller större. ALDRIG småbil eller stadsbil.");
+    }
+
+    /** Kategorin är SUV — då ska bilarna vara höga. Speglar SUV-regeln i systemprompten. */
+    static boolean requiresSuvShapedCar(CarPreferences prefs) {
+        return prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("suv");
+    }
+
+    /**
+     * Skarpt läge: SUV betyder HÖG bil. Regeln stod bara i prompten och höll inte — ett
+     * SUV-sök på elbil med 400 000 kr gav 2026-08-22 Kia Niro EV, MG4 och Hyundai Kona
+     * Electric, alltså tre låga bilar, varav den dyraste ligger långt under budgeten.
+     *
+     * <p>Fäller på positivt bevis ur {@link #NON_SUV_MARKERS} och triggar omförsöket i
+     * parseWithRetry, precis som de andra regelvakterna.
+     */
+    static void requireSuvShapedCars(List<CarRecommendation> parsed) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            String t = r.title() == null ? "" : r.title().toLowerCase();
+            if (NON_SUV_MARKERS.stream().anyMatch(t::contains)) avvisade.add(r.title());
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog icke-SUV till SUV-kategorin: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException("AI:n föreslog en bil som inte är en SUV. Försök igen.", kvar, avvisade,
+                "Alla tre bilar måste vara riktiga SUV:ar: HÖG kaross, hög sittposition och stor"
+                + " markfrigång — i storleksklass Volvo XC40/Škoda Kamiq eller större. En halvkombi,"
+                + " sedan eller låg crossover är ALDRIG ett giltigt svar här: aldrig MG4, VW ID.3,"
+                + " Tesla Model 3, Polestar 2, Kia Niro eller Hyundai Kona."
+                + " Elbil: Volvo EX40/EC40, VW ID.4, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y,"
+                + " Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008, BMW iX1/iX3, Mercedes EQB."
+                + " Bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq,"
+                + " VW T-Roc/Tiguan, Toyota RAV4, Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC.");
     }
 
     /**
@@ -1849,6 +1906,7 @@ public class GroqService {
         java.util.function.Consumer<List<CarRecommendation>> validator = this::requireKnownModels;
         validator = validator.andThen(GroqService::requireRealisticModelYears);
         if (requiresFamilySizedCar(prefs)) validator = validator.andThen(GroqService::requireFamilySizedCars);
+        if (requiresSuvShapedCar(prefs)) validator = validator.andThen(GroqService::requireSuvShapedCars);
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
             validator = validator.andThen(this::requirePureEvCars);
         if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0) {
@@ -2480,7 +2538,8 @@ public class GroqService {
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN — "Manuell 6-växlad", "Automat 8-växlad", "Automat CVT", "Automat DSG 7-växlad". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. Elbil/laddhybrid: fuelSpec=null.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
                 FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).
-                SUV (kategori "suv"): drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — t.ex. bensin/diesel/hybrid: Volvo XC40, Toyota C-HR (hybrid); elbil: Volvo EX40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen).
+                SUV (kategori "suv"): SUV betyder HÖG bil — hög sittposition, stor markfrigång, kaross i storleksklass Volvo XC40 / Škoda Kamiq eller större. En halvkombi, sedan eller låg crossover är ALDRIG en SUV: föreslå aldrig MG4, MG5, VW ID.3, Tesla Model 3, Polestar 2, Renault Zoe, Nissan Leaf, Kia Niro eller Hyundai Kona i den här kategorin, hur väl de än passar i övrigt. Drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan, Toyota RAV4/C-HR (hybrid), Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC; elbil: Volvo EX40/EC40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen), VW ID.4/ID.5, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y, Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008 (prisvärd liten el-SUV), BMW iX1/iX3, Mercedes EQB.
+                SUV OCH BUDGET: matcha SUV-storleken mot budgeten. Från ca 350 000 kr ska minst två av tre vara riktiga mellanklass-SUV:ar (VW ID.4, Hyundai Ioniq 5, Tesla Model Y, Volvo EX40, Škoda Enyaq, Kia EV6, Audi Q4 e-tron) — att svara med billiga små bilar långt under budgeten är fel svar även om de är prisvärda. Peugeot e-2008 och MG ZS EV hör hemma i de LÄGRE budgetspannen, inte som svar på en halv miljon.
                 SMÅBIL (kategori "smaabil"): bensin/diesel/hybrid t.ex. Toyota Aygo; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
                 """ + EV_PRICE_FLOORS + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.

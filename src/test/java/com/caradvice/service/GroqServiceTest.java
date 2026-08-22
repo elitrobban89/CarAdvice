@@ -2096,4 +2096,52 @@ class GroqServiceTest {
         assertThat(service().buildGroqErrorMessage(500, "internal error"))
                 .contains("500");
     }
+
+    // --- requireSuvShapedCars (hård spärr mot låg bil i SUV-kategorin) ---
+
+    @Test
+    void lagBilTillSuvkategorinAvvisasOchTriggarOmforsok() throws Exception {
+        // Skarpt fall 2026-08-22: SUV + elbil med 400 000 kr i budget gav Kia Niro EV,
+        // MG4 och Hyundai Kona Electric — tre låga bilar, alla långt under budgeten.
+        String mg4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "MG4 (2023)");
+        String niro = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia Niro EV (2022)");
+        String kona = GILTIG_BIL.replace("Volvo EX30 (2024)", "Hyundai Kona Electric (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + mg4 + "," + niro + "," + kona + "]}");
+        assertThatThrownBy(() -> GroqService.requireSuvShapedCars(parsed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("inte är en SUV");
+    }
+
+    @Test
+    void riktigaSuvarPasserarSuvsparren() throws Exception {
+        String id4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volkswagen ID.4 (2023)");
+        String ioniq5 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Hyundai Ioniq 5 (2022)");
+        String e2008 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Peugeot e-2008 (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + id4 + "," + ioniq5 + "," + e2008 + "]}");
+        GroqService.requireSuvShapedCars(parsed); // ska inte kasta
+        assertThat(parsed).hasSize(3);
+    }
+
+    @Test
+    void suvsparrenGallerBaraSuvkategorin() {
+        assertThat(GroqService.requiresSuvShapedCar(prefsMed("suv"))).isTrue();
+        assertThat(GroqService.requiresSuvShapedCar(prefsMed("elbil"))).isFalse();
+        assertThat(GroqService.requiresSuvShapedCar(prefsMed("familjebil"))).isFalse();
+    }
+
+    @Test
+    void okandSuvSlippsIgenomSparren() throws Exception {
+        // Fäller bara på positivt bevis: en riktig SUV som saknas i listan ska inte kastas.
+        String okand = GILTIG_BIL.replace("Volvo EX30 (2024)", "Aiways U5 (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":[" + okand + "]}");
+        GroqService.requireSuvShapedCars(parsed);
+        assertThat(parsed).hasSize(1);
+    }
+
+    private static CarPreferences prefsMed(String kategori) {
+        return new CarPreferences(400_000, kategori, false, 15_000, "pendling",
+                4, false, "el", null, "köp", null, null);
+    }
 }
