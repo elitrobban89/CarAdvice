@@ -1429,6 +1429,9 @@
     times.push(Date.now());
     try { localStorage.setItem('ev_demo_times', JSON.stringify(times)); } catch (e) {}
     evUpdateChatDemoUI();
+    // Statusbaren ovanfor appen (ev-charging.js) laser samma nyckel men vet inte nar den
+    // andras - utan puffen star den kvar pa full pott medan chatten raknar ner.
+    if (typeof window.evRefreshQuotaBar === 'function') window.evRefreshQuotaBar();
   }
   function evUpdateChatDemoUI() {
     var bar = document.getElementById('ev-chat-demobar');

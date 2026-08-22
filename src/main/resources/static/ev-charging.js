@@ -48,6 +48,47 @@ function evInjectStyles() {
   document.head.appendChild(s);
 }
 
+// ── Demokvoten ───────────────────────────────────────────────────────────────
+
+/**
+ * Frågor kvar denna timme, läst ur SAMMA localStorage-nyckel som chatten skriver till
+ * (`ev_demo_times` i `ev-app.js`, se `evDemoTimes`/`evConsumeDemo` där).
+ *
+ * <p>Talen står med flit på två ställen och måste hållas lika: `EV_DEMO_MAX` i `ev-app.js`
+ * bestämmer när chatten spärrar, det här bara vad baren visar. Skulle de glida isär lovar
+ * baren en pott som spärren inte ger.
+ *
+ * <p>Baren visade tidigare en FAST text ("30 frågor i timmen gratis"), och stod därför stilla
+ * medan chattens egen rad räknade ner — det såg ut som att frågorna inte drogs alls.
+ *
+ * Trasigt eller gammalt värde ger full pott: hellre lova för mycket i en text än att skrämma
+ * med en nolla som spärren inte håller med om.
+ */
+var EV_FRAGOR_PER_TIMME = 30;
+var EV_FRAGOR_FONSTER_MS = 3600000;
+
+function evFragorKvar() {
+  var grans = Date.now() - EV_FRAGOR_FONSTER_MS;
+  var anvanda = 0;
+  try {
+    var raw = JSON.parse(localStorage.getItem('ev_demo_times') || '[]');
+    if (Array.isArray(raw)) {
+      anvanda = raw.filter(function(t) { return typeof t === 'number' && t >= grans; }).length;
+    }
+  } catch (e) { anvanda = 0; }
+  return Math.max(0, EV_FRAGOR_PER_TIMME - anvanda);
+}
+
+/**
+ * Räknar om barens text utan att röra inloggningsstatusen — anropas av `ev-app.js` varje gång
+ * en fråga förbrukas. Statusen läses ur `ca_status`, samma källa som `evHasUnlimited()` där.
+ */
+function evRefreshQuotaBar() {
+  var aktiv = localStorage.getItem('ca_status') === 'active';
+  evUpdateSubBar(aktiv, !aktiv && !!localStorage.getItem('ca_token'));
+}
+window.evRefreshQuotaBar = evRefreshQuotaBar;
+
 // ── Status bar ───────────────────────────────────────────────────────────────
 
 function evInjectBarIfNeeded() {
@@ -95,7 +136,8 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
     title.textContent    = 'Inloggad';
     // Sa " – prenumeration krävs" fram till 2026-08-22, vilket var sant när betalväggen
     // dolde allt. Nu är appen gratis att använda; prenumerationen tar bort gränsen.
-    desc.textContent     = ' – 30 fr\xe5gor i timmen, obegr\xe4nsat som prenumerant';
+    desc.textContent     = ' – ' + evFragorKvar() + ' av ' + EV_FRAGOR_PER_TIMME
+                         + ' fr\xe5gor kvar denna timme \xb7 obegr\xe4nsat som prenumerant';
     prenBtn.style.display  = 'inline-block';
     prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
@@ -105,7 +147,10 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
   } else {
     title.textContent    = 'Demo';
     // "logga in för åtkomst" var beskedet när betalväggen dolde sidan. Inget konto behövs.
-    desc.textContent     = ' – 30 fr\xe5gor i timmen gratis, inget konto beh\xf6vs';
+    // Siffran är LIVE: baren lovade "30 frågor i timmen" men stod stilla medan chattens egen
+    // rad räknade ner, så det såg ut som att kvoten inte drogs. Båda läser nu samma nyckel.
+    desc.textContent     = ' – ' + evFragorKvar() + ' av ' + EV_FRAGOR_PER_TIMME
+                         + ' fr\xe5gor kvar denna timme \xb7 obegr\xe4nsat som prenumerant';
     prenBtn.style.display  = 'inline-block';
     prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'none';
