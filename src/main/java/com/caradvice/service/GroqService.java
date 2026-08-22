@@ -725,8 +725,11 @@ public class GroqService {
                 // EGEN beteckning ut. Nu bär consumptionForTitle samma vakt, så iceVariant är
                 // redan null i det läget och hela blocket hoppas över — descriptorn kan bara nå
                 // hit när modellen har en verifierad rad som vakten släppt igenom.
+                // Drivlinan skickas med: för ett laddhybrids- eller hybridsök beskriver den
+                // ofiltrerade listan en annan bil än den kortet visar (XC60 Recharge fick
+                // "D4 · D5 · B6" 2026-08-22). Bensin- och dieselsök får hela utbudet som förut.
                 String allaMotorer = iceConsumptionService.engineOptionsForTitle(
-                        r.title(), CarTitle.year(r.title()));
+                        r.title(), CarTitle.year(r.title()), drivlinaFor(adFilter));
                 engineOptions = allaMotorer != null ? allaMotorer
                         : IceConsumptionService.engineDescriptor(iceVariant);
             }
@@ -1745,6 +1748,63 @@ public class GroqService {
         return String.format(java.util.Locale.ROOT, "%,d", belopp).replace(',', ' ');
     }
 
+    /**
+     * Drivlinan sökningen låser till, avläst ur ANNONSFILTRET — {@code null} när utbudet får
+     * visas fritt.
+     *
+     * <p>Läses ur {@code AdFilter} och inte ur {@code fuelType} av ett konkret skäl: en
+     * laddhybridssökning gjord från formuläret bär {@code carCategory=laddhybrid} och
+     * {@code fuelType="spelar ingen roll"}, så drivmedelssträngen ensam vet ingenting.
+     * {@code adFilterFor} har redan vägt samman kategori och drivmedel åt oss.
+     *
+     * <p>Bara ENTYDIGA filter ger ett svar. Ett bensinsök släpper igenom både "Bensin" och
+     * "Hybrid bensin" — där är utbudet blandat med flit, och att låsa listan till den ena
+     * hade dolt att modellen finns som den andra.
+     */
+    static String drivlinaFor(BlocketPriceService.AdFilter filter) {
+        if (filter == null || filter.fuels() == null || filter.fuels().isEmpty()) return null;
+        if (filter.fuels().stream().allMatch(f -> f.startsWith("Plug-in"))) return "laddhybrid";
+        if (filter.fuels().stream().allMatch(f -> f.startsWith("Hybrid"))) return "hybrid";
+        return null;
+    }
+
+    /**
+     * Modeller vars namn i sig SÄGER att bilen inte går att ladda — positivt bevis, inget annat.
+     *
+     * <p>Skarpt fall 2026-08-22: ett laddhybridssök på 400 000 kr gav <b>Toyota RAV4 Hybrid
+     * (2022), 2.5 L 222 hk</b>. Det är den självladdande hybriden; RAV4 Plug-in har 306 hk.
+     * Laddhybridssök hade fram till dess INGEN kodvakt alls för drivmedlet —
+     * {@code requirePureEvCars} kopplas bara in när {@code pureEv()} är sant, och {@code pureEv()}
+     * är per definition falskt för en laddhybrid. Kvar fanns bara prompttext, exakt det läge som
+     * föll för elbilar 08-09 och för familjestorlek 07-19.
+     *
+     * <p>Vakten dömer på titelns egna ord via {@link ExpertInsightService#drivetrainOf} och
+     * fäller bara {@code hev} — en självladdande hybrid — och {@code ev}, en ren elbil. Titlar
+     * utan drivlineord ("Volvo XC60 T8", "Kia Sportage") släpps igenom: frånvaron av ett ord är
+     * inget bevis, och en riktig laddhybrid får aldrig kastas för att namnet är tyst.
+     */
+    static void requirePhevCars(List<CarRecommendation> parsed) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            String d = ExpertInsightService.drivetrainOf(
+                    ExpertInsightService.flattenSpaces(CarTitle.stripYear(r.title() == null ? "" : r.title())));
+            if ("hev".equals(d) || "ev".equals(d)) avvisade.add(r.title());
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog icke-laddbar bil till laddhybridssök: {} — {} bil(ar) kvar",
+                String.join(", ", avvisade), kvar.size());
+        throw new RuleViolationException("AI:n föreslog en bil som inte är laddhybrid. Försök igen.",
+                kvar, avvisade,
+                "Alla tre bilar måste vara LADDHYBRIDER (PHEV) som går att ladda från vägguttag."
+                + " En självladdande hybrid är ALDRIG ett giltigt svar här: \"Toyota RAV4 Hybrid\","
+                + " \"Kia Niro Hybrid\" och \"Toyota C-HR\" laddar sig själva under körning."
+                + " Skriv ut laddhybridsvarianten i titeln när modellnamnet delas med en"
+                + " självladdande hybrid: \"Toyota RAV4 Plug-in Hybrid\", inte \"Toyota RAV4 Hybrid\";"
+                + " \"Kia Niro PHEV\", inte \"Kia Niro Hybrid\"; \"Volvo XC60 T8\", inte \"Volvo XC60\".");
+    }
+
     /** Kategorin är SUV — då ska bilarna vara höga. Speglar SUV-regeln i systemprompten. */
     static boolean requiresSuvShapedCar(CarPreferences prefs) {
         return prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("suv");
@@ -2069,6 +2129,8 @@ public class GroqService {
         if (requiresSuvShapedCar(prefs)) validator = validator.andThen(GroqService::requireSuvShapedCars);
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
             validator = validator.andThen(this::requirePureEvCars);
+        if (fuelIntent(prefs.fuelType(), prefs.carCategory()).phev())
+            validator = validator.andThen(GroqService::requirePhevCars);
         if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0) {
             int krav = prefs.minCargoLiters();
             validator = validator.andThen(p -> requireCargoCapacity(p, krav));

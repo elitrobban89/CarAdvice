@@ -2169,6 +2169,56 @@ class GroqServiceTest {
                 .contains("500");
     }
 
+
+    // --- requirePhevCars (hård spärr mot självladdande hybrid i laddhybridssök) ---
+
+    @Test
+    void sjalvladdandeHybridTillLaddhybridssokAvvisas() throws Exception {
+        // Skarpt fall 2026-08-22: kategori laddhybrid + 400 000 gav Toyota RAV4 Hybrid (2022),
+        // 2.5 L 222 hk — den självladdande, inte RAV4 Plug-in (306 hk). Laddhybridssök hade
+        // ingen kodvakt alls: requirePureEvCars kopplas bara in när pureEv() är sant.
+        String rav4 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Toyota RAV4 Hybrid (2022)");
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":[" + rav4 + "]}");
+        assertThatThrownBy(() -> GroqService.requirePhevCars(parsed))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("inte är laddhybrid");
+    }
+
+    @Test
+    void laddhybriderOchTystaTitlarPasserarPhevsparren() throws Exception {
+        // "T8" och "PHEV" är laddhybrider; "Volvo XC60" utan drivlineord släpps igenom —
+        // frånvaron av ett ord är inget bevis, och vakten fäller bara på positivt sådant.
+        String t8 = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo XC60 T8 (2022)");
+        String niro = GILTIG_BIL.replace("Volvo EX30 (2024)", "Kia Niro PHEV (2021)");
+        String tyst = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo XC60 (2021)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + t8 + "," + niro + "," + tyst + "]}");
+        GroqService.requirePhevCars(parsed);
+        assertThat(parsed).hasSize(3);
+    }
+
+    @Test
+    void renElbilAvvisasOcksaAvPhevsparren() throws Exception {
+        String elbil = GILTIG_BIL.replace("Volvo EX30 (2024)", "Nissan Leaf Elbil (2021)");
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":[" + elbil + "]}");
+        assertThatThrownBy(() -> GroqService.requirePhevCars(parsed))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void drivlinanLasesUrAnnonsfiltretOchBaraNarDetArEntydigt() {
+        // Formulärets laddhybridssök bär fuelType "spelar ingen roll" — drivmedelssträngen
+        // ensam vet ingenting, men adFilter har redan vägt samman kategori och drivmedel.
+        assertThat(GroqService.drivlinaFor(new BlocketPriceService.AdFilter(
+                java.util.Set.of("Plug-in Bensin", "Plug-in Diesel"), null))).isEqualTo("laddhybrid");
+        assertThat(GroqService.drivlinaFor(new BlocketPriceService.AdFilter(
+                java.util.Set.of("Hybrid bensin", "Hybrid diesel"), null))).isEqualTo("hybrid");
+        // Bensinsök: blandat utbud med flit — att låsa listan hade dolt hybridvarianten
+        assertThat(GroqService.drivlinaFor(new BlocketPriceService.AdFilter(
+                java.util.Set.of("Bensin", "Hybrid bensin"), null))).isNull();
+        assertThat(GroqService.drivlinaFor(BlocketPriceService.AdFilter.NONE)).isNull();
+        assertThat(GroqService.drivlinaFor(null)).isNull();
+    }
     // --- requireSuvShapedCars (hård spärr mot låg bil i SUV-kategorin) ---
 
     @Test

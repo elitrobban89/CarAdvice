@@ -415,4 +415,35 @@ class IceConsumptionServiceTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ice_consumption", Integer.class))
                 .isEqualTo(fore + 200);
     }
+
+    @Test
+    void motorlistanLasesTillDrivlinanNarSokningenGorDet() {
+        // Skarpt fall 2026-08-22: ett laddhybridssök gav "Volvo XC60 Recharge" med motorlistan
+        // D4 · B4 · D5 · B5 · B6 — kortet påstod att en laddhybrid finns som D5 diesel.
+        String ofiltrerad = service.engineOptionsForTitle("Volvo XC60 (2021)", null, null);
+        assertThat(ofiltrerad).contains("D");   // hela utbudet, som förut
+
+        String laddhybrid = service.engineOptionsForTitle("Volvo XC60 (2021)", null, "laddhybrid");
+        assertThat(laddhybrid).isNotNull();
+        // Bara laddbara varianter kvar — T6/T8 PHEV, aldrig D4/D5
+        assertThat(laddhybrid).doesNotContain("D4").doesNotContain("D5");
+        assertThat(laddhybrid.length()).isLessThan(ofiltrerad.length());
+    }
+
+    @Test
+    void motorlistanAvstarHelltNarModellenSaknarDrivlinan() {
+        // Hellre ingen lista än en om fel bil: en oflitrerad lista ser verifierad ut.
+        assertThat(service.engineOptionsForTitle("Volkswagen Golf (2022)", null, "laddhybrid"))
+                .satisfiesAnyOf(
+                        rad -> assertThat(rad).isNull(),
+                        rad -> assertThat(rad).doesNotContain("TDI"));
+    }
+
+    @Test
+    void titelnsEgetDrivlineordVinnerOverSokningens() {
+        // "Volvo XC60 T8" ÄR en laddhybrid vad sökningen än gällde
+        String rad = service.engineOptionsForTitle("Volvo XC60 T8 (2022)", null, "bensin");
+        assertThat(rad).isNotNull();
+        assertThat(rad).doesNotContain("D4").doesNotContain("D5");
+    }
 }
