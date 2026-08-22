@@ -814,8 +814,10 @@ class GroqServiceTest {
         String rad = GroqService.suvModelsLine(new CarPreferences(300_000, "suv", false, 15_000,
                 "pendling", 4, false, "bensin", null, "köp", null, null));
 
-        assertThat(rad).contains("Volvo XC40/XC60/XC90").contains("Škoda Kamiq");
-        assertThat(rad).doesNotContain("fr. ");   // golven är inte uppmätta för bensin-SUV
+        // Bensin-SUV har egna uppmätta golv (bensinautomat), och de ligger HÖGRE än de
+        // ofiltrerade: XC60 kostar 125 500 kr utan filter men 249 900 kr som bensinautomat.
+        assertThat(rad).contains("Volvo XC60 (fr. 249 900)").contains("Audi Q5 (fr. 289 900)");
+        assertThat(rad).doesNotContain("Mercedes GLC");   // 929 000 kr, långt över taket
     }
 
     @Test

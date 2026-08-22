@@ -1654,10 +1654,45 @@ public class GroqService {
      */
     static final int SUV_FORSLAG_MAX = 8;
 
-    /** SUV-modeller för bensin/diesel/hybrid — namn utan golv, de är inte uppmätta. */
-    private static final String SUV_ICE_MODELLER =
-            "Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan,"
-            + " Toyota RAV4, Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC";
+    /**
+     * Uppmätta begagnatgolv för bensin-/hybrid-SUV:ar.
+     *
+     * <p><b>Mätt 2026-08-22</b> med {@code BlocketPriceService} och filtret
+     * {@code fuel=Bensin|Hybrid bensin, transmission=Automatisk} — alltså samma sorts annonser
+     * ett SUV-sök på bensin faktiskt landar i. Antal annonser inom parentes: X1 (14),
+     * Tiguan (29), Kamiq (69), Tucson (39), Karoq (79), RAV4 (65), Sportage (24), GLA (46),
+     * Q3 (63), XC40 (48), XC60 (14), Kodiaq (42), Q5 (24), X3 (21), T-Roc (51), XC90 (17),
+     * Q7 (16), GLC (21).
+     *
+     * <p><b>Golvet är alltid dyrare än det ofiltrerade.</b> Volvo XC60 ligger på 125 500 kr utan
+     * filter och 249 900 kr som bensinautomat, och VW T-Roc saknar bensinautomater under
+     * 10 000 mil helt — se {@code BlocketPriceService.AdFilter}. Ett SUV-sök på bensin ska
+     * mötas av den dyrare siffran, för det är den bil användaren kan köpa.
+     *
+     * <p>Precis som {@link #SUV_EV_PRICE_FLOOR_KR} fäller den här tabellen ingenting: den
+     * väljer bara vilka modeller som namnges. Diesel- och manuellsök får därför också den här
+     * listan, trots att deras golv ligger lägre — ett för högt golv gör listan försiktig, och
+     * {@code exceedsBudgetCeiling} mäter ändå mot annonser som matchar sökningen.
+     */
+    static final Map<String, Integer> SUV_ICE_PRICE_FLOOR_KR = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("BMW X1",              134_900),
+            Map.entry("Volkswagen Tiguan",   148_800),
+            Map.entry("Škoda Kamiq",         184_800),
+            Map.entry("Hyundai Tucson",      184_900),
+            Map.entry("Škoda Karoq",         189_900),
+            Map.entry("Toyota RAV4",         208_900),
+            Map.entry("Kia Sportage",        209_800),
+            Map.entry("Mercedes GLA",        245_000),
+            Map.entry("Audi Q3",             249_000),
+            Map.entry("Volvo XC40",          249_900),
+            Map.entry("Volvo XC60",          249_900),
+            Map.entry("Škoda Kodiaq",        289_800),
+            Map.entry("Audi Q5",             289_900),
+            Map.entry("BMW X3",              319_900),
+            Map.entry("Volkswagen T-Roc",    405_600),
+            Map.entry("Volvo XC90",          419_900),
+            Map.entry("Audi Q7",             539_000),
+            Map.entry("Mercedes GLC",        929_000)));
 
     /**
      * SUV-kandidaterna i FÖRSTA prompten, inte som tillrättavisning efteråt.
@@ -1670,16 +1705,18 @@ public class GroqService {
      */
     static String suvModelsLine(CarPreferences prefs) {
         if (!requiresSuvShapedCar(prefs)) return "";
-        if (!fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
-            return " SUV-MODELLER ATT UTGÅ FRÅN: " + SUV_ICE_MODELLER + ".";
+        boolean el = fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv();
+        Map<String, Integer> golv = el ? SUV_EV_PRICE_FLOOR_KR : SUV_ICE_PRICE_FLOOR_KR;
+        String rubrik = el ? "EL-SUV" : "SUV";
+
         // Golven är begagnatpriser: i leasing- och nybilsläge är de fel prisvärld helt och hållet.
-        if (!harGolvvakt(prefs)) return " EL-SUV:AR ATT UTGÅ FRÅN: " + String.join(", ",
-                SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+        if (!harGolvvakt(prefs)) return " " + rubrik + ":AR ATT UTGÅ FRÅN: " + String.join(", ",
+                golv.entrySet().stream()
                         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                         .limit(12).map(Map.Entry::getKey).toList()) + ".";
 
         int tak = prefs.budget() + BUDGET_CEILING_MARGIN_KR;
-        List<Map.Entry<String, Integer>> ryms = SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+        List<Map.Entry<String, Integer>> ryms = golv.entrySet().stream()
                 .filter(e -> e.getValue() <= tak)
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(SUV_FORSLAG_MAX)
@@ -1687,17 +1724,18 @@ public class GroqService {
         if (ryms.isEmpty()) {
             // Billigast räknas fram, inte läses ur ordningen: Map.ofEntries är oordnad, så
             // LinkedHashMap-omslaget bevarar INTE raderna som de står skrivna här i filen.
-            Map.Entry<String, Integer> billigast = SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+            Map.Entry<String, Integer> billigast = golv.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .orElseThrow();
-            return " EL-SUV OCH BUDGET: ingen el-SUV har ett uppmätt begagnatgolv under " + kr(tak)
+            return " " + rubrik + " OCH BUDGET: ingen " + (el ? "el-SUV" : "SUV")
+                    + " har ett uppmätt begagnatgolv under " + kr(tak)
                     + " kr. Billigast är " + billigast.getKey() + " från " + kr(billigast.getValue())
-                    + " kr — säg det rakt ut i fitSummary i stället för att hitta på en billigare el-SUV.";
+                    + " kr — säg det rakt ut i fitSummary i stället för att hitta på en billigare bil.";
         }
         String lista = ryms.stream()
                 .map(e -> e.getKey() + " (fr. " + kr(e.getValue()) + ")")
                 .collect(java.util.stream.Collectors.joining(", "));
-        return " EL-SUV:AR SOM RYMS I BUDGETEN (uppmätta begagnatgolv, störst först): " + lista
+        return " " + rubrik + ":AR SOM RYMS I BUDGETEN (uppmätta begagnatgolv, störst först): " + lista
                 + ". Minst TVÅ av tre förslag ska väljas härifrån — det är de största SUV:ar"
                 + " budgeten når, och en billigare bil är fel svar när dessa finns.";
     }
