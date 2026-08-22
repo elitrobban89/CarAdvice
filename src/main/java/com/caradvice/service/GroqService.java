@@ -728,10 +728,16 @@ public class GroqService {
                 // Drivlinan skickas med: för ett laddhybrids- eller hybridsök beskriver den
                 // ofiltrerade listan en annan bil än den kortet visar (XC60 Recharge fick
                 // "D4 · D5 · B6" 2026-08-22). Bensin- och dieselsök får hela utbudet som förut.
+                String kravdDrivlina = drivlinaFor(adFilter);
                 String allaMotorer = iceConsumptionService.engineOptionsForTitle(
-                        r.title(), CarTitle.year(r.title()), drivlinaFor(adFilter));
-                engineOptions = allaMotorer != null ? allaMotorer
-                        : IceConsumptionService.engineDescriptor(iceVariant);
+                        r.title(), CarTitle.year(r.title()), kravdDrivlina);
+                // Fallbacken är en BAKDÖRR när en drivlina krävs: listan avstår korrekt när
+                // modellen saknar laddbara rader, men engineDescriptor bär den enda variant
+                // consumptionForTitle hittade — och den kan vara en diesel. Skarpt 2026-08-22,
+                // efter att listan lagats: "Škoda Kodiaq iV" fick "2.0 TDI 200 hk" den vägen.
+                // Samma sorts bakdörr som generationsvakten en gång hade.
+                if (allaMotorer != null) engineOptions = allaMotorer;
+                else if (kravdDrivlina == null) engineOptions = IceConsumptionService.engineDescriptor(iceVariant);
             }
 
             result.add(new CarRecommendation(
