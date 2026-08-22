@@ -1698,6 +1698,9 @@
       @media(max-width:900px) and (max-height:480px){
         .ev-chat-panel{bottom:72px;max-height:min(300px, 70vh);max-height:min(300px, 70dvh);}
         .ev-chat-quick{display:none;}
+        /* Brasklappen krymps men doljs ALDRIG — snabbknapparna ovan ar en genvag och kan
+           tas bort nar hojden tryter, en varning om att svaren kan vara fel kan inte. */
+        .ev-chat-disclaimer{padding:2px 10px 5px !important;font-size:.62rem !important;}
         .ev-chat-fab-label{display:none;}
         .ev-chat-fab{width:44px;height:44px;}
         .ev-chat-fab svg{width:27px;height:31px;}
@@ -1797,6 +1800,14 @@
           <button class="ev-chat-send" id="ev-chat-send">
             <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor"><path d="M2 10.5l15-8-5 8 5 8z"/><path d="M17 2.5L9 10.5"/></svg>
           </button>
+        </div>
+        <!-- Samma brasklapp som bilrådgivningens chatt (ca-chat-disclaimer i
+             car-advice-chat.js), ordagrant och på samma plats: sist i panelen, under
+             inmatningsraden. Den här chatten svarar om räckvidd, laddeffekter och priser
+             — siffror en läsare lätt tar för verifierade. Färgerna följer elbilsappens
+             egen palett i stället för bilrådgivningens lila. -->
+        <div class="ev-chat-disclaimer" style="padding:4px 12px 8px;font-size:.68rem;color:rgba(147,197,253,.46);line-height:1.3">
+          🤖 AI-svar kan innehålla fel — dubbelkolla viktiga fakta.
         </div>
       </div>
     `;
