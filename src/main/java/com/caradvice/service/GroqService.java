@@ -1977,6 +1977,10 @@ public class GroqService {
         if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0)
             krav.add("minst " + prefs.minCargoLiters() + " liter bagage");
         if (requiresFamilySizedCar(prefs)) krav.add("familjestor bil");
+        // Utan raden läser ett SUV-sök som gav två kort som att appen krånglar: banderollen
+        // räknade upp "ren elbil, automat, högst 430 000 kr" medan det var SUV-spärren som
+        // fällde det tredje kortet. Mätt live 2026-08-22, direkt efter att spärren deployats.
+        if (requiresSuvShapedCar(prefs)) krav.add("SUV (hög bil)");
         if (!prefs.newCar() && prefs.maxAgeYears() != null)
             krav.add("högst " + prefs.maxAgeYears() + " år gammal");
         if (prefs.transmission() != null && !prefs.transmission().isBlank()

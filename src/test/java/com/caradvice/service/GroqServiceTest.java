@@ -762,6 +762,18 @@ class GroqServiceTest {
         assertThat(GroqService.activeConstraints(bred)).containsExactly("högst 330 000 kr");
     }
 
+
+    @Test
+    void suvkravetStarMedIKravlistan() {
+        // Live 2026-08-22, direkt efter deploy: SUV + elbil + 400 000 kr gav TVÅ kort och
+        // banderollen räknade upp "ren elbil, automat, högst 430 000 kr" — det var SUV-spärren
+        // som fällde det tredje, och just det kravet syntes inte.
+        CarPreferences suvsok = new CarPreferences(400_000, "suv", true, 15_000, "pendling",
+                4, false, "el", "automat", "köp", null, null);
+
+        assertThat(GroqService.activeConstraints(suvsok))
+                .containsExactly("ren elbil", "SUV (hög bil)", "automat", "högst 430 000 kr");
+    }
     // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---
 
     @Test
