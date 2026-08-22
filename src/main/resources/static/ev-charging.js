@@ -43,21 +43,7 @@ function evInjectStyles() {
     '#ev-prenumerera-btn:hover{opacity:.88}',
     '#ev-login-link{font-size:.78rem;color:#635bff;cursor:pointer;white-space:nowrap;',
     'background:none;border:none;text-decoration:underline;padding:0;font-family:inherit}',
-    '#ev-sub-email{font-size:.78rem;color:rgba(0,0,0,.4)}',
-    '#ev-paywall{margin:16px 0 40px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
-    '#ev-paywall-card{background:#1e1b4b;border:1px solid rgba(99,102,241,.35);border-radius:20px;',
-    'padding:40px 36px;max-width:460px;margin:0 auto;text-align:center;',
-    'box-shadow:0 20px 60px rgba(0,0,0,.25)}',
-    '#ev-paywall-card .ev-pw-icon{font-size:2.6rem;margin-bottom:14px}',
-    '#ev-paywall-card h2{color:#fff;font-size:1.3rem;margin:0 0 10px;font-weight:700}',
-    '#ev-paywall-card p{color:rgba(255,255,255,.62);font-size:.9rem;line-height:1.6;margin:0 0 22px}',
-    '.ev-features{list-style:none;margin:0 0 26px;padding:0;text-align:left}',
-    '.ev-features li{padding:6px 0;color:rgba(255,255,255,.78);font-size:.88rem}',
-    '.ev-features li::before{content:"✓ ";color:#22c55e;font-weight:700}',
-    '#ev-paywall-btn{width:100%;padding:14px;background:linear-gradient(135deg,#635bff,#4f46e5);',
-    'border:none;border-radius:10px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;',
-    'transition:opacity .2s;font-family:inherit}',
-    '#ev-paywall-btn:hover{opacity:.88}'
+    '#ev-sub-email{font-size:.78rem;color:rgba(0,0,0,.4)}'
   ].join('');
   document.head.appendChild(s);
 }
@@ -86,7 +72,7 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
       '<div id="ev-sub-right">' +
         '<span id="ev-sub-email"></span>' +
         '<button id="ev-login-link" style="display:none" onclick="evLoginLinkClick()"></button>' +
-        '<button id="ev-prenumerera-btn" onclick="evOpenSubscribe()">Prenumerera / Logga in</button>' +
+        '<button id="ev-prenumerera-btn" onclick="evOpenSubscribe()">Prenumerera – 49\xa0kr/m\xe5n</button>' +
       '</div>';
   }
 
@@ -107,8 +93,9 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else if (isLoggedIn) {
     title.textContent    = 'Inloggad';
-    desc.textContent     = ' – prenumeration kr\xe4vs';
-    bar.classList.add('ev-limited');
+    // Sa " – prenumeration krävs" fram till 2026-08-22, vilket var sant när betalväggen
+    // dolde allt. Nu är appen gratis att använda; prenumerationen tar bort gränsen.
+    desc.textContent     = ' – 30 fr\xe5gor i timmen, obegr\xe4nsat som prenumerant';
     prenBtn.style.display  = 'inline-block';
     prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
@@ -117,9 +104,10 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
   } else {
     title.textContent    = 'Demo';
-    desc.textContent     = ' – logga in f\xf6r \xe5tkomst';
+    // "logga in för åtkomst" var beskedet när betalväggen dolde sidan. Inget konto behövs.
+    desc.textContent     = ' – 30 fr\xe5gor i timmen gratis, inget konto beh\xf6vs';
     prenBtn.style.display  = 'inline-block';
-    prenBtn.textContent    = 'Prenumerera / Logga in';
+    prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'none';
     if (emailEl) { emailEl.textContent = ''; emailEl.style.display = 'none'; }
   }
@@ -136,7 +124,7 @@ function evLoginLinkClick() {
     localStorage.removeItem('ca_token');
     localStorage.removeItem('ca_email');
     localStorage.removeItem('ca_status');
-    evShowPaywall(false);
+    // Utloggning döljer inte längre innehållet — appen är gratis att använda utan konto.
     evUpdateSubBar(false, false);
   } else {
     evOpenSubscribe();
@@ -144,70 +132,23 @@ function evLoginLinkClick() {
 }
 
 // ── Content gating ───────────────────────────────────────────────────────────
-
-function evBuildPaywallCard(isLoggedIn) {
-  var heading = isLoggedIn
-    ? 'Prenumeration kr\xe4vs'
-    : 'Logga in f\xf6r att se inneh\xe5llet';
-  var text = isLoggedIn
-    ? 'Ditt konto saknar aktiv prenumeration. Prenumerera f\xf6r 49\xa0kr/m\xe5n och f\xe5 full \xe5tkomst till b\xe5da tj\xe4nsterna.'
-    : 'AI EV Laddningsassistenten och elbils k\xf6pguiden ing\xe5r i prenumerationen p\xe5 49\xa0kr/m\xe5n.';
-  var btnText = isLoggedIn
-    ? 'Prenumerera – 49\xa0kr/m\xe5n'
-    : 'Logga in / Prenumerera';
-  return (
-    '<div class="ev-pw-icon">⚡</div>' +
-    '<h2 id="ev-paywall-heading">' + heading + '</h2>' +
-    '<p id="ev-paywall-text">' + text + '</p>' +
-    '<ul class="ev-features">' +
-      '<li>AI EV Laddningsassistenten</li>' +
-      '<li>Elbils k\xf6pguiden</li>' +
-      '<li>AI Bilr\xe5dgivning (elitrobban.se/bilradgivning)</li>' +
-      '<li>Obegr\xe4nsad AI-chatt</li>' +
-      '<li>Avbryt n\xe4r som helst</li>' +
-    '</ul>' +
-    '<button id="ev-paywall-btn" onclick="evOpenSubscribe()">' + btnText + '</button>' +
-    '<div style="margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)">' +
-      '<p style="margin:0;font-size:.78rem;color:rgba(255,255,255,.45);line-height:1.7">' +
-        'Vill du veta vad bilresan kostar? ' +
-        '<a href="https://elitrobban.se/branslekostnad-berakning/" target="_blank" ' +
-           'style="color:#a5b4fc;font-weight:600;text-decoration:none">Br\xe4nslekostnadsber\xe4kning ↗</a>' +
-        ' — ing\xe5r ocks\xe5 i prenumerationen.' +
-      '</p>' +
-    '</div>'
-  );
-}
-
-function evShowPaywall(isLoggedIn) {
-  var content = evGetContentEl();
-  if (content) content.style.display = 'none';
-
-  var existing = document.getElementById('ev-paywall-card');
-  if (existing) {
-    existing.innerHTML = evBuildPaywallCard(isLoggedIn);
-    document.getElementById('ev-paywall').style.display = 'block';
-    return;
-  }
-
-  var paywall = document.createElement('div');
-  paywall.id = 'ev-paywall';
-  var card = document.createElement('div');
-  card.id = 'ev-paywall-card';
-  card.innerHTML = evBuildPaywallCard(isLoggedIn);
-  paywall.appendChild(card);
-
-  if (content) {
-    content.parentNode.insertBefore(paywall, content.nextSibling);
-  } else {
-    document.body.appendChild(paywall);
-  }
-}
+//
+// BETALVÄGGEN BORTTAGEN 2026-08-22. Fram till dess dolde evShowPaywall HELA appen för
+// alla utan aktiv prenumeration — även den som bara ville titta — och rubriken sa "Logga
+// in för att se innehållet". Det gick tvärtemot modellen: elbilsappen ska gå att använda
+// utan konto, 30 frågor i timmen är gratis (se EV_DEMO_MAX i ev-app.js), och det är
+// OBEGRÄNSAT som prenumerationen säljer.
+//
+// Erbjudandet finns kvar där det hör hemma: statusbaren ovanför innehållet och
+// "Vad ingår?"-kortet i chatten. Ingen av dem döljer något.
 
 function evRevealContent() {
-  var paywall = document.getElementById('ev-paywall');
   var content = evGetContentEl();
-  if (paywall) paywall.style.display = 'none';
   if (content) { content.style.display = ''; content.style.visibility = ''; }
+  // Kvar med flit: WP-sidan kan ha en gammal betalväggsruta kvar i DOM:en från en tidigare
+  // sidladdning eller ett cachat skript, och den ska då tas bort — inte lämnas ovanför appen.
+  var gammalPaywall = document.getElementById('ev-paywall');
+  if (gammalPaywall && gammalPaywall.parentNode) gammalPaywall.parentNode.removeChild(gammalPaywall);
 }
 
 // ── Auth check ───────────────────────────────────────────────────────────────
@@ -216,15 +157,14 @@ async function evCheckAuth() {
   evInjectStyles();
   evUpdateSubBar(false, false);
 
-  var token = localStorage.getItem('ca_token');
-  if (!token) {
-    evShowPaywall(false);
-    return;
-  }
+  // Innehållet visas ALLTID och direkt. Ingen väntan på serversvar, ingen dold sida:
+  // appen är gratis att använda, och det enda inloggningen avgör är vad statusbaren säger.
+  // Tidigare doldes sidan medan /api/auth/me svarade — på en sovande Render-instans kunde
+  // det ta över en minut, och besökaren såg en tom sida under tiden.
+  evRevealContent();
 
-  // Hide content while verifying to avoid flash
-  var content = evGetContentEl();
-  if (content) content.style.visibility = 'hidden';
+  var token = localStorage.getItem('ca_token');
+  if (!token) return;
 
   try {
     var r = await fetch(CA_API_BASE + '/api/auth/me', {
@@ -235,33 +175,18 @@ async function evCheckAuth() {
       localStorage.removeItem('ca_token');
       localStorage.removeItem('ca_email');
       localStorage.removeItem('ca_status');
-      if (content) content.style.visibility = '';
-      evShowPaywall(false);
       evUpdateSubBar(false, false);
       return;
     }
 
     var data = await r.json();
     localStorage.setItem('ca_status', data.subscriptionStatus);
-
-    if (data.subscriptionStatus === 'active') {
-      evRevealContent();
-      evUpdateSubBar(true, false);
-    } else {
-      if (content) content.style.visibility = '';
-      evShowPaywall(true);
-      evUpdateSubBar(false, true);
-    }
+    evUpdateSubBar(data.subscriptionStatus === 'active', data.subscriptionStatus !== 'active');
   } catch(e) {
-    if (content) content.style.visibility = '';
+    // Serverfel eller kallstart: cachat värde får gälla, precis som bcHasUnlimited gör.
+    // En prenumerant ska inte degraderas till demoläge för att Render startar om.
     var cached = localStorage.getItem('ca_status');
-    if (cached === 'active') {
-      evRevealContent();
-      evUpdateSubBar(true, false);
-    } else {
-      evShowPaywall(!!token);
-      evUpdateSubBar(false, !!token);
-    }
+    evUpdateSubBar(cached === 'active', cached !== 'active');
   }
 }
 
@@ -273,19 +198,12 @@ window.addEventListener('message', function(ev) {
     if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
     if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
     if (ev.data.status) localStorage.setItem('ca_status', ev.data.status);
-    if (ev.data.status === 'active') {
-      evRevealContent();
-      evUpdateSubBar(true, false);
-    } else {
-      evShowPaywall(true);
-      evUpdateSubBar(false, true);
-    }
+    evUpdateSubBar(ev.data.status === 'active', ev.data.status !== 'active');
   }
   if (ev.data.type === 'CA_LOGOUT') {
     localStorage.removeItem('ca_token');
     localStorage.removeItem('ca_email');
     localStorage.removeItem('ca_status');
-    evShowPaywall(false);
     evUpdateSubBar(false, false);
   }
 });
