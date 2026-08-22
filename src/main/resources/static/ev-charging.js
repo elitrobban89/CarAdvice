@@ -151,6 +151,48 @@ function evRevealContent() {
   if (gammalPaywall && gammalPaywall.parentNode) gammalPaywall.parentNode.removeChild(gammalPaywall);
 }
 
+// ── WordPress-blockets egna texter ───────────────────────────────────────────
+
+/**
+ * Rättar promo-rutans text vid körning i stället för att vänta på att blocket klistras om.
+ *
+ * Rutan ("Demo — 3 gratis sökningar … logga in som prenumerant för obegränsad tillgång") är
+ * STATISK HTML i WordPress, och sidan är en manuell kopia — källan ligger i
+ * Bilresa/src/elbilsladdning-promo.html och en ändring där syns inte förrän någon klistrar in
+ * blocket på nytt. Det här skriptet laddas däremot på samma sida och uppdateras vid deploy, så
+ * det kan laga texten direkt. Samma grepp som caTrappanHtml använder på bilrådgivningssidan.
+ *
+ * Båda siffrorna var fel efter 2026-08-22: kalkylatorn ger 30 beräkningar i timmen utan konto,
+ * och det är prenumerationen — inte inloggningen — som tar bort gränsen.
+ *
+ * Bara TEXTNODEN byts, aldrig innerHTML: brickan bär en inline-SVG som annars försvinner.
+ */
+function evFixPromoText() {
+  var badge = document.querySelector('.elpromo-demo-badge');
+  if (badge) {
+    for (var i = badge.childNodes.length - 1; i >= 0; i--) {
+      var n = badge.childNodes[i];
+      if (n.nodeType === 3 && n.nodeValue.trim()) {
+        n.nodeValue = ' Demo — 30 gratis ber\xe4kningar i timmen';
+        break;
+      }
+    }
+  }
+  var body = document.querySelector('.elpromo-loggedout .elpromo-body');
+  if (body && /3 s\xf6kningar|logga in som prenumerant/i.test(body.textContent)) {
+    body.textContent = 'Prova kalkylatorn utan konto — 30 ber\xe4kningar i timmen \xe4r gratis. '
+                     + 'Prenumerera f\xf6r obegr\xe4nsad tillg\xe5ng.';
+  }
+  var knapp = document.querySelector('.elpromo-loggedout .elpromo-btn-outline');
+  if (knapp && knapp.textContent.trim() === 'Logga in') {
+    knapp.textContent = 'Prenumerera – 49\xa0kr/m\xe5n';
+  }
+  var demoLank = document.querySelector('.elpromo-loggedout .elpromo-btn');
+  if (demoLank && demoLank.textContent.trim() === 'Testa demo') {
+    demoLank.textContent = 'R\xe4kna ut resekostnaden';
+  }
+}
+
 // ── Auth check ───────────────────────────────────────────────────────────────
 
 async function evCheckAuth() {
@@ -162,6 +204,10 @@ async function evCheckAuth() {
   // Tidigare doldes sidan medan /api/auth/me svarade — på en sovande Render-instans kunde
   // det ta över en minut, och besökaren såg en tom sida under tiden.
   evRevealContent();
+  // Blockets egen kod visar/döljer .elpromo-loggedout först — texten rättas efteråt, och en
+  // gång till på nästa tick ifall blocket hann rendera om efter sitt eget auth-svar.
+  evFixPromoText();
+  setTimeout(evFixPromoText, 1200);
 
   var token = localStorage.getItem('ca_token');
   if (!token) return;
