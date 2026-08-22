@@ -2490,6 +2490,23 @@
     const quickEl = document.getElementById("ev-chat-quick");
     if (quickEl) quickEl.classList.add("ev-chat-quick-off");
 
+    // Ruttipset ÄR en fråga till chatboten — samma Groq-anrop som en tippad fråga, bara
+    // formulerad åt användaren. Fram till 2026-08-22 gick den här vägen förbi BÅDE spärren
+    // och räknaren, så en rutt till Stockholm gav ett AI-svar utan att potten rördes: baren
+    // stod stilla och det såg ut som att räkningen var trasig. Den var inte trasig — den
+    // såg aldrig det här anropet.
+    if (!evHasUnlimited()) {
+      if (evDemoRemaining() <= 0) {
+        var gate = chatAppendBot("Du har använt dina " + EV_DEMO_MAX + " gratis frågor den här timmen, så jag hoppar över ruttipset. Vänta en stund, eller prenumerera för obegränsat.", false);
+        var lb = document.createElement("button");
+        lb.className = "ev-chat-retry"; lb.textContent = "💳 Prenumerera";
+        lb.onclick = evOpenSubscribePopup; gate.appendChild(lb);
+        evUpdateChatDemoUI();
+        return;
+      }
+      evConsumeDemo();
+    }
+
     let resp;
     try {
       resp = await fetch(`${API}/api/chat/stream`, {
