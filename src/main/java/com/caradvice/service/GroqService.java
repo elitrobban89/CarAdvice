@@ -1585,6 +1585,128 @@ public class GroqService {
                 + " i storleksklass MG4/VW ID.4 eller större. ALDRIG småbil eller stadsbil.");
     }
 
+    /**
+     * Uppmätta begagnatgolv för el-SUV:ar — kandidatlistan som SUV-sök får i FÖRSTA prompten.
+     *
+     * <p><b>Varför en egen tabell.</b> {@link #EV_PRICE_FLOOR_KR} blandar karosser: den bär
+     * Zoe, Leaf, ID.3 och Model 3 för att den svarar på frågan "vad ryms i budgeten", inte
+     * "vilken SUV ryms i budgeten". Skickas den listan till ett SUV-sök pekar den ut precis de
+     * låga bilar spärren sedan fäller.
+     *
+     * <p><b>Mätt 2026-08-22</b> med appens egen {@code BlocketPriceService} (milgränstrappan,
+     * {@code fuel=El}, billigaste annonsen per modell), antal annonser inom parentes:
+     * MG ZS EV (30), e-2008 (68), Mokka-e (21), ID.4 (62), Model X (36), Mach-E (96),
+     * Enyaq (92), Q4 e-tron (89), Ioniq 5 (41), EQA (94), XC40 Recharge (70), bZ4X (100),
+     * C40 Recharge (99), Solterra (100), Ariya (99), EV6 (96), Model Y (98), EQB (99),
+     * iX1 (91), Scenic (82), iX3 (99), EC40 (94), EX40 (80), Elroq (97), iX (91),
+     * Atto 3 (79), Enyaq Coupe (99), EX30 (83), EV3 (92), Tavascan (85), EV5 (96),
+     * EQE SUV (47), EV9 (59), Ioniq 9 (64), EX90 (98).
+     *
+     * <p><b>Att siffrorna åldras är ofarligt här, och det är avsiktligt.</b> Ett begagnatgolv
+     * sjunker med tiden — BMW iX3 kostar 764 300 kr ny men går redan att köpa för 364 800 kr
+     * begagnad. Tabellen fäller ingenting: den väljer bara vilka modeller som NAMNGES i
+     * prompten. Det som faktiskt kastar en för dyr bil är {@code exceedsBudgetCeiling}, och den
+     * mäter mot riktiga annonser vid varje sökning. En inaktuell rad här gör alltså listan
+     * försiktig, aldrig fel — till skillnad från {@link #EV_PRICE_FLOOR_KR}, som fäller bilar
+     * och därför måste stämma.
+     */
+    static final Map<String, Integer> SUV_EV_PRICE_FLOOR_KR = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("MG ZS EV",              139_500),
+            Map.entry("Peugeot e-2008",        175_000),
+            Map.entry("Opel Mokka-e",          179_900),
+            Map.entry("Volkswagen ID.4",       229_900),
+            Map.entry("BYD Atto 3",            239_000),
+            Map.entry("Tesla Model X",         269_900),
+            Map.entry("Ford Mustang Mach-E",   279_000),
+            Map.entry("Skoda Enyaq",           279_000),
+            Map.entry("Audi Q4 e-tron",        284_700),
+            Map.entry("Hyundai Ioniq 5",       285_000),
+            Map.entry("Mercedes EQA",          289_800),
+            Map.entry("Volvo XC40 Recharge",   289_900),
+            Map.entry("Toyota bZ4X",           294_900),
+            Map.entry("Volvo C40 Recharge",    298_800),
+            Map.entry("Subaru Solterra",       299_900),
+            Map.entry("Nissan Ariya",          299_900),
+            Map.entry("Skoda Enyaq Coupe",     304_900),
+            Map.entry("Volvo EX30",            305_000),
+            Map.entry("Kia EV6",               314_900),
+            Map.entry("Tesla Model Y",         318_900),
+            Map.entry("Mercedes EQB",          326_990),
+            Map.entry("BMW iX1",               328_700),
+            Map.entry("Renault Scenic",        349_900),
+            Map.entry("Kia EV3",               359_000),
+            Map.entry("BMW iX3",               364_800),
+            Map.entry("Volvo EC40",            379_000),
+            Map.entry("Volvo EX40",            389_500),
+            Map.entry("Skoda Elroq",           389_500),
+            Map.entry("Cupra Tavascan",        394_900),
+            Map.entry("BMW iX",                409_900),
+            Map.entry("Mercedes EQE SUV",      469_000),
+            Map.entry("Kia EV5",               475_300),
+            Map.entry("Kia EV9",               629_800),
+            Map.entry("Hyundai Ioniq 9",       663_748),
+            Map.entry("Volvo EX90",            719_000)));
+
+    /**
+     * Så många modeller namnges. Listan sorteras med den DYRASTE först, alltså den största
+     * SUV budgeten når — det är hela poängen: felet var att svaret la sig långt under budgeten,
+     * och en lista som börjar i den billiga änden hade upprepat just det.
+     */
+    static final int SUV_FORSLAG_MAX = 8;
+
+    /** SUV-modeller för bensin/diesel/hybrid — namn utan golv, de är inte uppmätta. */
+    private static final String SUV_ICE_MODELLER =
+            "Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan,"
+            + " Toyota RAV4, Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC";
+
+    /**
+     * SUV-kandidaterna i FÖRSTA prompten, inte som tillrättavisning efteråt.
+     *
+     * <p>Samma lärdom som {@link #affordableModelsLine}: {@code requireSuvShapedCars} säger vad
+     * som är fel, den här raden säger vad som är rätt. Skarpt 2026-08-22 gav ett SUV-sök på
+     * 400 000 kr bara TVÅ kort — spärren fällde det tredje och omförsöket kom tillbaka med
+     * ännu en låg bil, för prompten hade sagt vilka bilar som var förbjudna men inte vilka som
+     * fanns kvar i just den budgeten.
+     */
+    static String suvModelsLine(CarPreferences prefs) {
+        if (!requiresSuvShapedCar(prefs)) return "";
+        if (!fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv())
+            return " SUV-MODELLER ATT UTGÅ FRÅN: " + SUV_ICE_MODELLER + ".";
+        // Golven är begagnatpriser: i leasing- och nybilsläge är de fel prisvärld helt och hållet.
+        if (!harGolvvakt(prefs)) return " EL-SUV:AR ATT UTGÅ FRÅN: " + String.join(", ",
+                SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+                        .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                        .limit(12).map(Map.Entry::getKey).toList()) + ".";
+
+        int tak = prefs.budget() + BUDGET_CEILING_MARGIN_KR;
+        List<Map.Entry<String, Integer>> ryms = SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() <= tak)
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(SUV_FORSLAG_MAX)
+                .toList();
+        if (ryms.isEmpty()) {
+            // Billigast räknas fram, inte läses ur ordningen: Map.ofEntries är oordnad, så
+            // LinkedHashMap-omslaget bevarar INTE raderna som de står skrivna här i filen.
+            Map.Entry<String, Integer> billigast = SUV_EV_PRICE_FLOOR_KR.entrySet().stream()
+                    .min(Map.Entry.comparingByValue())
+                    .orElseThrow();
+            return " EL-SUV OCH BUDGET: ingen el-SUV har ett uppmätt begagnatgolv under " + kr(tak)
+                    + " kr. Billigast är " + billigast.getKey() + " från " + kr(billigast.getValue())
+                    + " kr — säg det rakt ut i fitSummary i stället för att hitta på en billigare el-SUV.";
+        }
+        String lista = ryms.stream()
+                .map(e -> e.getKey() + " (fr. " + kr(e.getValue()) + ")")
+                .collect(java.util.stream.Collectors.joining(", "));
+        return " EL-SUV:AR SOM RYMS I BUDGETEN (uppmätta begagnatgolv, störst först): " + lista
+                + ". Minst TVÅ av tre förslag ska väljas härifrån — det är de största SUV:ar"
+                + " budgeten når, och en billigare bil är fel svar när dessa finns.";
+    }
+
+    /** Tusentalsavgränsare med mellanslag, Locale.ROOT — svensk locale ger hårt mellanslag. */
+    private static String kr(int belopp) {
+        return String.format(java.util.Locale.ROOT, "%,d", belopp).replace(',', ' ');
+    }
+
     /** Kategorin är SUV — då ska bilarna vara höga. Speglar SUV-regeln i systemprompten. */
     static boolean requiresSuvShapedCar(CarPreferences prefs) {
         return prefs.carCategory() != null && prefs.carCategory().toLowerCase().contains("suv");
@@ -2626,7 +2748,7 @@ public class GroqService {
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
                 km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
-                leasingPrisLine, cargoLine, affordableModelsLine(prefs)
+                leasingPrisLine, cargoLine, affordableModelsLine(prefs) + suvModelsLine(prefs)
         );
     }
 }

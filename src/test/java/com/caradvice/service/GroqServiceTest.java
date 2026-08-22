@@ -774,6 +774,64 @@ class GroqServiceTest {
         assertThat(GroqService.activeConstraints(suvsok))
                 .containsExactly("ren elbil", "SUV (hög bil)", "automat", "högst 430 000 kr");
     }
+
+    // --- suvModelsLine (SUV-kandidaterna i FÖRSTA prompten) ---
+
+    @Test
+    void suvraddenNamnerDeStorstaSuvarnaBudgetenNar() {
+        // Skarpt 2026-08-22: SUV + el + 400 000 gav TVÅ kort — spärren fällde det tredje och
+        // omförsöket kom tillbaka med ännu en låg bil. Prompten sa vad som var förbjudet men
+        // inte vad som fanns kvar i just den budgeten.
+        String rad = GroqService.suvModelsLine(new CarPreferences(400_000, "suv", true, 15_000,
+                "pendling", 4, false, "el", "automat", "köp", null, null));
+
+        assertThat(rad).contains("BMW iX (fr. 409 900)").contains("Volvo EX40 (fr. 389 500)");
+        assertThat(rad).contains("Minst TVÅ av tre");
+        // De billiga småbilarna i klassen får inte namnges när budgeten når de stora
+        assertThat(rad).doesNotContain("MG ZS EV").doesNotContain("Peugeot e-2008");
+    }
+
+    @Test
+    void suvraddenFoljerBudgetenNedat() {
+        String rad = GroqService.suvModelsLine(new CarPreferences(200_000, "suv", true, 15_000,
+                "pendling", 4, false, "el", null, "köp", null, null));
+
+        // 230 000 i tak: ID.4 (229 900) är den största som ryms, iX och EX40 ligger långt över
+        assertThat(rad).contains("Volkswagen ID.4").contains("Peugeot e-2008");
+        assertThat(rad).doesNotContain("BMW iX").doesNotContain("Tesla Model Y");
+    }
+
+    @Test
+    void suvraddenSagerIfranNarIngenElsuvRyms() {
+        String rad = GroqService.suvModelsLine(new CarPreferences(80_000, "suv", true, 15_000,
+                "pendling", 4, false, "el", null, "köp", null, null));
+
+        assertThat(rad).contains("ingen el-SUV").contains("MG ZS EV från 139 500");
+    }
+
+    @Test
+    void suvraddenGerModellnamnUtanGolvForBensin() {
+        String rad = GroqService.suvModelsLine(new CarPreferences(300_000, "suv", false, 15_000,
+                "pendling", 4, false, "bensin", null, "köp", null, null));
+
+        assertThat(rad).contains("Volvo XC40/XC60/XC90").contains("Škoda Kamiq");
+        assertThat(rad).doesNotContain("fr. ");   // golven är inte uppmätta för bensin-SUV
+    }
+
+    @Test
+    void suvraddenLamnarAndraKategorierIfred() {
+        assertThat(GroqService.suvModelsLine(new CarPreferences(400_000, "elbil", true, 15_000,
+                "pendling", 4, false, "el", null, "köp", null, null))).isEmpty();
+    }
+
+    @Test
+    void suvraddenAnvanderIngaBegagnatgolvILeasingläge() {
+        // Golven är begagnatpriser — i leasingläge är budgeten kr/mån och siffrorna helt fel värld
+        String rad = GroqService.suvModelsLine(new CarPreferences(4_500, "suv", true, 15_000,
+                "pendling", 4, true, "el", null, "leasing", null, null));
+
+        assertThat(rad).contains("ATT UTGÅ FRÅN").doesNotContain("fr. ");
+    }
     // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---
 
     @Test
