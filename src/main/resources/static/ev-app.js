@@ -1380,23 +1380,54 @@
   let chatHistory = (function(){ try{ return JSON.parse(localStorage.getItem('ev-chat')||'[]'); }catch(e){ return []; } })();
   let evChatExpanded = (function(){ try{ return localStorage.getItem('ev-chat-max') === '1'; }catch(e){ return false; } })();
 
-  // ── Demospärr: utloggade får EV_DEMO_MAX gratis chattfrågor ────────
+  // ── Demospärr: alla utan prenumeration får EV_DEMO_MAX frågor per rullande timme ──
   // Prenumerationsfrågor (Vad ingår-knappen) och omförsök räknas inte.
   // Samma konto som Bilrådgivningen/Bränslekostnad via ca_token på elitrobban.se.
-  var EV_DEMO_MAX = 3;
+  //
+  // ÄNDRAT 2026-08-22, två fel i samma spärr:
+  //
+  //  1. Ett KONTO gav obegränsat. evIsLoggedIn() frågade bara om det fanns ett token, så ett
+  //     gratiskonto gav bort precis det prenumerationen säljer — samma fel som bensinkostnad.js
+  //     hade fram till 08-20 och som bcHasUnlimited() rättade. Nu krävs ca_status === 'active'.
+  //     Man behöver inte vara inloggad alls för att chatta.
+  //  2. Gränsen var 3 frågor LIVSTID. Nu 30 per rullande timme, samma tal som sökningarna i
+  //     CarAdvice (CarController.SEARCHES_PER_HOUR). Varje fråga är ett riktigt Groq-anrop, så
+  //     till skillnad från bränslekalkylatorn finns här en faktisk kostnad att bromsa.
+  var EV_DEMO_MAX = 30;
+  var EV_DEMO_WINDOW_MS = 3600000;
   var evAuthValid = null; // null = ej serververifierad; true/false = svar från /api/auth/me
   function evIsLoggedIn() {
     if (document.body.classList.contains('logged-in')) return true; // WP-inloggad
     if (evAuthValid !== null) return evAuthValid;                   // serververifierat
     return !!localStorage.getItem('ca_token');                      // optimistiskt innan koll
   }
+  /**
+   * Obegränsat kräver AKTIV PRENUMERATION, inte bara ett konto. Spegling av bcHasUnlimited()
+   * i bensinkostnad.js, inklusive gränsfallen: en prenumerant får inte låsas ute när servern
+   * kallstartar (cachat ca_status gäller tills serverkollen svarat), och ett gammalt
+   * ca_status='active' utan giltigt token ger inte tillgång.
+   */
+  function evHasUnlimited() {
+    if (document.body.classList.contains('logged-in')) return true; // sajtägarens genväg
+    if (evAuthValid === false) return false;
+    return localStorage.getItem('ca_status') === 'active';
+  }
+  /** Tidsstämplar inom fönstret. Trasigt/gammalt värde ger tom lista — hellre släppa igenom. */
+  function evDemoTimes() {
+    var grans = Date.now() - EV_DEMO_WINDOW_MS;
+    try {
+      var raw = JSON.parse(localStorage.getItem('ev_demo_times') || '[]');
+      if (!Array.isArray(raw)) return [];
+      return raw.filter(function(t) { return typeof t === 'number' && t >= grans; });
+    } catch (e) { return []; }
+  }
   function evDemoRemaining() {
-    var used = parseInt(localStorage.getItem('ev_demo_count') || '0', 10);
-    return Math.max(0, EV_DEMO_MAX - used);
+    return Math.max(0, EV_DEMO_MAX - evDemoTimes().length);
   }
   function evConsumeDemo() {
-    var used = parseInt(localStorage.getItem('ev_demo_count') || '0', 10);
-    localStorage.setItem('ev_demo_count', Math.min(used + 1, EV_DEMO_MAX));
+    var times = evDemoTimes();
+    times.push(Date.now());
+    try { localStorage.setItem('ev_demo_times', JSON.stringify(times)); } catch (e) {}
     evUpdateChatDemoUI();
   }
   function evUpdateChatDemoUI() {
@@ -1404,13 +1435,13 @@
     if (!bar) return;
     bar.style.display = 'flex'; // alltid synlig — Info & prenumeration-knappen ska alltid finnas
     var info = document.getElementById('ev-chat-demoinfo');
-    if (evIsLoggedIn()) { if (info) info.textContent = ''; return; } // dölj demoräknaren, behåll knappen
+    if (evHasUnlimited()) { if (info) info.textContent = ''; return; } // dölj demoräknaren, behåll knappen
     var left = document.getElementById('ev-chat-demoleft');
     var rem = evDemoRemaining();
     if (left) left.textContent = rem;
     if (info) info.innerHTML = rem > 0
-      ? 'Demoläge · <b>' + rem + ' gratis fråg' + (rem === 1 ? 'a' : 'or') + ' kvar</b>'
-      : 'Demo slut · <b>logga in för fler frågor</b>';
+      ? 'Demoläge · <b>' + rem + ' gratis fråg' + (rem === 1 ? 'a' : 'or') + ' kvar denna timme</b>'
+      : 'Demo slut · <b>prenumerera för obegränsat</b>';
   }
 
   // Statiskt info-kort i chatten — ingen AI/backend-anrop, räknas aldrig mot demogränsen
@@ -1422,7 +1453,7 @@
     bubble.className = "ev-chat-bubble bot";
     bubble.innerHTML =
       '<div style="font-weight:800;margin-bottom:6px">💳 Prenumeration – 49 kr/mån</div>' +
-      '<div style="font-size:.82rem;opacity:.85;margin-bottom:8px">Utan konto är tjänsterna begränsade (demoläge). Som prenumerant får du <b>allt obegränsat</b>:</div>' +
+      '<div style="font-size:.82rem;opacity:.85;margin-bottom:8px">Utan prenumeration är tjänsterna begränsade till 30 frågor i timmen. Som prenumerant får du <b>allt obegränsat</b>:</div>' +
       '<div style="display:flex;flex-direction:column;gap:5px;font-size:.82rem">' +
         '<div>🚗 <b>AI Bilrådgivning</b> – obegränsad chatt och bilförslag</div>' +
         '<div>⚡ <b>AI EV Laddassistent</b> – obegränsad chatt, laddstationer och ruttplanering</div>' +
@@ -1751,7 +1782,7 @@
           <button class="ev-chat-quick-btn" data-q="Var laddar jag billigast?">💰 Billigast</button>
         </div>
         <div class="ev-chat-demobar" id="ev-chat-demobar" style="display:none;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 8px;padding:7px 12px;font-size:.74rem;color:rgba(147,197,253,.78);border-top:1px solid rgba(148,163,184,.12);">
-          <span id="ev-chat-demoinfo">Demoläge · <b><span id="ev-chat-demoleft">3</span> gratis frågor kvar</b></span>
+          <span id="ev-chat-demoinfo">Demoläge · <b><span id="ev-chat-demoleft">30</span> gratis frågor kvar</b></span>
           <button id="ev-chat-subbtn" type="button" style="background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.32);color:#93c5fd;border-radius:8px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">💳 Info &amp; prenumeration</button>
         </div>
         <div class="ev-chat-input-row">
@@ -2033,18 +2064,18 @@
 
   async function chatSendMessage(message, opts) {
     opts = opts || {};
-    // Demospärr: utloggade får EV_DEMO_MAX frågor. opts.free = prenumerationsknappen
+    // Demospärr: alla utan prenumeration får EV_DEMO_MAX frågor i timmen. opts.free = prenumerationsknappen
     // (alltid gratis), opts.retry = omförsök (ska inte dra en till).
-    if (!opts.free && !opts.retry && !evIsLoggedIn() && evDemoRemaining() <= 0) {
+    if (!opts.free && !opts.retry && !evHasUnlimited() && evDemoRemaining() <= 0) {
       document.getElementById("ev-chat-quick").classList.add("ev-chat-quick-off");
-      var gate = chatAppendBot("Du har använt dina " + EV_DEMO_MAX + " gratis frågor i demoläget. Logga in för obegränsad tillgång — eller klicka “Vad ingår?” nedan för att läsa om prenumerationen.", false);
+      var gate = chatAppendBot("Du har använt dina " + EV_DEMO_MAX + " gratis frågor den här timmen. Vänta en stund, eller prenumerera för obegränsat — klicka “Vad ingår?” nedan för att läsa mer.", false);
       var lb = document.createElement("button");
-      lb.className = "ev-chat-retry"; lb.textContent = "🔑 Logga in";
+      lb.className = "ev-chat-retry"; lb.textContent = "💳 Prenumerera";
       lb.onclick = evOpenSubscribePopup; gate.appendChild(lb);
       evUpdateChatDemoUI();
       return;
     }
-    if (!opts.free && !opts.retry && !evIsLoggedIn()) evConsumeDemo();
+    if (!opts.free && !opts.retry && !evHasUnlimited()) evConsumeDemo();
     document.getElementById("ev-chat-quick").classList.add("ev-chat-quick-off");
     chatAppendUser(message);
     chatHistory.push({ role: "user", content: message });
