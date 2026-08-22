@@ -2563,11 +2563,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     loginLink.href = CA_API_BASE + '/subscribe.html';
     loginLink.dataset.action = 'subscribe';
     if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
-    var evPromo = document.getElementById('ca-ev-promo');
-    if (evPromo) evPromo.style.display = 'flex';
   } else if (isLoggedIn || caEmail) {
-    var evPromo = document.getElementById('ca-ev-promo');
-    if (evPromo) evPromo.style.display = 'none';
     title.textContent = 'Inloggad';
     var inLim = limit || CA_SEARCHES_PER_HOUR;
     var inPer = (period === 'day') ? 'i dag' : 'denna timme';
@@ -2596,9 +2592,31 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     prenBtn.textContent = 'Prenumerera / Logga in';
     loginLink.style.display = 'none';
     emailEl.style.display = 'none';
-    var evPromo = document.getElementById('ca-ev-promo');
-    if (evPromo) evPromo.style.display = 'none';
   }
+  caUpdateEvPromo(isSubscriber);
+}
+
+/**
+ * Vägen till elbilsassistenten ska synas för ALLA.
+ *
+ * Rutan var dold i två av tre grenar och visades bara för prenumeranter, så den som inte
+ * betalade fick aldrig veta att assistenten fanns. Underrubriken sa dessutom "Ingår också i
+ * din prenumeration", vilket läst av en utloggad är ett prisbesked och inte en inbjudan.
+ *
+ * Sedan 2026-08-22 behövs varken konto eller prenumeration för att använda den: 30 frågor i
+ * timmen är gratis, obegränsat kräver prenumeration. Rubriken måste säga just det.
+ *
+ * Texten byggs från JS och inte i snippeten: WP-sidan är en manuell kopia, så en ändrad
+ * text där syns inte förrän någon klistrar om blocket.
+ */
+function caUpdateEvPromo(isSubscriber) {
+  var promo = document.getElementById('ca-ev-promo');
+  if (!promo) return;
+  promo.style.display = 'flex';
+  var sub = promo.querySelector('.ca-ev-promo-sub');
+  if (sub) sub.textContent = isSubscriber
+    ? 'Ing\xe5r i din prenumeration'
+    : 'Prova gratis – 30 fr\xe5gor i timmen, inget konto beh\xf6vs';
 }
 
 function caLogoutBar() {
