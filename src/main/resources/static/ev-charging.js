@@ -172,7 +172,9 @@ function evFixPromoText() {
   if (badge) {
     for (var i = badge.childNodes.length - 1; i >= 0; i--) {
       var n = badge.childNodes[i];
-      if (n.nodeType === 3 && n.nodeValue.trim()) {
+      // Skriv BARA över den gamla texten. Blocket är omklistrat 2026-08-22 och bär rätt text
+      // redan; en villkorslös överskrivning hade tyst nollställt varje framtida redigering.
+      if (n.nodeType === 3 && /gratis s\xf6kningar/i.test(n.nodeValue)) {
         n.nodeValue = ' Demo — 30 gratis ber\xe4kningar i timmen';
         break;
       }
