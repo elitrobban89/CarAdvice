@@ -620,26 +620,25 @@ public class WebInsightScraperService {
             new Source("Auto Motor & Sport", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.automotorsport.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
                     "artikel/test från motortidningen Auto Motor & Sport", List.of()),
-            // Elbilen publicerar inte i standardtypen "posts" (den innehåller 3 poster totalt)
-            // utan i egna posttyper. tester + artiklar är de redaktionella; "nyheter" (7 000+)
-            // är kort notisflöde och ger sällan konkreta insikter — därför medvetet utelämnad.
-            //
-            // OÅTKOMLIG FRÅN RENDER sedan 2026-08-15 (FEL "Connect timed out" varje natt
-            // 08-15, 08-16, 08-17, 08-18). Diagnosen är klar och behöver inte göras om:
+            // Elbilen är BORTTAGEN 2026-08-23: elbilen.se tar inte emot anslutningar från
+            // Renders utgångs-IP. Felet var "Connect timed out" varje natt 08-15 → 08-23
+            // (nio nätter), aldrig en enda insikt sparad efter 08-14. Diagnosen är gjord och
+            // behöver inte göras om:
             //  - båda wp-json-endpointerna svarar 200 på ~0,2 s från en vanlig uppkoppling
-            //  - ingen Cloudflare/bot-vägg, inget 403 — paketen släpps tyst
+            //    (senast verifierat 08-23), så sajten lever — det är vi som avvisas
+            //  - ingen Cloudflare/bot-vägg, inget 403: paketen släpps tyst, avbrottet sker
+            //    FÖRE HTTP, så en annan User-Agent eller andra headers ändrar ingenting
             //  - elbilen.se OCH www.elbilen.se pekar båda på 13.49.199.225 (AWS eu-north-1),
-            //    ingen AAAA-post, alltså varken IPv6-fälla eller en andra värd att prova
-            // Spärren sitter på IP-nivå mot Renders utgång (ser ut som en blockering hos
-            // värdtjänsten one.com), och går därför INTE att koda sig runt: en annan
-            // User-Agent hjälper inte när avbrottet sker före HTTP, och det finns ingen
-            // alternativ värd. Källan står kvar med flit — den läker av sig själv om
-            // spärren lyfts, och 121ba1c ser till att felet stannar hos Elbilen i stället
-            // för att ta med sig de åtta andra källorna. Kostnaden är 2 × 20 s per natt.
-            new Source("Elbilen", Mode.ARTICLES, Discover.WPJSON,
-                    "https://elbilen.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
-                            + "https://elbilen.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link", null, null,
-                    "artikel/test från elbilsmagasinet Elbilen", List.of()),
+            //    ingen AAAA-post — varken IPv6-fälla eller en andra värd att prova
+            // Blockeringen sitter alltså på IP-nivå hos deras värd (ser ut som one.com) och
+            // går inte att koda sig runt utan att byta utgående IP (proxy). Källan låg kvar
+            // till 08-23 i hopp om att spärren skulle lyftas; den kostade 2 × 20 s spilld
+            // väntetid per natt och en röd rad i statusraden som dolde att allt annat var
+            // grönt. Redan sparade Elbilen-insikter rörs INTE — de ligger kvar i
+            // expert_insight och används av prompten som förut.
+            // Vill någon återinföra källan: lägg tillbaka en WPJSON-källa mot posttyperna
+            // tester + artiklar (standardtypen posts innehåller bara 3 poster), kommaseparerat
+            // i url — discoverWpJson klarar flera endpoints och är fortfarande testad.
             // per_page=15 räcker bara ett dygn bakåt här — CarUp publicerar flera inlägg om
             // dagen. En artikel som tappas hinner alltså falla ur discover-fönstret innan
             // nästa körning, och då hjälper det inte att rensa dedupnyckeln: enda vägen

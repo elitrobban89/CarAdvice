@@ -26,23 +26,24 @@ class WebInsightScraperServiceTest {
     }
 
     /**
-     * Elbilen hämtas från TVÅ wp-json-endpoints ("tester" + "artiklar") eftersom sajten inte
+     * En WPJSON-källa kan peka på FLERA endpoints (kommaseparerat i url) för sajter som inte
      * lägger sitt redaktionella material i standardtypen "posts". Förut lät loopen första
-     * felet bubbla upp, så en timeout på "tester" gjorde att "artiklar" aldrig ens provades
-     * och hela källan föll — vilket är precis vad statusraden visade nätterna 08-15 och 08-16.
+     * felet bubbla upp, så en timeout på den första endpointen gjorde att den andra aldrig ens
+     * provades och hela källan föll — vilket är precis vad statusraden visade nätterna 08-15
+     * och 08-16 för Elbilen (källan borttagen 08-23, mekanismen kvar och testad).
      */
     @Test
     void wpjsonKallanOverleverAttEnEndpointFaller() throws Exception {
         var service = org.mockito.Mockito.spy(service());
-        var elbilen = WebInsightScraperService.sourceByName("Elbilen");
+        var flerEndpoints = tvaEndpointKalla();
 
         org.mockito.Mockito.doThrow(new java.net.SocketTimeoutException("Connect timed out"))
                 .when(service).fetchRaw(org.mockito.ArgumentMatchers.contains("/tester"));
-        org.mockito.Mockito.doReturn("[{\"link\":\"https://elbilen.se/artiklar/test-av-ev6\"}]")
+        org.mockito.Mockito.doReturn("[{\"link\":\"https://exempel.se/artiklar/test-av-ev6\"}]")
                 .when(service).fetchRaw(org.mockito.ArgumentMatchers.contains("/artiklar"));
 
-        assertThat(service.discoverWpJson(elbilen))
-                .containsExactly("https://elbilen.se/artiklar/test-av-ev6");
+        assertThat(service.discoverWpJson(flerEndpoints))
+                .containsExactly("https://exempel.se/artiklar/test-av-ev6");
     }
 
     /**
@@ -53,13 +54,22 @@ class WebInsightScraperServiceTest {
     @Test
     void wpjsonKallanKastarVidareNarAllaEndpointsFaller() throws Exception {
         var service = org.mockito.Mockito.spy(service());
-        var elbilen = WebInsightScraperService.sourceByName("Elbilen");
+        var flerEndpoints = tvaEndpointKalla();
 
         org.mockito.Mockito.doThrow(new java.net.SocketTimeoutException("Connect timed out"))
                 .when(service).fetchRaw(anyString());
 
-        assertThatThrownBy(() -> service.discoverWpJson(elbilen))
+        assertThatThrownBy(() -> service.discoverWpJson(flerEndpoints))
                 .hasMessageContaining("Connect timed out");
+    }
+
+    /** Källa med två kommaseparerade wp-json-endpoints, formen Elbilen hade före 08-23. */
+    private static WebInsightScraperService.Source tvaEndpointKalla() {
+        return new WebInsightScraperService.Source("Exempel",
+                WebInsightScraperService.Mode.ARTICLES, WebInsightScraperService.Discover.WPJSON,
+                "https://exempel.se/wp-json/wp/v2/tester?per_page=10&_fields=link,"
+                        + "https://exempel.se/wp-json/wp/v2/artiklar?per_page=10&_fields=link",
+                null, null, "artikel från exempelsajten", java.util.List.of());
     }
 
     @Test
@@ -1085,12 +1095,11 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
-    void elbilenPekarPaEgnaPosttyperInteStandardPosts() {
-        // elbilen.se/wp-json/wp/v2/posts innehåller 3 poster totalt — allt redaktionellt
-        // ligger i posttyperna tester/artiklar. Källan svalt tyst tills detta upptäcktes.
-        String url = WebInsightScraperService.sourceByName("Elbilen").url();
-        assertThat(url).contains("/wp/v2/tester").contains("/wp/v2/artiklar");
-        assertThat(url).doesNotContain("/wp/v2/posts");
+    void elbilenArBorttagenSomKalla() {
+        // elbilen.se svarar 200 på ~0,2 s från en vanlig uppkoppling men tar inte emot
+        // anslutningar från Renders utgångs-IP — "Connect timed out" nio nätter i rad
+        // (08-15 → 08-23). Avbrottet sker före HTTP, så det finns inget att koda sig runt.
+        assertThat(WebInsightScraperService.sourceByName("Elbilen")).isNull();
     }
 
     @Test
