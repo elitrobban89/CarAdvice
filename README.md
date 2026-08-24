@@ -1073,7 +1073,6 @@ EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — 
 
 | Monitor | URL | Intervall |
 |---|---|---|
-| WordPress-sida | `https://elitrobban.se/bilradgivning/` | 5 min |
 | Backend | `https://caradvice.onrender.com/api/recommend/test` | 5 min |
 | Backend-hälsa (keyword) | `https://caradvice.onrender.com/api/health` — nyckelord `"status":"OK"`, larm när det saknas | 5 min |
 | Groq-modeller | `https://caradvice.onrender.com/api/health/groq` | 5 min |
