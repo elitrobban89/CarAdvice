@@ -392,6 +392,55 @@ class ExpertInsightServiceTest {
     }
 
     @Test
+    void motorkoderRaknasSomForbranning() {
+        // Skarpt fall 2026-08-24: Teknikens Världs bensin-Polo-test nämnde ingen av de gamla
+        // markörerna — bara motorkoden — och landade därför på elbilskortet ID. Polo
+        assertThat(ExpertInsightService.drivetrainOf("Provbilen hade en 115-hästkrafts TSI-motor."))
+                .isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("2.0 TDI drar 0,49 l/mil")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Audis 2.0 TFSI quattro")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Peugeots 1.5 BlueHDi")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Renault 1.3 dCi")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Hyundais 1.6 CRDi")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("Fords 1.0 EcoBoost")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("PureTech-motorn är känd för kamremmen")).isEqualTo("ice");
+    }
+
+    @Test
+    void motorkodPaLaddhybridForblirLaddhybrid() {
+        // ICE prövas sist, så en laddhybrid som nämner sin bensinmotorkod behåller phev och
+        // filtreras alltså inte bort från laddhybridkort
+        assertThat(ExpertInsightService.drivetrainOf("Laddhybriden har en 1,4 TSI och 13 kWh batteri"))
+                .isEqualTo("phev");
+    }
+
+    @Test
+    void eSkyactivArIngenForbranningsmarkor() {
+        // Mazda MX-30 är en ELBIL med e-Skyactiv-drivlina — koden får aldrig in i listan
+        assertThat(ExpertInsightService.drivetrainOf("MX-30 använder e-Skyactiv-drivlinan")).isNull();
+    }
+
+    @Test
+    void bensinInsiktMedMotorkodVisasInteFaElbilskort() {
+        // Hela kedjan: "polo" är en delsträng av "id. polo", så bensinraden matchar titeln —
+        // det är drivlinefiltret som måste stoppa den
+        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo",
+                "Provbilen hade en 115-hästkrafts TSI-motor kopplad till en dubbelkopplingslåda.", 7);
+        when(repo.findAll()).thenReturn(List.of(bensinPolo));
+        when(evSpecService.isKnownEv("Volkswagen ID. Polo 155 kW - 52 kWh")).thenReturn(true);
+        assertThat(service().findForCarTitle("Volkswagen ID. Polo 155 kW - 52 kWh")).isEmpty();
+    }
+
+    @Test
+    void bensinInsiktMedMotorkodVisasFortfarandePaBensinkort() {
+        // Motsatsen måste också hålla: filtret får inte tömma bensinkortet
+        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo",
+                "Provbilen hade en 115-hästkrafts TSI-motor kopplad till en dubbelkopplingslåda.", 7);
+        when(repo.findAll()).thenReturn(List.of(bensinPolo));
+        assertThat(service().findForCarTitle("Volkswagen Polo 1.0 TSI Life")).hasSize(1);
+    }
+
+    @Test
     void elbilsordVinnerSaTaycanTurboInteBlirForbranning() {
         // Medvetet utelämnade ICE-ord: "turbo" (Porsche Taycan Turbo S ÄR en elbil) och
         // "olja"/"växellåda" (elbilar har reduktionsväxel med olja)

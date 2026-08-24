@@ -126,11 +126,19 @@ public class ExpertInsightService {
      * nästan alltid nämner bensinmotorn också ("laddhybriden ... 2,7 l/100 km bensin"): den
      * ska klassas som phev/hev, inte ice. Bara ord som är omöjliga på en ren elbil får stå
      * här. Medvetet UTELÄMNADE: "turbo" (Porsche Taycan Turbo S är en elbil), "växellåda"
-     * och "olja" (elbilar har reduktionsväxel med olja).
+     * och "olja" (elbilar har reduktionsväxel med olja), samt "skyactiv" (Mazda MX-30 är en
+     * elbil med e-Skyactiv-drivlina).
+     *
+     * MOTORKODERNA tillkom 2026-08-24: en bensin-Polo-insikt ("115-hästkrafts TSI-motor")
+     * saknade varje ord i listan ovan, fick drivlina null och slank därför förbi filtret rakt
+     * in på elbilskortet ID. Polo — delsträngen "polo" matchar "id. polo". Koderna nedan är
+     * omöjliga på en ren elbil. Att en laddhybrid också bär dem är ofarligt: ICE prövas SIST,
+     * och en ice-insikt utesluts bara på EV-kort ({@link #drivetrainsCompatible}).
      */
     private static final java.util.regex.Pattern ICE_MARKER = java.util.regex.Pattern.compile(
             "\\b(bensin\\w*|diesel\\w*|etanol\\w*|e5|e10|e20|e85"
-            + "|kamrem\\w*|kamkedj\\w*|partikelfilter\\w*|avgas\\w*|tändstift\\w*|förgasar\\w*)\\b");
+            + "|kamrem\\w*|kamkedj\\w*|partikelfilter\\w*|avgas\\w*|tändstift\\w*|förgasar\\w*"
+            + "|tsi|tfsi|tdi|hdi|bluehdi|dci|cdti|crdi|multijet|ecoboost|puretech)\\b");
 
     /**
      * Gemener med alla sorters blanktecken nedkokta till ett vanligt mellanslag. Behövs eftersom
