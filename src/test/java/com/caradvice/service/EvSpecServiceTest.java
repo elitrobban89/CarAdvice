@@ -543,6 +543,51 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void etronRaknasSomElbilTrotsAttA6FinnsSomBensinbil() {
+        // Skarpt fall 2026-08-24: ice_consumption-företrädet fällde Audi A6 Avant e-tron på
+        // "Audi A6 40 TFSI", varpå drivlinefiltret stängdes av helt på kortet och en
+        // laddhybridinsikt låg kvar på en ren elbil
+        when(repo.findAll()).thenReturn(List.of(spec("Audi A6 Avant e-tron")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Audi", "A6 40 TFSI 204 hk", "bensin", 0.62));
+        assertThat(service().isKnownEv("Audi A6 Avant e-tron quattro")).isTrue();
+    }
+
+    @Test
+    void idPoloRaknasSomElbilTrotsAttPoloFinnsSomBensinbil() {
+        when(repo.findAll()).thenReturn(List.of(spec("Volkswagen ID. Polo 155 kW")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Volkswagen", "Polo 1.0 TSI 95 hk", "bensin", 0.55));
+        assertThat(service().isKnownEv("Volkswagen ID. Polo 155 kW")).isTrue();
+    }
+
+    @Test
+    void bensintitelNasInteAvElbilsundantaget() {
+        // Undantaget får inte göra en förbränningsbil till elbil: titeln saknar elbilsnamnet
+        // OCH når ingen ev_spec-rad
+        when(repo.findAll()).thenReturn(List.of(spec("Audi A6 Avant e-tron")));
+        assertThat(service().isKnownEv("Audi A6 40 TFSI 204 hk")).isFalse();
+    }
+
+    @Test
+    void dieseltitelArAldrigElbilAvenOmNamnetMatchar() {
+        // Regression som Electric-strippningen öppnade: "Porsche Cayenne Electric" blev matchbar
+        // för "Porsche Cayenne 3.0 Diesel", och dieselordet räckte för att passera drivlineledet
+        // i isKnownEv — en diesel klassades som ren elbil och tappade sina förbränningsinsikter
+        when(repo.findAll()).thenReturn(List.of(spec("Porsche Cayenne Electric")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Porsche", "Cayenne 3.0 Diesel 262 hk", "diesel", 0.85));
+        assertThat(service().isKnownEv("Porsche Cayenne 3.0 Diesel 262 hk")).isFalse();
+    }
+
+    @Test
+    void laddhybridtitelSvararFortfarandeSant() {
+        // Kontraktet från 2026-08-14 får inte ändras av diesel-undantaget ovan
+        when(repo.findAll()).thenReturn(List.of(spec("Volvo XC60 T8 PHEV")));
+        assertThat(service().isKnownEv("Volvo XC60 T8 PHEV 455 hk")).isTrue();
+    }
+
+    @Test
     void diakritiskaTeckenNormaliseras() {
         // "Škoda" i databasen ska matcha "Skoda" i titeln
         when(repo.findAll()).thenReturn(List.of(spec("Škoda Enyaq")));

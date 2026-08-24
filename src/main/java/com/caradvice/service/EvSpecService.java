@@ -84,8 +84,14 @@ public class EvSpecService {
         // ska fortsätta göra det, annars ändras kontraktet för anropare som inte bett om det.
         // Den enda anroparen (ExpertInsightService.titleDrivetrain) når hit bara när ordet
         // saknas, så företrädet biter exakt där skadan fanns.
+        // ...men en FÖRBRÄNNINGSTITEL är aldrig en elbil. Undantaget togs in 2026-08-24 sedan
+        // "Porsche Cayenne 3.0 Diesel 262 hk" börjat svara sant: raden "Porsche Cayenne Electric"
+        // blev matchbar för den titeln när matchningsNamn slutade kräva ordet "Electric", och
+        // dieselordet räckte sedan för att passera här. En ice-titel faller därför vidare till
+        // ice_consumption-företrädet nedan, som fäller den. PHEV/HEV/EV-titlar svarar som förr.
         String drivetrain = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title == null ? "" : title));
-        if (drivetrain != null) return true;
+        if (drivetrain != null && !"ice".equals(drivetrain)) return true;
+        if (barElbilsegetNamn(title)) return true;
         try {
             return iceConsumptionService.consumptionForTitle(title, null, null) == null;
         } catch (Exception e) {
@@ -314,6 +320,39 @@ public class EvSpecService {
      * ordgränsen hjälper inte där. Samma sak gäller {@code Mercedes-Benz CLA} mot
      * {@code CLA 200}. Det är den kvarvarande klassen som bara en drivmedelsregel kan lösa.
      */
+    /**
+     * Namnled som BARA finns på rena elbilar. Bär titeln ett av dem är den inte tvetydig, och
+     * {@code ice_consumption}-företrädet i {@link #isKnownEv} ska inte gälla.
+     *
+     * <p><b>Varför det behövdes.</b> Företrädet (2026-08-14) skyddar modeller som finns som både
+     * förbränning och el — en naken "Hyundai Kona" ska inte räknas som elbil. Men det slog också
+     * ut elbilar vars MODELLNAMN råkar finnas som förbränningsbil: {@code Audi A6 Avant e-tron}
+     * fälldes av {@code Audi A6 40 TFSI}, och {@code Volkswagen ID. Polo} av bensin-Polon. Följden
+     * var att drivlinefiltret på bilkortet stängdes av helt på de korten, och en laddhybridinsikt
+     * kunde ligga kvar på en ren elbil.
+     *
+     * <p><b>Mätt 2026-08-24</b> över 557 ev_spec-namn och 957 ICE-namn, mot de sex Kona/Niro-fall
+     * företrädet byggdes för: alla sex svarar fortfarande rätt, elbilsträffarna går 489 → 503, och
+     * ICE-titlar som felaktigt räknas som elbil står stilla på 29. Alternativet "en EXAKT
+     * ev_spec-titelträff slår företrädet" mättes också och gav <b>noll</b> på annonsliknande
+     * titlar — ett riktigt bilkort är aldrig ett exakt ev_spec-namn.
+     *
+     * <p><b>Priset:</b> listan måste växa när ett märke hittar på ett nytt elbilsnamn — samma
+     * underhållsskuld som {@link #DRIVLINEORD}. Den är medvetet KORT och tar bara namnled som
+     * aldrig suttit på en förbränningsbil. {@code recharge} hör inte hit (Volvo använde det på
+     * laddhybrider), och inte {@code ioniq} heller (Hyundai Ioniq fanns som hybrid).
+     */
+    private static final java.util.List<String> ELBILSEGNA_NAMN = java.util.List.of(
+            "e-tron", "id.", "ix", "eqa", "eqb", "eqc", "eqe", "eqs", "mach-e");
+
+    /** Sant om titeln bär ett namnled som bara finns på elbilar. */
+    private static boolean barElbilsegetNamn(String title) {
+        if (title == null) return false;
+        String t = normalize(title);
+        for (String ord : ELBILSEGNA_NAMN) if (t.contains(ord)) return true;
+        return false;
+    }
+
     private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
             "phev", "hev", "gte", "plug-in",
             "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter",
