@@ -517,6 +517,49 @@ class ExpertInsightServiceTest {
         assertThat(service().findForCarTitle("Volkswagen Polo 1.0 TSI Life")).hasSize(1);
     }
 
+    // --- U+2011: AI:ns hårda bindestreck får inte stänga av drivlinevakten ---
+
+    @Test
+    void drivetrainOfKlararSmaltBindestreck() {
+        // Skarpt fall 2026-08-24: "plug‑in" (NON-BREAKING HYPHEN) matchade inte plug[- ]?in
+        assertThat(ExpertInsightService.drivetrainOf("Audi A6 plug‑in‑hybrid drar lite"))
+                .isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("En self‑charging lösning utan sladd"))
+                .isEqualTo("hev");
+        assertThat(ExpertInsightService.drivetrainOf("Bilen har kam‑rem")).isNull(); // delat ord är inte "kamrem"
+    }
+
+    @Test
+    void laddhybridinsiktMedSmaltStreckVisasIntePaElbilskort() {
+        // Hela kedjan: raden låg i drift på Audi A6 Avant e-tron, ett rent elbilskort
+        // Ordet "hybrid" är medvetet BORTA ur texten: med det kvar fastnar raden på HEV-markören
+        // och testet blir grönt även utan fixen — det är plug‑in-ordet som ska bära domen
+        ExpertInsight phev = insikt("Bilexpert", "Audi", "A6",
+                "Audi A6 plug‑in laddar på 2 timmar och har bäst bränsleekonomi i klassen.", 8);
+        when(repo.findAll()).thenReturn(List.of(phev));
+        when(evSpecService.isKnownEv("Audi A6 Avant e-tron quattro")).thenReturn(true);
+        assertThat(service().findForCarTitle("Audi A6 Avant e-tron quattro")).isEmpty();
+    }
+
+    @Test
+    void modellnamnMedSmaltBindestreckMatcharSittEgetKort() {
+        // 12 modellnamn stavas "C‑HR", "E‑Klass", "Puma Gen‑E" — titlarna kommer från
+        // kurerad CSV med vanligt streck, så raderna kunde aldrig nå sina egna kort
+        ExpertInsight chr = insikt("M3", "Toyota", "C‑HR", "Bagageutrymmet är litet baktill.", 7);
+        when(repo.findAll()).thenReturn(List.of(chr));
+        assertThat(service().findForCarTitle("Toyota C-HR 1.8 Hybrid 122 hk")).hasSize(1);
+    }
+
+    @Test
+    void flattenSpacesKokarNerAllaStreckvarianter() {
+        assertThat(ExpertInsightService.flattenSpaces("C‑HR")).isEqualTo("c-hr");
+        assertThat(ExpertInsightService.flattenSpaces("C‐HR")).isEqualTo("c-hr");
+        assertThat(ExpertInsightService.flattenSpaces("C–HR")).isEqualTo("c-hr");
+        assertThat(ExpertInsightService.flattenSpaces("C—HR")).isEqualTo("c-hr");
+        assertThat(ExpertInsightService.flattenSpaces("C−HR")).isEqualTo("c-hr");
+        assertThat(ExpertInsightService.flattenSpaces("C-HR")).isEqualTo("c-hr");
+    }
+
     @Test
     void elbilsordVinnerSaTaycanTurboInteBlirForbranning() {
         // Medvetet utelämnade ICE-ord: "turbo" (Porsche Taycan Turbo S ÄR en elbil) och

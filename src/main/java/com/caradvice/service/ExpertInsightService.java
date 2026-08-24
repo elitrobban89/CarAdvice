@@ -144,20 +144,33 @@ public class ExpertInsightService {
      * Gemener med alla sorters blanktecken nedkokta till ett vanligt mellanslag. Behövs eftersom
      * matchningen nedan är {@code contains("ioniq 5")} mot AI-text som ibland innehåller hårt
      * (U+00A0) eller smalt hårt mellanslag (U+202F) — se motiveringen i EvSpecService.normalize.
-     * Bara "höstacken" städas; märken och modeller i databasen kommer från kurerad CSV.
+     *
+     * ALLA STRECKVARIANTER kokas ner till ett vanligt bindestreck sedan 2026-08-24. AI:n skriver
+     * gärna U+2011 NON-BREAKING HYPHEN: 212 av 637 insikter bar ett, och 12 modellnamn stavades
+     * "C‑HR", "E‑Klass" eller "Puma Gen‑E" — de kunde aldrig matcha sina EGNA kort, för titlarna
+     * kommer från kurerad CSV med vanligt streck. {@code \p{Z}} täcker inte streck ({@code Pd}),
+     * så det behövde ett eget led. Samma familj som U+202F-fällan raden ovan.
      */
     static String flattenSpaces(String s) {
         if (s == null) return "";
         return s.replaceAll("\\p{Cf}", "")
+                .replaceAll("[\\p{Pd}−]", "-")
                 .replaceAll("[\\p{Z}\\s]+", " ")
                 .trim()
                 .toLowerCase();
     }
 
-    /** Drivlina ur en text: "phev", "hev", "ev" eller "ice" — null om ospecificerad. */
+    /**
+     * Drivlina ur en text: "phev", "hev", "ev" eller "ice" — null om ospecificerad.
+     *
+     * Texten går genom {@link #flattenSpaces} och inte bara {@code toLowerCase}: en insikt om
+     * "Audi A6 plug‑in‑hybrid" med U+2011 låg på ett rent elbilskort (A6 Avant e-tron) i drift,
+     * eftersom {@code plug[- ]?in} kräver ett vanligt bindestreck. Utan träff blev drivlinan null
+     * och vakten hoppades över helt — ett tyst nej som såg ut som "insikten saknar drivlina".
+     */
     static String drivetrainOf(String s) {
         if (s == null) return null;
-        String t = s.toLowerCase();
+        String t = flattenSpaces(s);
         if (PHEV_MARKER.matcher(t).find()) return "phev";
         if (HEV_MARKER.matcher(t).find()) return "hev";
         if (EV_MARKER.matcher(t).find()) return "ev";
@@ -225,7 +238,7 @@ public class ExpertInsightService {
     static int modelPosition(String flatTitle, String model) {
         if (model == null || model.isBlank()) return -1;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile(
-                "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(model.toLowerCase())
+                "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(flattenSpaces(model))
                 + "(?![\\p{L}\\p{N}])").matcher(flatTitle);
         return m.find() ? m.start() : -1;
     }
