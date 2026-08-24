@@ -514,6 +514,35 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void radMedElectricINamnetNasAvEnAnnonstitel() {
+        // Skarpt fall 2026-08-24: raden hittade sitt EGET namn, men så fort annonsen bar ett
+        // extra ord föll pass 1 och pass 2 letade efter "electric" — som titelsidan just
+        // strippat bort. 26 rader var drabbade, alla med ordet i namnet.
+        when(repo.findAll()).thenReturn(List.of(spec("Hyundai Kona Electric 64 kWh")));
+        assertThat(service().formatForTitle("Hyundai Kona Electric 64 kWh 2024 Business Edition", 15000))
+                .isNotNull();
+    }
+
+    @Test
+    void opelradMedElectricNasAvAnnonstitel() {
+        // Opel hade 11 av de 26 raderna
+        when(repo.findAll()).thenReturn(List.of(spec("Opel Corsa Electric 50 kWh")));
+        assertThat(service().formatForTitle("Opel Corsa Electric 50 kWh 2023 GS Line 4500 mil", 15000))
+                .isNotNull();
+    }
+
+    @Test
+    void nakenKonatitelBlirFortfarandeInteElbil() {
+        // Vakten från 2026-08-14 måste överleva strippningen: "Hyundai Kona Electric" blir
+        // "hyundai kona" i ordjämförelsen, och en naken Kona-titel träffar då raden — men
+        // ice_consumption-företrädet ska ändå fälla den, för bilen finns som bensinbil
+        when(repo.findAll()).thenReturn(List.of(spec("Hyundai Kona Electric 64 kWh")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant("Hyundai", "Kona 1.6 T-GDI 198 hk", "bensin", 0.72));
+        assertThat(service().isKnownEv("Hyundai Kona")).isFalse();
+    }
+
+    @Test
     void diakritiskaTeckenNormaliseras() {
         // "Škoda" i databasen ska matcha "Skoda" i titeln
         when(repo.findAll()).thenReturn(List.of(spec("Škoda Enyaq")));

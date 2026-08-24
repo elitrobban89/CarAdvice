@@ -331,9 +331,21 @@ public class EvSpecService {
      *
      * <p>Spärren i {@link #DRIVLINEORD} prövas mot det OSTRIPPADE namnet och måste göra det —
      * annars vore "e-golf" borta innan den hann jämföras.
+     *
+     * <p><b>Ordet "Electric" tillkom 2026-08-24, samma asymmetri en gång till.</b> Titeln får
+     * det bortstädat (se {@code matchByTitle}), men det lagrade namnet behöll det — så pass 2,
+     * som kräver att RADENS ord finns i titeln, letade efter ett ord titeln just blivit av med.
+     * Följden syntes bara på annonstitlar: raden hittade sitt eget namn, men så fort annonsen
+     * bar ett extra ord ("2024", "Business Edition") föll pass 1 och pass 2 tog över — och
+     * missade. Mätt över 557 rader med annonsliknande titlar: <b>531 → 557 träffar (95 % → 100
+     * %)</b>. De 26 var Opel (11), Jeep (4), Hyundai Kona (3), Porsche Cayenne (3), Dacia
+     * Spring och Alpine A290. "Electric" ligger INTE i {@link #DRIVLINEORD}, så spärren ovan
+     * påverkas inte.
      */
     private static String matchningsNamn(String carName) {
-        return normalize(carName.replaceAll("(?i)\\be-(?=[A-Za-z])", ""));
+        return normalize(carName
+                .replaceAll("(?i)\\bElectric\\b", "")
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", ""));
     }
 
     /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */
