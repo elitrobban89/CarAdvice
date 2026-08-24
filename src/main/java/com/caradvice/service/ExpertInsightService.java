@@ -210,6 +210,55 @@ public class ExpertInsightService {
      * visas på ett Mustang Mach-E- eller i4-kort. Slumpat urval inom grupperna så hela
      * poolen roterar över tid.
      */
+    /**
+     * Modellnamnets position i titeln, eller -1 om det inte står där som eget namn.
+     *
+     * Rent {@code contains} lät ett KORT modellnamn matcha ett ANNAT, längre: "polo" ligger i
+     * "id. polo", "seal" i "sealion", "q7" i "sq7", "cx-3" i "cx-30", "x3" i "ix3". Mätt
+     * 2026-08-24 över 637 insikter × 1 514 korttitlar: 40 av 1 829 kopplingar var av den sorten.
+     *
+     * Gränsen skrivs med lookaround i stället för {@code \b} eftersom modellnamn slutar på
+     * tecken som inte är bokstäver — "C-HR+", "CLA 250+" — och {@code \b} kräver ett bokstavs-
+     * tecken efter plustecknet, vilket hade dödat matchningen helt på just de bilarna.
+     * PRISET, medvetet taget: "SQ7" får inte längre Q7-insikter trots att en SQ7 ÄR en Q7.
+     */
+    static int modelPosition(String flatTitle, String model) {
+        if (model == null || model.isBlank()) return -1;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(model.toLowerCase())
+                + "(?![\\p{L}\\p{N}])").matcher(flatTitle);
+        return m.find() ? m.start() : -1;
+    }
+
+    /**
+     * Av flera modellnamn som matchar samma titel vinner det som börjar TIDIGAST; vid samma
+     * position vinner det längsta. Titeln inleds med bilens egen modell, så positionen är en
+     * bättre mätare på vilken bil kortet gäller än längden.
+     *
+     * "Audi A6 Avant e-tron": både "a6" (pos 5) och "e-tron" (pos 14) matchar — a6 vinner, och
+     * de generella e-tron-insikterna faller. Att i stället välja det LÄNGSTA namnet mätte lika
+     * bra i antal (165 mot 152 borttagna) men gjorde precis fel här: "e-tron" är längre än "a6".
+     * "Volkswagen ID. Polo": "id. polo" börjar före "polo". "BYD Seal 6 DM-i Touring": båda
+     * börjar på samma position, då vinner det längsta.
+     *
+     * GRÄNS: regeln behöver en konkurrent i databasen. Finns ingen ID. Polo-insikt alls får
+     * kortet fortfarande bensin-Polons rader — det är drivlinevakten som är skyddet då.
+     */
+    private static List<ExpertInsight> tidigasteModellenVinner(String t, List<ExpertInsight> rader) {
+        Map<String, long[]> bast = new LinkedHashMap<>(); // per märke: {position, -längd}
+        for (ExpertInsight i : rader) {
+            long[] v = {modelPosition(t, i.getCarModel()), -i.getCarModel().length()};
+            bast.merge(i.getCarMake().toLowerCase(), v,
+                    (a, b) -> (a[0] != b[0]) ? (a[0] < b[0] ? a : b) : (a[1] <= b[1] ? a : b));
+        }
+        List<ExpertInsight> kvar = new ArrayList<>();
+        for (ExpertInsight i : rader) {
+            long[] v = bast.get(i.getCarMake().toLowerCase());
+            if (modelPosition(t, i.getCarModel()) == v[0] && -i.getCarModel().length() == v[1]) kvar.add(i);
+        }
+        return kvar;
+    }
+
     public List<Map<String, Object>> findForCarTitle(String title) {
         if (title == null || title.isBlank()) return List.of();
         String t = flattenSpaces(title);
@@ -225,11 +274,12 @@ public class ExpertInsightService {
                 if (insightDrive != null && !drivetrainsCompatible(titleDrive, insightDrive)) continue;
             }
             if (i.getCarModel() != null) {
-                if (t.contains(i.getCarModel().toLowerCase())) makeAndModel.add(i);
+                if (modelPosition(t, i.getCarModel()) >= 0) makeAndModel.add(i);
             } else {
                 makeOnly.add(i);
             }
         }
+        makeAndModel = tidigasteModellenVinner(t, makeAndModel);
 
         Collections.shuffle(makeAndModel);
         Collections.shuffle(makeOnly);

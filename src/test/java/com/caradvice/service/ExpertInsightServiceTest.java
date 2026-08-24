@@ -391,6 +391,83 @@ class ExpertInsightServiceTest {
         assertThat(ExpertInsightService.drivetrainOf("Elbilarna stjäls sällan")).isEqualTo("ev");
     }
 
+    // --- findForCarTitle: modellnamn får inte matcha ett ANNAT, längre namn ---
+
+    @Test
+    void bensinPoloVisasIntePaIdPoloKort() {
+        // Skarpt fall 2026-08-24: "polo" är en delsträng av "id. polo", så bensin-Polons rader
+        // låg på elbilskortet. "id. polo" börjar tidigare i titeln och vinner.
+        ExpertInsight polo = insikt("Teknikens Värld", "Volkswagen", "Polo",
+                "Bilen har 16-tumshjul som ger en hård körning på ojämna vägar.", 7);
+        ExpertInsight idPolo = insikt("Vi Bilägare", "Volkswagen", "ID. Polo",
+                "Instegsversionen kostar från 320 900 kr.", 8);
+        when(repo.findAll()).thenReturn(List.of(polo, idPolo));
+        when(evSpecService.isKnownEv("Volkswagen ID. Polo 155 kW")).thenReturn(true);
+        assertThat(service().findForCarTitle("Volkswagen ID. Polo 155 kW"))
+                .singleElement()
+                .extracting(m -> m.get("insight"))
+                .asString().startsWith("Instegsversionen");
+    }
+
+    @Test
+    void a6InsiktSlasInteUtAvGenerellEtronInsikt() {
+        // Motprov mot "längsta namnet vinner": "e-tron" är längre än "a6" men står SENARE i
+        // titeln, och kortet gäller en A6. Positionen avgör, inte längden.
+        ExpertInsight a6 = insikt("M3", "Audi", "A6", "A6 har luftfjädring som tillval.", 8);
+        ExpertInsight etron = insikt("M3", "Audi", "e-tron", "e-tron-modellerna delar laddteknik.", 7);
+        when(repo.findAll()).thenReturn(List.of(a6, etron));
+        assertThat(service().findForCarTitle("Audi A6 Avant e-tron quattro"))
+                .singleElement()
+                .extracting(m -> m.get("insight"))
+                .asString().startsWith("A6 har");
+    }
+
+    @Test
+    void sealInsiktVisasIntePaSealionKort() {
+        // "seal" ligger inuti "sealion" utan mellanrum — bara namngränsen fångar den, och
+        // positionsregeln kan inte hjälpa (båda börjar på samma plats)
+        ExpertInsight seal = insikt("Bilexpert", "BYD", "Seal", "Seal är en sedan med 570 km räckvidd.", 8);
+        when(repo.findAll()).thenReturn(List.of(seal));
+        assertThat(service().findForCarTitle("BYD SEALION 7 82.5 kWh AWD Design")).isEmpty();
+    }
+
+    @Test
+    void cx3SmittarInteCx30() {
+        // Siffergränsen: "cx-3" får inte matcha "cx-30"
+        ExpertInsight cx3 = insikt("Vi Bilägare", "Mazda", "CX-3", "CX-3 har liten baklucka.", 6);
+        when(repo.findAll()).thenReturn(List.of(cx3));
+        assertThat(service().findForCarTitle("Mazda CX-30 2.0 Skyactiv-G 150 hk")).isEmpty();
+    }
+
+    @Test
+    void modellnamnSomSlutarPaPlustecknetMatchasAnda() {
+        // Namngränsen skrivs med lookaround, inte \b — "C-HR+" slutar på ett icke-bokstavstecken
+        // och hade annars aldrig matchat sitt eget kort
+        ExpertInsight chrPlus = insikt("M3", "Toyota", "C-HR+", "C-HR+ är den eldrivna varianten.", 8);
+        when(repo.findAll()).thenReturn(List.of(chrPlus));
+        when(evSpecService.isKnownEv("Toyota C-HR+ 77 kWh")).thenReturn(true);
+        assertThat(service().findForCarTitle("Toyota C-HR+ 77 kWh")).hasSize(1);
+    }
+
+    @Test
+    void variantkortBehallerSinaModellinsikter() {
+        // Regeln får inte kapa den vanliga varianttiteln: "Model Y" står först i titeln
+        ExpertInsight modelY = insikt("M3", "Tesla", "Model Y", "Model Y har stor baklucka.", 8);
+        when(repo.findAll()).thenReturn(List.of(modelY));
+        when(evSpecService.isKnownEv("Tesla Model Y Long Range AWD")).thenReturn(true);
+        assertThat(service().findForCarTitle("Tesla Model Y Long Range AWD")).hasSize(1);
+    }
+
+    @Test
+    void modelPositionHittarNamngranserna() {
+        assertThat(ExpertInsightService.modelPosition("volkswagen id. polo 155 kw", "Polo")).isEqualTo(15);
+        assertThat(ExpertInsightService.modelPosition("byd sealion 7 82.5 kwh", "Seal")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("audi sq7 4.0 tfsi", "Q7")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("bmw ix3", "X3")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("mazda cx-30 2.0", "CX-3")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("toyota c-hr+ 77 kwh", "C-HR+")).isEqualTo(7);
+    }
+
     @Test
     void motorkoderRaknasSomForbranning() {
         // Skarpt fall 2026-08-24: Teknikens Världs bensin-Polo-test nämnde ingen av de gamla
