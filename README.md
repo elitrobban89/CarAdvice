@@ -124,6 +124,7 @@ normaliseras i backenden också.
 - Jämförelsetabellen har en dedikerad **💪 Hästkrafter**-rad för alla biltyper
 
 ### Elbils- och laddhybriddata (EV-chip)
+- **557 rader i `ev_spec`** — 520 rena elbilar + 37 laddhybrider (avläst via `GET /api/admin/ev-specs` 2026-08-24, som svarar med hela tabellen som en array utan antal-fält: räkna raderna och gruppera på `carType`). Talet är en **variant**-räkning, inte en modellräkning: MG4 ensam ligger som nio rader, en per batteri och utförande över två generationer. Fylls på av nattsynken 02:00; laddhybridraderna är medvetna alias som drivmedelsvakten behöver och ska aldrig städas bort
 - **⚡ Elbil**-badge eller **🔌 Laddhybrid**-badge per bil
 - WLTP-räckvidd, uppskattad sommar- och vinterräckvidd
 - Laddfrekvens baserat på körsträcka ("ladda var 4:e dag")
