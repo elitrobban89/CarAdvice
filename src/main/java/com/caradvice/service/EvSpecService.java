@@ -77,6 +77,10 @@ public class EvSpecService {
      * elbil till något annat.
      */
     public boolean isKnownEv(String title) {
+        // Titeln ÄR namnet på en EV-rad — då är frågan redan besvarad, och företrädet
+        // längre ned ska inte få överpröva den. Se arRenElbilMedExaktNamn för varför
+        // ledet måste ligga FÖRE namnträffskravet på raden efter.
+        if (arRenElbilMedExaktNamn(title)) return true;
         if (matchByTitle(title) == null) return false;
         // Bär titeln ett drivlineord har den pekat ut sin variant själv, och raden finns —
         // då är namnet inte tvetydigt och företrädet behövs inte. Villkoret är avsiktligt
@@ -136,17 +140,7 @@ public class EvSpecService {
      */
     private EvSpec matchByTitle(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title
-                // (?<!\w) hindrar att årtalet plockas ur mitt i ett ord. Utan den kapade
-                // strippningen "2025)" ur ev-databases tekniska uppdateringskod "(TU2025)"
-                // och lämnade skräpordet "(tu" i titeln, varpå raden inte kunde matcha ens
-                // sitt EGET namn. Delsträngsmatchningen dolde felet; ordgränsmatchningen
-                // avslöjade det. Samma vakt sitter i modelYear, som annars läste 2025 som
-                // annonsens årsmodell och kunde välja fel generation på det.
-                .replaceAll("\\s*(?<!\\w)\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
-                .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
-                .trim());
+        String cleaned = rensadTitel(title);
         String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet = new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
         java.util.Set<String> raw = rawWords(title);
@@ -385,6 +379,81 @@ public class EvSpecService {
         return normalize(carName
                 .replaceAll("(?i)\\bElectric\\b", "")
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", ""));
+    }
+
+    /**
+     * Titeln nedkokt till samma form som {@link #matchningsNamn} kokar ner ett lagrat namn:
+     * årsmodellen bort, {@code Electric} och {@code e-}-prefixet bort, normaliserad.
+     *
+     * <p>Bodde inline i {@link #matchByTitle} till 2026-08-25 och lyftes ut när
+     * {@link #arRenElbilMedExaktNamn} behövde EXAKT samma rensning. Två kopior hade kunnat
+     * glida isär, och då hade den nya regeln jämfört äpplen med päron: "Renault Megane E-Tech"
+     * blir {@code renault megane tech} bara om titeln får e--strippningen den lagrade sidan
+     * redan har.
+     *
+     * <p>{@code (?<!\w)} hindrar att årtalet plockas ur mitt i ett ord. Utan den kapade
+     * strippningen "2025)" ur ev-databases tekniska uppdateringskod "(TU2025)" och lämnade
+     * skräpordet "(tu" i titeln, varpå raden inte kunde matcha ens sitt EGET namn.
+     */
+    private static String rensadTitel(String title) {
+        return normalize(title
+                .replaceAll("\\s*(?<!\\w)\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
+                .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
+                .trim());
+    }
+
+    /**
+     * Sant när titeln, ord för ord, ÄR namnet på en rad med {@code carType = "EV"}.
+     *
+     * <p><b>Varför regeln behövs.</b> {@code ice_consumption}-företrädet i {@link #isKnownEv}
+     * frågar bara "finns namnplåten som förbränningsbil?" och svarar nej på hela modellen så
+     * fort svaret är ja. Det stämmer för en NAKEN titel ("Volvo XC60", "Hyundai Kona") som är
+     * en äkta DELMÄNGD av radnamnet och därför inte säger vilken variant annonsen gäller — men
+     * det är fel så fort titeln stavar ut elbilens fulla namn. Uppmätt 2026-08-25 föll
+     * <b>41 rena elbilar över 14 märken</b> på det: hela Mercedes eldrivna CLA/GLA/GLB/GLC,
+     * Mini Cooper SE, Ford Explorer, Suzuki e VITARA, Nissan Micra, Volvo XC40 Recharge,
+     * Renault Megane E-Tech. För dem svarade {@code isKnownEv} false, och eftersom
+     * {@code ExpertInsightService.findForCarTitle} hoppar över HELA drivlinefiltret när
+     * kortets drivlina är okänd fick de förbränningsinsikter på ett batterikort — märkesbreda
+     * E20- och dieselvarningar syntes i 3 av 3 sampel på Mercedes elbilskort.
+     *
+     * <p><b>Varför just ordagrant, och inte "radnamnet ryms i titeln".</b> Den bredare regeln
+     * mättes först och var sämre än ingen: den släppte igenom 20 nya FÖRBRÄNNINGSTITLAR
+     * ("Mercedes-Benz GLA 200 1.3 163 hk", fyra Porsche Cayenne, fyra Macan, Hyundai Kona
+     * 1.0 T-GDI) eftersom en bensinannons är en äkta övermängd av elbilsradens namn. Likhet
+     * åt båda hållen är den enda formen där titeln varken kan vara vagare eller bredare än
+     * raden. Mätt över hela tabellen: 41 hål → 0, och felklassade ICE-titlar stod still på 31
+     * (de 31 är laddhybridtitlar mot medvetna PHEV-aliasrader — väntat, se
+     * {@code EvSpecServiceTest.laddhybridensTvaNamnTackerVarsinTitelform}).
+     *
+     * <p><b>Ligger före namnträffskravet med flit.</b> {@code matchByTitle} kan missa en rads
+     * eget namn — {@code Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+} gjorde det i drift
+     * trots att den varken har en ICE-namne eller ett drivlineord — och då hade
+     * {@code isKnownEv} fallit på första raden utan att ens nå hit.
+     *
+     * <p>Kravet på {@code "EV"} är strikt: PHEV-aliasraderna i tabellen ska INTE svara sant
+     * här, de går som förr via drivlineordet i titeln.
+     */
+    private boolean arRenElbilMedExaktNamn(String title) {
+        if (title == null || title.isBlank()) return false;
+        String cleaned = rensadTitel(title);
+        if (cleaned.isEmpty()) return false;
+        java.util.Set<String> titleSet =
+                new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
+        try {
+            for (EvSpec ev : repo.findAll()) {
+                if (!"EV".equalsIgnoreCase(ev.getCarType())) continue;
+                java.util.Set<String> nameSet = new java.util.HashSet<>(
+                        java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
+                if (nameSet.equals(titleSet)) return true;
+            }
+        } catch (Exception e) {
+            // Fail closed just här: kedjan nedan får avgöra som förr. Att svara sant på ett
+            // DB-fel hade gjort varje titel till elbil.
+            log.debug("arRenElbilMedExaktNamn: uppslaget misslyckades för '{}'", title, e);
+        }
+        return false;
     }
 
     /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */

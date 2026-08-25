@@ -139,6 +139,65 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void elbilensEgetFullaNamnVinnerOverIceForetradet() {
+        /*
+         * Tätningen 2026-08-25. ice_consumption-företrädet fällde HELA namnplåten så fort
+         * märket fanns som förbränningsbil, och tog då med sig elbilen som bär plåtens namn:
+         * "Mercedes-Benz GLA 250+" är en ren elbil, men "Mercedes-Benz gla" finns i
+         * ice_consumption, så isKnownEv svarade false. Insiktsfiltret hoppas över helt när
+         * kortets drivlina är okänd — och då stod märkesbreda E20- och dieselvarningar kvar
+         * på ett batterikort. 41 rena elbilar över 14 märken låg i det hålet.
+         *
+         * Titeln måste vara ordagrant radens namn. Är den vagare (en delmängd, "Mercedes-Benz
+         * GLA") säger den inte vilken variant annonsen gäller, och är den bredare är den en
+         * bensinannons — båda ska falla på företrädet som förr.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mercedes-Benz GLA 250+", 11.0, 100.0, 70.5, 502, 0)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "Mercedes-Benz", "GLA 200 1.3 163 hk", "bensin", 0.62));
+
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+")).isTrue();
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ (2025)")).isTrue();
+        // Vagare än raden: naken namnplåt, företrädet gäller
+        assertThat(service().isKnownEv("Mercedes-Benz GLA")).isFalse();
+        // Bredare än raden: en bensinannons är en äkta övermängd av elbilsnamnet, och
+        // släpptes den igenom tappade den sina förbränningsinsikter
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ AMG Line 1.3 163 hk")).isFalse();
+    }
+
+    @Test
+    void laddhybridsaliasetSvararInteSantPaExaktaNamnet() {
+        // Kravet på carType "EV" i den nya regeln är strikt: PHEV-aliasraderna finns i samma
+        // tabell och ska INTE bli "ren elbil" av att titeln råkar vara radens namn. De går
+        // som förr via drivlineordet i titeln — här saknas det, så företrädet ska fälla.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo XC60 T8", 3.7, 0.0, 18.8, 68, 500_000, "PHEV")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "Volvo", "XC60 B4 2.0 197 hk", "diesel", 0.55));
+
+        assertThat(service().isKnownEv("Volvo XC60 T8")).isFalse();
+    }
+
+    @Test
+    void exaktaNamnetNasAvenNarMatchByTitleMissarSinEgenRad() {
+        /*
+         * Varför ledet ligger FÖRE namnträffskravet. I drift visade
+         * "Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+" märkesbreda E20-raden i 3 av 3
+         * sampel trots att den varken har en ICE-namne eller ett drivlineord — matchByTitle
+         * hittade alltså inte radens EGET namn, och isKnownEv föll på sin första rad.
+         * Stubben här härmar det: repot svarar med en rad som matchningen inte kan nå från
+         * titeln, men det ordagranna namnet är ändå ett svar.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+", 11.0, 320.0, 89.0, 600, 0)));
+
+        assertThat(service().isKnownEv("Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+")).isTrue();
+    }
+
+    @Test
     void bensinbilMedLaddhybridvariantRaknasInteSomElbil() {
         // isKnownEv svarar insiktsfiltret på "är kortet en ren elbil?". "Volvo XC60" matchade
         // "Volvo XC60 PHEV", så en bensin-XC60 klassades som elbil och tappade sina
