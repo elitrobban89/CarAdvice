@@ -182,14 +182,17 @@ class EvSpecServiceTest {
     }
 
     @Test
-    void exaktaNamnetNasAvenNarMatchByTitleMissarSinEgenRad() {
+    void exaktaNamnetSvararSantUtanAttGaViaNamntraffen() {
         /*
-         * Varför ledet ligger FÖRE namnträffskravet. I drift visade
-         * "Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+" märkesbreda E20-raden i 3 av 3
-         * sampel trots att den varken har en ICE-namne eller ett drivlineord — matchByTitle
-         * hittade alltså inte radens EGET namn, och isKnownEv föll på sin första rad.
-         * Stubben här härmar det: repot svarar med en rad som matchningen inte kan nå från
-         * titeln, men det ordagranna namnet är ändå ett svar.
+         * Ledet ligger före namnträffskravet i isKnownEv, så svaret hänger inte på att
+         * matchByTitle hittar raden från titeln. Namn med accent och plustecken är den sort
+         * där fuzzy-matchning historiskt gått sönder (se plustecknet i matchningsNamn), så
+         * provet tas på ett sådant namn.
+         *
+         * OBS: det här är INTE lagningen av ett observerat driftfel. Jag trodde först att
+         * kortet för den här bilan visade förbränningsinsikter i drift, men det var mitt eget
+         * prov som var trasigt — skalet mangla é:et i titeln, så servern fick en annan sträng.
+         * Bilen var aldrig i hålet.
          */
         when(repo.findAll()).thenReturn(List.of(
                 new EvSpec("Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+", 11.0, 320.0, 89.0, 600, 0)));

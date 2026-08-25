@@ -427,10 +427,10 @@ public class EvSpecService {
      * (de 31 är laddhybridtitlar mot medvetna PHEV-aliasrader — väntat, se
      * {@code EvSpecServiceTest.laddhybridensTvaNamnTackerVarsinTitelform}).
      *
-     * <p><b>Ligger före namnträffskravet med flit.</b> {@code matchByTitle} kan missa en rads
-     * eget namn — {@code Mercedes-Benz AMG GT 4-Door Coupé 53 4MATIC+} gjorde det i drift
-     * trots att den varken har en ICE-namne eller ett drivlineord — och då hade
-     * {@code isKnownEv} fallit på första raden utan att ens nå hit.
+     * <p><b>Ligger före namnträffskravet med flit</b>, men som bälte och hängslen och inte som
+     * lagning av ett känt fel: frågan "är titeln ordagrant en EV-rad?" besvaras ur samma
+     * tabell och behöver ingen fuzzy-matchning för att vara sann. Skulle {@link #matchByTitle}
+     * någon gång missa en rads eget namn faller svaret inte med den.
      *
      * <p>Kravet på {@code "EV"} är strikt: PHEV-aliasraderna i tabellen ska INTE svara sant
      * här, de går som förr via drivlineordet i titeln.
