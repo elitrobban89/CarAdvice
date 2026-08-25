@@ -81,6 +81,7 @@ public class EvSpecService {
         // längre ned ska inte få överpröva den. Se arRenElbilMedExaktNamn för varför
         // ledet måste ligga FÖRE namnträffskravet på raden efter.
         if (arRenElbilMedExaktNamn(title)) return true;
+        if (annonstitelnPekarUtElbilen(title)) return true;
         if (matchByTitle(title) == null) return false;
         // Bär titeln ett drivlineord har den pekat ut sin variant själv, och raden finns —
         // då är namnet inte tvetydigt och företrädet behövs inte. Villkoret är avsiktligt
@@ -454,6 +455,138 @@ public class EvSpecService {
             log.debug("arRenElbilMedExaktNamn: uppslaget misslyckades för '{}'", title, e);
         }
         return false;
+    }
+
+    /**
+     * Som {@link #arRenElbilMedExaktNamn}, men för ANNONSTITLAR: rubriker som bär elbilens hela
+     * namn plus årtal, utrustningsnivå och säljarens egna ord.
+     *
+     * <p><b>Varför exaktregeln inte räcker.</b> Den lagade bara kort vars titel kommer ur våra
+     * egna tabeller; en riktig annonsrubrik ("Mercedes-Benz GLA 250+ AMG Line 2023") är aldrig
+     * ett exakt {@code ev_spec}-namn, så för annonser stod hålet kvar.
+     *
+     * <p><b>Tre villkor, alla nödvändiga.</b> (1) Hela elbilsradens namn står som ord i titeln.
+     * (2) Raden har minst ETT <i>särskiljande</i> ord — ett ord som ingen förbränningsvariant
+     * av samma namnplåt har — och det ordet står i titeln. (3) Titeln stavar inte samtidigt ut
+     * en HEL förbränningsvariant.
+     *
+     * <p>Villkor 2 är det som gör regeln säker där en delmängdsregel är livsfarlig: "Mercedes-Benz
+     * GLA 200" finns som BÅDE bensinbil och elbil under exakt samma namn, har därför inget
+     * särskiljande ord, och lämnas orörd. "GLA 250+" har {@code 250+}, som ingen bensin-GLA bär.
+     * Villkor 3 fångar laddhybriden som råkar bära elbilens alla ord: "Mini Countryman Cooper SE
+     * ALL4 PHEV 224 hk" innehåller {@code mini}, {@code cooper} och {@code se}, men är ingen
+     * elbil.
+     *
+     * <p><b>Kandidaturvalet i {@link #sarskiljandeOrd} följer {@code consumptionForTitle}:s eget:</b>
+     * märket står i namnet OCH förbränningsradens modellord är ett helt ord i namnet. Utan det
+     * ledet drog "Mini Countryman Cooper SE ALL4 PHEV" med sig Cooper-raderna och gjorde
+     * {@code se} icke-särskiljande, varpå Mini Cooper SE inte gick att laga.
+     *
+     * <p><b>Mätt 2026-08-25 innan regeln skrevs:</b> mot 957 riktiga {@code ice_consumption}-namn
+     * <b>0</b> felklassningar, mot samma namn × 5 annonsdekorationer (4 785 titlar) <b>0</b>, mot
+     * de 37 PHEV-aliasraderna <b>0</b>. Positivt: 190 av 205 syntetiska annonstitlar för de 41
+     * hålraderna, alltså <b>38 av 41 modeller</b>. De tre som inte går att laga har äkta delade
+     * namnplåtar (GLA 200, Mini Countryman SE ALL4, Megane E-Tech) — samma bil-namn på två
+     * drivlinor, och där är avstå rätt svar. De 815 korttitlarna gav 6 nya EV-svar, alla riktiga
+     * elbilar (MG4-varianter, Kia PV5, Taycan Cross Turismo).
+     *
+     * <p>Den positiva korpusen är SYNTETISK — mina egna annonsdekorationer, inte skrapade
+     * rubriker. Den negativa är riktig data. Vikta slutsatserna därefter.
+     */
+    private boolean annonstitelnPekarUtElbilen(String title) {
+        if (title == null || title.isBlank()) return false;
+        // Villkor 0: säger titeln själv att den är förbränning, laddhybrid eller hybrid är den
+        // aldrig en ren elbil. Samma markörer som insiktsfiltret, inte en egen kopia.
+        String egenDrivlina = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title));
+        if (egenDrivlina != null && !"ev".equals(egenDrivlina)) return false;
+
+        String cleaned = rensadTitel(title);
+        if (cleaned.isEmpty()) return false;
+        java.util.Set<String> titleSet =
+                new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
+        try {
+            List<IceConsumptionService.Variant> iceAlla = iceConsumptionService.findAll();
+
+            // Villkor 3: stavar titeln ut en hel förbränningsvariant är den inte en elbil.
+            for (IceConsumptionService.Variant v : iceAlla) {
+                if (titleSet.containsAll(ordUr(iceNamn(v)))) return false;
+            }
+
+            for (EvSpec ev : repo.findAll()) {
+                if (!"EV".equalsIgnoreCase(ev.getCarType())) continue;
+                java.util.Set<String> namnOrd = ordUr(matchningsNamn(ev.getCarName()));
+                if (!titleSet.containsAll(namnOrd)) continue;          // villkor 1
+                java.util.Set<String> sar = sarskiljandeOrd(ev.getCarName(), iceAlla);
+                if (sar.isEmpty()) continue;                            // villkor 2
+                if (!titleSet.containsAll(sar)) continue;
+                if (barFrammandeNamnplat(cleaned, titleSet, namnOrd, iceAlla)) continue;  // villkor 4
+                return true;
+            }
+        } catch (Exception e) {
+            // Fail closed: kedjan nedan får avgöra som förr.
+            log.debug("annonstitelnPekarUtElbilen: uppslaget misslyckades för '{}'", title, e);
+        }
+        return false;
+    }
+
+    /**
+     * Sant när titeln bär modellordet för en ANNAN namnplåt av samma märke än elbilens.
+     *
+     * <p>Ledet togs in sedan mätningen visat att villkor 3 ensamt hänger på att rubriken
+     * skriver ut drivlineordet: "Mini Countryman Cooper SE ALL4 <b>PHEV</b> 224 hk" fångas av
+     * villkor 3, men samma annons utan ordet PHEV gled igenom och blev "ren elbil" på elbilen
+     * <i>Mini Cooper SE</i>, som bär orden {@code mini}, {@code cooper} och {@code se}. Ordet
+     * {@code countryman} säger att rubriken handlar om en annan bil, oavsett vad den utelämnar.
+     */
+    private static boolean barFrammandeNamnplat(String cleanedTitle, java.util.Set<String> titleSet,
+                                                java.util.Set<String> evNamnOrd,
+                                                List<IceConsumptionService.Variant> iceAlla) {
+        for (IceConsumptionService.Variant v : iceAlla) {
+            String modellord = modellordUr(v);
+            if (modellord == null || evNamnOrd.contains(modellord)) continue;
+            if (!cleanedTitle.contains(normalize(v.brand()))) continue;
+            if (titleSet.contains(modellord)) return true;
+        }
+        return false;
+    }
+
+    /** Elbilsradens ord som ingen förbränningsvariant av samma namnplåt bär. */
+    private static java.util.Set<String> sarskiljandeOrd(
+            String carName, List<IceConsumptionService.Variant> iceAlla) {
+        String namn = matchningsNamn(carName);
+        java.util.Set<String> namnOrd = ordUr(namn);
+        java.util.Set<String> iceOrd = new java.util.HashSet<>();
+        boolean nagonKandidat = false;
+        for (IceConsumptionService.Variant v : iceAlla) {
+            String marke = normalize(v.brand());
+            if (!namn.contains(marke)) continue;
+            java.util.Set<String> vOrd = ordUr(iceNamn(v));
+            String modellord = modellordUr(v);
+            if (modellord == null || !namnOrd.contains(modellord)) continue;
+            nagonKandidat = true;
+            iceOrd.addAll(vOrd);
+        }
+        if (!nagonKandidat) return namnOrd;      // ingen namne alls — hela namnet särskiljer
+        java.util.Set<String> kvar = new java.util.HashSet<>(namnOrd);
+        kvar.removeAll(iceOrd);
+        return kvar;
+    }
+
+    /** Förbränningsvariantens fulla namn i samma form som {@link #matchningsNamn}. */
+    private static String iceNamn(IceConsumptionService.Variant v) {
+        return matchningsNamn(v.brand() + " " + v.variant());
+    }
+
+    /** Variantens modellord — första ordet efter märket, som {@code IceConsumptionService}. */
+    private static String modellordUr(IceConsumptionService.Variant v) {
+        String[] ord = normalize(v.variant()).split("\\s+");
+        if (ord.length == 0 || ord[0].isEmpty()) return null;
+        if (ord.length > 1 && ord[0].equals(normalize(v.brand()))) return ord[1];
+        return ord[0];
+    }
+
+    private static java.util.Set<String> ordUr(String s) {
+        return new java.util.HashSet<>(java.util.Arrays.asList(s.split("\\s+")));
     }
 
     /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */

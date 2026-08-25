@@ -162,9 +162,77 @@ class EvSpecServiceTest {
         assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ (2025)")).isTrue();
         // Vagare än raden: naken namnplåt, företrädet gäller
         assertThat(service().isKnownEv("Mercedes-Benz GLA")).isFalse();
-        // Bredare än raden: en bensinannons är en äkta övermängd av elbilsnamnet, och
-        // släpptes den igenom tappade den sina förbränningsinsikter
-        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ AMG Line 1.3 163 hk")).isFalse();
+        // En BENSINANNONS får aldrig bli elbil. Notera att den här raden inte längre räcker
+        // som prov på "bredare än raden": annonsregeln (steg 2, samma dag) släpper med flit
+        // igenom en bredare titel som bär ett SÄRSKILJANDE ord. Skyddet mot bensinannonsen
+        // ligger i att den saknar just ett sådant ord — se annonstitelUtanSarskiljandeOrd...
+        when(iceConsumptionService.findAll()).thenReturn(List.of(
+                new IceConsumptionService.Variant("Mercedes-Benz", "GLA 200 1.3 163 hk", "bensin", 0.62)));
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 200 1.3 163 hk")).isFalse();
+    }
+
+    @Test
+    void annonstitelMedElbilensFullaNamnOchSarskiljandeOrdArElbil() {
+        /*
+         * Steg 2 i tätningen (2026-08-25). Exaktregeln lagade bara kort vars titel kommer ur
+         * våra egna tabeller — en riktig annonsrubrik bär årtal och utrustningsnivå och är
+         * aldrig ett exakt ev_spec-namn. Villkoret är att titeln bär hela radnamnet OCH radens
+         * särskiljande ord ("250+", som ingen bensin-GLA har).
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mercedes-Benz GLA 250+", 11.0, 100.0, 70.5, 502, 0)));
+        when(iceConsumptionService.findAll()).thenReturn(List.of(
+                new IceConsumptionService.Variant("Mercedes-Benz", "GLA 200 1.3 163 hk", "bensin", 0.62),
+                new IceConsumptionService.Variant("Mercedes-Benz", "GLA 250 2.0 224 hk", "bensin", 0.70)));
+
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ AMG Line 2023")).isTrue();
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 250+ Progressive Advanced Plus")).isTrue();
+    }
+
+    @Test
+    void annonstitelUtanSarskiljandeOrdLamnasOrord() {
+        // "Mercedes-Benz GLA 200" finns som BÅDE bensinbil och elbil under exakt samma namn.
+        // Raden har därför inget särskiljande ord, och en annonsrubrik går inte att avgöra —
+        // att gissa "elbil" hade tagit förbränningsinsikterna från en bensinannons.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mercedes-Benz GLA 200", 11.0, 100.0, 58.0, 465, 0)));
+        when(iceConsumptionService.findAll()).thenReturn(List.of(
+                new IceConsumptionService.Variant("Mercedes-Benz", "GLA 200 1.3 163 hk", "bensin", 0.62)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "Mercedes-Benz", "GLA 200 1.3 163 hk", "bensin", 0.62));
+
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 200 AMG Line 2023")).isFalse();
+        // Det exakta namnet svarar däremot fortfarande sant — där är titeln inte tvetydig
+        assertThat(service().isKnownEv("Mercedes-Benz GLA 200")).isTrue();
+    }
+
+    @Test
+    void annonstitelSomStavarUtEnHelForbranningsvariantArIngenElbil() {
+        /*
+         * Villkor 3. "Mini Countryman Cooper SE ALL4 PHEV 224 hk" bär elbilsradens alla ord
+         * (mini, cooper, se) och "se" är särskiljande mot Cooper-raderna — men titeln stavar
+         * ut en hel laddhybridvariant, och då vinner den. Utan ledet blev laddhybriden
+         * klassad som ren elbil och tappade sina förbränningsinsikter.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Mini Cooper SE", 11.0, 95.0, 54.2, 402, 0)));
+        when(iceConsumptionService.findAll()).thenReturn(List.of(
+                new IceConsumptionService.Variant("Mini", "Cooper 1.5 136 hk", "bensin", 0.58),
+                new IceConsumptionService.Variant("Mini", "Countryman Cooper SE ALL4 PHEV 224 hk", "laddhybrid", 0.20)));
+        // Företrädet måste stubbas också, annars svarar den lenient-mockade tjänsten null och
+        // titeln passerar på det gamla ledet i stället — testet hade blivit grönt av fel skäl.
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "Mini", "Countryman Cooper SE ALL4 PHEV 224 hk", "laddhybrid", 0.20));
+
+        // Utan ordet PHEV i rubriken hänger allt på villkor 4: "countryman" är modellordet för
+        // en ANNAN namnplåt än elbilens, så rubriken handlar inte om Mini Cooper SE. Just det
+        // här fallet gled igenom när villkor 3 var det enda skyddet.
+        assertThat(service().isKnownEv("Mini Countryman Cooper SE ALL4 224 hk")).isFalse();
+        // Elbilen själv går fortfarande igenom — Countryman-raden är ingen kandidat för
+        // "Mini Cooper SE", för modellordet "countryman" står inte i elbilens namn
+        assertThat(service().isKnownEv("Mini Cooper SE Favoured 2024")).isTrue();
     }
 
     @Test
