@@ -413,6 +413,11 @@ ett bilkort.*/
         return r;
     }
 
+    /** Finns insikten? Behövs av parkeringen, som annars tyst skulle markera ett id utan rad. */
+    public boolean exists(Long id) {
+        return id != null && repo.existsById(id);
+    }
+
     /** Admin: radera en enskild insikt (skräprad ur skrapningen). @return true om raden fanns */
     public boolean deleteById(Long id) {
         if (id == null || !repo.existsById(id)) return false;

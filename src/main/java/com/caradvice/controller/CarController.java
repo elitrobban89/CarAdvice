@@ -275,6 +275,27 @@ public class CarController {
         return ResponseEntity.ok(Map.of("count", rows.size(), "insights", rows));
     }
 
+    /**
+     * Admin: bilen finns inte att köpa i Sverige än — parkera insikten tills den gör det.
+     *
+     * <p>Skraparen markerar kommande modeller själv, men rader som visar sig vara oåtkomliga
+     * i efterhand hade ingen väg hit: BYD Shark har tio insikter och noll annonser på Blocket,
+     * och utan den här endpointen var radering enda alternativet. Verifierar via
+     * {@code isUpcoming} eftersom {@code mark} sväljer DB-fel och svarar void — annars hade
+     * ett misslyckande sett ut som en lyckad parkering.
+     */
+    @PostMapping("/admin/insights/{id}/upcoming")
+    public ResponseEntity<?> markUpcoming(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                          @PathVariable Long id) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        if (!expertInsightService.exists(id))
+            return ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte"));
+        upcomingInsightService.mark(id);
+        if (!upcomingInsightService.isUpcoming(id))
+            return ResponseEntity.status(500).body(Map.of("error", "Kunde inte parkera insikt " + id));
+        return ResponseEntity.ok(Map.of("marked", id));
+    }
+
     // Admin: bilen går att köpa nu — insikten blir synlig som vilken annan som helst.
     @DeleteMapping("/admin/insights/{id}/upcoming")
     public ResponseEntity<?> releaseUpcoming(@RequestHeader(value = "X-Admin-Key", required = false) String key,
