@@ -171,13 +171,75 @@ public class EvSpecService {
                     .filter(ev -> {
                         String[] nameWords = matchningsNamn(ev.getCarName()).split("\\s+");
                         for (String w : nameWords) if (!titleSet.contains(w)) return false;
-                        return true;
+                        // ...men bär titeln en SIFFRA direkt efter namnet är det en annan bil
+                        return !titelnUtokarNamnetMedSiffra(title, titleWords, nameWords);
                     })
                     .collect(java.util.stream.Collectors.toList()), year, true);
         }
 
         return match;
     }
+
+    /**
+     * En SIFFRA direkt efter radens namn i titeln, alltså ett tecken på att rubriken handlar om
+     * en annan namnplåt än raden. Prövas i pass 2 och i {@link #annonstitelnPekarUtElbilen},
+     * de två ställen där titeln får vara BREDARE än det lagrade namnet.
+     *
+     * <p><b>Skarpt fall 2026-08-26.</b> Titeln "BYD Seal 6" matchade elbilsraden {@code BYD Seal}
+     * i pass 2 ({@code byd}+{@code seal} finns båda i titeln) och gjorde en LADDHYBRID till ren
+     * elbil: {@code isKnownEv} svarade sant, {@code ExpertInsightService.titleDrivetrain} satte
+     * {@code ev}, och varje insikt vars text säger "laddhybrid" filtrerades bort som
+     * drivlinekrock. Kortet visade dessutom sedanens spec-chips (82,5 kWh, 570 km) på en bil som
+     * går 8,4 mil på el. Mätt över 20 sampel: id 1302 ("snabbladdning begränsad till 26 kW,
+     * vilket är lågt för en laddhybrid") syntes 0 gånger på den nakna titeln, men direkt när
+     * rubriken själv skrev ut PHEV. Det är {@code isKnownEv}s vakthål spegelvänt — ingen läcka
+     * ut, utan en falsk elbilsklassning som gömmer korrekt laddhybridfakta.
+     *
+     * <p><b>Varför just en ensam siffra, och inte varje tal.</b> Delmängdsregeln är förkastad en
+     * gång redan (den släppte in 20 bensinannonser, se {@link #arRenElbilMedExaktNamn}), och att
+     * fälla varje otolkat TAL efter namnet är samma sorts trubbighet åt andra hållet: uppmätt mot
+     * 1 349 riktiga Blocket-rubriker för elbilar är tvåsiffriga tal efter modellnamnet nästan
+     * alltid en UTRUSTNINGSNIVÅ av samma bil — "Audi Q4 e-tron <b>40</b> Proline", "e-tron
+     * <b>55</b> quattro", "Nissan Leaf <b>40</b> kWh" — och den varianten hade tagit spec-chipsen
+     * från över hundra äkta elbilsannonser. En ENSAM siffra efter namnet är däremot hur märkena
+     * numrerar SYSKONMODELLER: Seal → Seal 6, Ioniq → Ioniq 5/6/9, Atto 2 → Atto 3, Model 3.
+     * Tvåsiffriga trimnivåer och kWh-tal ("72.6", "77,4") lämnas därför orörda, och "0 % ränta"
+     * i säljarens egen text likaså (bara 1–9 räknas, och ett procenttecken diskvalificerar).
+     *
+     * <p><b>Ankaret är radens SISTA ord i titeln</b>, inte var som helst: "Audi Q4 e-tron 40
+     * Sportback e-tron Proline" bär {@code tron} två gånger, och siffran ska prövas mot den
+     * sista förekomsten — annars hade trimsiffran efter det första {@code tron} fällt raden.
+     *
+     * <p><b>Undantaget: säger titeln själv {@code Electric} gäller regeln inte.</b> Samma mätning
+     * gav en enda familj som föll fel utan undantaget — den eldrivna Porsche Macan, vars
+     * utrustningsnivåer heter just {@code Macan 4} och {@code Macan 4S} mot raden
+     * {@code Porsche Macan Electric}. Där är siffran en trimnivå och inte en syskonmodell, och
+     * rubrikerna skriver ut ordet {@code Electric} (4 av 9 annonser; de övriga fem klassas ändå
+     * inte som elbil idag, eftersom {@code ice_consumption} har bensin-Macan och företrädet
+     * fäller dem). Ordet är ett positivt drivlinebevis som titeln bär SJÄLV: av 22 riktiga
+     * Seal 6-rubriker säger noll {@code Electric}, medan 98 av korpusens elbilsannonser gör det.
+     * Prövas mot den OSTRIPPADE titeln — {@link #rensadTitel} har just städat bort ordet.
+     *
+     * <p><b>Vad regeln INTE täcker:</b> syskonmodeller som numreras med en BOKSTAV
+     * ({@code BYD Seal U}, samma fälla). Ett ensamt bokstavsord efter namnet är för vanligt i
+     * riktiga rubriker för att gå att fälla utan mätning, och de Seal U-annonser som finns bär
+     * nästan alla {@code PHEV} eller {@code DM-i} i rubriken. Lämnas medvetet.
+     */
+    private static boolean titelnUtokarNamnetMedSiffra(String title, String[] titleWords, String[] namnOrd) {
+        if (title != null && ELECTRIC.matcher(normalize(title)).find()) return false;
+        java.util.Set<String> namn = new java.util.HashSet<>(java.util.Arrays.asList(namnOrd));
+        int sista = -1;
+        for (int i = 0; i < titleWords.length; i++) if (namn.contains(titleWords[i])) sista = i;
+        if (sista < 0 || sista + 1 >= titleWords.length) return false;
+        return SYSKONSIFFRA.matcher(titleWords[sista + 1]).matches();
+    }
+
+    private static final java.util.regex.Pattern ELECTRIC =
+            java.util.regex.Pattern.compile("\\belectric\\b");
+
+    /** En ensam siffra 1–9, med ett avslutande skiljetecken tillåtet ("6", "6,", "6)"). */
+    private static final java.util.regex.Pattern SYSKONSIFFRA =
+            java.util.regex.Pattern.compile("[1-9][,.:;|)\\]]?");
 
     /**
      * Väljer rad ur ett pass kandidater, med årsmodellen som tiebreak mellan generationer.
@@ -502,8 +564,9 @@ public class EvSpecService {
 
         String cleaned = rensadTitel(title);
         if (cleaned.isEmpty()) return false;
+        String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet =
-                new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
+                new java.util.HashSet<>(java.util.Arrays.asList(titleWords));
         try {
             List<IceConsumptionService.Variant> iceAlla = iceConsumptionService.findAll();
 
@@ -514,8 +577,11 @@ public class EvSpecService {
 
             for (EvSpec ev : repo.findAll()) {
                 if (!"EV".equalsIgnoreCase(ev.getCarType())) continue;
-                java.util.Set<String> namnOrd = ordUr(matchningsNamn(ev.getCarName()));
+                String namn = matchningsNamn(ev.getCarName());
+                java.util.Set<String> namnOrd = ordUr(namn);
                 if (!titleSet.containsAll(namnOrd)) continue;          // villkor 1
+                // ...men en siffra direkt efter namnet gör rubriken till en annan namnplåt
+                if (titelnUtokarNamnetMedSiffra(title, titleWords, namn.split("\\s+"))) continue;
                 java.util.Set<String> sar = sarskiljandeOrd(ev.getCarName(), iceAlla);
                 if (sar.isEmpty()) continue;                            // villkor 2
                 if (!titleSet.containsAll(sar)) continue;

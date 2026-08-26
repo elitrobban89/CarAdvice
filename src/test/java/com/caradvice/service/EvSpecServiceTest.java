@@ -235,6 +235,77 @@ class EvSpecServiceTest {
         assertThat(service().isKnownEv("Mini Cooper SE Favoured 2024")).isTrue();
     }
 
+    // ── Syskonmodellen som numreras med en siffra ──────────────────────────────
+
+    @Test
+    void siffranEfterNamnetGorTitelnTillEnAnnanBil() {
+        /*
+         * Vakthålets spegelbild, skarpt fall 2026-08-26. "BYD Seal 6" är BYD:s LADDHYBRIDKOMBI
+         * och en annan bil än elbilssedanen "BYD Seal", men pass 2 kräver bara att RADENS ord
+         * finns i titeln — {byd, seal} ryms i {byd, seal, 6}. Följden var att isKnownEv svarade
+         * sant, ExpertInsightService.titleDrivetrain satte "ev", och varje insikt som säger
+         * "laddhybrid" filtrerades bort som drivlinekrock: id 1302 ("snabbladdning begränsad
+         * till 26 kW, vilket är lågt för en laddhybrid") syntes i 0 av 20 sampel på den nakna
+         * titeln. Kortet bar dessutom sedanens spec-chips — 82,5 kWh och 570 km på en bil som
+         * går 8,4 mil på el.
+         *
+         * BYD finns inte i ice_consumption, så företrädet kan inte rädda fallet: listan är tom
+         * här med flit, och utan siffervillkoret svarar båda vägarna sant.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("BYD Seal", 11.0, 150.0, 82.5, 570, 390_000, "EV")));
+        when(iceConsumptionService.findAll()).thenReturn(List.of());
+
+        assertThat(service().isKnownEv("BYD Seal 6")).isFalse();
+        assertThat(service().isKnownEv("BYD Seal 6 Comfort PHEV 0% RÄNTA")).isFalse();
+        assertThat(service().isKnownEv("BYD Seal 6 DM-i Touring Comfort")).isFalse();
+        assertThat(service().formatForTitle("BYD Seal 6 Comfort", 15000)).isNull();
+        // Elbilen själv är orörd — både naken och med annonsens egna ord
+        assertThat(service().isKnownEv("BYD Seal")).isTrue();
+        assertThat(service().formatForTitle("BYD Seal Design AWD 2024", 15000)).isNotNull();
+    }
+
+    @Test
+    void tvasiffrigTrimnivaEfterNamnetArSammaBil() {
+        /*
+         * Gränsen åt andra hållet, och den är den dyra riktningen. Att fälla varje otolkat TAL
+         * efter modellnamnet vore samma trubbighet som den förkastade delmängdsregeln: mätt mot
+         * 1 349 riktiga Blocket-rubriker är tvåsiffriga tal efter namnet nästan alltid en
+         * utrustningsnivå av SAMMA bil, och den varianten hade tagit spec-chipsen från över
+         * hundra äkta elbilsannonser. Bara en ensam siffra 1–9 räknas som syskonmodell.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Audi Q4 e-tron", 11.0, 125.0, 82.0, 520, 500_000, "EV"),
+                new EvSpec("Nissan Leaf", 6.6, 50.0, 39.0, 270, 250_000, "EV")));
+
+        assertThat(service().formatForTitle("Audi Q4 e-tron 40 Proline Advanced 204hk", 15000)).isNotNull();
+        assertThat(service().formatForTitle("Audi Q4 e-tron 45 Quattro 265hk", 15000)).isNotNull();
+        assertThat(service().formatForTitle("Nissan Leaf 40 kWh Tekna", 15000)).isNotNull();
+        // Säljarens egna procentsatser är inga syskonmodeller — "0" räknas inte, och ett
+        // procenttecken diskvalificerar ordet
+        assertThat(service().formatForTitle("Nissan Leaf 0% ränta Tekna", 15000)).isNotNull();
+    }
+
+    @Test
+    void titelnsEgetElectricUpphaverSyskonsiffran() {
+        /*
+         * Porsches eldrivna Macan heter "Macan 4" och "Macan 4S" i utrustningsnivå mot raden
+         * "Porsche Macan Electric" — där ÄR siffran en trimnivå, och regeln hade fällt en äkta
+         * elbil. Rubrikerna bär ordet Electric, som är ett positivt drivlinebevis titeln ger
+         * själv: av 22 riktiga Seal 6-rubriker säger noll Electric, av korpusens elbilsannonser
+         * 98. Ordet prövas mot den ostrippade titeln — rensadTitel städar bort det.
+         *
+         * Priset står kvar och är medvetet: en Macan-rubrik UTAN ordet tappar sina spec-chips.
+         * De annonserna klassas ändå inte som elbil idag (bensin-Macan finns i ice_consumption
+         * och företrädet fäller dem), och utebliven data är billigare än fel data.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Porsche Macan Electric", 11.0, 270.0, 95.0, 613, 900_000, "EV")));
+
+        assertThat(service().formatForTitle("Porsche Macan 4 Electric Panorama Chrono", 15000)).isNotNull();
+        assertThat(service().formatForTitle("Porsche Macan 4 Sport Edition", 15000)).isNull();
+    }
+
     @Test
     void laddhybridsaliasetSvararInteSantPaExaktaNamnet() {
         // Kravet på carType "EV" i den nya regeln är strikt: PHEV-aliasraderna finns i samma
