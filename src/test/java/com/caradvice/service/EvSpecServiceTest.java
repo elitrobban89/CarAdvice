@@ -83,7 +83,7 @@ class EvSpecServiceTest {
         // "8.9 kWh (58 km) · PHEV". Matchningen strippar "Electric" (för att "MG4 Electric" ska
         // hitta "MG4"), så titeln blir "Hyundai Kona" — och båda orden finns i "Hyundai Kona PHEV".
         EvSpec elbil = new EvSpec("Hyundai Kona Electric", 11.0, 100.0, 65.4, 514, 400_000);
-        EvSpec phev  = new EvSpec("Hyundai Kona PHEV", 3.7, 0.0, 8.9, 58, 290_000);
+        EvSpec phev  = new EvSpec("Hyundai Kona PHEV", 3.7, 0.0, 8.9, 58, 290_000, "PHEV");
         when(repo.findAll()).thenReturn(List.of(phev, elbil));
 
         assertThat(service().verifiedEngineOptions("Hyundai Kona Electric (2020)"))
@@ -96,7 +96,7 @@ class EvSpecServiceTest {
     void laddhybridradenHittarFortfarandeSinEgenTitel() {
         // Spärren prövas mot titelns EGNA ord före strippningen, annars hade PHEV-kortet
         // blivit av med sin enda rad
-        EvSpec phev = new EvSpec("Kia Niro PHEV", 3.7, 0.0, 8.9, 58, 290_000);
+        EvSpec phev = new EvSpec("Kia Niro PHEV", 3.7, 0.0, 8.9, 58, 290_000, "PHEV");
         when(repo.findAll()).thenReturn(List.of(phev));
         assertThat(service().formatForTitle("Kia Niro PHEV (2021)", 15000)).isNotNull();
     }
@@ -107,7 +107,7 @@ class EvSpecServiceTest {
         // "Volkswagen e-Golf (2019)" fick "13 kWh (70 km) · GTE". e-prefixregeln gör titeln till
         // "volkswagen golf", som matchar laddhybriden Golf GTE. Spärren tog bara "phev"/"hev" —
         // tabellen har flera namnkonventioner för samma sak.
-        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volkswagen Golf GTE", 3.6, 0.0, 13.0, 70, 0)));
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volkswagen Golf GTE", 3.6, 0.0, 13.0, 70, 0, "PHEV")));
         assertThat(service().verifiedEngineOptions("Volkswagen e-Golf (2019)")).isNull();
         assertThat(service().isKnownEv("Volkswagen e-Golf")).isFalse();
         // ...men GTE-kortet hittar fortfarande sin egen rad
@@ -118,7 +118,7 @@ class EvSpecServiceTest {
     void plugInRadenFastnarInteVidBasmodellen() {
         // Toyota Prius Plug-in och Toyota RAV4 Plug-in är samma bilar som Prius/RAV4 PHEV under
         // en annan namnkonvention — båda konventionerna måste spärras
-        when(repo.findAll()).thenReturn(List.of(new EvSpec("Toyota Prius Plug-in", 3.3, 0.0, 8.8, 69, 0)));
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Toyota Prius Plug-in", 3.3, 0.0, 8.8, 69, 0, "PHEV")));
         assertThat(service().isKnownEv("Toyota Prius")).isFalse();
         assertThat(service().isKnownEv("Toyota Prius Plug-in (2021)")).isTrue();
     }
@@ -266,6 +266,40 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void hybridrubrikNarAldrigEnRenElbilsrad() {
+        /*
+         * Syskonfällan en gång till, men med en BOKSTAV: "BYD Seal U" är laddhybrid-SUV:en
+         * bredvid elbilssedanen "BYD Seal", och siffervakten ovan biter inte på ett U.
+         * En bokstavsregel mättes och förkastades — 48 äkta elbilsannonser hade tappat sina
+         * spec-chips på "M Sport", "S line" och "N Line" mot 25 rättade rubriker.
+         *
+         * Rubriken säger däremot drivlinan själv: 21 av 23 Seal U-annonser bär PHEV eller BYD:s
+         * badge DM-i. En hybridrubrik får därför aldrig matcha en rad med carType "EV", hur väl
+         * namnen än stämmer. Mätt över 2 266 riktiga elbilsrubriker: NOLL bär ett laddhybrid-
+         * eller hybridord, så kostnaden är uppmätt noll — och på köpet föll 9 Megane E-Tech
+         * Plug-in, 3 Opel Mokka Hybrid, 2 Mini Countryman SE PHEV, 2 Kona Hybrid, 1 Niro Hybrid
+         * och 1 IONIQ Plug-in bort från sina elbilsrader. Två av dem (Megane E-Tech, Mini
+         * Countryman SE ALL4) stod som "går inte att laga" i annonsregelns mätning 2026-08-25.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("BYD Seal", 11.0, 150.0, 82.5, 570, 390_000, "EV"),
+                new EvSpec("Kia Niro PHEV", 3.7, 0.0, 8.9, 58, 290_000, "PHEV")));
+        when(iceConsumptionService.findAll()).thenReturn(List.of());
+
+        assertThat(service().formatForTitle("BYD Seal U DM-i Comfort Paket", 15000)).isNull();
+        assertThat(service().formatForTitle("BYD Seal U BOOST PHEV", 15000)).isNull();
+        assertThat(service().isKnownEv("BYD Seal U DM-i Comfort Paket")).isFalse();
+        // Laddhybridraderna ska tvärtom fortsätta hitta sina egna rubriker — det är hela
+        // deras uppgift, och vakten prövas bara mot carType "EV"
+        assertThat(service().formatForTitle("Kia Niro PHEV (2021)", 15000)).isNotNull();
+        // Elbilen själv orörd
+        assertThat(service().formatForTitle("BYD Seal Design AWD 2024", 15000)).isNotNull();
+        // GRÄNSEN, medvetet låst: en rubrik som varken namnger sin drivlina eller bär en siffra
+        // går inte att avgöra ur titeln. Skärps regeln någon gång ska raden ändras med flit.
+        assertThat(service().formatForTitle("BYD Seal U Boost", 15000)).isNotNull();
+    }
+
+    @Test
     void tvasiffrigTrimnivaEfterNamnetArSammaBil() {
         /*
          * Gränsen åt andra hållet, och den är den dyra riktningen. Att fälla varje otolkat TAL
@@ -344,7 +378,7 @@ class EvSpecServiceTest {
         // isKnownEv svarar insiktsfiltret på "är kortet en ren elbil?". "Volvo XC60" matchade
         // "Volvo XC60 PHEV", så en bensin-XC60 klassades som elbil och tappade sina
         // förbränningsinsikter — samma matchning, större skada än fel siffra i ett chip.
-        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volvo XC60 PHEV", 3.7, 0.0, 18.8, 68, 500_000)));
+        when(repo.findAll()).thenReturn(List.of(new EvSpec("Volvo XC60 PHEV", 3.7, 0.0, 18.8, 68, 500_000, "PHEV")));
         assertThat(service().isKnownEv("Volvo XC60")).isFalse();
         assertThat(service().isKnownEv("Volvo XC60 PHEV")).isTrue();
     }
@@ -363,8 +397,8 @@ class EvSpecServiceTest {
          */
         // Räckvidderna skiljer sig BARA här, som spårämne: i drift är raderna identiska, och
         // då går det inte att se vilken av dem träffen kom från.
-        EvSpec phev = new EvSpec("Volvo V90 PHEV", 7.4, 0.0, 18.8, 68, 690_000);
-        EvSpec t8   = new EvSpec("Volvo V90 T8",   7.4, 0.0, 18.8, 60, 690_000);
+        EvSpec phev = new EvSpec("Volvo V90 PHEV", 7.4, 0.0, 18.8, 68, 690_000, "PHEV");
+        EvSpec t8   = new EvSpec("Volvo V90 T8",   7.4, 0.0, 18.8, 60, 690_000, "PHEV");
         when(repo.findAll()).thenReturn(List.of(phev, t8));
 
         // Annonsens form: T8. Bara T8-raden är möjlig — PHEV-raden kräver ordet i titeln.
@@ -783,8 +817,11 @@ class EvSpecServiceTest {
 
     @Test
     void laddhybridtitelSvararFortfarandeSant() {
-        // Kontraktet från 2026-08-14 får inte ändras av diesel-undantaget ovan
-        when(repo.findAll()).thenReturn(List.of(spec("Volvo XC60 T8 PHEV")));
+        // Kontraktet från 2026-08-14 får inte ändras av diesel-undantaget ovan.
+        // carType måste vara PHEV som i drift: tabellens 37 laddhybridrader är alla typade,
+        // och hybridtitelvakten (2026-08-26) fäller en hybridrubrik mot en EV-typad rad.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo XC60 T8 PHEV", 11.0, 150.0, 60.0, 400, 400_000, "PHEV")));
         assertThat(service().isKnownEv("Volvo XC60 T8 PHEV 455 hk")).isTrue();
     }
 

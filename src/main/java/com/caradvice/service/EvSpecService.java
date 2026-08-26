@@ -148,11 +148,15 @@ public class EvSpecService {
         int year = modelYear(title);
 
         List<EvSpec> all = repo.findAll();
+        // En rubrik som säger laddhybrid/hybrid får aldrig en REN ELBILS siffror, oavsett hur
+        // väl namnen matchar — se hybridtitelMotElbilsrad.
+        boolean hybridtitel = titelnSagerHybrid(title);
 
         // Pass 1: alla titelns ord finns som HELA ORD i det lagrade namnet.
         // "MG4" matchar "MG4 Long Range", "Volvo EX30" matchar "Volvo EX30 Single Motor" —
         // men "Toyota C-HR" matchar INTE "Toyota C-HR+", för "c-hr" och "c-hr+" är olika ord.
         EvSpec match = pickForYear(all.stream()
+                .filter(ev -> !hybridtitelMotElbilsrad(hybridtitel, ev))
                 .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                 .filter(ev -> {
                     java.util.Set<String> nameSet = new java.util.HashSet<>(
@@ -167,6 +171,7 @@ public class EvSpecService {
         // Ordmängd och inte delsträng, så "ev" INTE matchar "phev"
         if (match == null) {
             match = pickForYear(all.stream()
+                    .filter(ev -> !hybridtitelMotElbilsrad(hybridtitel, ev))
                     .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                     .filter(ev -> {
                         String[] nameWords = matchningsNamn(ev.getCarName()).split("\\s+");
@@ -178,6 +183,39 @@ public class EvSpecService {
         }
 
         return match;
+    }
+
+    /**
+     * Säger titeln SJÄLV att bilen är laddhybrid eller hybrid? Då är den aldrig en ren elbil,
+     * hur väl namnen än matchar.
+     *
+     * <p>Ledet är namnvakternas komplement: {@link #titelnUtokarNamnetMedSiffra} skiljer
+     * syskonmodeller åt på NAMNET, det här på DRIVLINAN. {@code BYD Seal U} — laddhybrid-SUV:en
+     * bredvid elbilssedanen {@code BYD Seal} — är samma fälla som {@code Seal 6}, men siffervakten
+     * biter inte: {@code U} är en bokstav, och ett ensamt bokstavsord efter modellnamnet går inte
+     * att fälla utan att ta med sig {@code M Sport}, {@code S line} och {@code N Line} (uppmätt
+     * 2026-08-26: 48 äkta elbilsannonser hade tappat sina spec-chips på en bokstavsregel, mot 25
+     * rättade Seal U/Mokka X-rubriker — fel affär). Rubrikerna säger däremot nästan alltid
+     * drivlinan själva, och 21 av 23 Seal U-annonser bär {@code PHEV} eller BYD:s egen badge
+     * {@code DM-i} (som är inlagd i {@code ExpertInsightService.PHEV_MARKER} samtidigt med det
+     * här ledet).
+     *
+     * <p><b>Gratis på riktig data:</b> av 2 266 elbilsrubriker i korpusen bär <b>noll</b> ett
+     * laddhybrid- eller hybridord. Kostnaden är alltså inte hypotetisk-liten utan uppmätt-noll,
+     * och kvar står bara de två {@code BYD Seal U Boost}-annonser som inte säger något alls om
+     * sin drivlina — de går inte att avgöra ur titeln.
+     *
+     * <p>Prövas bara mot rader med {@code carType = "EV"}: tabellens 37 laddhybridalias SKA
+     * fortsätta matcha en laddhybridrubrik, det är hela deras uppgift.
+     */
+    private static boolean titelnSagerHybrid(String title) {
+        String d = ExpertInsightService.drivetrainOf(CarTitle.stripYear(title == null ? "" : title));
+        return "phev".equals(d) || "hev".equals(d);
+    }
+
+    /** Sant när en hybridrubrik står mot en ren elbilsrad — den kombinationen får aldrig matcha. */
+    private static boolean hybridtitelMotElbilsrad(boolean hybridtitel, EvSpec ev) {
+        return hybridtitel && "EV".equalsIgnoreCase(ev.getCarType());
     }
 
     /**

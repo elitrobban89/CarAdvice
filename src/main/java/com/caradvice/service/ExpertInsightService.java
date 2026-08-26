@@ -115,8 +115,27 @@ public class ExpertInsightService {
     // "laddhybridER", vilket var ofarligt när utfallet ändå blev null — men sedan ICE-ledet
     // tillkom skulle en obestämd hybridtext i stället fastna på "bensinmotor" och klassas
     // som förbränning, och därmed filtreras bort från hybridkort.
+    /**
+     * {@code DM-i} och {@code DM-p} är BYD:s egna namn på laddhybriddrivlinan ("Dual Mode
+     * intelligent/performance") och tillkom 2026-08-26, när {@code BYD Seal U} visade sig vara
+     * samma fälla som {@code Seal 6}: elbilsraden {@code BYD Seal} matchade rubriken och gjorde
+     * en laddhybrid till ren elbil. Syskonsiffervakten i {@code EvSpecService} biter inte där —
+     * {@code U} är en bokstav, och ett ensamt bokstavsord efter modellnamnet är för vanligt i
+     * riktiga rubriker för att gå att fälla ({@code M Sport}, {@code S line}, {@code N Line}:
+     * uppmätt 48 äkta elbilsannonser som hade tappat sina spec-chips på den regeln).
+     *
+     * <p>Badgen är däremot ett drivlinebevis rubriken bär SJÄLV, och den är entydig: av 56
+     * DM-i-annonser i korpusen är 55 hybrid eller laddhybrid enligt Blockets eget
+     * {@code fuel}-fält, och den enda "El"-annonsen ("BYD Atto 2 DM-i Boost … 1000km WLTP") är
+     * felmärkt av säljaren — 100 mils räckvidd är laddhybridens totalsiffra. Ordet räddar 21 av
+     * 23 Seal U-rubriker; de två kvarvarande ("BYD Seal U Boost") bär ingen markör alls och går
+     * inte att avgöra ur titeln.
+     *
+     * <p>Mellanslagsvarianten {@code "dm i"} är medvetet UTELÄMNAD: {@code dm} är också
+     * decimeter, och markörerna prövas mot insiktstexter och inte bara annonsrubriker.
+     */
     private static final java.util.regex.Pattern PHEV_MARKER =
-            java.util.regex.Pattern.compile("\\b(phev|laddhybrid\\w*|plug[- ]?in)\\b");
+            java.util.regex.Pattern.compile("\\b(phev|laddhybrid\\w*|plug[- ]?in|dm-?[ip])\\b");
     private static final java.util.regex.Pattern HEV_MARKER =
             java.util.regex.Pattern.compile("\\b(hev|elhybrid\\w*|self[- ]?charging|hybrid\\w*)\\b");
     private static final java.util.regex.Pattern EV_MARKER =

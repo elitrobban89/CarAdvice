@@ -364,6 +364,23 @@ class ExpertInsightServiceTest {
     }
 
     @Test
+    void bydsEgenLaddhybridbadgeArEnPhevMarkor() {
+        /*
+         * DM-i/DM-p är BYD:s namn på laddhybriddrivlinan, inlagt 2026-08-26 sedan "BYD Seal U"
+         * visat sig vara samma fälla som "Seal 6": elbilsraden BYD Seal matchade rubriken och
+         * gjorde en laddhybrid till ren elbil. Syskonsiffervakten i EvSpecService biter inte på
+         * en BOKSTAV, men badgen är ett drivlinebevis rubriken bär själv — 55 av 56 DM-i-annonser
+         * i korpusen är hybrid eller laddhybrid enligt Blockets eget fuel-fält.
+         */
+        assertThat(ExpertInsightService.drivetrainOf("BYD Seal U DM-i Comfort Paket")).isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("BYD Seal 6 DM-i Touring Comfort")).isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("Den avancerade DM-p-drivlinan")).isEqualTo("phev");
+        // Mellanslagsvarianten är medvetet utelämnad: "dm" är också decimeter, och markörerna
+        // prövas mot insiktstexter och inte bara annonsrubriker
+        assertThat(ExpertInsightService.drivetrainOf("Bagaget mäter 30 dm i djupled")).isNull();
+    }
+
+    @Test
     void drivetrainOfKannerIgenForbranningsord() {
         assertThat(ExpertInsightService.drivetrainOf("N47-dieselmotorn kan få kamkedjebrott.")).isEqualTo("ice");
         assertThat(ExpertInsightService.drivetrainOf("EcoBoost-motorer med kamremmar i olja.")).isEqualTo("ice");
