@@ -86,10 +86,13 @@ public class ExpertInsightService {
         List<ExpertInsight> modelMatches = new ArrayList<>();
         List<ExpertInsight> makeMatches = new ArrayList<>();
 
+        String combinedFold = foldDiacritics(combined); // samma trema-avkodning som kortvägen
         for (ExpertInsight i : all) {
-            if (i.getCarMake() == null || !combined.contains(i.getCarMake().toLowerCase())) continue;
+            if (i.getCarMake() == null
+                    || !combinedFold.contains(foldDiacritics(i.getCarMake().toLowerCase()))) continue;
             String model = i.getCarModel();
-            if (model != null && !model.isBlank() && combined.contains(model.toLowerCase())) modelMatches.add(i);
+            if (model != null && !model.isBlank()
+                    && combinedFold.contains(foldDiacritics(model.toLowerCase()))) modelMatches.add(i);
             else makeMatches.add(i);
         }
 
@@ -180,6 +183,31 @@ public class ExpertInsightService {
     }
 
     /**
+     * Diakriter bortkokade — {@code "citroën" -> "citroen"}, {@code "mégane" -> "megane"}.
+     *
+     * <p>Används BARA på namnjämförelsen (märke + modell), aldrig på drivlinemarkörerna:
+     * {@link #ICE_MARKER} bär "tändstift" och "förgasare", och en generell avkodning hade
+     * gjort dem omöjliga att träffa.
+     *
+     * <p>Varför den behövs: märkeskontrollen är {@code titel.contains(carMake)}, och våra
+     * EGNA bilnamn stavar samma märke på två sätt — {@code Citroen C5 Aircross} och
+     * {@code Citroën C5 Aircross Long Range} ligger båda i bildatabasen. Mätt 2026-08-27:
+     * 7 insiktsrader har {@code carMake = "Citroën"} och var därmed osynliga på de två
+     * bilnamn som saknar trema, medan {@code carModel = "Mégane E-Tech"} (id 144) inte
+     * kunde nå ett enda kort — titlarna skriver "Megane". Samma familj som U+2011-fällan
+     * i {@link #flattenSpaces}: rätt bil, fel teckenkod.
+     *
+     * <p>NFD delar upp "ë" i "e" + kombinerande trema, {@code \p{Mn}} plockar bort tecknet
+     * och strängens längd bevaras för de precomponerade tecken vi möter — positionen som
+     * {@link #modelPosition} returnerar är alltså fortfarande jämförbar mellan modellnamn.
+     */
+    static String foldDiacritics(String s) {
+        if (s == null) return "";
+        return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{Mn}+", "");
+    }
+
+    /**
      * Drivlina ur en text: "phev", "hev", "ev" eller "ice" — null om ospecificerad.
      *
      * Texten går genom {@link #flattenSpaces} och inte bara {@code toLowerCase}: en insikt om
@@ -257,8 +285,8 @@ public class ExpertInsightService {
     static int modelPosition(String flatTitle, String model) {
         if (model == null || model.isBlank()) return -1;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile(
-                "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(flattenSpaces(model))
-                + "(?![\\p{L}\\p{N}])").matcher(flatTitle);
+                "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(foldDiacritics(flattenSpaces(model)))
+                + "(?![\\p{L}\\p{N}])").matcher(foldDiacritics(flatTitle));
         return m.find() ? m.start() : -1;
     }
 
@@ -280,12 +308,12 @@ public class ExpertInsightService {
         Map<String, long[]> bast = new LinkedHashMap<>(); // per märke: {position, -längd}
         for (ExpertInsight i : rader) {
             long[] v = {modelPosition(t, i.getCarModel()), -i.getCarModel().length()};
-            bast.merge(i.getCarMake().toLowerCase(), v,
+            bast.merge(foldDiacritics(i.getCarMake().toLowerCase()), v,
                     (a, b) -> (a[0] != b[0]) ? (a[0] < b[0] ? a : b) : (a[1] <= b[1] ? a : b));
         }
         List<ExpertInsight> kvar = new ArrayList<>();
         for (ExpertInsight i : rader) {
-            long[] v = bast.get(i.getCarMake().toLowerCase());
+            long[] v = bast.get(foldDiacritics(i.getCarMake().toLowerCase()));
             if (modelPosition(t, i.getCarModel()) == v[0] && -i.getCarModel().length() == v[1]) kvar.add(i);
         }
         return kvar;
@@ -296,10 +324,12 @@ public class ExpertInsightService {
         String t = flattenSpaces(title);
         String titleDrive = titleDrivetrain(title, t);
 
+        String tFold = foldDiacritics(t); // märkeskontrollen: "Citroën"-rad mot "Citroen"-titel
         List<ExpertInsight> makeAndModel = new ArrayList<>();
         List<ExpertInsight> makeOnly = new ArrayList<>();
         for (ExpertInsight i : visible(repo.findAll())) {
-            if (i.getCarMake() == null || !t.contains(i.getCarMake().toLowerCase())) continue;
+            if (i.getCarMake() == null
+                    || !tFold.contains(foldDiacritics(i.getCarMake().toLowerCase()))) continue;
             if (titleDrive != null) {
                 String insightDrive = drivetrainOf(i.getCarModel());
                 if (insightDrive == null) insightDrive = drivetrainOf(i.getInsight());

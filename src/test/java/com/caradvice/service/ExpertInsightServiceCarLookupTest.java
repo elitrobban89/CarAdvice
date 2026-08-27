@@ -113,4 +113,35 @@ class ExpertInsightServiceCarLookupTest {
 
         assertThat(service.findForCarTitle("Hyundai IONIQ" + nnbsp + "5 (2024)")).hasSize(1);
     }
+
+    @Test
+    void tremaITitelnHindrarInteMarkesmatchningen() {
+        // Vara EGNA bilnamn stavar samma marke pa tva satt: bildatabasen bar bade
+        // "Citroen C5 Aircross" och "Citroën C5 Aircross Long Range". Marketskontrollen ar
+        // titel.contains(carMake), sa 7 rader med carMake "Citroën" var osynliga pa de
+        // bilnamn som saknar trema (matt i drift 2026-08-27).
+        when(repo.findAll()).thenReturn(List.of(
+                insight("CarUp", "Citroën", "C5 Aircross", "Mjuk fjadring.", null)));
+
+        assertThat(service.findForCarTitle("Citroen C5 Aircross (2025)")).hasSize(1);
+        assertThat(service.findForCarTitle("Citroën C5 Aircross Long Range")).hasSize(1);
+    }
+
+    @Test
+    void tremaIModellnamnetHindrarInteModellmatchningen() {
+        // id 144 hette "Mégane E-Tech" och nadde inget enda kort — titlarna skriver "Megane".
+        when(repo.findAll()).thenReturn(List.of(
+                insight("CarUp", "Renault", "Mégane E-Tech", "Racker 47 mil.", null)));
+
+        assertThat(service.findForCarTitle("Renault Megane E-Tech (2024)")).hasSize(1);
+    }
+
+    @Test
+    void avkodningenSlarInteUtDrivlinevaktensSvenskaOrd() {
+        // Avkodningen far ALDRIG rora drivlinemarkorerna: ICE_MARKER bar "tandstift" och
+        // "forgasare" med svenska tecken, och en generell avkodning hade gjort dem omojliga
+        // att traffa — varpa en bensintext skulle slinka in pa ett rent elbilskort.
+        assertThat(ExpertInsightService.drivetrainOf("Bilen behover nya tändstift.")).isEqualTo("ice");
+        assertThat(ExpertInsightService.drivetrainOf("En gammal förgasarmotor.")).isEqualTo("ice");
+    }
 }
