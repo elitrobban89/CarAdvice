@@ -343,8 +343,19 @@
 
     ".ev-picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px;padding:1px;}" +
     ".ev-picker-brand{display:flex;align-items:center;gap:9px;padding:8px;background:rgba(59,130,246,.04);border:1.5px solid rgba(59,130,246,.14);border-radius:11px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,background .16s,transform .16s;}" +
-    ".ev-picker-brand:hover{background:rgba(59,130,246,.11);border-color:rgba(59,130,246,.42);transform:translateY(-1px);}" +
-    ".ev-picker-brand:hover .ev-picker-emblem{transform:scale(1.07);}" +
+    // GLÖDEN vid hover är bärnsten och inte blå. Blått är appens grundton — knappar, ramar,
+    // reglage — så en blå hover säger inte "här är du" utan bara "här är ännu ett element".
+    // Bärnsten är samma färg som karusellens och flikarnas accent, alltså redan husets, men
+    // används ingen annanstans som yta. Glöden ligger i box-shadow och inte i bakgrunden:
+    // en ljusare platta hade tävlat med de vita emblemplattorna om uppmärksamheten.
+    ".ev-picker-brand{transition:border-color .16s,background .16s,transform .16s,box-shadow .16s;}" +
+    ".ev-picker-brand:hover{background:rgba(251,191,36,.09);border-color:rgba(251,191,36,.5);"
+      + "transform:translateY(-1px);"
+      + "box-shadow:0 0 0 1px rgba(251,191,36,.22),0 5px 20px -6px rgba(251,191,36,.5);}" +
+    ".ev-picker-brand:hover .ev-picker-brand-name{color:#fde68a;}" +
+    ".ev-picker-brand:hover .ev-picker-brand-count{color:rgba(251,191,36,.55);}" +
+    // Emblemet lyfts OCH får sin egen halo, så både monogram och vit bildplatta reagerar.
+    ".ev-picker-brand:hover .ev-picker-emblem{transform:scale(1.07);box-shadow:0 0 13px rgba(251,191,36,.5);}" +
     ".ev-picker-brand:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
     ".ev-picker-brand-txt{display:flex;flex-direction:column;min-width:0;}" +
     // Långa märkesnamn kapas med ellips i stället för att bryta raden: "Mercedes-Benz" och
@@ -358,7 +369,11 @@
     ".ev-picker-brand-head{font-size:.86rem;font-weight:800;color:#f0f4ff;}" +
     ".ev-picker-model-list{display:flex;flex-direction:column;gap:5px;padding:1px;}" +
     ".ev-picker-model{display:flex;flex-direction:column;gap:2px;padding:9px 11px;background:rgba(59,130,246,.04);border:1.5px solid rgba(59,130,246,.13);border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,background .16s;}" +
-    ".ev-picker-model:hover{background:rgba(59,130,246,.11);border-color:rgba(59,130,246,.42);}" +
+    // Modellraden får samma språk men dämpat: man har redan valt märke, och en lika stark
+    // glöd på varje rad i en lista med fjorton hade blivit ett ljusspel.
+    ".ev-picker-model:hover{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.4);"
+      + "box-shadow:0 0 14px -5px rgba(251,191,36,.45);}" +
+    ".ev-picker-model:hover .ev-picker-model-name{color:#fde68a;}" +
     ".ev-picker-model:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
     ".ev-picker-model-name{font-size:.84rem;font-weight:600;color:#f0f4ff;}" +
     ".ev-picker-model-specs{font-size:.7rem;color:rgba(200,215,255,.45);}" +
