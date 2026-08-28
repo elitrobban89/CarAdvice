@@ -227,16 +227,24 @@
     ".ev-tools-area .ev-carousel-head-icon{filter:drop-shadow(0 0 9px rgba(59,130,246,0.5));}" +
     ".ev-tools-area .ev-carousel-head-title{color:#93c5fd;}" +
     // --- Laddtidskalkylatorn -------------------------------------------------
-    "#ev-calc-card{padding:2px 3px 6px;}" +
+    // Mörk botten TILLBAKA, men ingen ram. När kortet slutade bära .ev-funfact-card
+    // förlorade det inte bara den dubbla ramen utan också sitt underlag
+    // (#0f1a2e→#0a1520), och texten hamnade på avdelningens ljusare blå ton.
+    // Användaren såg det direkt: "svårt läsa texten … ljus bakgrund". Det var RAMEN
+    // som var problemet, inte bottnen — och de följdes åt i samma klass.
+    "#ev-calc-card{background:linear-gradient(135deg,#0f1a2e,#0a1520);border-radius:12px;"
+      + "padding:14px 16px;}" +
     ".ev-calc-titel{font-size:12.5px;font-weight:800;color:#93c5fd;letter-spacing:.02em;margin-bottom:14px;}" +
     // Bilnamnet i normalvikt efter rubriken: det är en upplysning om VILKEN bil siffrorna
     // gäller, inte en del av verktygets namn.
     ".ev-calc-titel span{font-weight:500;color:rgba(200,215,255,.62);}" +
     ".ev-calc-reglage{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-bottom:14px;}" +
     "@media (max-width:520px){.ev-calc-reglage{grid-template-columns:1fr;}}" +
-    ".ev-calc-etikett{font-size:11.5px;color:rgba(147,197,253,.65);margin-bottom:7px;}" +
+    // 11,5 px i 65 % opacitet var laseligt pa den morka bottnen men inte pa den ljusa,
+    // och en etikett man kisar mot ar en etikett for lite.
+    ".ev-calc-etikett{font-size:12.5px;color:rgba(205,222,255,.85);margin-bottom:8px;}" +
     // Procenttalet är det man läser av — stort, ljust och i siffrornas egen färg.
-    ".ev-calc-etikett b{font-size:15px;font-weight:800;color:#f0f4ff;}" +
+    ".ev-calc-etikett b{font-size:17px;font-weight:800;color:#fff;}" +
 
     // Reglagen: webbläsarens grundutseende är en vit stapel som lyser i en mörk app. Både
     // -webkit- och -moz-vägen behövs; de delar ingen enda selektor.
@@ -254,7 +262,7 @@
     // Svaret är kortets ankare och får en ton av accenten i stället för grå genomskinlighet.
     ".ev-calc-svar{background:linear-gradient(135deg,rgba(59,130,246,.13),rgba(59,130,246,.05));"
       + "border:1px solid rgba(59,130,246,.28);border-radius:11px;padding:12px 15px;}" +
-    ".ev-calc-kalla{font-size:10.5px;color:rgba(147,197,253,.42);margin-top:9px;line-height:1.4;}" +
+    ".ev-calc-kalla{font-size:11px;color:rgba(170,196,240,.6);margin-top:10px;line-height:1.45;}" +
     // Korten inne i området behöver luft mellan sig, annars ser de ut som ett enda långt kort.
     ".ev-carousel-area .ev-funfact-card{margin-bottom:12px;}" +
     ".ev-stations-toggle{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,rgba(59,130,246,0.16),rgba(37,99,235,0.10));border:1.5px solid rgba(59,130,246,0.38);border-radius:12px;color:#93c5fd;font-size:13.5px;font-weight:700;font-family:inherit;padding:13px 16px;cursor:pointer;transition:background .2s,border-color .2s,color .2s;margin:4px 0 14px;}" +
