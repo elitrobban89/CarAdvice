@@ -637,6 +637,60 @@ function caUpdateMaxAgeVisibility() {
   maxAgeField.style.display = newcarEl.value === 'true' ? 'none' : '';
 }
 
+// ── Ny/begagnad togs bort ur formuläret 2026-08-28 ───────────────────────────
+// Frågan var ställd till användaren men besvarad av appen: rekommendationerna prisas mot
+// Blockets BEGAGNATANNONSER, och budgettaket mäts mot billigaste annonsen. Ett "Ny" i rutan
+// bytte måttstock till nypriset utan att någonstans säga det. Nu är svaret alltid "begagnad",
+// och rutan är utbytt mot en notis som säger vad appen faktiskt visar.
+//
+// FÄLTET FÅR ALLTSÅ SAKNAS. Alla avläsningar av #ca-newcar går genom caIsNewCar(), som
+// svarar false när elementet är borta — läser man .value direkt på ett borttaget element
+// kastar sidan TypeError innan formuläret ens skickats.
+function caIsNewCar() {
+  var el = document.getElementById('ca-newcar');
+  return !!el && el.value === 'true';
+}
+
+// Åldersfiltret satt förr fast i villkoret `el && nc && nc.value !== 'true'`. Utan #ca-newcar
+// blev `nc` null, hela uttrycket false och maxAgeYears null — ålderskravet hade FÖRSVUNNIT
+// tyst ur varje sökning. Samlat här så att båda anroparna (sparad sökning och den skarpa
+// payloaden) får exakt samma svar.
+function caMaxAgeYears() {
+  var el = document.getElementById('ca-maxage');
+  if (!el || !el.value || caIsNewCar()) return null;
+  var n = parseInt(el.value);
+  return isNaN(n) ? null : n;
+}
+
+// Nytt åldersförval: max 5 år (markupen hade 10). Körs FÖRE caLoadPrefs och caReadUrlParams,
+// så en sparad inställning och en delningslänk fortfarande vinner över förvalet.
+//
+// Byggs från JS och inte bara i HTML-snippeten av samma skäl som bagagefältet nedan:
+// WordPress-sidan är en manuell kopia, så en ändring i snippeten syns inte förrän den
+// klistrats in på nytt. Funktionen är idempotent och klarar båda kopiorna — den med rutan
+// kvar och den utan.
+var CA_MAXAGE_FORVAL = '5';
+function caAnpassaBegagnatFormular() {
+  var maxAge = document.getElementById('ca-maxage');
+  if (maxAge) maxAge.value = CA_MAXAGE_FORVAL;
+
+  var sel = document.getElementById('ca-newcar');
+  if (!sel) return;                       // snippeten är redan omklistrad — notisen står i HTML
+  sel.value = 'false';
+  var falt = sel.closest ? sel.closest('.ca-field') : null;
+  if (!falt) { sel.style.display = 'none'; return; }
+  falt.id = 'ca-usedcar-note';
+  falt.innerHTML =
+    '<label>Bilarna vi visar</label>' +
+    // Neutral vit genomskinlighet i stället för en blå ram: sidans tema är violett, och en
+    // blåtonad ruta läste som ett främmande element mitt i formuläret.
+    '<div style="font-size:0.82rem;line-height:1.45;color:#8b93a7;background:rgba(255,255,255,0.04);' +
+    'border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:9px 11px;">' +
+    'Begagnade bilar ur <b>Blockets annonser</b> — priser och prisgolv mäts mot riktiga annonser. ' +
+    'Nyare årsmodeller kommer med om budgeten räcker.' +
+    '</div>';
+}
+
 function caSavePrefs() {
   try {
     var t = document.getElementById('ca-transmission');
@@ -649,7 +703,7 @@ function caSavePrefs() {
       km:           document.getElementById('ca-km').value,
       usage:        document.getElementById('ca-usage').value,
       passengers:   document.getElementById('ca-passengers').value,
-      newcar:       document.getElementById('ca-newcar').value,
+      newcar:       caIsNewCar() ? 'true' : 'false',
       fuelType:     document.getElementById('ca-fuel').value,
       transmission: t ? t.value : 'spelar ingen roll',
       maxage:       maEl ? maEl.value : '',
@@ -831,7 +885,7 @@ function caLoadPrefs() {
     if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
     if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
     if (d.cargo) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = d.cargo; }
-    if (d.newcar)     document.getElementById('ca-newcar').value      = d.newcar;
+    if (d.newcar)   { var ncEl = document.getElementById('ca-newcar'); if (ncEl) ncEl.value = d.newcar; }
     if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
     if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
     if (d.maxage) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = d.maxage; }
@@ -849,7 +903,7 @@ function caReadUrlParams() {
     if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
     if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
     if (p.get('passengers')) document.getElementById('ca-passengers').value  = p.get('passengers');
-    if (p.get('newcar'))     document.getElementById('ca-newcar').value      = p.get('newcar');
+    if (p.get('newcar'))   { var ncEl3 = document.getElementById('ca-newcar'); if (ncEl3) ncEl3.value = p.get('newcar'); }
     if (p.get('fuelType'))    document.getElementById('ca-fuel').value        = p.get('fuelType');
     if (p.get('transmission')) { var t = document.getElementById('ca-transmission'); if (t) t.value = p.get('transmission'); }
     if (p.get('maxage')) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = p.get('maxage'); }
@@ -869,7 +923,7 @@ function caSnapshotValues() {
     km:           document.getElementById('ca-km').value,
     usage:        document.getElementById('ca-usage').value,
     passengers:   document.getElementById('ca-passengers').value,
-    newcar:       document.getElementById('ca-newcar').value,
+    newcar:       caIsNewCar() ? 'true' : 'false',
     fuelType:     document.getElementById('ca-fuel').value,
     transmission: t ? t.value : 'spelar ingen roll',
     maxage:       maSnap ? maSnap.value : '',
@@ -960,7 +1014,7 @@ function caSaveHistory(recommendations) {
       km:              document.getElementById('ca-km').value,
       usage:           document.getElementById('ca-usage').value,
       passengers:      document.getElementById('ca-passengers').value,
-      newcar:          document.getElementById('ca-newcar').value,
+      newcar:          caIsNewCar() ? 'true' : 'false',
       fuelType:        document.getElementById('ca-fuel').value,
       transmission:    tEl ? tEl.value : 'spelar ingen roll',
       budgetMode:      caIsLeasing ? 'leasing' : 'köp',
@@ -1041,7 +1095,7 @@ function caLoadFromHistory(index) {
   if (entry.km)         document.getElementById('ca-km').value          = entry.km;
   if (entry.usage)      document.getElementById('ca-usage').value       = entry.usage;
   if (entry.passengers) document.getElementById('ca-passengers').value  = entry.passengers;
-  if (entry.newcar)     document.getElementById('ca-newcar').value      = entry.newcar;
+  if (entry.newcar)   { var ncEl4 = document.getElementById('ca-newcar'); if (ncEl4) ncEl4.value = entry.newcar; }
   caSetBudgetMode(entry.budgetMode || 'köp', entry.budget ? parseInt(entry.budget) : undefined);
   if (entry.fuelType)    document.getElementById('ca-fuel').value        = entry.fuelType;
   if (entry.transmission) { var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = entry.transmission; }
@@ -1103,10 +1157,10 @@ function caResetForm() {
   document.getElementById('ca-km').value         = 1500;
   document.getElementById('ca-usage').value      = 'pendling';
   document.getElementById('ca-passengers').value = 4;
-  document.getElementById('ca-newcar').value     = 'false';
+  var ncEl5 = document.getElementById('ca-newcar'); if (ncEl5) ncEl5.value = 'false';
   document.getElementById('ca-fuel').value       = 'spelar ingen roll';
   var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = 'spelar ingen roll';
-  var maEl = document.getElementById('ca-maxage'); if (maEl) maEl.value = '10';
+  var maEl = document.getElementById('ca-maxage'); if (maEl) maEl.value = CA_MAXAGE_FORVAL;
   caSetBudgetMode('köp', 200000);
   caUpdateFuelVisibility();
   caCheckMismatch();
@@ -1994,7 +2048,7 @@ function caLoadSavedEntry(id) {
     if (prefs.kmPerYear) document.getElementById('ca-km').value = Math.round(prefs.kmPerYear / 10);
     if (prefs.usage)     document.getElementById('ca-usage').value = prefs.usage;
     if (prefs.passengers) document.getElementById('ca-passengers').value = prefs.passengers;
-    if (prefs.newCar !== undefined) document.getElementById('ca-newcar').value = prefs.newCar ? 'true' : 'false';
+    if (prefs.newCar !== undefined) { var ncEl2 = document.getElementById('ca-newcar'); if (ncEl2) ncEl2.value = prefs.newCar ? 'true' : 'false'; }
     caSetBudgetMode(prefs.budgetType === 'leasing' ? 'leasing' : 'köp', prefs.budget ? parseInt(prefs.budget) : undefined);
     if (prefs.fuelType)    document.getElementById('ca-fuel').value = prefs.fuelType;
     if (prefs.transmission) { var tEl2 = document.getElementById('ca-transmission'); if (tEl2) tEl2.value = prefs.transmission; }
@@ -2096,11 +2150,11 @@ async function caSaveSearch() {
       kmPerYear: parseInt(document.getElementById('ca-km').value) * 10,
       usage: document.getElementById('ca-usage').value,
       passengers: parseInt(document.getElementById('ca-passengers').value),
-      newCar: document.getElementById('ca-newcar').value === 'true',
+      newCar: caIsNewCar(),
       fuelType:     document.getElementById('ca-fuel').value,
       transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
       budgetType:   caIsLeasing ? 'leasing' : 'köp',
-      maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })(),
+      maxAgeYears:  caMaxAgeYears(),
       minCargoLiters: caCargoValue()
     };
     var label = caSavedLabel(prefs);
@@ -2382,7 +2436,7 @@ function caShareSearch() {
     km:         document.getElementById('ca-km').value,
     usage:      document.getElementById('ca-usage').value,
     passengers: document.getElementById('ca-passengers').value,
-    newcar:     document.getElementById('ca-newcar').value,
+    newcar:     caIsNewCar() ? 'true' : 'false',
     fuelType:     document.getElementById('ca-fuel').value,
     transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
     budgetMode:   caIsLeasing ? 'leasing' : 'köp',
@@ -2438,11 +2492,11 @@ async function caGetRecommendation() {
     kmPerYear:   caCurrentKm,
     usage:       document.getElementById('ca-usage').value,
     passengers:  parseInt(document.getElementById('ca-passengers').value),
-    newCar:      document.getElementById('ca-newcar').value === 'true',
+    newCar:      caIsNewCar(),
     fuelType:     fuelVal,
     transmission: (function(){ var t = document.getElementById('ca-transmission'); return t ? t.value : 'spelar ingen roll'; })(),
     budgetType:   caIsLeasing ? 'leasing' : 'köp',
-    maxAgeYears:  (function(){ var el = document.getElementById('ca-maxage'); var nc = document.getElementById('ca-newcar'); return (el && nc && nc.value !== 'true' && el.value) ? parseInt(el.value) : null; })(),
+    maxAgeYears:  caMaxAgeYears(),
     minCargoLiters: caCargoValue()
   };
 
@@ -2841,6 +2895,9 @@ function caInit() {
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
   caEnsureCargoField();
   caFixCategoryLabels();
+  // Före caLoadPrefs: sätter åldersförvalet och byter ut ny/begagnad-rutan mot notisen,
+  // så att en sparad inställning och en delningslänk fortfarande vinner över förvalet.
+  caAnpassaBegagnatFormular();
   caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
