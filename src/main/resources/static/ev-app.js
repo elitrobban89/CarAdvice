@@ -301,7 +301,20 @@
     "@media (max-width:500px){.ev-picker-grid{grid-template-columns:repeat(2,1fr);}.ev-picker-step{max-height:270px;}.ev-picker-trigger{font-size:1rem;}.ev-picker-search{font-size:1rem;}}" +
     // Hjälpraden under körsträckan
     ".ev-mil-hint{font-size:.7rem;color:rgba(200,215,255,.45);margin-top:6px;line-height:1.4;}" +
-    ".ev-mil-hint b{color:rgba(147,197,253,.8);font-weight:700;}";
+    ".ev-mil-hint b{color:rgba(147,197,253,.8);font-weight:700;}" +
+
+    // --- DIN ELBIL: specarna i grupper i stället för en radbrytande rad -------
+    // Överstyr sidans egen `.ev-specs{display:flex;flex-wrap:wrap}` med en klass som JS
+    // sätter, i stället för att ändra i <style> — WP-sidan är en manuell kopia och skulle
+    // annars behöva klistras om för en ren layoutändring.
+    // Två klasser och inget id: sidans egen regel är `.ev-specs` med EN klass, så den här
+    // vinner på specificitet utan att bero på att elementet råkar heta #ev-specs.
+    ".ev-specs.ev-specs-rader{flex-direction:column;align-items:flex-start;gap:7px;}" +
+    ".ev-spec-row{display:flex;flex-wrap:wrap;gap:7px;align-items:center;}" +
+    // Badgesarna bär nu en ikon först; luften mellan ikon och text kommer från ordmellanslaget
+    // och behöver ingen egen regel. Radhöjden däremot: emoji är högre än siffrorna och sköt
+    // isär raderna olika mycket beroende på vilka badges som råkade hamna där.
+    ".ev-spec-row .ev-spec-badge{line-height:1.5;}";
     document.head.appendChild(s);
   })();
 
@@ -406,6 +419,12 @@
   let aterstallBilText = null;
   const bilVantetimer = setTimeout(function () {
     aterstallBilText = bilVantetext(document.getElementById("ev-car-select"));
+    // Väntetexten satt i <select>:en, och den är DOLD sedan märkesväljaren tog över — alltså
+    // låg hela kallstartsbeskedet på ett element ingen ser. Skarpt fall 2026-08-28: en
+    // användare tryckte på "Välj bilmärke" och ingenting hände, för väljaren avstår från att
+    // öppna innan bilarna finns (`laddar`) och avtryckaren såg exakt likadan ut färdig som
+    // väntande. Uppvakningen är mätt till 121 s, så det fönstret är inte litet.
+    if (markesvaljare) markesvaljare.vantar();
   }, VANTETEXT_MS);
 
   // ---------------------------------------------------------------------------
@@ -555,8 +574,18 @@
       rot.classList.remove("ev-picker-open");
       trigger.setAttribute("aria-expanded", "false");
     }
+    // Väntetexten på avtryckaren. Bor här och inte bara i det returnerade objektet, eftersom
+    // BÅDA vägarna behöver den: kallstartstimern utifrån, och ett klick medan bilarna hämtas.
+    function visaVantetext() {
+      trigger.querySelector(".ev-picker-text").textContent =
+        "Tjänsten startar — bilarna dyker upp strax…";
+    }
+
     function oppna() {
-      if (laddar) return;
+      // Ett klick medan bilarna hämtas ska SÄGA det. Att bara returnera gjorde knappen död
+      // utan förklaring, och det var precis så felet visade sig för användaren: "trycker på
+      // välj bilmärke, ingenting händer".
+      if (laddar) { visaVantetext(); return; }
       panel.hidden = false;
       rot.classList.add("ev-picker-open");
       trigger.setAttribute("aria-expanded", "true");
@@ -706,9 +735,7 @@
         trigger.querySelector(".ev-picker-text").textContent = "Välj bilmärke…";
         trigger.classList.add("ev-picker-klar");
       },
-      vantar: function () {
-        trigger.querySelector(".ev-picker-text").textContent = "Tjänsten startar — bilarna dyker upp strax…";
-      },
+      vantar: visaVantetext,
       fel: function () {
         laddar = true;
         trigger.querySelector(".ev-picker-text").textContent = "Kunde inte hämta bilar";
@@ -781,14 +808,29 @@
     const realMil   = rangeMil ? Math.round(rangeMil * 0.85) : null;
     const freqBadge = chargingFreqBadge(rangeMil);
     const priceStr  = c.priceKr ? `från ${(c.priceKr / 1000).toFixed(0)} tkr` : null;
+    // TRE RADER, inte en radbrytande. Allt låg förut i samma flexrad, och radbrytningen
+    // hamnade där bredden råkade ta slut — mellan "mil WLTP" och "mil verklig" på en smal
+    // skärm, eller mitt i kontakttyperna. Läsaren fick alltså gruppera själv, och grupperna
+    // finns: hur bilen laddar, hur långt den går, vad den kostar.
+    //
+    // Ordningen är inte alfabetisk utan efter vad appen handlar om: LADDNING först (effekt,
+    // kontakter och hur ofta man måste ladda hör ihop — det är samma fråga), sedan räckvidd,
+    // sist pris. Ikonerna är där för att hitta rätt rad utan att läsa.
     box.style.display = "flex";
-    box.innerHTML = `
-      <span class="ev-spec-badge badge-ac" title="Toppeffekt från laddbox. Taket sitter i bilens ombordladdare – en kraftigare laddbox ger ändå inte mer än så här mycket.">AC max ${c.maxAcKw} kW</span>
-      <span class="ev-spec-badge badge-dc" title="Toppeffekt vid publik snabbladdare. Verklig effekt beror på batteriets temperatur och laddnivå, och på vad stolpen klarar.">DC max ${c.maxDcKw} kW</span>
-      ${rangeMil ? `<span class="ev-spec-badge badge-range">~${rangeMil} mil WLTP · ~${realMil} mil verklig</span>` : ""}
-      ${priceStr ? `<span class="ev-spec-badge badge-price">${priceStr}</span>` : ""}
-      ${freqBadge ? `<span class="ev-spec-badge badge-freq">${freqBadge}</span>` : ""}
-      ${c.connectors.map(t => `<span class="ev-spec-badge badge-con">${conLabel(t)}</span>`).join("")}`;
+    box.classList.add("ev-specs-rader");
+    const laddrad = [
+      `<span class="ev-spec-badge badge-ac" title="Toppeffekt från laddbox. Taket sitter i bilens ombordladdare – en kraftigare laddbox ger ändå inte mer än så här mycket.">🏠 AC max ${c.maxAcKw} kW</span>`,
+      `<span class="ev-spec-badge badge-dc" title="Toppeffekt vid publik snabbladdare. Verklig effekt beror på batteriets temperatur och laddnivå, och på vad stolpen klarar.">⚡ DC max ${c.maxDcKw} kW</span>`,
+      ...c.connectors.map(t => `<span class="ev-spec-badge badge-con">🔌 ${conLabel(t)}</span>`),
+      freqBadge ? `<span class="ev-spec-badge badge-freq">${freqBadge}</span>` : ""
+    ].filter(Boolean).join("");
+
+    const rader = [laddrad];
+    // Måttband och inte vägemoji: 🛣️ renderar som en liten landskapsbild i Chrome och läste
+    // som ett trasigt ikonplacehold, medan 📏 säger "avstånd" och håller sig läsbar i 12 px.
+    if (rangeMil) rader.push(`<span class="ev-spec-badge badge-range">📏 ~${rangeMil} mil WLTP · ~${realMil} mil verklig</span>`);
+    if (priceStr) rader.push(`<span class="ev-spec-badge badge-price">💰 ${priceStr}</span>`);
+    box.innerHTML = rader.map(r => `<div class="ev-spec-row">${r}</div>`).join("");
     renderChargingNotice(true);
   }
 
