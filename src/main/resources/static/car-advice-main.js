@@ -612,15 +612,35 @@ function caUpdateFuelVisibility() {
   var transField = document.getElementById('ca-transmission-field');
   var hide = (cat === 'elbil' || cat === 'laddhybrid');
   fuelField.style.display = hide ? 'none' : '';
-  if (transField) transField.style.display = hide ? 'none' : '';
   if (hide) {
     document.getElementById('ca-fuel').value = 'spelar ingen roll';
-    var t = document.getElementById('ca-transmission');
-    if (t) t.value = 'spelar ingen roll';
   } else if (cat === 'familjebil') {
     var charger = document.getElementById('ca-charger');
     if (charger && charger.value === 'true') document.getElementById('ca-fuel').value = 'el';
   }
+
+  // VÄXELLÅDAN följer numera drivmedlet också, inte bara kategorin. Kategorivägen dolde den
+  // redan för "elbil"/"laddhybrid", men DRIVMEDELSRUTAN gjorde det inte: "Småbil" + "El"
+  // lämnade frågan kvar, och en ren elbil har ingen växellåda att välja. Värre än onödig —
+  // ett kvarglömt "Manuell" från ett tidigare bensinsök följde med i payloaden och blev
+  // "rekommendera endast bilar med denna växellåda" på ett elbilssök. Därför nollställs den
+  // också, inte bara göms.
+  var fuelVal   = document.getElementById('ca-fuel').value;
+  var doljTrans = hide || fuelVal === 'el';
+  if (transField) transField.style.display = doljTrans ? 'none' : '';
+  if (doljTrans) { var tr = document.getElementById('ca-transmission'); if (tr) tr.value = 'spelar ingen roll'; }
+
+  // LADDARE HEMMA används BARA till att styra bort från el: svaret "nej" blir texten "undvik
+  // renodlad elbil (BEV) och laddhybrid (PHEV)" i buildPrompt. Har användaren redan valt
+  // bensin, diesel eller hybrid är frågan meningslös. Svaret rörs INTE, bara frågan göms —
+  // byter man tillbaka till el står det kvar som det stod.
+  //
+  // Rutan har inget eget id i markupen (till skillnad från #ca-fuel-field), därav closest().
+  var chgEl    = document.getElementById('ca-charger');
+  var chgField = (chgEl && chgEl.closest) ? chgEl.closest('.ca-field') : null;
+  var laddbart = hide || fuelVal === 'el' || fuelVal === 'spelar ingen roll';
+  if (chgField) chgField.style.display = laddbart ? '' : 'none';
+
   caUpdateMaxAgeVisibility();
   // Drivmedlet sätts här PROGRAMMATISKT (familjebil + laddbox blir "el"), och en tilldelning
   // i JS utlöser inget change-event. Utan de här anropen visade budgetrutan bensinkombiernas
@@ -670,6 +690,27 @@ function caMaxAgeYears() {
 // klistrats in på nytt. Funktionen är idempotent och klarar båda kopiorna — den med rutan
 // kvar och den utan.
 var CA_MAXAGE_FORVAL = '5';
+
+// Körsträckan förvald till genomsnittssvenskens 1 243 mil i stället för den runda 1 500:an.
+// Samma siffra som Elbilsassistenten använder — står två appar på samma sida och säger olika
+// saker om vad en normal körsträcka är, är minst en av dem fel.
+//
+// step=1 hör ihop med talet: markupen hade step=100, och 1243 är inte en multipel av det.
+// Fältet blir då stepMismatch (alltså :invalid) och pilarna hoppar till 1200/1300.
+var CA_KM_FORVAL = '1243';
+function caForvalKorstracka() {
+  var km = document.getElementById('ca-km');
+  if (!km) return;
+  km.step = '1';
+  km.value = CA_KM_FORVAL;
+  if (document.getElementById('ca-km-hint')) return;   // idempotent: snippeten kan bära den
+  var hint = document.createElement('div');
+  hint.id = 'ca-km-hint';
+  hint.style.cssText = 'font-size:0.72rem;color:#8b93a7;margin-top:5px;line-height:1.4;';
+  hint.innerHTML = 'Genomsnittssvensken kör <b>1 243 mil/år</b> — ändra till din egen siffra.';
+  km.parentNode.insertBefore(hint, km.nextSibling);
+}
+
 function caAnpassaBegagnatFormular() {
   var maxAge = document.getElementById('ca-maxage');
   if (maxAge) maxAge.value = CA_MAXAGE_FORVAL;
@@ -982,6 +1023,9 @@ function caBindChangeListeners() {
   var fuel = document.getElementById('ca-fuel');
   if (fuel) fuel.addEventListener('change', caRenderEvBudgetHint);
   if (fuel) fuel.addEventListener('change', caRenderCargoLevels);
+  // Utan den här raden reagerade växellåde- och laddarrutan bara när KATEGORIN byttes —
+  // drivmedelsrutan kunde stå på "El" med växellådefrågan kvar synlig hur länge som helst.
+  if (fuel) fuel.addEventListener('change', caUpdateFuelVisibility);
   if (bud) bud.addEventListener('input', caUpdateSliderFill);
   if (nc)  nc.addEventListener('change', caUpdateMaxAgeVisibility);
 }
@@ -1154,7 +1198,7 @@ function caResetForm() {
   document.getElementById('ca-category').value   = 'smaabil';
   document.getElementById('ca-budget-slider').value = 200000;
   document.getElementById('ca-charger').value    = 'false';
-  document.getElementById('ca-km').value         = 1500;
+  document.getElementById('ca-km').value         = CA_KM_FORVAL;
   document.getElementById('ca-usage').value      = 'pendling';
   document.getElementById('ca-passengers').value = 4;
   var ncEl5 = document.getElementById('ca-newcar'); if (ncEl5) ncEl5.value = 'false';
@@ -2898,6 +2942,7 @@ function caInit() {
   // Före caLoadPrefs: sätter åldersförvalet och byter ut ny/begagnad-rutan mot notisen,
   // så att en sparad inställning och en delningslänk fortfarande vinner över förvalet.
   caAnpassaBegagnatFormular();
+  caForvalKorstracka();
   caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
