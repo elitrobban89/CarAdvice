@@ -293,6 +293,8 @@
     ".ev-picker-model:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
     ".ev-picker-model-name{font-size:.84rem;font-weight:600;color:#f0f4ff;}" +
     ".ev-picker-model-specs{font-size:.7rem;color:rgba(200,215,255,.45);}" +
+    // Namnbytesnotisen far amber, samma farg som appens ovriga "las har"-markorer
+    ".ev-picker-model-alias{font-size:.68rem;color:rgba(251,191,36,.75);margin-top:2px;}" +
     ".ev-picker-tom{padding:22px 10px;text-align:center;font-size:.82rem;color:rgba(200,215,255,.45);}" +
     // Under 500 px blir rutnätet två kolumner och panelen lite lägre, så tangentbordet på
     // mobilen inte täcker hela listan.
@@ -468,6 +470,37 @@
     return n.toLowerCase().startsWith(marke.toLowerCase() + " ") ? n.slice(marke.length + 1) : n;
   }
 
+  // ── Volvos namnbyten ────────────────────────────────────────────────────────
+  // C40 Recharge heter EC40 och XC40 Recharge heter EX40 på nyare årsmodeller.
+  //
+  // BÅDA NAMNEN STÅR KVAR I DATAN, med flit. En två-tre år gammal bil — alltså precis den
+  // man köper begagnad — heter fortfarande det gamla namnet i annonsen, och specarna är
+  // INTE samma: XC40 Recharge ligger på 75 kWh och 150 kW DC, EX40 på 79 kWh och 207 kW.
+  // Att döpa om raden hade alltså gett en begagnad bil fel laddeffekt, och laddeffekten är
+  // hela poängen med den här appen. De är samma modellinje i olika åldrar, inte dubbletter.
+  //
+  // Aliaset gör bara att man HITTAR rätt oavsett vilket namn man känner till: raden visar
+  // det andra namnet, och sökningen matchar på båda.
+  const NAMNBYTEN = [
+    { ny: "EC40", gammal: "C40 Recharge", gammaltOrd: "C40" },
+    { ny: "EX40", gammal: "XC40 Recharge", gammaltOrd: "XC40" }
+  ];
+
+  function namnbyteFor(namn) {
+    const n = namn || "";
+    for (const b of NAMNBYTEN) {
+      if (new RegExp("\\b" + b.ny + "\\b", "i").test(n))
+        return { notis: "samma bil som " + b.gammal + " — Volvo bytte namn", ocksa: b.gammaltOrd };
+      // Bara modellordet, INTE "C40 Recharge": raderna heter "Volvo C40 Single Motor" och
+      // "Volvo XC40 Recharge" — ordet Recharge står bara på den ena, och provet fällde den
+      // första varianten direkt. Ordgränsen räcker för att hålla isär namnen: \bC40\b matchar
+      // inte inuti "EC40", eftersom E är ett ordtecken.
+      if (new RegExp("\\b" + b.gammaltOrd + "\\b", "i").test(n))
+        return { notis: "heter " + b.ny + " på nyare årsmodeller", ocksa: b.ny };
+    }
+    return null;
+  }
+
   // Emblemet är märkets initialer. Riktiga bilmärkesloggor är varumärkesskyddade och finns
   // inte i repot — en monogramplatta i märkets färg ger igenkänningen utan att hämta bilder
   // från någon annans server.
@@ -552,7 +585,7 @@
         const namn = m.marke.toLowerCase();
         if (f.length === 1) return namn.charAt(0) === f;
         return namn.indexOf(f) !== -1
-            || m.bilar.some(function (b) { return b.namn.toLowerCase().indexOf(f) !== -1; });
+            || m.bilar.some(function (b) { return b.sok.indexOf(f) !== -1; });
       });
       if (!traffar.length) {
         brands.innerHTML = '<div class="ev-picker-tom">Ingen bil matchar “' + esc(f) + '”.</div>';
@@ -577,7 +610,7 @@
       if (!grupp) return;
       aktivtMarke = marke;
       const f = (filter || "").trim().toLowerCase();
-      const lista = grupp.bilar.filter(function (b) { return !f || b.namn.toLowerCase().indexOf(f) !== -1; });
+      const lista = grupp.bilar.filter(function (b) { return !f || b.sok.indexOf(f) !== -1; });
       models.innerHTML =
         '<div class="ev-picker-back-row">' +
           '<button type="button" class="ev-picker-back">‹ Alla märken</button>' +
@@ -588,6 +621,7 @@
           return '<button type="button" class="ev-picker-model" data-index="' + b.index + '">' +
             '<span class="ev-picker-model-name">' + esc(b.modell) + '</span>' +
             '<span class="ev-picker-model-specs">' + esc(b.spec) + '</span>' +
+            (b.notis ? '<span class="ev-picker-model-alias">' + esc(b.notis) + '</span>' : '') +
           '</button>';
         }).join("") + '</div>';
     }
@@ -657,9 +691,13 @@
           if (!karta.has(marke)) karta.set(marke, []);
           const bat = c.batteryKwh
             ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + " kWh · " : "";
+          const byte = namnbyteFor(c.name);
           karta.get(marke).push({
             index: i, namn: c.name, modell: modellAv(c.name, marke),
-            spec: bat + "AC " + c.maxAcKw + " kW · DC " + c.maxDcKw + " kW"
+            spec: bat + "AC " + c.maxAcKw + " kW · DC " + c.maxDcKw + " kW",
+            notis: byte ? byte.notis : "",
+            // Söktexten bär BÅDA namnen: den som letar "XC40" ska hitta EX40 och tvärtom.
+            sok: (c.name + " " + (byte ? byte.ocksa : "")).toLowerCase()
           });
         });
         // localeCompare med "sv": utan den hamnar Škoda efter Zeekr och firefly allra sist.
