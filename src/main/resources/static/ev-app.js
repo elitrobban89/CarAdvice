@@ -309,8 +309,19 @@
     // annars behöva klistras om för en ren layoutändring.
     // Två klasser och inget id: sidans egen regel är `.ev-specs` med EN klass, så den här
     // vinner på specificitet utan att bero på att elementet råkar heta #ev-specs.
-    ".ev-specs.ev-specs-rader{flex-direction:column;align-items:flex-start;gap:7px;}" +
+    // Rutnät med rubrikkolumnen först: `auto 1fr` låter rubrikerna bli precis så breda som
+    // det längsta ordet och håller badgesarna vänsterjusterade på samma linje i alla tre rader.
+    ".ev-specs.ev-specs-rader{display:grid;grid-template-columns:auto 1fr;gap:8px 13px;align-items:center;}" +
     ".ev-spec-row{display:flex;flex-wrap:wrap;gap:7px;align-items:center;}" +
+    // Rubrikerna lånar formen av sidans egna .ev-label — samma versaler, spärrning och blågrå
+    // ton — så de läser som etiketter och inte som ännu en badge.
+    ".ev-spec-rubrik{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;"
+      + "color:rgba(147,197,253,.6);white-space:nowrap;text-align:right;}" +
+    // Under 560 px ryms ingen rubrikkolumn: då står rubriken PÅ egen rad ovanför sina badges,
+    // vänsterställd. Två kolumner där hade klämt ihop badgesarna till en pelare.
+    "@media (max-width:560px){.ev-specs.ev-specs-rader{grid-template-columns:1fr;gap:3px;}"
+      + ".ev-spec-rubrik{text-align:left;margin-top:7px;}"
+      + ".ev-specs.ev-specs-rader>.ev-spec-rubrik:first-child{margin-top:0;}}" +
     // Badgesarna bär nu en ikon först; luften mellan ikon och text kommer från ordmellanslaget
     // och behöver ingen egen regel. Radhöjden däremot: emoji är högre än siffrorna och sköt
     // isär raderna olika mycket beroende på vilka badges som råkade hamna där.
@@ -816,7 +827,9 @@
     // Ordningen är inte alfabetisk utan efter vad appen handlar om: LADDNING först (effekt,
     // kontakter och hur ofta man måste ladda hör ihop — det är samma fråga), sedan räckvidd,
     // sist pris. Ikonerna är där för att hitta rätt rad utan att läsa.
-    box.style.display = "flex";
+    // "grid" och inte "flex": inline-stilen används som visa/göm-knapp här, och den slår all
+    // CSS — sattes den till flex vann den över radrutnätet nedan.
+    box.style.display = "grid";
     box.classList.add("ev-specs-rader");
     const laddrad = [
       `<span class="ev-spec-badge badge-ac" title="Toppeffekt från laddbox. Taket sitter i bilens ombordladdare – en kraftigare laddbox ger ändå inte mer än så här mycket.">🏠 AC max ${c.maxAcKw} kW</span>`,
@@ -825,12 +838,19 @@
       freqBadge ? `<span class="ev-spec-badge badge-freq">${freqBadge}</span>` : ""
     ].filter(Boolean).join("");
 
-    const rader = [laddrad];
+    // Rubrik till vänster om varje rad. Badgesarna säger redan "AC max" och "mil WLTP", men
+    // rubriken svarar på en annan fråga: vad den HÄR raden handlar om. Utan den måste man läsa
+    // innehållet för att förstå varför tre rader står under varandra.
+    const rader = [["Laddning", laddrad]];
     // Måttband och inte vägemoji: 🛣️ renderar som en liten landskapsbild i Chrome och läste
     // som ett trasigt ikonplacehold, medan 📏 säger "avstånd" och håller sig läsbar i 12 px.
-    if (rangeMil) rader.push(`<span class="ev-spec-badge badge-range">📏 ~${rangeMil} mil WLTP · ~${realMil} mil verklig</span>`);
-    if (priceStr) rader.push(`<span class="ev-spec-badge badge-price">💰 ${priceStr}</span>`);
-    box.innerHTML = rader.map(r => `<div class="ev-spec-row">${r}</div>`).join("");
+    if (rangeMil) rader.push(["Räckvidd",
+      `<span class="ev-spec-badge badge-range">📏 ~${rangeMil} mil WLTP · ~${realMil} mil verklig</span>`]);
+    if (priceStr) rader.push(["Pris",
+      `<span class="ev-spec-badge badge-price">💰 ${priceStr}</span>`]);
+    box.innerHTML = rader.map(function (r) {
+      return `<span class="ev-spec-rubrik">${r[0]}</span><div class="ev-spec-row">${r[1]}</div>`;
+    }).join("");
     renderChargingNotice(true);
   }
 
