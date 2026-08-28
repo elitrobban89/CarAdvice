@@ -72,6 +72,27 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-fler-pil{margin-left:auto;color:#a78bfa;transition:transform .2s;}' +
     '#ca-fler-btn.ca-fler-oppen .ca-fler-pil{transform:rotate(180deg);}' +
     '@media(max-width:520px){.ca-fler-hint{display:none;}}' +
+    // Valknapparna. Ikonen först och etiketten under: i en rad om fem blir texten smal, och
+    // en ikon ovanför läser snabbare än en ikon bredvid när bredden är knapp.
+    '.ca-chips{display:flex;flex-wrap:wrap;gap:7px;}' +
+    '.ca-chip{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1 1 0;'
+    + 'min-width:64px;padding:10px 8px;background:rgba(255,255,255,.045);'
+    + 'border:1.5px solid rgba(255,255,255,.1);border-radius:12px;color:rgba(226,232,240,.62);'
+    + 'font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;'
+    + 'transition:background .16s,border-color .16s,color .16s,transform .16s,box-shadow .16s;}' +
+    '.ca-chip-ikon{font-size:1.15rem;line-height:1;filter:grayscale(.55) opacity(.75);transition:filter .16s,transform .16s;}' +
+    '.ca-chip-txt{text-align:center;line-height:1.2;}' +
+    '.ca-chip:hover{background:rgba(139,92,246,.12);border-color:rgba(167,139,250,.45);color:#fff;transform:translateY(-1px);}' +
+    '.ca-chip:hover .ca-chip-ikon{filter:none;transform:scale(1.08);}' +
+    // Det valda alternativet bär husets lila och en glöd, så det syns utan att man läser.
+    '.ca-chip-aktiv{background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(99,102,241,.18));'
+    + 'border-color:rgba(167,139,250,.75);color:#fff;'
+    + 'box-shadow:0 0 0 1px rgba(167,139,250,.3),0 4px 16px -4px rgba(139,92,246,.55);}' +
+    '.ca-chip-aktiv .ca-chip-ikon{filter:none;}' +
+    '.ca-chip:focus-visible{outline:2px solid rgba(167,139,250,.8);outline-offset:2px;}' +
+    // Under 520 px ryms inte fem knappar på en rad utan att texten bryts mitt i ordet.
+    '@media(max-width:520px){.ca-chip{min-width:56px;font-size:.68rem;padding:9px 5px;}'
+    + '.ca-chip-ikon{font-size:1.05rem;}}' +
     // Bilväljaren i den fria jämförelsen. Lila i stället för Elbilsassistentens blå:
     // samma två steg, men husets färg är en annan här.
     // Panelen ankras mot RADEN och inte mot .ca-vp. Behållaren sitter som flexbarn bredvid
@@ -709,6 +730,9 @@ function caUpdateFuelVisibility() {
   // till en elbilssökning.
   caRenderEvBudgetHint();
   caRenderCargoLevels();
+  // Sist: fältet kan just ha gömts eller tvingats om, och förvalet läser det läget.
+  caVaxelladeForval();
+  caSynkaChips();
 }
 
 function caUpdateMaxAgeVisibility() {
@@ -779,6 +803,98 @@ function caForvalKorstracka() {
   km.parentNode.insertBefore(hint, km.nextSibling);
 }
 
+// ── Val som knappar i stället för rullgardiner ───────────────────────────────
+// En rullgardin döljer alternativen tills man öppnar den, och tvingar fram två klick för
+// ett val mellan fem. Med fyra fält kvar i formuläret finns det plats att visa dem: ikonen
+// säger vad valet ÄR innan man läst etiketten, och det aktiva valet syns utan att man
+// öppnar något.
+//
+// SELECTEN BLIR KVAR och är fortfarande värdet — knapparna sätter .value och skickar
+// change. Allt annat (caLoadPrefs, caReadUrlParams, caCheckChanges, payloaden) läser
+// selecten och behöver inte veta att den fått ett nytt ansikte. Samma grepp som
+// märkesväljaren använder mot sin dolda select.
+var caChipsRader = [];
+
+var CA_IKONER = {
+  'ca-category':     { familjebil: '\uD83D\uDC6A', suv: '\uD83D\uDE99', elbil: '\u26A1',
+                       laddhybrid: '\uD83D\uDD0C', smaabil: '\uD83D\uDE97' },
+  'ca-fuel':         { 'spelar ingen roll': '\u2728', bensin: '\u26FD', diesel: '\uD83D\uDEE2\uFE0F',
+                       hybrid: '\u267B\uFE0F', el: '\u26A1' },
+  'ca-transmission': { 'spelar ingen roll': '\u2728', manuell: '\uD83D\uDD79\uFE0F', automat: '\uD83D\uDD04' },
+  'ca-charger':      { 'true': '\uD83C\uDFE0', 'false': '\uD83D\uDEAB' }
+};
+
+/** Bygger en knapprad ur en selects egna options. Idempotent. */
+function caChips(id) {
+  var sel = document.getElementById(id);
+  if (!sel || sel.dataset.chips) return;
+  var ikoner = CA_IKONER[id] || {};
+  sel.dataset.chips = '1';
+  sel.style.display = 'none';
+
+  var rad = document.createElement('div');
+  rad.className = 'ca-chips';
+  Array.prototype.forEach.call(sel.options, function (o) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ca-chip';
+    b.dataset.varde = o.value;
+    b.innerHTML = '<span class="ca-chip-ikon">' + (ikoner[o.value] || '\u2022') + '</span>'
+      + '<span class="ca-chip-txt">' + caEsc(o.textContent) + '</span>';
+    rad.appendChild(b);
+  });
+  sel.parentNode.insertBefore(rad, sel.nextSibling);
+
+  function synka() {
+    Array.prototype.forEach.call(rad.children, function (b) {
+      b.classList.toggle('ca-chip-aktiv', b.dataset.varde === sel.value);
+    });
+  }
+  rad.addEventListener('click', function (e) {
+    var b = e.target.closest('.ca-chip');
+    if (!b) return;
+    sel.value = b.dataset.varde;
+    // Växellådan slutar följa kategorin så snart man valt själv — se caVaxelladeForval.
+    if (id === 'ca-transmission') sel.dataset.rord = '1';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    synka();
+  });
+  caChipsRader.push(synka);
+  synka();
+}
+
+/**
+ * Håller knapparna i takt med selecten när NÅGON ANNAN ändrar den.
+ *
+ * <p>En tilldelning i JS utlöser inget change-event, och formuläret sätter värden
+ * programmatiskt på flera ställen: sparade sökningar, delningslänkar, Nollställ, och
+ * caUpdateFuelVisibility som tvingar drivmedlet till "spelar ingen roll" för elbil. Utan
+ * den här skulle knapparna visa ett annat val än det som faktiskt skickas.
+ */
+function caSynkaChips() { caChipsRader.forEach(function (f) { f(); }); }
+
+/**
+ * Växellådans förval följer kategorin: AUTOMAT överallt utom på Småbil, där manuell är
+ * regel och inte undantag i det prisläget.
+ *
+ * <p>"Ekonomibil" är samma sak som Småbil — det är ett ALIAS (CA_CAT_ALIAS) från en äldre
+ * version av formuläret, och lever kvar i sparade sökningar och delningslänkar. Därför
+ * jämförs den kanoniserade kategorin, inte råvärdet.
+ *
+ * <p>Rör aldrig ett val användaren gjort själv (dataset.rord), och aldrig när fältet är
+ * dolt: för elbil och laddhybrid tvingar caUpdateFuelVisibility värdet till "spelar ingen
+ * roll", och ett förval ovanpå det hade skickat en växellåda på en bil som inte har någon.
+ */
+function caVaxelladeForval() {
+  var t = document.getElementById('ca-transmission');
+  var falt = document.getElementById('ca-transmission-field');
+  if (!t || t.dataset.rord) return;
+  if (falt && falt.style.display === 'none') return;
+  var kat = caCanonCat(document.getElementById('ca-category').value);
+  t.value = (kat === 'smaabil') ? 'manuell' : 'automat';
+  caSynkaChips();
+}
+
 /**
  * Fyra fält framme, resten under "Fler val".
  *
@@ -828,11 +944,23 @@ function caFlerVal() {
   box.className = 'ca-grid';
   box.hidden = true;
 
-  // Knappen hamnar där den första flyttade rutan satt, så ordningen känns oförändrad
+  // Knappen och lådan läggs EFTER den rutnätsrad där första flyttade fältet satt — inte
+  // inuti den. Ett .ca-grid som barn till ett annat .ca-grid blir en cell som i sin tur är
+  // ett rutnät, och då hamnar de utfällda fälten i EN kolumn medan cellen bredvid gapar tom.
+  // Det syntes först när provet fällde ut lådan; hopfälld såg allt rätt ut.
   var ankare = rutor[0];
-  ankare.parentNode.insertBefore(knapp, ankare);
+  var rad = ankare.closest('.ca-grid') || ankare.parentNode;
+  rad.parentNode.insertBefore(knapp, rad.nextSibling);
   knapp.parentNode.insertBefore(box, knapp.nextSibling);
   rutor.forEach(function (r) { box.appendChild(r); });
+
+  // Rader som blev helt tomma när fälten flyttades ska inte lämna en lucka i formuläret.
+  Array.prototype.forEach.call(document.querySelectorAll('#ca-wrap .ca-grid'), function (g) {
+    if (g.id === 'ca-fler') return;
+    var kvar = g.querySelectorAll('.ca-field');
+    var synliga = Array.prototype.filter.call(kvar, function (f) { return f.style.display !== 'none'; });
+    if (!synliga.length) g.style.display = 'none';
+  });
 
   knapp.addEventListener('click', function () {
     var oppet = box.hidden;
@@ -3339,6 +3467,8 @@ function caInit() {
   // så att en sparad inställning och en delningslänk fortfarande vinner över förvalet.
   caAnpassaBegagnatFormular();
   caForvalKorstracka();
+  // Före caFlerVal: knappraderna ska med när fälten flyttas, inte lämnas kvar.
+  ['ca-category', 'ca-charger', 'ca-fuel', 'ca-transmission'].forEach(caChips);
   // Efter caEnsureCargoField och förvalen: rutorna måste finnas OCH vara ifyllda innan de
   // flyttas, annars fälls tomma fält ihop.
   caFlerVal();
