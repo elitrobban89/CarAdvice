@@ -320,6 +320,12 @@
     "@supports not (background:color-mix(in srgb,red 10%,transparent)){.ev-picker-emblem{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.38);}}" +
     ".ev-picker-emblem-tom{color:#3b82f6;background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.25);font-size:1rem;}" +
     ".ev-picker-emblem-sm{width:26px;height:26px;border-radius:7px;font-size:.62rem;}" +
+    // Bildplattan ar VIT: emblemen ar gjorda for ljus botten, och pa den morka plattan var
+    // Mercedes-stjarnan, VW-ringen, Audi-ringarna och Fords markbla oval nastan osynliga.
+    // Matt pa kontaktark innan valet gjordes.
+    ".ev-picker-emblem-bild{background:#fff;border-color:rgba(255,255,255,.55);padding:4px;}" +
+    ".ev-picker-emblem-bild img{width:100%;height:100%;object-fit:contain;display:block;}" +
+    ".ev-picker-emblem-sm.ev-picker-emblem-bild{padding:3px;}" +
 
     ".ev-picker-panel{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 8px);background:#0d1526;border:1.5px solid rgba(59,130,246,0.28);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.55);padding:12px;animation:ev-picker-in .22s cubic-bezier(.22,1,.36,1);}" +
     "@keyframes ev-picker-in{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}" +
@@ -609,6 +615,45 @@
                     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  // ── Riktiga emblem för de märken där det GÅR ────────────────────────────────
+  // Nio av de femton största. Filerna ligger i repot och serveras av samma värd som den här
+  // filen (ASSETS), alltså ingen hotlinkning till Wikimedia — appen lider redan av kallstarter
+  // och ska inte lägga till ett tredjepartsberoende i sidladdningen.
+  //
+  // Alla nio är PUBLIC DOMAIN på Commons (formen är för enkel för upphovsrätt). Commons märker
+  // dem samtidigt "trademarked": det är varumärket, inte licensen, och att visa märket intill
+  // just den bilen är den beskrivande användning varje bilsajt gör.
+  //
+  // SEX av de femton fick INGET emblem, och det är mätt och inte glömt:
+  //   Kia, XPENG, Zeekr  — märkets logo ÄR ett ordmärke. I 24 px blir bokstäverna mos.
+  //   Citroën, Peugeot   — Commons har ingen ren symbolfil; ordmärke respektive en fil som
+  //                        renderade tomt på kontaktarket.
+  //   Hyundai            — "Hyundai Symbol.svg" visade sig vara en GRÖN TRIANGEL, alltså inte
+  //                        Hyundais logo. Ett fel emblem är sämre än inget.
+  // Alla sex behåller monogrammet, som har samma mått — rutnätet blir jämnt ändå.
+  const MARKESEMBLEM = {
+    "Mercedes-Benz": "mercedes", "Volkswagen": "volkswagen", "BMW": "bmw", "Škoda": "skoda",
+    "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla"
+  };
+
+  /**
+   * Emblemplattan för ett märke — bild när vi har en, monogram annars.
+   *
+   * <p>Bildplattan är VIT. Kontaktarket avgjorde det: på den mörka plattan är Mercedes-stjärnan,
+   * VW-ringen, Audi-ringarna och Fords ovala mörkblå nästan osynliga, eftersom de är gjorda för
+   * att ligga på ljus botten. Vit platta är dessutom vad varje bilsajt gör, av samma skäl.
+   */
+  function emblemHtml(marke, extraKlass) {
+    const slug = MARKESEMBLEM[marke];
+    const klass = "ev-picker-emblem" + (extraKlass ? " " + extraKlass : "");
+    if (slug) {
+      return '<span class="' + klass + ' ev-picker-emblem-bild">'
+        + '<img src="' + ASSETS + '/ev-emblem/' + slug + '.svg" alt="" loading="lazy"></span>';
+    }
+    return '<span class="' + klass + '" style="--emblem:' + markesfarg(marke) + '">'
+      + esc(emblemText(marke)) + '</span>';
+  }
+
   function skapaMarkesvaljare() {
     const sel = document.getElementById("ev-car-select");
     if (!sel) return null;
@@ -696,7 +741,7 @@
       }
       brands.innerHTML = '<div class="ev-picker-grid">' + traffar.map(function (m) {
         return '<button type="button" class="ev-picker-brand" data-marke="' + esc(m.marke) + '">' +
-          '<span class="ev-picker-emblem" style="--emblem:' + markesfarg(m.marke) + '">' + esc(emblemText(m.marke)) + '</span>' +
+          emblemHtml(m.marke) +
           // Texten i en egen kolumn: som syskon till emblemet i samma flexrad hamnade namn
           // och antal bredvid varandra, och "Alfa Romeo" och "Citroën" bröt då över två rader
           // med antalet hängande i luften.
@@ -717,7 +762,7 @@
       models.innerHTML =
         '<div class="ev-picker-back-row">' +
           '<button type="button" class="ev-picker-back">‹ Alla märken</button>' +
-          '<span class="ev-picker-emblem ev-picker-emblem-sm" style="--emblem:' + markesfarg(marke) + '">' + esc(emblemText(marke)) + '</span>' +
+          emblemHtml(marke, "ev-picker-emblem-sm") +
           '<span class="ev-picker-brand-head">' + esc(marke) + '</span>' +
         '</div>' +
         '<div class="ev-picker-model-list">' + lista.map(function (b) {
@@ -776,7 +821,7 @@
       if (!bil) return;
       const marke = markeAv(bil.name);
       trigger.innerHTML =
-        '<span class="ev-picker-emblem" style="--emblem:' + markesfarg(marke) + '">' + esc(emblemText(marke)) + '</span>' +
+        emblemHtml(marke) +
         '<span class="ev-picker-text ev-picker-vald">' + esc(bil.name) + '</span>' +
         '<span class="ev-picker-chevron">▾</span>';
       // Selecten är fortfarande sanningen: allt nedanför lyssnar på DEN, inte på väljaren.
@@ -788,14 +833,23 @@
       fyll: function (cars) {
         bilar = cars;
         laddar = false;
+        // Nyckeln är SKIFTLÄGESFÄLLD och visningsnamnet den stavning som förekommer flest
+        // gånger. De 58 rader som lades till 2026-08-28 stavade två märken annorlunda än de
+        // gamla, och rutnätet visade dem som skilda märken: "Cupra 1 modell" bredvid
+        // "CUPRA 9 modeller", "Xpeng 1" bredvid "XPENG 12". Ett märke får aldrig stå två gånger.
         const karta = new Map();
+        const stavningar = new Map();   // nyckel -> Map(stavning -> antal)
         cars.forEach(function (c, i) {
           const marke = markeAv(c.name);
-          if (!karta.has(marke)) karta.set(marke, []);
+          const nyckel = marke.toLowerCase();
+          if (!stavningar.has(nyckel)) stavningar.set(nyckel, new Map());
+          const r = stavningar.get(nyckel);
+          r.set(marke, (r.get(marke) || 0) + 1);
+          if (!karta.has(nyckel)) karta.set(nyckel, []);
           const bat = c.batteryKwh
             ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + " kWh · " : "";
           const byte = namnbyteFor(c.name);
-          karta.get(marke).push({
+          karta.get(nyckel).push({
             index: i, namn: c.name, modell: modellAv(c.name, marke),
             spec: bat + "AC " + c.maxAcKw + " kW · DC " + c.maxDcKw + " kW",
             notis: byte ? byte.notis : "",
@@ -804,8 +858,11 @@
           });
         });
         // localeCompare med "sv": utan den hamnar Škoda efter Zeekr och firefly allra sist.
-        marken = Array.from(karta).map(function (par) { return { marke: par[0], bilar: par[1] }; })
-                      .sort(function (a, b) { return a.marke.localeCompare(b.marke, "sv"); });
+        marken = Array.from(karta).map(function (par) {
+          const vanligast = Array.from(stavningar.get(par[0]))
+            .sort(function (a, b) { return b[1] - a[1]; })[0][0];
+          return { marke: vanligast, bilar: par[1] };
+        }).sort(function (a, b) { return a.marke.localeCompare(b.marke, "sv"); });
         trigger.querySelector(".ev-picker-text").textContent = "Välj bilmärke…";
         trigger.classList.add("ev-picker-klar");
       },
