@@ -312,9 +312,25 @@ public class GroqService {
      */
     private Map<String, Object> jsonCallBody(String modelName, double temperature, String systemPrompt,
                                              String userPrompt, int maxTokens) {
+        // response_format tillkom 2026-08-28: JSON var fram till dess BARA ombedd i prompttexten
+        // ("Svara ENDAST med JSON"), och en promptregel är ett önskemål — samma lärdom som bakom
+        // familje-, drivmedels- och SUV-vakterna. Skarpt fall samma dag: fyra sökningar i rad
+        // (elbil, 350 000 kr, 4 passagerare, 300 l bagage, max 5 år) gav "AI-svaret blev
+        // ofullständigt", och token-usage visade att BÅDA modellerna skrev färdigt av sig själva
+        // — 946/944/917 tokens för 120b och 764/629/755/1026 för 20b, alla mot 3000 reserverade.
+        // Svaret höggs alltså inte av; det var ogiltig JSON, och omförsöket med reservmodellen
+        // upprepade felet varje gång. Med json_object kan modellen inte producera trasig JSON.
+        //
+        // KRAV: varje anropare måste ha ordet "JSON" i prompten, annars avvisar Groq anropet.
+        // Uppfyllt av båda systemprompterna ("Svara ENDAST med JSON"). Gäller bara den här
+        // vägen — chattens body byggs separat och streamar fri text, den ska INTE ha formatet.
+        //
+        // Mätt mot Groq före ändringen: gpt-oss-120b 651 tokens med formatet mot 716 utan,
+        // 20b 520 mot 540 — alltså inget pristillägg mot minutbudgeten, snarare tvärtom.
         return Map.of(
                 "model", modelName, "max_tokens", maxTokens, "temperature", temperature,
                 "reasoning_effort", reasoningEffortFor(modelName),
+                "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
