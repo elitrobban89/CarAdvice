@@ -624,16 +624,21 @@
   // dem samtidigt "trademarked": det är varumärket, inte licensen, och att visa märket intill
   // just den bilen är den beskrivande användning varje bilsajt gör.
   //
-  // SEX av de femton fick INGET emblem, och det är mätt och inte glömt:
-  //   Kia, XPENG, Zeekr  — märkets logo ÄR ett ordmärke. I 24 px blir bokstäverna mos.
-  //   Citroën, Peugeot   — Commons har ingen ren symbolfil; ordmärke respektive en fil som
-  //                        renderade tomt på kontaktarket.
-  //   Hyundai            — "Hyundai Symbol.svg" visade sig vara en GRÖN TRIANGEL, alltså inte
-  //                        Hyundais logo. Ett fel emblem är sämre än inget.
+  // FYRA av de femton fick INGET emblem, och det är mätt och inte glömt:
+  //   XPENG, Zeekr — märkets logo ÄR ett ordmärke, och i 24 px blir bokstäverna mos.
+  //   Peugeot      — lejonet är för komplext för att vara fritt från upphovsrätt, så
+  //                  Commons har ingen PD-version alls. Bara ordmärket, oläsligt i 24 px.
+  //   Hyundai      — H-ovalen finns bara ihop med ordmärket. Filen som hette
+  //                  "Hyundai Symbol.svg" var dessutom en GRÖN TRIANGEL, alltså inte
+  //                  Hyundais logo alls — ett fel emblem är sämre än inget.
+  //   Kia och Citroën fick sina 2026-08-28 i andra omgången: Kias ordmärke ÄR läsbart i
+  //   24 px (breda bokstäver, hög kontrast) och Citroëns dubbelchevron finns som ren
+  //   symbol. Båda provade på kontaktark innan de togs in.
   // Alla sex behåller monogrammet, som har samma mått — rutnätet blir jämnt ändå.
   const MARKESEMBLEM = {
     "Mercedes-Benz": "mercedes", "Volkswagen": "volkswagen", "BMW": "bmw", "Škoda": "skoda",
-    "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla"
+    "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla",
+    "Citroën": "citroen", "Kia": "kia"
   };
 
   /**
