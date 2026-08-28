@@ -68,8 +68,10 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // utanför kortet och klipptes av högerkanten — syntes direkt på Bil 2, som ligger längst
     // till höger. Raden är alltid lika bred som båda fälten tillsammans.
     '.ca-fc-pickers{position:relative;}' +
-    '.ca-vp{position:static;flex:0 0 0;}' +
-    '.ca-vp-panel{position:absolute;z-index:70;left:0;right:0;top:calc(100% + 7px);background:#1a1235;border:1.5px solid rgba(139,92,246,.4);border-radius:13px;box-shadow:0 18px 44px rgba(0,0,0,.6);padding:11px;}' +
+    '.ca-vp{display:contents;}' +
+    // Fast position och ett z-index högt nog att stå över sidans glaslager. Bottnen är
+    // helt ogenomskinlig — en panel man kan läsa igenom går inte att sikta i.
+    '.ca-vp-panel{position:fixed;z-index:99999;background:#1a1235;border:1.5px solid rgba(139,92,246,.4);border-radius:13px;box-shadow:0 18px 44px rgba(0,0,0,.6);padding:11px;}' +
     '.ca-vp-sok{width:100%;box-sizing:border-box;padding:8px 11px;margin-bottom:9px;background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.3);border-radius:9px;color:#e2e8f0;font-size:.8rem;outline:none;}' +
     '.ca-vp-steg{display:flex;width:200%;transition:transform .3s cubic-bezier(.22,1,.36,1);}' +
     '.ca-vp-steg.ca-vp-at-modeller{transform:translateX(-50%);}' +
@@ -2987,9 +2989,15 @@ function caFcValjare(input) {
   input.setAttribute('readonly', 'readonly');   // panelen är vägen in; datalisten blir kvar för den som tar bort attributet
   input.style.cursor = 'pointer';
 
+  // Panelen bor i <body>, inte bredvid fältet. Som barn till kortet hamnade den i samma
+  // stackningssammanhang som sidans glaslager, och de målades ÖVER den: texten under lyste
+  // igenom och klicken tog i fel element. Ett z-index räcker inte mot ett sammanhang som
+  // ligger högre upp — elementet måste ut ur det.
+  //
+  // Priset är att positionen måste räknas fram, och att den måste räknas OM när sidan rullar.
   var rot = document.createElement('div');
   rot.className = 'ca-vp';
-  input.parentNode.insertBefore(rot, input.nextSibling);
+  (document.body || document.documentElement).appendChild(rot);
   rot.innerHTML = '<div class="ca-vp-panel" hidden>'
     + '<input type="text" class="ca-vp-sok" placeholder="Sök märke eller modell">'
     + '<div class="ca-vp-steg"><div class="ca-vp-marken"></div><div class="ca-vp-modeller"></div></div>'
@@ -3050,6 +3058,20 @@ function caFcValjare(input) {
   }
 
   function visa(n) { steg.classList.toggle('ca-vp-at-modeller', n === 2); }
+
+  // Panelen läggs över hela fältraden, inte bara över det klickade fältet: 815 bilar blir
+  // många märken, och en panel lika smal som rutan hade gett en enkolumns pelare.
+  function placera() {
+    var rad = input.closest('.ca-fc-pickers') || input;
+    var r = rad.getBoundingClientRect();
+    panel.style.left = Math.round(r.left) + 'px';
+    panel.style.top = Math.round(r.bottom + 7) + 'px';
+    panel.style.width = Math.round(r.width) + 'px';
+  }
+  var placeraOm = function () { if (!panel.hidden) placera(); };
+  window.addEventListener('scroll', placeraOm, true);
+  window.addEventListener('resize', placeraOm);
+
   function stang() { panel.hidden = true; rot.classList.remove('ca-vp-open'); }
 
   function oppna() {
@@ -3057,6 +3079,7 @@ function caFcValjare(input) {
       caBilarCache = cars;
       bygg(cars);
       panel.hidden = false;
+      placera();
       rot.classList.add('ca-vp-open');
       sok.value = ''; aktivt = null; ritaMarken(''); visa(1);
       setTimeout(function () { sok.focus({ preventScroll: true }); }, 30);
