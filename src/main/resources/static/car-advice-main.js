@@ -72,6 +72,11 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-fler-pil{margin-left:auto;color:#a78bfa;transition:transform .2s;}' +
     '#ca-fler-btn.ca-fler-oppen .ca-fler-pil{transform:rotate(180deg);}' +
     '@media(max-width:520px){.ca-fler-hint{display:none;}}' +
+    // hidden-ATTRIBUTET räcker inte: webbläsarens egen regel för [hidden] är display:none,
+    // men .ca-grid sätter display:grid med högre specificitet och vinner. Lådan har därför
+    // ALDRIG varit ihopfälld i drift — och mitt prov läste .hidden-EGENSKAPEN, som var true
+    // hela tiden. Ett grönt prov som mäter fel sak är värre än inget prov.
+    '#ca-fler[hidden]{display:none;}' +
     // Valknapparna. Ikonen först och etiketten under: i en rad om fem blir texten smal, och
     // en ikon ovanför läser snabbare än en ikon bredvid när bredden är knapp.
     '.ca-chips{display:flex;flex-wrap:wrap;gap:7px;}' +
@@ -696,9 +701,20 @@ function caUpdateFuelVisibility() {
   fuelField.style.display = hide ? 'none' : '';
   if (hide) {
     document.getElementById('ca-fuel').value = 'spelar ingen roll';
-  } else if (cat === 'familjebil') {
+  } else {
+    // LADDBOX HEMMA => EL, oavsett kategori. Regeln fanns förut bara för familjebil, utan att
+    // det fanns något som gjorde familjebilar mer elbenägna än SUV:ar eller småbilar — den som
+    // säger sig ha laddbox hemma har svarat på drivmedelsfrågan i praktiken.
+    //
+    // "Nej" tar tillbaka förvalet i stället för att låsa kvar el: annars hade ett felklick på
+    // Ja lämnat sökningen elbilsbunden utan att något syntes.
+    //
+    // Rör aldrig ett eget val (dataset.rord) — samma regel som växellådan och åldern.
     var charger = document.getElementById('ca-charger');
-    if (charger && charger.value === 'true') document.getElementById('ca-fuel').value = 'el';
+    var fuel = document.getElementById('ca-fuel');
+    if (charger && fuel && !fuel.dataset.rord) {
+      fuel.value = (charger.value === 'true') ? 'el' : 'spelar ingen roll';
+    }
   }
 
   // VÄXELLÅDAN följer numera drivmedlet också, inte bara kategorin. Kategorivägen dolde den
@@ -724,7 +740,7 @@ function caUpdateFuelVisibility() {
   if (chgField) chgField.style.display = laddbart ? '' : 'none';
 
   caUpdateMaxAgeVisibility();
-  // Drivmedlet sätts här PROGRAMMATISKT (familjebil + laddbox blir "el"), och en tilldelning
+  // Drivmedlet sätts här PROGRAMMATISKT (laddbox hemma blir "el"), och en tilldelning
   // i JS utlöser inget change-event. Utan de här anropen visade budgetrutan bensinkombiernas
   // priser — och bagagestegen bensinbilarnas ankare — för en sökning appen själv just gjort
   // till en elbilssökning.
@@ -732,14 +748,24 @@ function caUpdateFuelVisibility() {
   caRenderCargoLevels();
   // Sist: fältet kan just ha gömts eller tvingats om, och förvalet läser det läget.
   caVaxelladeForval();
+  caAlderForval();
   caSynkaChips();
 }
 
+/**
+ * Åldersrutan startar dold i markupen och visades bara när ny/begagnad stod på "begagnad".
+ *
+ * <p>När ny/begagnad togs bort ur formuläret föll den grinden ihop till "returnera tidigt",
+ * och rutan blev ONÅBAR: inte gömd bakom "Fler val" utan borta även utfälld. Åldern gick
+ * fortfarande med i sökningen — förvalet per kategori — men gick inte att ändra.
+ *
+ * <p>Nu är varje sökning begagnad, så rutan ska alltid vara framme. Kvar att göra är bara
+ * att lyfta markupens style="display:none".
+ */
 function caUpdateMaxAgeVisibility() {
-  var newcarEl = document.getElementById('ca-newcar');
   var maxAgeField = document.getElementById('ca-maxage-field');
-  if (!newcarEl || !maxAgeField) return;
-  maxAgeField.style.display = newcarEl.value === 'true' ? 'none' : '';
+  if (!maxAgeField) return;
+  maxAgeField.style.display = '';
 }
 
 // ── Ny/begagnad togs bort ur formuläret 2026-08-28 ───────────────────────────
@@ -854,8 +880,9 @@ function caChips(id) {
     var b = e.target.closest('.ca-chip');
     if (!b) return;
     sel.value = b.dataset.varde;
-    // Växellådan slutar följa kategorin så snart man valt själv — se caVaxelladeForval.
-    if (id === 'ca-transmission') sel.dataset.rord = '1';
+    // Växellådan slutar följa kategorin, och drivmedlet slutar följa laddboxen, så snart man
+    // valt själv — se caVaxelladeForval och caUpdateFuelVisibility.
+    if (id === 'ca-transmission' || id === 'ca-fuel') sel.dataset.rord = '1';
     sel.dispatchEvent(new Event('change', { bubbles: true }));
     synka();
   });
@@ -885,6 +912,58 @@ function caSynkaChips() { caChipsRader.forEach(function (f) { f(); }); }
  * dolt: för elbil och laddhybrid tvingar caUpdateFuelVisibility värdet till "spelar ingen
  * roll", och ett förval ovanpå det hade skickat en växellåda på en bil som inte har någon.
  */
+/**
+ * Åldersförvalet följer kategorin.
+ *
+ * <p>Elbil och laddhybrid: 5 år. Tekniken och räckvidden rör sig snabbt, och batterigarantin
+ * är det som avgör om en äldre bil är ett fynd eller en risk.
+ *
+ * <p>Familjebil, SUV och småbil/ekonomibil: 10 år. Där är en äldre bil ofta hela poängen —
+ * en tio år gammal kombi är billig, rymlig och väl beprövad, och ett femårstak hade stängt
+ * ute precis det utbudet.
+ *
+ * <p>Samma två regler som växellådan: rör aldrig ett val användaren gjort själv, och jämför
+ * den KANONISERADE kategorin — "ekonomibil" är ett alias för "smaabil" och lever kvar i
+ * sparade sökningar.
+ */
+var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '10', suv: '10', smaabil: '10' };
+
+/**
+ * Markerar fält som ÅTERSTÄLLDA, inte förvalda.
+ *
+ * <p>De tre smarta förvalen (drivmedel, växellåda, ålder) backar för ett eget val via
+ * dataset.rord. Men en sparad sökning, en delningslänk och en historikpost ÄR egna val —
+ * de sattes bara programmatiskt, och en tilldelning i JS bär ingen flagga. Utan det här
+ * skrev förvalet över dem i samma andetag som de återställdes: en sparad bensinsökning med
+ * laddbox hemma kom tillbaka som elbilssökning, och en sparad tioårsgräns som femårsgräns.
+ *
+ * <p>Bara de id:n som FAKTISKT fick ett värde skickas in — en gammal historikpost som
+ * saknar växellåda ska följa förvalet, inte frysas på det den råkar stå på.
+ */
+function caLasEgnaVal(ids) {
+  ids.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.dataset.rord = '1';
+  });
+}
+
+/** Nollställ ska ge ett JUNGFRULIGT formulär — annars sitter förra sökningens egna val kvar för alltid. */
+function caSlappEgnaVal() {
+  ['ca-fuel', 'ca-transmission', 'ca-maxage'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) delete el.dataset.rord;
+  });
+}
+
+function caAlderForval() {
+  var a = document.getElementById('ca-maxage');
+  if (!a || a.dataset.rord) return;
+  var kat = caCanonCat(document.getElementById('ca-category').value);
+  var v = CA_ALDER_PER_KATEGORI[kat];
+  if (!v) return;
+  a.value = v;
+}
+
 function caVaxelladeForval() {
   var t = document.getElementById('ca-transmission');
   var falt = document.getElementById('ca-transmission-field');
@@ -1193,6 +1272,9 @@ function caLoadPrefs() {
     if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
     if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
     if (d.maxage) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = d.maxage; }
+    caLasEgnaVal([
+      d.fuelType && 'ca-fuel', d.transmission && 'ca-transmission', d.maxage && 'ca-maxage'
+    ].filter(Boolean));
     caUpdateFuelVisibility();
     caCheckMismatch();
   } catch(e) { caWarn('sparade inställningar', e); }
@@ -1212,6 +1294,10 @@ function caReadUrlParams() {
     if (p.get('transmission')) { var t = document.getElementById('ca-transmission'); if (t) t.value = p.get('transmission'); }
     if (p.get('maxage')) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = p.get('maxage'); }
     if (p.get('cargo')) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = p.get('cargo'); }
+    caLasEgnaVal([
+      p.get('fuelType') && 'ca-fuel', p.get('transmission') && 'ca-transmission',
+      p.get('maxage') && 'ca-maxage'
+    ].filter(Boolean));
     if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
   } catch(e) { caWarn('länkens parametrar', e); }
 }
@@ -1264,6 +1350,9 @@ function caBindChangeListeners() {
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
+    // Har användaren rört åldern själv slutar den följa kategorin — samma regel som
+    // växellådan, och samma flagga.
+    if (id === 'ca-maxage') el.addEventListener('change', function () { el.dataset.rord = '1'; });
     el.addEventListener('change', caCheckChanges);
     el.addEventListener('input', caCheckChanges);
   });
@@ -1409,6 +1498,7 @@ function caLoadFromHistory(index) {
   caSetBudgetMode(entry.budgetMode || 'köp', entry.budget ? parseInt(entry.budget) : undefined);
   if (entry.fuelType)    document.getElementById('ca-fuel').value        = entry.fuelType;
   if (entry.transmission) { var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = entry.transmission; }
+  caLasEgnaVal([entry.fuelType && 'ca-fuel', entry.transmission && 'ca-transmission'].filter(Boolean));
   caUpdateFuelVisibility();
   caCheckMismatch();
 
@@ -1471,6 +1561,7 @@ function caResetForm() {
   document.getElementById('ca-fuel').value       = 'spelar ingen roll';
   var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = 'spelar ingen roll';
   var maEl = document.getElementById('ca-maxage'); if (maEl) maEl.value = CA_MAXAGE_FORVAL;
+  caSlappEgnaVal();
   caSetBudgetMode('köp', 200000);
   caUpdateFuelVisibility();
   caCheckMismatch();
@@ -2408,6 +2499,10 @@ function caLoadSavedEntry(id) {
     // aldrig, så en sparad sökning ger ett ANNAT resultat än den gjorde när den sparades.
     // Samma asymmetri som delningslänken hade tills den lagades tidigare idag.
     if (prefs.minCargoLiters) { var cgEl = document.getElementById('ca-cargo'); if (cgEl) cgEl.value = prefs.minCargoLiters; }
+    caLasEgnaVal([
+      prefs.fuelType && 'ca-fuel', prefs.transmission && 'ca-transmission',
+      prefs.maxAgeYears && 'ca-maxage'
+    ].filter(Boolean));
     caUpdateFuelVisibility(); caCheckMismatch();
     var recs = JSON.parse(s.recommendationsJson || '[]');
     if (recs.length > 0) {
