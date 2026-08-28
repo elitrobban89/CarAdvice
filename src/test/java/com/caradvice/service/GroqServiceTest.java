@@ -288,6 +288,35 @@ class GroqServiceTest {
                 .contains("ren elbil");
     }
 
+    // --- Väntetiden ur Groqs 429-svar ---
+
+    @Test
+    void parseRetrySecondsLaserSekunderOchMinuter() {
+        // Formatet är Groqs eget, ordagrant ur ett skarpt 429 i den här sessionen.
+        assertThat(GroqService.parseRetrySeconds(
+                "{\"error\":{\"message\":\"Rate limit reached ... Please try again in 24.51s\"}}")).isEqualTo(25);
+        assertThat(GroqService.parseRetrySeconds(
+                "{\"error\":{\"message\":\"limit 1000 per day, try again in 2m59.56s\"}}")).isEqualTo(180);
+        // Inget att läsa ur = 0, aldrig en gissning: 0 betyder "vänta inte", och då lämnas
+        // felet vidare i stället för att servern sover en påhittad tid.
+        assertThat(GroqService.parseRetrySeconds("{\"error\":{\"message\":\"nope\"}}")).isZero();
+        assertThat(GroqService.parseRetrySeconds("")).isZero();
+    }
+
+    @Test
+    void minuttaketSagerSekunderInteEnAvrundadMinut() {
+        // parseRetryTime avrundar UPPÅT till hela minuter, så 24,5 s blev "1 minut" — och det
+        // är just den halvminuten användaren klickar i. Under en minut ska sekunderna stå där.
+        assertThat(service().buildRateLimitError(
+                "{\"error\":{\"message\":\"Rate limit reached for model, try again in 24.51s\"}}"))
+                .contains("25 sekunder")
+                .doesNotContain("minut");
+        // Dygnstaket är en annan sak och behåller sin minuttext
+        assertThat(service().buildRateLimitError(
+                "{\"error\":{\"message\":\"Rate limit reached, limit 1000 per day, try again in 2m59.56s\"}}"))
+                .contains("Dagsgränsen");
+    }
+
     // --- Kategoriblocken skickas bara när de gäller (mätt 2026-08-28: 37 % av regeltexten) ---
 
     @Test
@@ -2214,9 +2243,14 @@ class GroqServiceTest {
     @Test
     void vanlig429UtanDagsgransBlirOverbelastad() {
         String body = "{\"error\":{\"message\":\"Rate limit reached, try again in 30s\"}}";
+        // Väntade "1 minut" fram till 2026-08-28. Den siffran kom ur parseRetryTime, som
+        // avrundar UPPÅT till hela minuter — alltså sa appen "1 minut" om en väntan på 30
+        // sekunder. Testet låste därmed avrundningen som ett löfte, och den dubblade väntan
+        // är precis den halvminut användaren klickar i och tror att appen hängt sig.
+        // Minuttaket säger nu sekunder; dygnstaket behåller sin minuttext.
         assertThat(service().buildRateLimitError(body))
                 .contains("överbelastad")
-                .contains("1 minut");
+                .contains("30 sekunder");
     }
 
     @Test

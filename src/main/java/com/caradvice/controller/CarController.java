@@ -428,6 +428,20 @@ public class CarController {
                         "krav", GroqService.activeConstraints(prefs)));
             }
             return ResponseEntity.ok(body);
+        } catch (GroqService.RateLimitedException e) {
+            // Eget svar, inte 500: taket är inget fel i sökningen och släpper av sig självt.
+            // `retryAfterSeconds` kommer ur Groqs eget 429-svar och låter knappen räkna NER
+            // exakt så länge taket varar — utan det låser gränssnittet antingen för kort (och
+            // användaren klickar rakt in i nästa 429) eller på en gissad rundlig minut.
+            // "aiBusy" och INTE "rateLimited": den senare är användarens egen timpott, och
+            // gränssnittets 429-gren svarar på den med "Prenumerera och sök". Ett AI-tak som
+            // släpper om 20 sekunder får aldrig läsa som en uppmaning att betala.
+            return ResponseEntity.status(429).body(Map.of(
+                    "success", false,
+                    "error", e.getMessage(),
+                    "aiBusy", true,
+                    "retryAfterSeconds", e.retryAfterSeconds()
+            ));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
                     "success", false,
@@ -467,7 +481,7 @@ public class CarController {
     // Publikt: vad räcker budgeten till om ålderskravet lyfts? Anropas lazy av frontend
     // BARA när rekommendationssvaret bar budgetShortfallFromKr — alltså när kriterierna inte
     // gick ihop. Egen endpoint för att inte lägga ett tredje Groq-anrop plus Blocket-uppslag
-    // i /api/recommend, som redan har 35 s klienttimeout. Samma timpott som sök och chatt.
+    // i /api/recommend, som redan har 75 s klienttimeout. Samma timpott som sök och chatt.
     @PostMapping("/budget-alternatives")
     public ResponseEntity<?> budgetAlternatives(@RequestBody CarPreferences rawPrefs, HttpServletRequest httpReq,
                                                 @RequestHeader(value = "Authorization", required = false) String auth) {

@@ -990,7 +990,10 @@ function caCheckChanges() {
   var btn = document.getElementById('ca-btn');
   if (!btn) return;
   btn.classList.toggle('has-changes', anyChanged);
-  btn.textContent = anyChanged ? 'Uppdatera resultat →' : 'S\xf6k igen →';
+  // Under avsvalningen BÄR knappen sin nedräkning. Utan undantaget skrev varje ändring i
+  // formuläret över texten med "Uppdatera resultat →" tills nästa sekundtick skrev tillbaka
+  // siffran — en knapp som blinkar mellan "klicka på mig" och "vänta", medan den är låst.
+  if (!caCooldownTimer) btn.textContent = anyChanged ? 'Uppdatera resultat →' : 'S\xf6k igen →';
 }
 
 function caBindChangeListeners() {
@@ -2508,6 +2511,41 @@ function caShareSearch() {
   }
 }
 
+// ── Avsvalningen efter en sökning ────────────────────────────────────────────
+// Knappen var låst UNDER sökningen men släpptes i samma sekund som svaret kom, och då
+// klickar man igen. Groqs minuttak är per modell och kedjan har tre, men EN sökning kan
+// kosta flera anrop (fallback vid 429, reservmodellen vid parse- eller regelfel, plus
+// budget- och regelomförsöken) — två-tre klick i rad tömmer alltså hela kedjan, och
+// eftersom varje fallbacksteg är en egen rundtur till Groq slog klienttimeouten till innan
+// felet ens hann formuleras. Användaren fick "timeout" när svaret var "vänta 20 sekunder".
+//
+// Nedräkningen är därför inte en artighet utan spärren: det andra klicket kan inte inträffa.
+// Vid ett AI-tak räknar den ner exakt så länge Groq själv säger (retryAfterSeconds), annars
+// den korta grundtiden nedan.
+var CA_COOLDOWN_SECONDS = 12;
+var caCooldownTimer = null;
+
+function caKnappNedrakning(btn, sekunder, etikett) {
+  if (caCooldownTimer) { clearInterval(caCooldownTimer); caCooldownTimer = null; }
+  var kvar = Math.max(1, Math.round(sekunder || 0));
+  btn.disabled = true;
+  btn.textContent = etikett + ' ' + kvar + ' s…';
+  caCooldownTimer = setInterval(function () {
+    kvar--;
+    if (kvar <= 0) {
+      clearInterval(caCooldownTimer);
+      caCooldownTimer = null;
+      btn.disabled = false;
+      btn.textContent = 'S\xf6k igen →';
+      // Har användaren ändrat något medan den räknade ner ska knappen säga "Uppdatera
+      // resultat" — caCheckChanges vet, och den avstod just för att nedräkningen ägde texten.
+      caCheckChanges();
+      return;
+    }
+    btn.textContent = etikett + ' ' + kvar + ' s…';
+  }, 1000);
+}
+
 async function caGetRecommendation() {
   var btn = document.getElementById('ca-btn');
   var loader = document.getElementById('ca-loader');
@@ -2544,8 +2582,15 @@ async function caGetRecommendation() {
     minCargoLiters: caCargoValue()
   };
 
+  // Höjt från 35 s till 75 s 2026-08-28. En sökning är inte ETT anrop: kedjan provar tre
+  // modeller i tur och ordning vid 429, servern kan dessutom sova upp till 25 s när alla tre
+  // är fulla, och ovanpå det ligger reservmodellen och budget-/regelomförsöken. 35 s räckte
+  // inte för den kedjan, så den vanligaste "timeouten" var i själva verket en väntan som
+  // klienten klippte av — användaren fick "servern svarade inte" när svaret var "vänta".
+  // Taket måste alltså vara större än serverns paus plus rundturerna, annars byter man bara
+  // ett ärligt besked mot ett missvisande.
   var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
+  var timeoutId = setTimeout(function() { controller.abort(); }, 75000);
   var caToken = localStorage.getItem('ca_token') || '';
   var headers = { 'Content-Type': 'application/json' };
   if (caToken) headers['Authorization'] = 'Bearer ' + caToken;
@@ -2562,11 +2607,25 @@ async function caGetRecommendation() {
     loader.style.display = 'none';
 
     if (r.status === 429) {
-      document.getElementById('ca-cards').innerHTML = '';
       // Servern vet de riktiga gränserna och pekar redan på nästa steg i trappan — läs dess
       // text i stället för att upprepa en siffra här. Ett trasigt svar får inte fälla rutan.
-      var kvotSvar = null;
-      try { kvotSvar = (await r.json()).error; } catch (e) { /* rubriken faller tillbaka */ }
+      var kvotData = null, kvotSvar = null;
+      try { kvotData = await r.json(); kvotSvar = kvotData && kvotData.error; } catch (e) { /* rubriken faller tillbaka */ }
+
+      // TVÅ HELT OLIKA 429. `aiBusy` är Groqs minuttak — det släpper av sig självt och har
+      // inget med användarens pott att göra. Att svara på det med prenumerationsrutan vore
+      // både fel och oärligt: pengar hjälper inte mot ett tak som lyfter om 20 sekunder.
+      if (kvotData && kvotData.aiBusy) {
+        document.getElementById('ca-rate-limit-box').style.display = 'none';
+        document.getElementById('ca-cards').innerHTML =
+          '<div class="ca-card"><div class="ca-raw">⏳ ' +
+          caEsc(kvotSvar || 'AI-tj\xe4nsten \xe4r upptagen just nu — f\xf6rs\xf6k strax igen.') +
+          '</div></div>';
+        caKnappNedrakning(btn, kvotData.retryAfterSeconds || CA_COOLDOWN_SECONDS, 'V\xe4nta');
+        return;
+      }
+
+      document.getElementById('ca-cards').innerHTML = '';
       caFyllKvotrutan(kvotSvar);
       document.getElementById('ca-rate-limit-box').style.display = 'block';
       btn.disabled = false;
@@ -2611,20 +2670,27 @@ async function caGetRecommendation() {
     caSnapshotValues();
     document.querySelectorAll('.ca-field.changed').forEach(function(f) { f.classList.remove('changed'); });
     btn.classList.remove('has-changes');
-    btn.disabled = false;
-    btn.textContent = 'S\xf6k igen →';
+    // Ett cachat svar kostade inga Groq-tokens, alltså finns inget att svalna från — då vore
+    // nedräkningen bara i vägen.
+    if (d.cached) {
+      btn.disabled = false;
+      btn.textContent = 'S\xf6k igen →';
+    } else {
+      caKnappNedrakning(btn, CA_COOLDOWN_SECONDS, 'Klar om');
+    }
 
   } catch (e) {
     clearTimeout(timeoutId);
     caStopLoadingText();
     loader.style.display = 'none';
     var msg = e.name === 'AbortError'
-      ? '⏱ Servern svarade inte inom 35 sekunder – försök igen om en stund.'
+      ? '⏱ Servern svarade inte inom 75 sekunder – försök igen om en stund.'
       : '🔌 Kunde inte n\xe5 servern: ' + e.message;
     document.getElementById('ca-cards').innerHTML =
       '<div class="ca-card"><div class="ca-raw">' + msg + '</div></div>';
-    btn.disabled = false;
-    btn.textContent = 'F\xf6rs\xf6k igen →';
+    // Även ett avbrutet försök har hunnit kosta tokens hos Groq — utan avsvalning klickar
+    // man rakt in i taket som just fällde sökningen.
+    caKnappNedrakning(btn, CA_COOLDOWN_SECONDS, 'F\xf6rs\xf6k igen om');
   }
 }
 

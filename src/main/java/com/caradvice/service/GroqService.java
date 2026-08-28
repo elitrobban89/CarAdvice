@@ -252,6 +252,27 @@ public class GroqService {
                 .build();
     }
 
+    /**
+     * Hur länge servern får sova på ett 429 innan den ger upp och lämnar felet vidare.
+     *
+     * <p>Minuttaket är per MODELL och släpper nästan alltid inom en halvminut — kedjan har tre
+     * modeller med var sin budget, så att ALLA tre är fulla betyder att användaren klickat i
+     * täta skurar. Då är en kort paus ett bättre svar än ett felmeddelande: väggen blir en
+     * väntan. Taket finns för att pausen aldrig får äta upp klientens egen timeout.
+     */
+    private static final int MAX_429_WAIT_SECONDS = 25;
+
+    /**
+     * Provar modellerna i tur och ordning och byter vid 429 — taket är per modell, så nästa
+     * modell har en egen budget. Är ALLA fulla sover den en gång i den tid Groq själv anger
+     * och provar första modellen på nytt.
+     *
+     * <p>Utan pausen kastades 429:an rakt ut i gränssnittet fast taket ofta hade släppt inom
+     * 20 sekunder — och eftersom en sökning kan kosta flera anrop (fallback, reservmodell,
+     * budget- och regelomförsök) räckte två-tre klick i rad för att tömma hela kedjan.
+     * Klientens tak måste vara större än {@link #MAX_429_WAIT_SECONDS} plus rundturerna,
+     * annars byter man bara ett ärligt "vänta" mot en timeout.
+     */
     private HttpResponse<String> callGroqWithFallback(Object... bodies) throws Exception {
         HttpResponse<String> resp = null;
         for (Object body : bodies) {
@@ -259,7 +280,24 @@ public class GroqService {
             registreraTokenanvandning(body, resp);
             if (resp.statusCode() != 429) return resp;
         }
-        return resp;
+        if (resp == null || bodies.length == 0) return resp;
+
+        int vanta = parseRetrySeconds(resp.body());
+        if (vanta <= 0 || vanta > MAX_429_WAIT_SECONDS) {
+            log.warn("Alla {} modeller gav 429 och vantetiden ({} s) ryms inte i pausen — lamnar felet vidare",
+                    bodies.length, vanta);
+            return resp;
+        }
+        log.info("Alla {} modeller gav 429 — sover {} s och provar forsta modellen igen", bodies.length, vanta);
+        try {
+            Thread.sleep(vanta * 1000L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return resp;
+        }
+        HttpResponse<String> omforsok = httpClient.send(buildRequest(bodies[0]), HttpResponse.BodyHandlers.ofString());
+        registreraTokenanvandning(bodies[0], omforsok);
+        return omforsok;
     }
 
     /**
@@ -373,7 +411,7 @@ public class GroqService {
             // och läser väntetiden ur Groqs eget svar, i stället för att gissa "en minut".
             if (retry.statusCode() == 429)
                 throw new RateLimitedException(buildRateLimitError(retry.body())
-                        + " Dina kriterier är inte problemet.");
+                        + " Dina kriterier är inte problemet.", parseRetrySeconds(retry.body()));
             if (retry.statusCode() != 200) throw first;
             try {
                 List<CarRecommendation> parsed = extractAndParse(retry, label + " (omförsök)");
@@ -862,7 +900,8 @@ public class GroqService {
                 long ageSeconds = (System.currentTimeMillis() - cached.timestamp()) / 1000;
                 return new Result(cached.result(), true, ageSeconds, cached.budgetShortfallFromKr());
             }
-            throw new RuntimeException(buildRateLimitError(response.body()));
+            throw new RateLimitedException(buildRateLimitError(response.body()),
+                    parseRetrySeconds(response.body()));
         }
         if (response.statusCode() != 200) {
             log.error("Groq {} för getRecommendation: {}", response.statusCode(), response.body());
@@ -1373,7 +1412,8 @@ public class GroqService {
         // Samma nödutgång som getRecommendation: hellre ett utgånget svar än ett felmeddelande
         if (response.statusCode() == 429) {
             if (cachedCompare != null) return cachedCompare.result();
-            throw new RuntimeException(buildRateLimitError(response.body()));
+            throw new RateLimitedException(buildRateLimitError(response.body()),
+                    parseRetrySeconds(response.body()));
         }
         if (response.statusCode() != 200)
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
@@ -2198,10 +2238,26 @@ public class GroqService {
      * fallet från de andra: rådet "prova högre budget, färre passagerare" är fel svar på ett
      * tak som släpper av sig självt om en minut.
      */
-    static class RateLimitedException extends RuntimeException {
+    public static class RateLimitedException extends RuntimeException {
+        /**
+         * Sekunder tills taket släpper, ur Groqs eget svar. 0 = okänt.
+         *
+         * <p>Behövs för att gränssnittet ska kunna räkna NER i stället för att bara säga "vänta
+         * en stund": knappen låses lika länge som taket faktiskt varar, och då kan det andra
+         * klicket inte bli ett fel. Ett tal och inte en text, eftersom mottagaren räknar med det.
+         */
+        private final int retryAfterSeconds;
+
         RateLimitedException(String message) {
-            super(message);
+            this(message, 0);
         }
+
+        RateLimitedException(String message, int retryAfterSeconds) {
+            super(message);
+            this.retryAfterSeconds = retryAfterSeconds;
+        }
+
+        public int retryAfterSeconds() { return retryAfterSeconds; }
     }
 
     /**
@@ -2484,6 +2540,27 @@ public class GroqService {
                (prefs.minCargoLiters() != null ? prefs.minCargoLiters() : "");
     }
 
+    /**
+     * Väntetiden i SEKUNDER ur Groqs 429-svar ("try again in 24.51s", "try again in 2m59.56s").
+     * 0 när svaret inte säger något.
+     *
+     * <p>Egen metod bredvid {@link #parseRetryTime}, som avrundar UPPÅT till hela minuter:
+     * "24,5 sekunder" blev där "1 minut". Det duger som text i ett dagsgränsmeddelande men
+     * inte som väntetid — varken serverns egen paus eller knappens nedräkning ska ljuga på
+     * halvminuten, och det är just den halvminuten användaren klickar i.
+     */
+    static int parseRetrySeconds(String body) {
+        try {
+            Matcher m = Pattern.compile("try again in (?:(\\d+)m)?([\\d.]+)s").matcher(body);
+            if (!m.find()) return 0;
+            int minutes = m.group(1) != null ? Integer.parseInt(m.group(1)) : 0;
+            double seconds = Double.parseDouble(m.group(2));
+            return (int) Math.ceil(minutes * 60 + seconds);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private String parseRetryTime(String body) {
         try {
             Matcher m = Pattern.compile("try again in (\\d+m[\\d.]+s|[\\d.]+s)").matcher(body);
@@ -2509,6 +2586,13 @@ public class GroqService {
                 return "Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(body) + ".";
             }
         } catch (Exception ignored) {}
+        // Minuttaket släpper nästan alltid inom sekunder. "Vänta 1 minut" (parseRetryTime
+        // avrundar uppåt) fick användaren att tro att appen var trasig i en halvminut som
+        // egentligen var 25 sekunder — och att klicka igen i den halvminuten är precis vad
+        // man gör. Säg sekunderna när de finns.
+        int sek = parseRetrySeconds(body);
+        if (sek > 0 && sek < 60)
+            return "AI-tjänsten är tillfälligt överbelastad. Vänta " + sek + " sekunder och försök igen.";
         return "AI-tjänsten är tillfälligt överbelastad. Vänta " + parseRetryTime(body) + " och försök igen.";
     }
 
