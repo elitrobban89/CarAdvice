@@ -712,7 +712,7 @@ function caUpdateFuelVisibility() {
     // Rör aldrig ett eget val (dataset.rord) — samma regel som växellådan och åldern.
     var charger = document.getElementById('ca-charger');
     var fuel = document.getElementById('ca-fuel');
-    if (charger && fuel && !fuel.dataset.rord) {
+    if (!caForvalPaus && charger && fuel && !fuel.dataset.rord) {
       fuel.value = (charger.value === 'true') ? 'el' : 'spelar ingen roll';
     }
   }
@@ -918,33 +918,39 @@ function caSynkaChips() { caChipsRader.forEach(function (f) { f(); }); }
  * <p>Elbil och laddhybrid: 5 år. Tekniken och räckvidden rör sig snabbt, och batterigarantin
  * är det som avgör om en äldre bil är ett fynd eller en risk.
  *
- * <p>Familjebil, SUV och småbil/ekonomibil: 10 år. Där är en äldre bil ofta hela poängen —
- * en tio år gammal kombi är billig, rymlig och väl beprövad, och ett femårstak hade stängt
- * ute precis det utbudet.
+ * <p>Familjebil och SUV: 5 år. De köps som bruksbilar och ska hålla några år till, så
+ * garanti och servicehistorik väger tyngre än det sista prisavdraget.
+ *
+ * <p>Småbil/ekonomibil: 10 år. Där är en äldre bil ofta hela poängen — en tio år gammal
+ * kombi är billig, driftsäker och väl beprövad, och ett femårstak hade stängt ute precis
+ * det utbudet.
  *
  * <p>Samma två regler som växellådan: rör aldrig ett val användaren gjort själv, och jämför
  * den KANONISERADE kategorin — "ekonomibil" är ett alias för "smaabil" och lever kvar i
  * sparade sökningar.
  */
-var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '10', suv: '10', smaabil: '10' };
+var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '5', suv: '5', smaabil: '10' };
 
 /**
- * Markerar fält som ÅTERSTÄLLDA, inte förvalda.
+ * Kör en återställning UTAN att de smarta förvalen får säga sitt.
  *
- * <p>De tre smarta förvalen (drivmedel, växellåda, ålder) backar för ett eget val via
- * dataset.rord. Men en sparad sökning, en delningslänk och en historikpost ÄR egna val —
- * de sattes bara programmatiskt, och en tilldelning i JS bär ingen flagga. Utan det här
- * skrev förvalet över dem i samma andetag som de återställdes: en sparad bensinsökning med
- * laddbox hemma kom tillbaka som elbilssökning, och en sparad tioårsgräns som femårsgräns.
+ * <p>De tre förvalen (drivmedel, växellåda, ålder) backar för ett eget val via dataset.rord.
+ * En sparad sökning, en delningslänk och en historikpost ÄR egna val — de sattes bara
+ * programmatiskt, och en JS-tilldelning bär ingen flagga. Utan skydd skrev förvalet över dem
+ * i samma andetag som de återställdes: en sparad bensinsökning med laddbox hemma kom tillbaka
+ * som elbilssökning.
  *
- * <p>Bara de id:n som FAKTISKT fick ett värde skickas in — en gammal historikpost som
- * saknar växellåda ska följa förvalet, inte frysas på det den råkar stå på.
+ * <p>FÖRSTA försöket satte dataset.rord vid återställningen, och det var värre än felet det
+ * lagade: ca-prefs skrivs vid VARJE sökning, så alla som använt appen förut fick flaggan satt
+ * redan vid sidladdning — och då slog laddbox-regeln aldrig till igen under hela besöket.
+ * Skyddet måste gälla ÖGONBLICKET, inte resten av sessionen. dataset.rord betyder fortfarande
+ * exakt en sak: människan klickade själv.
  */
-function caLasEgnaVal(ids) {
-  ids.forEach(function (id) {
-    var el = document.getElementById(id);
-    if (el) el.dataset.rord = '1';
-  });
+var caForvalPaus = false;
+
+function caUtanForval(fn) {
+  caForvalPaus = true;
+  try { fn(); } finally { caForvalPaus = false; }
 }
 
 /** Nollställ ska ge ett JUNGFRULIGT formulär — annars sitter förra sökningens egna val kvar för alltid. */
@@ -957,7 +963,7 @@ function caSlappEgnaVal() {
 
 function caAlderForval() {
   var a = document.getElementById('ca-maxage');
-  if (!a || a.dataset.rord) return;
+  if (caForvalPaus || !a || a.dataset.rord) return;
   var kat = caCanonCat(document.getElementById('ca-category').value);
   var v = CA_ALDER_PER_KATEGORI[kat];
   if (!v) return;
@@ -967,7 +973,7 @@ function caAlderForval() {
 function caVaxelladeForval() {
   var t = document.getElementById('ca-transmission');
   var falt = document.getElementById('ca-transmission-field');
-  if (!t || t.dataset.rord) return;
+  if (caForvalPaus || !t || t.dataset.rord) return;
   if (falt && falt.style.display === 'none') return;
   var kat = caCanonCat(document.getElementById('ca-category').value);
   t.value = (kat === 'smaabil') ? 'manuell' : 'automat';
@@ -1272,10 +1278,7 @@ function caLoadPrefs() {
     if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
     if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
     if (d.maxage) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = d.maxage; }
-    caLasEgnaVal([
-      d.fuelType && 'ca-fuel', d.transmission && 'ca-transmission', d.maxage && 'ca-maxage'
-    ].filter(Boolean));
-    caUpdateFuelVisibility();
+    caUtanForval(caUpdateFuelVisibility);
     caCheckMismatch();
   } catch(e) { caWarn('sparade inställningar', e); }
 }
@@ -1294,11 +1297,7 @@ function caReadUrlParams() {
     if (p.get('transmission')) { var t = document.getElementById('ca-transmission'); if (t) t.value = p.get('transmission'); }
     if (p.get('maxage')) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = p.get('maxage'); }
     if (p.get('cargo')) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = p.get('cargo'); }
-    caLasEgnaVal([
-      p.get('fuelType') && 'ca-fuel', p.get('transmission') && 'ca-transmission',
-      p.get('maxage') && 'ca-maxage'
-    ].filter(Boolean));
-    if (p.has('category') || p.has('budget')) { caUpdateFuelVisibility(); caCheckMismatch(); }
+    if (p.has('category') || p.has('budget')) { caUtanForval(caUpdateFuelVisibility); caCheckMismatch(); }
   } catch(e) { caWarn('länkens parametrar', e); }
 }
 
@@ -1498,8 +1497,7 @@ function caLoadFromHistory(index) {
   caSetBudgetMode(entry.budgetMode || 'köp', entry.budget ? parseInt(entry.budget) : undefined);
   if (entry.fuelType)    document.getElementById('ca-fuel').value        = entry.fuelType;
   if (entry.transmission) { var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = entry.transmission; }
-  caLasEgnaVal([entry.fuelType && 'ca-fuel', entry.transmission && 'ca-transmission'].filter(Boolean));
-  caUpdateFuelVisibility();
+  caUtanForval(caUpdateFuelVisibility);
   caCheckMismatch();
 
   if (entry.recommendations && entry.recommendations.length > 0) {
@@ -2499,11 +2497,7 @@ function caLoadSavedEntry(id) {
     // aldrig, så en sparad sökning ger ett ANNAT resultat än den gjorde när den sparades.
     // Samma asymmetri som delningslänken hade tills den lagades tidigare idag.
     if (prefs.minCargoLiters) { var cgEl = document.getElementById('ca-cargo'); if (cgEl) cgEl.value = prefs.minCargoLiters; }
-    caLasEgnaVal([
-      prefs.fuelType && 'ca-fuel', prefs.transmission && 'ca-transmission',
-      prefs.maxAgeYears && 'ca-maxage'
-    ].filter(Boolean));
-    caUpdateFuelVisibility(); caCheckMismatch();
+    caUtanForval(caUpdateFuelVisibility); caCheckMismatch();
     var recs = JSON.parse(s.recommendationsJson || '[]');
     if (recs.length > 0) {
       document.getElementById('ca-divider').style.display = 'block';
