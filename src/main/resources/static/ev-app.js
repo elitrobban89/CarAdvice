@@ -638,7 +638,7 @@
   const MARKESEMBLEM = {
     "Mercedes-Benz": "mercedes", "Volkswagen": "volkswagen", "BMW": "bmw", "Škoda": "skoda",
     "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla",
-    "Citroën": "citroen", "Kia": "kia"
+    "Citroën": "citroen", "Kia": "kia", "Volvo": "volvo", "Toyota": "toyota"
   };
 
   /**
