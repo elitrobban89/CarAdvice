@@ -61,6 +61,17 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     'box-shadow:0 2px 10px rgba(0,0,0,.35);}' +
     '.ca-emblem img{width:100%;height:100%;object-fit:contain;display:block;}' +
     '@media(max-width:520px){.ca-emblem{width:32px;height:32px;padding:4px;}}' +
+    // "Fler val": en rad som ser ut som en rad, inte som en knapp bland formulärets fält.
+    '#ca-fler-btn{display:flex;align-items:center;gap:9px;width:100%;margin:2px 0 14px;'
+    + 'padding:11px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(167,139,250,.35);'
+    + 'border-radius:10px;color:rgba(226,232,240,.82);font-family:inherit;font-size:.8rem;'
+    + 'font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .16s;text-align:left;}' +
+    '#ca-fler-btn:hover{background:rgba(139,92,246,.12);border-color:rgba(167,139,250,.6);color:#fff;}' +
+    // Innehållsförteckningen på knappen: utan den vet man inte om det är värt att fälla ut.
+    '.ca-fler-hint{font-weight:400;font-size:.72rem;color:rgba(226,232,240,.45);}' +
+    '.ca-fler-pil{margin-left:auto;color:#a78bfa;transition:transform .2s;}' +
+    '#ca-fler-btn.ca-fler-oppen .ca-fler-pil{transform:rotate(180deg);}' +
+    '@media(max-width:520px){.ca-fler-hint{display:none;}}' +
     // Bilväljaren i den fria jämförelsen. Lila i stället för Elbilsassistentens blå:
     // samma två steg, men husets färg är en annan här.
     // Panelen ankras mot RADEN och inte mot .ca-vp. Behållaren sitter som flexbarn bredvid
@@ -768,17 +779,76 @@ function caForvalKorstracka() {
   km.parentNode.insertBefore(hint, km.nextSibling);
 }
 
+/**
+ * Fyra fält framme, resten under "Fler val".
+ *
+ * <p>Formuläret hade nio rutor, och de flesta har ett förval som stämmer för nästan alla.
+ * Det som verkligen styr svaret är kategori, budget, laddmöjlighet och drivmedel — resten är
+ * finjustering. Nio frågor läser som ett formulär man ska fylla i; fyra läser som en fråga
+ * man ska svara på.
+ *
+ * <p><b>Ihopfällt, inte borttaget.</b> Varje ruta här styr något riktigt: körsträckan sätter
+ * milprofilen och driftkostnadsregeln, växellådan och bagaget har egna kodvakter, och åldern
+ * avgör vilka årsmodeller Blocket mäts mot. Raderade hade de tagit sina vakter med sig — se
+ * vad som nästan hände när #ca-newcar försvann och maxAgeYears tyst blev null.
+ *
+ * <p>Rutorna FLYTTAS in i behållaren i stället för att döljas, så rutnätet inte får hål.
+ * Körs efter caEnsureCargoField, eftersom bagagefältet injiceras därifrån.
+ */
+function caFlerVal() {
+  if (document.getElementById('ca-fler')) return;
+
+  // PASSAGERARE bort ur formuläret HELT, inte in under Fler val. Behöver man en större bil
+  // väljer man kategorin Familjebil, och den tänder samma vakt: requiresFamilySizedCar är
+  // "kategori innehåller familj ELLER användning innehåller familj ELLER passagerare >= 5".
+  // Värdet (4, markupens förval) skickas fortfarande, så prompten och cachenyckeln ser
+  // likadana ut. Kvar utan väg in är bara "icke-familjekategori OCH 5+ passagerare" — en
+  // liten bil till sex personer, och det svaret vore ändå fel.
+  var pass = document.getElementById('ca-passengers');
+  var passRuta = pass && pass.closest ? pass.closest('.ca-field') : null;
+  if (passRuta) passRuta.style.display = 'none';
+
+  var ids = ['ca-km', 'ca-usage', 'ca-cargo', 'ca-transmission', 'ca-maxage'];
+  var rutor = [];
+  ids.forEach(function (id) {
+    var el = document.getElementById(id);
+    var ruta = el && el.closest ? el.closest('.ca-field') : null;
+    if (ruta && rutor.indexOf(ruta) === -1) rutor.push(ruta);
+  });
+  if (!rutor.length) return;
+
+  var knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.id = 'ca-fler-btn';
+  knapp.setAttribute('aria-expanded', 'false');
+  knapp.innerHTML = '<span>Fler val</span><span class="ca-fler-hint">körsträcka, användning, bagage, växellåda, ålder</span><span class="ca-fler-pil">▾</span>';
+
+  var box = document.createElement('div');
+  box.id = 'ca-fler';
+  box.className = 'ca-grid';
+  box.hidden = true;
+
+  // Knappen hamnar där den första flyttade rutan satt, så ordningen känns oförändrad
+  var ankare = rutor[0];
+  ankare.parentNode.insertBefore(knapp, ankare);
+  knapp.parentNode.insertBefore(box, knapp.nextSibling);
+  rutor.forEach(function (r) { box.appendChild(r); });
+
+  knapp.addEventListener('click', function () {
+    var oppet = box.hidden;
+    box.hidden = !oppet;
+    knapp.setAttribute('aria-expanded', oppet ? 'true' : 'false');
+    knapp.classList.toggle('ca-fler-oppen', oppet);
+  });
+}
+
 function caAnpassaBegagnatFormular() {
   var maxAge = document.getElementById('ca-maxage');
   if (maxAge) maxAge.value = CA_MAXAGE_FORVAL;
 
-  // Åldersrutan bort ur formuläret 2026-08-28: svaret är i praktiken alltid detsamma, och en
-  // fråga vars svar aldrig varierar är en fråga för mycket. Värdet lever vidare — det står
-  // som ÅLDERSKRAV i prompten och avgör vilka årsmodeller Blocket-uppslaget mäter priset mot,
-  // se caMaxAgeYears(). Fältet GÖMS i stället för att raderas, så att en gammal
-  // WordPress-inklistring inte får ett hål i rutnätet.
-  var maxAgeFalt = document.getElementById('ca-maxage-field');
-  if (maxAgeFalt) maxAgeFalt.style.display = 'none';
+  // Åldersrutan göms inte längre — den flyttar in under "Fler val" tillsammans med de andra
+  // sällanfrågorna (se caFlerVal). Förvalet 5 år står kvar, men den som vill ha en äldre bil
+  // kan fortfarande säga det: att gömma ett val är sämre än att fälla ihop det.
 
   var sel = document.getElementById('ca-newcar');
   if (!sel) return;                       // snippeten är redan omklistrad — notisen står i HTML
@@ -3269,6 +3339,9 @@ function caInit() {
   // så att en sparad inställning och en delningslänk fortfarande vinner över förvalet.
   caAnpassaBegagnatFormular();
   caForvalKorstracka();
+  // Efter caEnsureCargoField och förvalen: rutorna måste finnas OCH vara ifyllda innan de
+  // flyttas, annars fälls tomma fält ihop.
+  caFlerVal();
   caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
