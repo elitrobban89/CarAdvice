@@ -676,10 +676,17 @@ function caIsNewCar() {
 // tyst ur varje sökning. Samlat här så att båda anroparna (sparad sökning och den skarpa
 // payloaden) får exakt samma svar.
 function caMaxAgeYears() {
+  if (caIsNewCar()) return null;
   var el = document.getElementById('ca-maxage');
-  if (!el || !el.value || caIsNewCar()) return null;
+  // SAKNAS rutan gäller förvalet — inte "inget ålderskrav". Rullgardinen togs bort ur
+  // formuläret 2026-08-28 (man är nästan alltid ute efter en bil på högst fem år, och en
+  // fråga vars svar är detsamma varje gång är en fråga för mycket), men årtalet används
+  // fortfarande: det står som ÅLDERSKRAV i prompten och avgör vilka årsmodeller Blocket-
+  // uppslaget mäter priset mot. Returnerades null här hade kravet försvunnit tyst med rutan
+  // — exakt samma fälla som #ca-newcar bar, och den upptäcktes bara för att den letades upp.
+  if (!el || !el.value) return parseInt(CA_MAXAGE_FORVAL);
   var n = parseInt(el.value);
-  return isNaN(n) ? null : n;
+  return isNaN(n) ? parseInt(CA_MAXAGE_FORVAL) : n;
 }
 
 // Nytt åldersförval: max 5 år (markupen hade 10). Körs FÖRE caLoadPrefs och caReadUrlParams,
@@ -715,6 +722,14 @@ function caAnpassaBegagnatFormular() {
   var maxAge = document.getElementById('ca-maxage');
   if (maxAge) maxAge.value = CA_MAXAGE_FORVAL;
 
+  // Åldersrutan bort ur formuläret 2026-08-28: svaret är i praktiken alltid detsamma, och en
+  // fråga vars svar aldrig varierar är en fråga för mycket. Värdet lever vidare — det står
+  // som ÅLDERSKRAV i prompten och avgör vilka årsmodeller Blocket-uppslaget mäter priset mot,
+  // se caMaxAgeYears(). Fältet GÖMS i stället för att raderas, så att en gammal
+  // WordPress-inklistring inte får ett hål i rutnätet.
+  var maxAgeFalt = document.getElementById('ca-maxage-field');
+  if (maxAgeFalt) maxAgeFalt.style.display = 'none';
+
   var sel = document.getElementById('ca-newcar');
   if (!sel) return;                       // snippeten är redan omklistrad — notisen står i HTML
   sel.value = 'false';
@@ -727,8 +742,8 @@ function caAnpassaBegagnatFormular() {
     // blåtonad ruta läste som ett främmande element mitt i formuläret.
     '<div style="font-size:0.82rem;line-height:1.45;color:#8b93a7;background:rgba(255,255,255,0.04);' +
     'border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:9px 11px;">' +
-    'Begagnade bilar ur <b>Blockets annonser</b> — priser och prisgolv mäts mot riktiga annonser. ' +
-    'Nyare årsmodeller kommer med om budgeten räcker.' +
+    'Begagnade bilar ur <b>Blockets annonser</b>, <b>högst 5 år gamla</b> — priser och prisgolv ' +
+    'mäts mot riktiga annonser.' +
     '</div>';
 }
 
