@@ -847,7 +847,7 @@ public class GroqService {
         String prompt = buildPrompt(prefs);
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(prefs); } catch (Exception ignored) {}
-        String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory()));
+        String systemPrompt = withEnergyPrices(buildSystemPrompt(expertContext, prefs));
         String feedbackContext = getFeedbackContext();
         if (!feedbackContext.isBlank()) systemPrompt = systemPrompt + "\n" + feedbackContext;
 //Här går ett riktigt anrop ifall cachat svar ej finns ovan alltså
@@ -1172,7 +1172,7 @@ public class GroqService {
         String expertContext = "";
         try { expertContext = expertInsightService.buildExpertContext(utanAlderskrav); } catch (Exception ignored) {}
         String systemPrompt = withEnergyPrices(
-                buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory()));
+                buildSystemPrompt(expertContext, prefs));
         String prompt = buildPrompt(utanAlderskrav) + String.format("""
 
                 VIKTIGT — VAD RÄCKER BUDGETEN TILL? Bortse HELT från ålderskrav den här
@@ -2859,7 +2859,43 @@ public class GroqService {
         return new BlocketPriceService.AdFilter(fuels, gearbox);
     }
 
+    // ── Kategoriblocken: skickas bara när de gäller sökningen ────────────────────────
+    // Mätt 2026-08-28: 2 547 av regeltextens 6 972 tecken (37 %) var kategori- eller
+    // drivmedelsbundna och följde ändå med VARJE sökning. Ett småbilssök bar hela
+    // SUV-avsnittet, ett elbilssök bar bensinreglerna. Besparing per sökning, mätt:
+    // ~1 046 tokens (smaabil), ~1 080 (laddhybrid), ~974 (bensin/diesel), ~914
+    // (familjebil), ~555 (suv) — en fjärdedel av hela prompten.
+    //
+    // Raderna är ORDAGRANT de som stod i textblocket; bara var de bor har ändrats.
+    private static final String FAMILJEBIL_REGEL =
+            "FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).\n";
+    private static final String SUV_REGEL =
+            "SUV (kategori \"suv\"): SUV betyder HÖG bil — hög sittposition, stor markfrigång, kaross i storleksklass Volvo XC40 / Škoda Kamiq eller större. En halvkombi, sedan eller låg crossover är ALDRIG en SUV: föreslå aldrig MG4, MG5, VW ID.3, Tesla Model 3, Polestar 2, Renault Zoe, Nissan Leaf, Kia Niro eller Hyundai Kona i den här kategorin, hur väl de än passar i övrigt. Drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan, Toyota RAV4/C-HR (hybrid), Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC; elbil: Volvo EX40/EC40 (ALDRIG \"XC40\" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen), VW ID.4/ID.5, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y, Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008 (prisvärd liten el-SUV), BMW iX1/iX3, Mercedes EQB.\n";
+    private static final String SUV_BUDGET_REGEL =
+            "SUV OCH BUDGET: matcha SUV-storleken mot budgeten. Från ca 350 000 kr ska minst två av tre vara riktiga mellanklass-SUV:ar (VW ID.4, Hyundai Ioniq 5, Tesla Model Y, Volvo EX40, Škoda Enyaq, Kia EV6, Audi Q4 e-tron) — att svara med billiga små bilar långt under budgeten är fel svar även om de är prisvärda. Peugeot e-2008 och MG ZS EV hör hemma i de LÄGRE budgetspannen, inte som svar på en halv miljon.\n";
+    private static final String SMABIL_REGEL =
+            "SMÅBIL (kategori \"smaabil\"): bensin/diesel t.ex. Toyota Aygo, Škoda Fabia, VW Polo, Hyundai i20, Kia Picanto, Ford Fiesta, Dacia Sandero; hybrid t.ex. Toyota Yaris Hybrid; elbil t.ex. Renault Zoe, Renault 5 E-Tech.\n";
+    private static final String DRIVMEDEL_REGEL =
+            "DRIVMEDLET ÄR ETT VAL, INTE ETT UNGEFÄR: väljer användaren \"bensin\" eller \"diesel\" ska ALLA tre bilar ha ren förbränningsmotor. En hybrid är ett EGET val i formuläret (\"Hybrid (ej laddhybrid)\"), så ett bensinsök som svarar med Toyota Corolla Hybrid, Honda Jazz Hybrid eller Kia Niro Hybrid har svarat på fel fråga. Kontrolleras i kod efteråt; en bil som bryter mot det kastas.\n";
+    private static final String PHEV_REGEL =
+            "PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).\n";
+
+    /**
+     * Utan prefs vet vi inte vad sökningen gäller — då följer ALLA kategoriblock med.
+     * Det är 2- och 3-argumentsvägens beteende, och testernas: en tyst bortfiltrering
+     * där hade dolt regressioner i regeltexten.
+     */
     String buildSystemPrompt(String expertContext, String fuelType, String carCategory) {
+        return buildSystemPrompt(expertContext, fuelType, carCategory, null);
+    }
+
+    /** Skarpa vägen: prefs avgör vilka kategoriblock som är relevanta. */
+    String buildSystemPrompt(String expertContext, CarPreferences prefs) {
+        return buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory(), prefs);
+    }
+
+    String buildSystemPrompt(String expertContext, String fuelType, String carCategory,
+                             CarPreferences prefs) {
         FuelIntent intent = fuelIntent(fuelType, carCategory);
         boolean wantsEv = intent.ev(), wantsIce = intent.ice(), wantsPhev = intent.phev();
         String icePrices = (wantsIce && !wantsEv) || wantsIce ? getIcePrices() : "";
@@ -2868,18 +2904,32 @@ public class GroqService {
         if (wantsEv && !wantsIce) icePrices = "";
         if (!wantsEv && wantsIce)  evPrices  = "";
 
+        // Villkoren är AVSIKTLIGT samma predikat som kodvakterna använder
+        // (requiresFamilySizedCar, requiresSuvShapedCar, fuelIntent): står regeln i
+        // prompten ska vakten kunna falla på den, och tvärtom. Glider de isär får AI:n
+        // antingen en regel ingen kontrollerar, eller kastas bilar för en regel den
+        // aldrig fick se. FAMILJEBIL kan INTE gissas ur kategorin ensam — regeln gäller
+        // även "användning familj" och 5+ passagerare, och de finns bara i prefs.
+        boolean allt = (prefs == null);
+        String ftLower = fuelType == null ? "" : fuelType.toLowerCase().trim();
+        StringBuilder kat = new StringBuilder();
+        if (allt || requiresFamilySizedCar(prefs)) kat.append(FAMILJEBIL_REGEL);
+        if (allt || requiresSuvShapedCar(prefs))   kat.append(SUV_REGEL).append(SUV_BUDGET_REGEL);
+        if (allt || "smaabil".equalsIgnoreCase(carCategory)) kat.append(SMABIL_REGEL);
+        // Bara ett UTTALAT förbränningsval: "spelar ingen roll" är inget val, och regeln
+        // handlar om att respektera det användaren faktiskt kryssat i.
+        if (allt || ftLower.contains("bensin") || ftLower.contains("diesel") || ftLower.equals("hybrid"))
+            kat.append(DRIVMEDEL_REGEL);
+        if (allt || wantsPhev) kat.append(PHEV_REGEL);
+        String kategoriRegler = kat.toString();
+
         String base = """
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN — "Manuell 6-växlad", "Automat 8-växlad", "Automat CVT", "Automat DSG 7-växlad". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. Elbil/laddhybrid: fuelSpec=null.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                FAMILJEBIL (kategori "familjebil", användning "familj" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).
-                SUV (kategori "suv"): SUV betyder HÖG bil — hög sittposition, stor markfrigång, kaross i storleksklass Volvo XC40 / Škoda Kamiq eller större. En halvkombi, sedan eller låg crossover är ALDRIG en SUV: föreslå aldrig MG4, MG5, VW ID.3, Tesla Model 3, Polestar 2, Renault Zoe, Nissan Leaf, Kia Niro eller Hyundai Kona i den här kategorin, hur väl de än passar i övrigt. Drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan, Toyota RAV4/C-HR (hybrid), Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC; elbil: Volvo EX40/EC40 (ALDRIG "XC40" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen), VW ID.4/ID.5, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y, Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008 (prisvärd liten el-SUV), BMW iX1/iX3, Mercedes EQB.
-                SUV OCH BUDGET: matcha SUV-storleken mot budgeten. Från ca 350 000 kr ska minst två av tre vara riktiga mellanklass-SUV:ar (VW ID.4, Hyundai Ioniq 5, Tesla Model Y, Volvo EX40, Škoda Enyaq, Kia EV6, Audi Q4 e-tron) — att svara med billiga små bilar långt under budgeten är fel svar även om de är prisvärda. Peugeot e-2008 och MG ZS EV hör hemma i de LÄGRE budgetspannen, inte som svar på en halv miljon.
-                SMÅBIL (kategori "smaabil"): bensin/diesel t.ex. Toyota Aygo, Škoda Fabia, VW Polo, Hyundai i20, Kia Picanto, Ford Fiesta, Dacia Sandero; hybrid t.ex. Toyota Yaris Hybrid; elbil t.ex. Renault Zoe, Renault 5 E-Tech.
-                DRIVMEDLET ÄR ETT VAL, INTE ETT UNGEFÄR: väljer användaren "bensin" eller "diesel" ska ALLA tre bilar ha ren förbränningsmotor. En hybrid är ett EGET val i formuläret ("Hybrid (ej laddhybrid)"), så ett bensinsök som svarar med Toyota Corolla Hybrid, Honda Jazz Hybrid eller Kia Niro Hybrid har svarat på fel fråga. Kontrolleras i kod efteråt; en bil som bryter mot det kastas.
-                """ + EV_PRICE_FLOORS + """
+                """ + kategoriRegler + EV_PRICE_FLOORS + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte under taket är bilen fel förslag hur väl den än passar — byt till äldre årsmodell, enklare utrustning eller billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
                 SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
@@ -2890,7 +2940,6 @@ public class GroqService {
                 Ange motorbeteckning (TDI/TSI/MPI/volym) bara om du är säker på att varianten finns — annars bara hk + 'manuell'/'automat'.
                 Rekommendera ALDRIG BYD Dolphin eller Hyundai INSTER. Håll dig till dessa märken: Audi, BMW, BYD, Citroën, Cupra, Dacia, Fiat, Ford, Honda, Hyundai, Kia, Leapmotor, MG, Mazda, Mercedes, Mini, Nissan, Opel, Peugeot, Renault, Seat, Škoda, Smart, Tesla, Toyota, Volkswagen, Volvo, Xpeng, Zeekr. Kamiq är bensinbil, INTE elbil. Aldrig bensin/diesel när användaren efterfrågar elbil.
                 MÄRKESPRIORITET: föredra etablerade europeiska, koreanska och japanska märken (samt Tesla och MG). Leapmotor, Xpeng, Zeekr och BYD bara om inget etablerat märke matchar budget och behov — aldrig som förstaval. Bilar med bra räckvidd per krona (se PRISVÄRD RÄCKVIDD) är starka förslag när de passar profilen.
-                PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).
                 Rekommendera ALDRIG en årsmodell före modellens verkliga lansering — nyheter om en modell betyder inte att den finns begagnad. Ex: Kia EV2 lanseras 2026 (finns ALDRIG begagnad), Kia EV3 2024+, EV4/EV5 2025+, Renault 5 E-Tech 2024+, Citroën ë-C3 2024+, Volvo EX30 2023+.
                 Volvos enda EV-modeller: EX30, EX40, EC40, EX60, EX90 — det finns inga andra (ingen C90/C70).
                 Nämn ALDRIG modeller som aldrig sålts i Sverige. Att en modell SLUTAT tillverkas är däremot inget hinder i ett begagnatsök — Renault Zoe, VW e-Golf och äldre Nissan Leaf är vanliga billiga begagnade elbilar. Undantag: i NYBILSSÖK och LEASING måste modellen gå att köpa ny idag. Hitta ALDRIG på modellnamn, versioner eller specifikationer — om osäker, välj en bil du är säker på finns.

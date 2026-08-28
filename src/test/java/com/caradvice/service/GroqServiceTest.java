@@ -288,6 +288,74 @@ class GroqServiceTest {
                 .contains("ren elbil");
     }
 
+    // --- Kategoriblocken skickas bara när de gäller (mätt 2026-08-28: 37 % av regeltexten) ---
+
+    @Test
+    void smabilssokBarInteSuvOchFamiljereglerna() {
+        var smabil = prefs(150_000, "smaabil", false, 15_000, false, "bensin", "spelar ingen roll", "köp", 5);
+
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", smabil))
+                .contains("SMÅBIL (kategori")
+                // Ett 150 000-kronorssök på småbil bar hela SUV-avsnittet med sina
+                // mellanklassmodeller från 350 000 kr — regler det aldrig kunde följa.
+                .doesNotContain("SUV (kategori")
+                .doesNotContain("SUV OCH BUDGET")
+                .doesNotContain("FAMILJEBIL (kategori")
+                .doesNotContain("PHEV: rekommendera ALDRIG")
+                // Uttalat bensinval: regeln om att drivmedlet är ett val ska däremot vara kvar
+                .contains("DRIVMEDLET ÄR ETT VAL");
+    }
+
+    @Test
+    void suvsokBarSuvreglernaMenInteSmabilsreglerna() {
+        var suv = prefs(400_000, "suv", true, 15_000, false, "el", "spelar ingen roll", "köp", 5);
+
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", suv))
+                .contains("SUV (kategori")
+                .contains("SUV OCH BUDGET")
+                .doesNotContain("SMÅBIL (kategori")
+                // Elbilssök: bensinreglerna hör inte hit
+                .doesNotContain("DRIVMEDLET ÄR ETT VAL");
+    }
+
+    @Test
+    void femPassagerareTarMedFamiljeregelnAvenUtanFamiljekategori() {
+        // Den viktiga gränsen: familjekravet kan INTE läsas ur kategorin ensam. Vakten
+        // requireFamilySizedCars fäller på passagerare >= 5, och gör den det måste AI:n ha
+        // fått se regeln — annars kastas bilar för något den aldrig blev tillsagd.
+        CarPreferences femPersoner = new CarPreferences(300_000, "suv", true, 15_000, "pendling",
+                5, false, "el", null, "köp", null, null);
+
+        assertThat(GroqService.requiresFamilySizedCar(femPersoner)).isTrue();
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", femPersoner))
+                .contains("FAMILJEBIL (kategori");
+    }
+
+    @Test
+    void treArgumentsvagenTarMedAllaKategoriblock() {
+        // Utan prefs vet vi inte vad sökningen gäller. Då ska ALLT med — en tyst
+        // bortfiltrering i testvägen hade dolt regressioner i regeltexten.
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", null))
+                .contains("FAMILJEBIL (kategori")
+                .contains("SUV (kategori")
+                .contains("SUV OCH BUDGET")
+                .contains("SMÅBIL (kategori")
+                .contains("DRIVMEDLET ÄR ETT VAL")
+                .contains("PHEV: rekommendera ALDRIG");
+    }
+
+    @Test
+    void laddhybridssokBarPhevRegelnMenInteSmabilsreglerna() {
+        var phev = prefs(350_000, "laddhybrid", true, 15_000, false, "spelar ingen roll",
+                "spelar ingen roll", "köp", 5);
+
+        assertThat(serviceMedPristabeller().buildSystemPrompt("", phev))
+                .contains("PHEV: rekommendera ALDRIG")
+                .contains("LADDHYBRIDSKATT")
+                .doesNotContain("SMÅBIL (kategori")
+                .doesNotContain("SUV OCH BUDGET");
+    }
+
     @Test
     void laddhybridskategorinPaverkasInteAvElbilsgrenen() {
         // Kategorin laddhybrid ska fortfarande ge brasklappen och INTE BEV-tvånget, oavsett
