@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -287,6 +288,37 @@ class GroqServiceTest {
                 .contains("MODELLER SOM RYMS I BUDGETEN");
         assertThat(GroqService.activeConstraints(formularetsElbilssok))
                 .contains("ren elbil");
+    }
+
+    // --- Tomt AI-svar är inte samma sak som för snäva kriterier ---
+
+    @Test
+    void tomtAiSvarFarEgenTypSaKravenInteFarSkulden() throws Exception {
+        // Giltig JSON, noll bilar. Förr blev det ett tomt resultat med kraven uppräknade
+        // (narrowCriteria) — alltså ett påstående om användarens sökning utan täckning.
+        // Egen typ så att slutet kan skilja sig: rättelseförsöket är detsamma, men går även
+        // DET tomt ska felet peka på AI:n, inte på kriterierna.
+        assertThatThrownBy(() -> service().parseRecommendations("{\"recommendations\":[]}"))
+                .isInstanceOf(GroqService.TomtAiSvarException.class)
+                // Ärver kanalen: rättelseförsöket i getRecommendation triggas på basklassen
+                .isInstanceOf(GroqService.RuleViolationException.class);
+
+        var e = catchThrowableOfType(
+                () -> service().parseRecommendations("{\"recommendations\":[]}"),
+                GroqService.TomtAiSvarException.class);
+        // Rättelsen ska vara en INSTRUKTION till modellen, inte ett felmeddelande till en människa
+        assertThat(e.rattelse()).contains("EXAKT 3 bilar").contains("recommendations");
+        assertThat(e.kvar()).isEmpty();
+    }
+
+    @Test
+    void vakterSomFallerAllaBilarBeharSinKravdom() throws Exception {
+        // Motsatsen: ett svar MED bilar som vakterna sedan fäller är fortfarande ett
+        // RuleViolationException utan den nya typen, och ska därför sluta som tomt svar med
+        // kraven uppräknade — där ÄR kraven en rimlig förklaring.
+        var med = service().parseRecommendations(
+                "{\"recommendations\":[{\"title\":\"Volvo EX30 (2024)\",\"pros\":[\"a\",\"b\",\"c\"]}]}");
+        assertThat(med).hasSize(1);
     }
 
     // --- Fördelar som upprepar ett verifierat fält ---

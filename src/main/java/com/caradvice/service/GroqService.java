@@ -992,6 +992,18 @@ public class GroqService {
                 // tomt svar precis som på ett tunt, så användaren får kraven uppräknade i
                 // stället för ett tekniskt fel. Live 2026-08-10: familjeelbil + 400 l +
                 // 200 000 kr gav HTTP 500 i ena körningen och ett Tesla-kort i nästa.
+                //
+                // MEN bara när det var VAKTERNA som fällde. Kom svaret tomt från AI:n redan
+                // från början säger det ingenting om kraven, och då blir narrowCriteria ett
+                // påstående om användarens sökning utan täckning — hen sitter och lättar på
+                // krav som aldrig var problemet. Skarpt 2026-08-28: elbil 350 000 kr föll så,
+                // och exakt samma sökning gick igenom på tredje försöket.
+                if (e instanceof TomtAiSvarException) {
+                    log.warn("AI:n svarade utan bilar två gånger i rad ({}) — felet är AI:ns, inte kravens",
+                            String.join(", ", activeConstraints(prefs)));
+                    throw new RuntimeException("AI-tjänsten svarade utan innehåll två gånger i rad."
+                            + " Försök igen — dina kriterier är inte problemet.");
+                }
                 log.warn("Ingen bil klarade kraven ({}) — returnerar tomt svar i stället för fel",
                         String.join(", ", activeConstraints(prefs)));
                 return new Result(List.of(), false, 0, null);
@@ -1720,8 +1732,7 @@ public class GroqService {
         // inte": tom kvar-lista leder rakt till retryAfterRuleViolation, som pekar ut felet och
         // upprepar kravet som en instruktion. Samma grepp som budgettaket och regelvakterna.
         // Skarpt fall: elbil 350 000 kr, andra försöket av tre.
-        throw new RuleViolationException("AI:n returnerade ett oväntat svar. Försök igen.",
-                List.of(), List.of("(svaret innehöll inga bilar)"),
+        throw new TomtAiSvarException("AI:n returnerade ett oväntat svar. Försök igen.",
                 "Ditt förra svar innehöll INGA bilar i fältet \"recommendations\" — listan var tom"
                 + " eller låg under fel nyckel. Svara med EXAKT 3 bilar i en lista under nyckeln"
                 + " \"recommendations\", i formatet som beskrivs ovan.");
@@ -2239,6 +2250,25 @@ public class GroqService {
 
         /** Regeln formulerad som en instruktion till AI:n, inte som ett felmeddelande. */
         String rattelse() { return rattelse; }
+    }
+
+    /**
+     * AI:n svarade med giltig JSON men UTAN bilar — inte samma sak som att vakterna fällde allt.
+     *
+     * <p>Egen typ för att de två fallen ska kunna sluta olika. Fäller vakterna varenda bil är
+     * tomt svar det ärliga beskedet: kraven gick inte ihop, och användaren får dem uppräknade
+     * ({@code narrowCriteria}). Men ett tomt AI-svar säger ingenting om kraven — då blir samma
+     * beteende ett påstående om användarens sökning som inte har täckning, och hen sitter och
+     * lättar på krav som aldrig var problemet. Skarpt fall 2026-08-28: elbil 350 000 kr föll
+     * på det, och exakt samma sökning gick igenom på tredje försöket.
+     *
+     * <p>Ärver kvar/avvisade/rättelse så att rättelseförsöket fungerar likadant — det är bara
+     * SLUTET som skiljer, när även rättelsen kommit tillbaka tom.
+     */
+    static class TomtAiSvarException extends RuleViolationException {
+        TomtAiSvarException(String message, String rattelse) {
+            super(message, List.of(), List.of("(svaret innehöll inga bilar)"), rattelse);
+        }
     }
 
     /**
