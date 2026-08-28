@@ -60,7 +60,34 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     'display:flex;align-items:center;justify-content:center;' +
     'box-shadow:0 2px 10px rgba(0,0,0,.35);}' +
     '.ca-emblem img{width:100%;height:100%;object-fit:contain;display:block;}' +
-    '@media(max-width:520px){.ca-emblem{width:32px;height:32px;padding:4px;}}';
+    '@media(max-width:520px){.ca-emblem{width:32px;height:32px;padding:4px;}}' +
+    // Bilväljaren i den fria jämförelsen. Lila i stället för Elbilsassistentens blå:
+    // samma två steg, men husets färg är en annan här.
+    // Panelen ankras mot RADEN och inte mot .ca-vp. Behållaren sitter som flexbarn bredvid
+    // fältet och är i praktiken nollbred, så en panel med left:0;right:0 mot den hamnade
+    // utanför kortet och klipptes av högerkanten — syntes direkt på Bil 2, som ligger längst
+    // till höger. Raden är alltid lika bred som båda fälten tillsammans.
+    '.ca-fc-pickers{position:relative;}' +
+    '.ca-vp{position:static;flex:0 0 0;}' +
+    '.ca-vp-panel{position:absolute;z-index:70;left:0;right:0;top:calc(100% + 7px);background:#1a1235;border:1.5px solid rgba(139,92,246,.4);border-radius:13px;box-shadow:0 18px 44px rgba(0,0,0,.6);padding:11px;}' +
+    '.ca-vp-sok{width:100%;box-sizing:border-box;padding:8px 11px;margin-bottom:9px;background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.3);border-radius:9px;color:#e2e8f0;font-size:.8rem;outline:none;}' +
+    '.ca-vp-steg{display:flex;width:200%;transition:transform .3s cubic-bezier(.22,1,.36,1);}' +
+    '.ca-vp-steg.ca-vp-at-modeller{transform:translateX(-50%);}' +
+    '.ca-vp-marken,.ca-vp-modeller{width:50%;flex-shrink:0;max-height:300px;overflow-y:auto;overscroll-behavior:contain;}' +
+    '.ca-vp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;padding:1px;}' +
+    '.ca-vp-marke,.ca-vp-modell{display:flex;align-items:center;gap:8px;padding:7px;width:100%;background:rgba(139,92,246,.07);border:1.5px solid rgba(139,92,246,.18);border-radius:10px;color:#e2e8f0;font-family:inherit;text-align:left;cursor:pointer;transition:all .15s;}' +
+    '.ca-vp-marke:hover,.ca-vp-modell:hover{background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.6);}' +
+    '.ca-vp-txt{display:flex;flex-direction:column;min-width:0;}' +
+    '.ca-vp-namn{font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '.ca-vp-antal{font-size:.64rem;color:rgba(255,255,255,.45);}' +
+    '.ca-vp-mono{width:30px;height:30px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;background:rgba(139,92,246,.22);color:#c4b5fd;border:1.5px solid rgba(139,92,246,.35);}' +
+    // Emblemplattan är mindre här än på kortet — rutnätet rymmer fler märken då.
+    '.ca-vp .ca-emblem{width:30px;height:30px;padding:4px;border-radius:8px;box-shadow:none;}' +
+    '.ca-vp-lista{display:flex;flex-direction:column;gap:5px;padding:1px;}' +
+    '.ca-vp-modell{font-size:.78rem;font-weight:600;}' +
+    '.ca-vp-back-rad{display:flex;align-items:center;gap:9px;padding:0 2px 9px;position:sticky;top:0;background:#1a1235;z-index:2;}' +
+    '.ca-vp-back{background:none;border:none;color:#a78bfa;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit;padding:3px 5px 3px 0;}' +
+    '.ca-vp-tom{padding:18px 8px;text-align:center;font-size:.78rem;color:rgba(255,255,255,.45);}';
   (document.body || document.documentElement).appendChild(s);
 })();
 
@@ -2931,6 +2958,138 @@ function caFcFetchCars() {
     .catch(function() {});
 }
 
+// ── Märkesväljaren i den fria jämförelsen ────────────────────────────────────
+// Rutorna var fritextfält med en datalist på 815 bilnamn. En datalist visar bara det man
+// redan börjat skriva, alltså måste man VETA vad bilen heter för att hitta den — och stavar
+// man "Skoda" utan hake, eller "VW", får man inget. Samma två steg som Elbilsassistenten
+// använder: märke först, modeller sedan.
+//
+// Fältet blir kvar och är fortfarande värdet. Väljaren skriver i det och lämnar datalisten
+// orörd, så den som hellre skriver kan fortsätta göra det — och caFcCompare, som läser
+// .value, behöver inte veta att något ändrats.
+var caBilarCache = null;
+
+function caMarkeAv(namn) {
+  var n = String(namn || '').trim();
+  if (/^Alfa\s+Romeo/i.test(n)) return 'Alfa Romeo';
+  if (/^Land\s+Rover/i.test(n)) return 'Land Rover';
+  return n.split(/\s+/)[0] || '';
+}
+
+/** Emblemet för ett MÄRKE (caEmblemHtml tar en biltitel). Tom sträng när filen saknas. */
+function caMarkeEmblem(marke) {
+  return caEmblemHtml(marke + ' x');
+}
+
+function caFcValjare(input) {
+  if (!input || input.dataset.valjare) return;
+  input.dataset.valjare = '1';
+  input.setAttribute('readonly', 'readonly');   // panelen är vägen in; datalisten blir kvar för den som tar bort attributet
+  input.style.cursor = 'pointer';
+
+  var rot = document.createElement('div');
+  rot.className = 'ca-vp';
+  input.parentNode.insertBefore(rot, input.nextSibling);
+  rot.innerHTML = '<div class="ca-vp-panel" hidden>'
+    + '<input type="text" class="ca-vp-sok" placeholder="Sök märke eller modell">'
+    + '<div class="ca-vp-steg"><div class="ca-vp-marken"></div><div class="ca-vp-modeller"></div></div>'
+    + '</div>';
+  var panel = rot.querySelector('.ca-vp-panel');
+  var sok = rot.querySelector('.ca-vp-sok');
+  var steg = rot.querySelector('.ca-vp-steg');
+  var gridEl = rot.querySelector('.ca-vp-marken');
+  var listEl = rot.querySelector('.ca-vp-modeller');
+  var marken = [], aktivt = null;
+
+  function bygg(cars) {
+    var karta = {};
+    cars.forEach(function (namn) {
+      var m = caMarkeAv(namn);
+      var k = m.toLowerCase();
+      if (!karta[k]) karta[k] = { stavning: {}, bilar: [] };
+      karta[k].stavning[m] = (karta[k].stavning[m] || 0) + 1;
+      karta[k].bilar.push(namn);
+    });
+    marken = Object.keys(karta).map(function (k) {
+      var st = karta[k].stavning;
+      var vanligast = Object.keys(st).sort(function (a, b) { return st[b] - st[a]; })[0];
+      return { marke: vanligast, bilar: karta[k].bilar };
+    }).sort(function (a, b) { return a.marke.localeCompare(b.marke, 'sv'); });
+  }
+
+  function ritaMarken(f) {
+    f = (f || '').trim().toLowerCase();
+    var träffar = marken.filter(function (m) {
+      if (!f) return true;
+      if (f.length === 1) return m.marke.toLowerCase().charAt(0) === f;
+      return m.marke.toLowerCase().indexOf(f) !== -1
+        || m.bilar.some(function (b) { return b.toLowerCase().indexOf(f) !== -1; });
+    });
+    gridEl.innerHTML = träffar.length
+      ? '<div class="ca-vp-grid">' + träffar.map(function (m) {
+          return '<button type="button" class="ca-vp-marke" data-marke="' + caEsc(m.marke) + '">'
+            + (caMarkeEmblem(m.marke) || '<span class="ca-vp-mono">' + caEsc(m.marke.slice(0, 2).toUpperCase()) + '</span>')
+            + '<span class="ca-vp-txt"><span class="ca-vp-namn">' + caEsc(m.marke) + '</span>'
+            + '<span class="ca-vp-antal">' + m.bilar.length + (m.bilar.length === 1 ? ' modell' : ' modeller') + '</span></span>'
+            + '</button>';
+        }).join('') + '</div>'
+      : '<div class="ca-vp-tom">Ingen bil matchar.</div>';
+  }
+
+  function ritaModeller(marke, f) {
+    var g = marken.filter(function (m) { return m.marke === marke; })[0];
+    if (!g) return;
+    aktivt = marke;
+    f = (f || '').trim().toLowerCase();
+    var lista = g.bilar.filter(function (b) { return !f || b.toLowerCase().indexOf(f) !== -1; });
+    listEl.innerHTML = '<div class="ca-vp-back-rad"><button type="button" class="ca-vp-back">‹ Alla märken</button>'
+      + '<span class="ca-vp-namn">' + caEsc(marke) + '</span></div>'
+      + '<div class="ca-vp-lista">' + lista.map(function (b) {
+          return '<button type="button" class="ca-vp-modell" data-namn="' + caEsc(b) + '">' + caEsc(b) + '</button>';
+        }).join('') + '</div>';
+  }
+
+  function visa(n) { steg.classList.toggle('ca-vp-at-modeller', n === 2); }
+  function stang() { panel.hidden = true; rot.classList.remove('ca-vp-open'); }
+
+  function oppna() {
+    fetch(CA_API_BASE + '/api/cars').then(function (r) { return r.json(); }).then(function (cars) {
+      caBilarCache = cars;
+      bygg(cars);
+      panel.hidden = false;
+      rot.classList.add('ca-vp-open');
+      sok.value = ''; aktivt = null; ritaMarken(''); visa(1);
+      setTimeout(function () { sok.focus({ preventScroll: true }); }, 30);
+    }).catch(function () {});
+  }
+
+  input.addEventListener('click', function () { if (panel.hidden) oppna(); else stang(); });
+  input.addEventListener('focus', function () { if (panel.hidden) oppna(); });
+
+  panel.addEventListener('click', function (e) {
+    var b = e.target.closest('.ca-vp-marke');
+    if (b) { sok.value = ''; ritaModeller(b.dataset.marke, ''); visa(2); sok.focus({ preventScroll: true }); return; }
+    if (e.target.closest('.ca-vp-back')) { sok.value = ''; aktivt = null; ritaMarken(''); visa(1); return; }
+    var m = e.target.closest('.ca-vp-modell');
+    if (m) {
+      input.value = m.dataset.namn;
+      stang();
+      if (typeof caCheckChanges === 'function') caCheckChanges();
+    }
+  });
+  sok.addEventListener('input', function () {
+    if (aktivt && steg.classList.contains('ca-vp-at-modeller')) {
+      if (!this.value.trim()) { aktivt = null; ritaMarken(''); visa(1); return; }
+      ritaModeller(aktivt, this.value); return;
+    }
+    ritaMarken(this.value);
+  });
+  sok.addEventListener('keydown', function (e) { if (e.key === 'Escape') { stang(); input.focus(); } });
+  document.addEventListener('click', function (e) {
+    if (!panel.hidden && !rot.contains(e.target) && e.target !== input) stang();
+  });
+}
+
 function caFcInit() {
   var btn = document.getElementById('ca-fc-btn');
   if (btn) btn.addEventListener('click', caFcCompare);
@@ -2938,6 +3097,7 @@ function caFcInit() {
     var el = document.getElementById(id);
     if (el) {
       el.addEventListener('focus', caFcFetchCars);
+      caFcValjare(el);
       el.addEventListener('keydown', function(e) { if (e.key === 'Enter') caFcCompare(); });
     }
   });
