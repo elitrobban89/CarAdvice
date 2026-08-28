@@ -146,6 +146,12 @@
   }
   // ===== PRISLOGIK SLUTAR =====
 
+  // Platsen i utdatan dar verktygsavdelningen ska in. Deklarerad HAR och inte vid
+  // verktygArea: renderResults anvander den langt tidigare i filen, och en const som
+  // anvands ovanfor sin egen rad ar korrekt bara sa lange man kan bevisa att anropet
+  // sker efter att modulen kort klart. Det behover inte bevisas om den star forst.
+  const VERKTYG_PLATS = "<!--ev-verktyg-->";
+
   let evMap = null;
   let evMapMarkers = [];
   let evRoutePolyline = null;
@@ -214,6 +220,41 @@
     ".ev-carousel-head-icon{font-size:19px;line-height:1;flex-shrink:0;filter:drop-shadow(0 0 9px rgba(251,191,36,0.5));}" +
     ".ev-carousel-head-title{font-size:14px;font-weight:800;color:#fbbf24;letter-spacing:0.02em;line-height:1.2;}" +
     ".ev-carousel-head-sub{font-size:11.5px;color:rgba(147,197,253,0.55);margin-top:3px;line-height:1.35;}" +
+    // Verktygsavdelningen: samma form som karusellen, egen färg. Blå i stället för gul, så de
+    // två avdelningarna går att skilja åt på en meter utan att formspråket blir ett nytt.
+    ".ev-tools-area{background:linear-gradient(180deg,rgba(59,130,246,0.06),rgba(59,130,246,0));"
+      + "border-color:rgba(59,130,246,0.2);}" +
+    ".ev-tools-area .ev-carousel-head-icon{filter:drop-shadow(0 0 9px rgba(59,130,246,0.5));}" +
+    ".ev-tools-area .ev-carousel-head-title{color:#93c5fd;}" +
+    // --- Laddtidskalkylatorn -------------------------------------------------
+    "#ev-calc-card{padding:2px 3px 6px;}" +
+    ".ev-calc-titel{font-size:12.5px;font-weight:800;color:#93c5fd;letter-spacing:.02em;margin-bottom:14px;}" +
+    // Bilnamnet i normalvikt efter rubriken: det är en upplysning om VILKEN bil siffrorna
+    // gäller, inte en del av verktygets namn.
+    ".ev-calc-titel span{font-weight:500;color:rgba(200,215,255,.62);}" +
+    ".ev-calc-reglage{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-bottom:14px;}" +
+    "@media (max-width:520px){.ev-calc-reglage{grid-template-columns:1fr;}}" +
+    ".ev-calc-etikett{font-size:11.5px;color:rgba(147,197,253,.65);margin-bottom:7px;}" +
+    // Procenttalet är det man läser av — stort, ljust och i siffrornas egen färg.
+    ".ev-calc-etikett b{font-size:15px;font-weight:800;color:#f0f4ff;}" +
+
+    // Reglagen: webbläsarens grundutseende är en vit stapel som lyser i en mörk app. Både
+    // -webkit- och -moz-vägen behövs; de delar ingen enda selektor.
+    ".ev-calc-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;"
+      + "background:rgba(59,130,246,.16);outline:none;cursor:pointer;}" +
+    ".ev-calc-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:17px;height:17px;"
+      + "border-radius:50%;background:#3b82f6;border:2.5px solid #0d1526;"
+      + "box-shadow:0 0 0 1px rgba(59,130,246,.5),0 2px 6px rgba(0,0,0,.5);transition:transform .12s;}" +
+    ".ev-calc-slider::-webkit-slider-thumb:hover{transform:scale(1.15);}" +
+    ".ev-calc-slider::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#3b82f6;"
+      + "border:2.5px solid #0d1526;box-shadow:0 0 0 1px rgba(59,130,246,.5);}" +
+    ".ev-calc-slider::-moz-range-track{height:6px;border-radius:99px;background:rgba(59,130,246,.16);}" +
+    ".ev-calc-slider:focus-visible{box-shadow:0 0 0 3px rgba(59,130,246,.25);}" +
+
+    // Svaret är kortets ankare och får en ton av accenten i stället för grå genomskinlighet.
+    ".ev-calc-svar{background:linear-gradient(135deg,rgba(59,130,246,.13),rgba(59,130,246,.05));"
+      + "border:1px solid rgba(59,130,246,.28);border-radius:11px;padding:12px 15px;}" +
+    ".ev-calc-kalla{font-size:10.5px;color:rgba(147,197,253,.42);margin-top:9px;line-height:1.4;}" +
     // Korten inne i området behöver luft mellan sig, annars ser de ut som ett enda långt kort.
     ".ev-carousel-area .ev-funfact-card{margin-bottom:12px;}" +
     ".ev-stations-toggle{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,rgba(59,130,246,0.16),rgba(37,99,235,0.10));border:1.5px solid rgba(59,130,246,0.38);border-radius:12px;color:#93c5fd;font-size:13.5px;font-weight:700;font-family:inherit;padding:13px 16px;cursor:pointer;transition:background .2s,border-color .2s,color .2s;margin:4px 0 14px;}" +
@@ -1124,6 +1165,16 @@
         </div>`;
     }
 
+    // Kalkylatorn hör hemma DIREKT under AI-rekommendationen: den säger vilken station du ska
+    // åka till och hur många kW den ger, och nästa fråga är alltid "hur lång tid tar det då?".
+    // Sist i utdatan låg svaret fem stationskort och två karuseller bort.
+    //
+    // Platshållare och inte kalkylatorn själv, eftersom `calcHtml` behöver stationslistan
+    // (`top`) som räknas fram längre ner. Marker­bytet nedanför faller tillbaka på att lägga
+    // avdelningen sist om platshållaren av något skäl inte finns — verktyget får aldrig
+    // försvinna bara för att ordningen ändras.
+    html += VERKTYG_PLATS;
+
     const funfactHtml = buildFunfactHtml(data.funFact);
 
     if (state.carIndex !== null && state.cars.length > 0) {
@@ -1431,24 +1482,30 @@
         const stLabel = dcStation
           ? (dcStation.name.length > 32 ? dcStation.name.slice(0, 30) + '…' : dcStation.name) + ' · ' + Math.round(dcStation.maxEffKw) + ' kW'
           : 'Ingen DC-station hittad';
+        // Kortet bär INTE längre .ev-funfact-card och ingen egen stor ikon. Inuti
+        // verktygsavdelningen hade det två ramar utanpå varandra och två ikoner som
+        // konkurrerade om samma blick — 🧰 för avdelningen och ⏱ för kortet, tio pixlar isär.
+        // Avdelningen är ramen; kortet är innehållet.
+        //
+        // Procenttalen är flyttade UPP och gjorda stora: de är det man ändrar och det man
+        // läser av, och som liten grå text bredvid etiketten var de svårare att se än
+        // reglagets position. Reglagen har egen stil — webbläsarens grundutseende är en vit
+        // stapel som lyser som en ficklampa i en mörk app.
         calcHtml = `
-          <div class="ev-funfact-card" id="ev-calc-card" style="align-items:flex-start">
-            <div class="ev-funfact-icon">⏱</div>
-            <div style="flex:1">
-              <div class="ev-funfact-label">Laddtidskalkylator — ${car.name}</div>
-              <div style="margin:10px 0 12px;display:flex;gap:20px;flex-wrap:wrap;">
-                <label style="flex:1;min-width:120px">
-                  <div style="font-size:12px;color:rgba(147,197,253,0.7);margin-bottom:4px">Ladda från <span id="ev-calc-from-val">20</span>%</div>
-                  <input type="range" id="ev-calc-from" min="0" max="90" value="20" oninput="evCalcUpdate()" style="width:100%;accent-color:#3b82f6">
-                </label>
-                <label style="flex:1;min-width:120px">
-                  <div style="font-size:12px;color:rgba(147,197,253,0.7);margin-bottom:4px">Till <span id="ev-calc-to-val">80</span>%</div>
-                  <input type="range" id="ev-calc-to" min="10" max="100" value="80" oninput="evCalcUpdate()" style="width:100%;accent-color:#3b82f6">
-                </label>
-              </div>
-              <div id="ev-calc-result" style="background:rgba(255,255,255,0.04);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px 14px;"></div>
-              <div style="font-size:11px;color:rgba(147,197,253,0.45);margin-top:8px">Station: ${stLabel} · Effektiv laddning: ${Math.round(effKw)} kW</div>
+          <div id="ev-calc-card">
+            <div class="ev-calc-titel">⏱ Laddtidskalkylator <span>${car.name}</span></div>
+            <div class="ev-calc-reglage">
+              <label>
+                <div class="ev-calc-etikett">Ladda från <b id="ev-calc-from-val">20</b>%</div>
+                <input type="range" class="ev-calc-slider" id="ev-calc-from" min="0" max="90" value="20" oninput="evCalcUpdate()">
+              </label>
+              <label>
+                <div class="ev-calc-etikett">Till <b id="ev-calc-to-val">80</b>%</div>
+                <input type="range" class="ev-calc-slider" id="ev-calc-to" min="10" max="100" value="80" oninput="evCalcUpdate()">
+              </label>
             </div>
+            <div id="ev-calc-result" class="ev-calc-svar"></div>
+            <div class="ev-calc-kalla">📍 ${stLabel} · effektiv laddning ${Math.round(effKw)} kW</div>
           </div>`;
       }
     }
@@ -1483,7 +1540,11 @@
     // Stationsknappen FÖRST i utdatan, alltså direkt under kartan — #ev-map ligger
     // omedelbart ovanför #ev-output i elbilsladdning-web.html. Kartan visar samma
     // stationer som listan, så knappen hör hemma i anslutning till den.
-    setOutput(stationsSection + html + carouselSection + calcHtml);
+    const verktygHtml = verktygArea(calcHtml);
+    html = html.indexOf(VERKTYG_PLATS) !== -1
+        ? html.split(VERKTYG_PLATS).join(verktygHtml)
+        : html + verktygHtml;
+    setOutput(stationsSection + html + carouselSection);
 
     if (state.lat && state.lon && top.length > 0)
       setTimeout(() => renderMap(state.lat, state.lon, top), 50);
@@ -1502,6 +1563,30 @@
    * faktakortet och tabellkortet finns) och forstavyn innan man valt bil (dar bara
    * faktakortet finns). Tva kopior hade betytt tva rubriker att glomma vid nasta andring.
    */
+  /**
+   * Avdelning för verktygen, byggd som karusellens — samma rubrikrad, samma ram, egen färg.
+   *
+   * <p>Laddtidskalkylatorn låg naken sist i utdatan och såg ut som ännu ett tipskort, fast den
+   * är det enda man kan RÄKNA med. Ramen säger att den är en egen sak, och den blå tonen
+   * skiljer den från karusellens gula utan att införa ett nytt formspråk.
+   *
+   * <p>Rubriken är "Verktyg" och inte "Övriga verktyg": det finns bara ett, och "övriga"
+   * lovar en lista som inte existerar. Avdelningen rymmer fler den dagen de finns.
+   */
+  function verktygArea(bodyHtml) {
+    if (!bodyHtml) return '';
+    return `<div class="ev-carousel-area ev-tools-area">
+        <div class="ev-carousel-head">
+          <div class="ev-carousel-head-icon">🧰</div>
+          <div>
+            <div class="ev-carousel-head-title">Verktyg</div>
+            <div class="ev-carousel-head-sub">Räkna på laddningen för just din bil och den snabbaste stationen i närheten</div>
+          </div>
+        </div>
+        ${bodyHtml}
+      </div>`;
+  }
+
   function carouselArea(bodyHtml) {
     if (!bodyHtml) return '';
     return `<div class="ev-carousel-area">
