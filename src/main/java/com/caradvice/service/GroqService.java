@@ -1,6 +1,7 @@
 package com.caradvice.service;
 
 import com.caradvice.model.CargoSpecDto;
+import com.caradvice.model.EvSpecDto;
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -402,6 +403,13 @@ public class GroqService {
         } catch (RuntimeException first) {
             log.warn("{}: ofullständigt/tomt svar — omförsök med {}", label, reserveModel);
             HttpResponse<String> retry = httpClient.send(buildRequest(reserveBody), HttpResponse.BodyHandlers.ofString());
+            // Mätningen låg BARA i callGroqWithFallback, och det här omförsöket går utanför den.
+            // Reservmodellens anrop var därmed osynliga i /api/admin/token-usage: qwen syntes
+            // aldrig i en enda mätning 2026-08-28 trots att den var konfigurerad och frisk, och
+            // varje siffra jag läste den dagen underskattade förbrukningen. En mätning som tyst
+            // utelämnar en av vägarna är värre än ingen — man felsöker i halvmörker och tror
+            // att man ser hela bilden.
+            registreraTokenanvandning(reserveBody, retry);
             // Ett rate limit på omförsöket är INTE samma fel som det första: förr kastades det
             // ursprungliga trunkeringsfelet vidare, så användaren fick "AI-svaret blev
             // ofullständigt" plus rådet att lätta på sina kriterier — fast kriterierna var
@@ -837,7 +845,8 @@ public class GroqService {
             }
 
             result.add(new CarRecommendation(
-                    r.title(), price, utanMarknadspastaende(r.whyRecommended(), r.title()), r.pros(), r.con(),
+                    r.title(), price, utanMarknadspastaende(r.whyRecommended(), r.title()),
+                    utanDubblerandeSpec(r.pros(), cargo, evSpec, r.title()), r.con(),
                     r.fitSummary(), r.expertOpinion(), safety, evSpec, cargo, fuelSpec, blocketPrice, horsepower, engineOptions));
         }
         return result;
@@ -857,6 +866,61 @@ public class GroqService {
      * en svag garanti i det här projektet — därför tas påståendet bort i kod också. Bara den
      * meningen faller, inte hela fältet: källhänvisningen är fortfarande värd att visa.
      */
+    /**
+     * En fördel som upprepar bagagevolymen — "Stort bagageutrymme på 520 l". Kräver BÅDE ett
+     * bagageord och en litersiffra: "smidig att lasta" är en riktig fördel och ska stå kvar.
+     */
+    private static final Pattern BAGAGE_UPPREPNING = Pattern.compile(
+            "(?iu)(bagage|lastutrymm|lastvolym|baklucka)");
+    private static final Pattern LITER_SIFFRA = Pattern.compile("(?iu)\\b\\d{3,4}\\s*(l|liter)\\b");
+    /** Samma sak för räckvidden — "Räckvidd 528 km WLTP", "upp till 52 mil". */
+    private static final Pattern RACKVIDD_UPPREPNING = Pattern.compile(
+            "(?iu)(räckvidd|wltp|på en laddning)");
+    private static final Pattern STRACKA_SIFFRA = Pattern.compile("(?iu)\\b\\d{2,4}\\s*(km|mil)\\b");
+
+    /**
+     * Fördelar som bara upprepar en siffra kortet redan visar i ett eget, VERIFIERAT fält.
+     *
+     * <p>Skarpt fall 2026-08-28: Kia EV6 hade "bagage 520 l" bland fördelarna medan
+     * bagagefältet — hämtat ur {@code cargo_spec} — sa 490 l. Två olika tal om samma bil på
+     * samma kort, och det som stod i fördelarna var AI:ns egen gissning. Samma grundproblem
+     * som {@link #utanMarknadspastaende} löser för whyRecommended: en gissad siffra bredvid en
+     * verifierad är värre än ingen siffra alls, för läsaren kan inte veta vilken som gäller.
+     *
+     * <p><b>Bara när fältet faktiskt finns.</b> Saknar bilen rad i {@code cargo_spec} är AI:ns
+     * 520 l den enda uppgift som finns, och då är den bättre än tomrum — samma fail open som
+     * bagagevakten och drivmedelsvakten bygger på.
+     *
+     * <p><b>Kräver både ord och siffra.</b> "Smidig att lasta" och "lång räckvidd i verklig
+     * körning" är riktiga fördelar utan att göra anspråk på ett tal, och de ska stå kvar.
+     *
+     * <p><b>Tömmer aldrig listan.</b> Vore alla tre fördelarna sifferupprepningar lämnas de
+     * kvar orörda: ett kort utan fördelar läser som ett renderingsfel, och priset för en
+     * dubblerad siffra är lägre än priset för en tom ruta.
+     */
+    static List<String> utanDubblerandeSpec(List<String> pros, CargoSpecDto cargo, EvSpecDto evSpec, String title) {
+        if (pros == null || pros.isEmpty()) return pros;
+        List<String> kvar = new ArrayList<>();
+        List<String> tappade = new ArrayList<>();
+        for (String p : pros) {
+            if (p == null) continue;
+            boolean bagagedubblett = cargo != null && cargo.cargoLiters() > 0
+                    && BAGAGE_UPPREPNING.matcher(p).find() && LITER_SIFFRA.matcher(p).find();
+            boolean rackviddsdubblett = evSpec != null
+                    && RACKVIDD_UPPREPNING.matcher(p).find() && STRACKA_SIFFRA.matcher(p).find();
+            if (bagagedubblett || rackviddsdubblett) tappade.add(p);
+            else kvar.add(p);
+        }
+        if (tappade.isEmpty()) return pros;
+        if (kvar.isEmpty()) {
+            log.info("Alla fördelar för \"{}\" var sifferupprepningar — behåller dem hellre än en tom lista", title);
+            return pros;
+        }
+        log.info("Tog bort {} fördel(ar) som upprepade ett verifierat fält för \"{}\": {}",
+                tappade.size(), title, tappade);
+        return kvar;
+    }
+
     static String utanMarknadspastaende(String why, String title) {
         if (why == null || why.isBlank()) return why;
         String[] meningar = why.split("(?<=[.!?])\\s+");
@@ -1646,7 +1710,21 @@ public class GroqService {
             if (parsed != null && !parsed.isEmpty()) return requireDistinctTitles(parsed);
         }
         log.warn("AI returned no parseable recommendations. Raw: {}", content);
-        throw new RuntimeException("AI:n returnerade ett oväntat svar. Försök igen.");
+        // RÄTTELSEFÖRSÖK i stället för ett rakt fel (2026-08-28). Svaret var GILTIG JSON — det
+        // är inte samma sak som "AI-svaret blev ofullständigt" — men innehöll noll användbara
+        // bilar. Förr kastades felet rakt ut, och det enda omförsök som fanns skickade SAMMA
+        // prompt till reservmodellen utan att säga vad som var fel; koden konstaterar redan på
+        // två andra ställen att det ofta ger samma fel igen.
+        //
+        // RuleViolationException är kanalen getRecommendation redan byggt för "svaret dög
+        // inte": tom kvar-lista leder rakt till retryAfterRuleViolation, som pekar ut felet och
+        // upprepar kravet som en instruktion. Samma grepp som budgettaket och regelvakterna.
+        // Skarpt fall: elbil 350 000 kr, andra försöket av tre.
+        throw new RuleViolationException("AI:n returnerade ett oväntat svar. Försök igen.",
+                List.of(), List.of("(svaret innehöll inga bilar)"),
+                "Ditt förra svar innehöll INGA bilar i fältet \"recommendations\" — listan var tom"
+                + " eller låg under fel nyckel. Svara med EXAKT 3 bilar i en lista under nyckeln"
+                + " \"recommendations\", i formatet som beskrivs ovan.");
     }
 
     /**

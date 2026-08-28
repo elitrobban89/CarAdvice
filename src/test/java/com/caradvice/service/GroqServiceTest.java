@@ -2,6 +2,7 @@ package com.caradvice.service;
 
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
+import com.caradvice.model.CargoSpecDto;
 import com.caradvice.model.EvSpecDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -286,6 +287,55 @@ class GroqServiceTest {
                 .contains("MODELLER SOM RYMS I BUDGETEN");
         assertThat(GroqService.activeConstraints(formularetsElbilssok))
                 .contains("ren elbil");
+    }
+
+    // --- Fördelar som upprepar ett verifierat fält ---
+
+    private static final CargoSpecDto CARGO_490 = new CargoSpecDto(490, 1300);
+    private static final EvSpecDto EV_528 =
+            new EvSpecDto(528, 450, 370, 5, "ladda var 5:e dag", 77.0, 240, 11, 350_000, "", "EV", "NMC");
+
+    @Test
+    void fordelSomUppreparBagagesiffranFaller() {
+        // Skarpt fall: Kia EV6 hade "bagage 520 l" bland fördelarna medan bagagefältet ur
+        // cargo_spec sa 490 l. Två olika tal om samma bil på samma kort, och det i fördelarna
+        // var AI:ns gissning.
+        var pros = List.of("Stort bagageutrymme på 520 l", "Snabb DC-laddning", "Rymlig kupé");
+        assertThat(GroqService.utanDubblerandeSpec(pros, CARGO_490, null, "Kia EV6 (2022)"))
+                .containsExactly("Snabb DC-laddning", "Rymlig kupé");
+    }
+
+    @Test
+    void fordelSomUppreparRackviddenFaller() {
+        var pros = List.of("Räckvidd upp till 528 km WLTP", "Bra dragvikt", "Tyst gång");
+        assertThat(GroqService.utanDubblerandeSpec(pros, null, EV_528, "Kia EV6 (2022)"))
+                .containsExactly("Bra dragvikt", "Tyst gång");
+    }
+
+    @Test
+    void siffranBehallsNarKortetSaknarFaltet() {
+        // Utan rad i cargo_spec är AI:ns siffra den enda uppgift som finns, och då är den
+        // bättre än tomrum — samma fail open som bagage- och drivmedelsvakterna.
+        var pros = List.of("Stort bagageutrymme på 520 l", "Snabb DC-laddning", "Rymlig kupé");
+        assertThat(GroqService.utanDubblerandeSpec(pros, null, null, "Okänd (2022)")).isEqualTo(pros);
+    }
+
+    @Test
+    void fordelUtanSiffraBehalls() {
+        // "Smidig att lasta" gör inget anspråk på ett tal och konkurrerar därför inte med
+        // fältet — bara ord OCH siffra tillsammans är en dubblett.
+        var pros = List.of("Smidig att lasta", "Lång räckvidd i verklig körning", "Tyst gång");
+        assertThat(GroqService.utanDubblerandeSpec(pros, CARGO_490, EV_528, "Kia EV6 (2022)"))
+                .isEqualTo(pros);
+    }
+
+    @Test
+    void alltDubblettBehallsHellreAnEnTomLista() {
+        // Ett kort utan fördelar läser som ett renderingsfel. Priset för en dubblerad siffra
+        // är lägre än priset för en tom ruta.
+        var pros = List.of("Bagageutrymme 520 l", "Räckvidd 528 km", "Lastvolym 1 300 l");
+        assertThat(GroqService.utanDubblerandeSpec(pros, CARGO_490, EV_528, "Kia EV6 (2022)"))
+                .isEqualTo(pros);
     }
 
     // --- Väntetiden ur Groqs 429-svar ---
