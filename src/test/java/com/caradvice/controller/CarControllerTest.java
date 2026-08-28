@@ -1,5 +1,6 @@
 package com.caradvice.controller;
 
+import com.caradvice.model.EvSpecDto;
 import com.caradvice.repository.CargoSpecRepository;
 import com.caradvice.repository.EvSpecRepository;
 import com.caradvice.repository.RateLimitLogRepository;
@@ -1126,5 +1127,57 @@ class CarControllerTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.status").value("OK"))
            .andExpect(jsonPath("$.models.length()").value(2));
+    }
+
+    // ── /api/ev-spec ────────────────────────────────────────────────────────
+    // Publik väg till samma specsiffror som korten visar, för märkesväljaren i
+    // "Jämför bilar fritt". Den viktiga egenskapen är att en bil UTAN elbilsdata
+    // ger tomt objekt och 200 — inte 404, som hade tvingat frontenden att skilja
+    // "ingen elbil" från "tjänsten trasig" och rita ett felmeddelande på en Golf.
+
+    @Test
+    void evSpecGerSpecarnaForEnElbil() throws Exception {
+        when(evSpecService.formatForTitle("Kia EV6", 12430)).thenReturn(
+                new EvSpecDto(528, 470, 370, 12, "Ladda var 12:e dag", 77.4, 240, 11,
+                              459900, "Bra prisvärdhet", "EV", "NMC"));
+
+        mvc.perform(get("/api/ev-spec").param("car", "Kia EV6"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.wltpKm").value(528))
+           .andExpect(jsonPath("$.maxDcKw").value(240))
+           .andExpect(jsonPath("$.daysLabel").value("Ladda var 12:e dag"));
+    }
+
+    @Test
+    void evSpecGerTomtObjektForBilUtanElbilsdata() throws Exception {
+        when(evSpecService.formatForTitle(anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(null);
+
+        mvc.perform(get("/api/ev-spec").param("car", "Volkswagen Golf"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.wltpKm").doesNotExist());
+    }
+
+    @Test
+    void evSpecKorstrackanStyrLaddintervallet() throws Exception {
+        // Rutan ska säga samma sak som kortet hade sagt för samma sökning, och
+        // "ladda var N:e dag" är det enda talet som beror på körsträckan.
+        when(evSpecService.formatForTitle("Volvo EX30", 30000)).thenReturn(
+                new EvSpecDto(476, 420, 330, 5, "Ladda var 5:e dag", 69.0, 153, 11,
+                              379900, null, "EV", null));
+
+        mvc.perform(get("/api/ev-spec").param("car", "Volvo EX30").param("kmPerYear", "30000"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.daysLabel").value("Ladda var 5:e dag"));
+
+        verify(evSpecService).formatForTitle("Volvo EX30", 30000);
+    }
+
+    @Test
+    void evSpecUtanBilnamnGer400() throws Exception {
+        mvc.perform(get("/api/ev-spec").param("car", "   "))
+           .andExpect(status().isBadRequest());
+
+        verify(evSpecService, never()).formatForTitle(anyString(), org.mockito.ArgumentMatchers.anyInt());
     }
 }

@@ -667,6 +667,22 @@ public class CarController {
         return ResponseEntity.ok(iceConsumptionService.listForApi());
     }
 
+    // Publikt: verifierade elbilsspecar för EN bil. Rekommendationskorten får sina siffror
+    // med i svaret från /recommend, men märkesväljaren i "Jämför bilar fritt" väljer en modell
+    // långt innan någon jämförelse gjorts — och då fanns räckvidd, batteri och laddeffekt
+    // ingenstans att hämta utan admin-nyckel. Går genom SAMMA formatForTitle som korten, så
+    // väljaren aldrig kan visa andra siffror än kortet gör för samma bil.
+    //
+    // Tomt objekt när bilen inte finns i ev_spec (bensinbil, eller en elbil vi inte har) —
+    // 404 hade tvingat anroparen att skilja "ingen elbil" från "tjänsten trasig".
+    @GetMapping("/ev-spec")
+    public ResponseEntity<?> evSpecForCar(@RequestParam String car,
+                                          @RequestParam(defaultValue = "12430") int kmPerYear) {
+        if (car == null || car.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "ange car=<bil>"));
+        var dto = evSpecService.formatForTitle(car.trim(), kmPerYear);
+        return ResponseEntity.ok(dto == null ? Map.of() : dto);
+    }
+
     // Publikt: expertinsikter för ett bilkort (märke + helst modell måste matcha titeln) —
     // konsumeras av frontend efter att korten renderats, källan visas alltid
     @GetMapping("/insights")

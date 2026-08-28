@@ -77,6 +77,10 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // ALDRIG varit ihopfälld i drift — och mitt prov läste .hidden-EGENSKAPEN, som var true
     // hela tiden. Ett grönt prov som mäter fel sak är värre än inget prov.
     '#ca-fler[hidden]{display:none;}' +
+    '#ca-fc-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}' +
+    '#ca-fc-specs:empty{display:none;}' +
+    '#ca-fc-specs .ca-ev{margin:0;}' +
+    '@media(max-width:640px){#ca-fc-specs{grid-template-columns:1fr;}}' +
     // Valknapparna. Ikonen först och etiketten under: i en rad om fem blir texten smal, och
     // en ikon ovanför läser snabbare än en ikon bredvid när bredden är knapp.
     '.ca-chips{display:flex;flex-wrap:wrap;gap:7px;}' +
@@ -3384,6 +3388,7 @@ function caFcValjare(input) {
     if (m) {
       input.value = m.dataset.namn;
       stang();
+      caFcVisaSpec(input);
       if (typeof caCheckChanges === 'function') caCheckChanges();
     }
   });
@@ -3398,6 +3403,56 @@ function caFcValjare(input) {
   document.addEventListener('click', function (e) {
     if (!panel.hidden && !rot.contains(e.target) && e.target !== input) stang();
   });
+}
+
+// Specarna för en vald bil, nyckel = bilnamnet. Väljaren är gjord för att bläddras i, och
+// utan cache blev det ett nätanrop per klick på samma bil.
+var caFcSpecCache = {};
+
+/**
+ * Visar räckvidd, batteri och laddeffekt direkt när en modell valts — utan att man först
+ * måste göra en jämförelse.
+ *
+ * <p>Siffrorna kommer från /api/ev-spec, som går genom samma formatForTitle som
+ * rekommendationskorten, och renderas med samma caEvChips. Två vägar till samma bil får
+ * inte kunna visa olika tal.
+ *
+ * <p>Bensinbilar och elbilar vi inte har specar för ger tomt svar och därmed ingen ruta —
+ * inget felmeddelande, för det är inte ett fel att en bil saknar elbilsdata.
+ */
+function caFcVisaSpec(input) {
+  var pickers = document.querySelector('.ca-fc-pickers');
+  if (!pickers) return;
+  var rad = document.getElementById('ca-fc-specs');
+  if (!rad) {
+    rad = document.createElement('div');
+    rad.id = 'ca-fc-specs';
+    rad.innerHTML = '<div id="ca-fc-car1-spec"></div><div id="ca-fc-car2-spec"></div>';
+    pickers.parentNode.insertBefore(rad, pickers.nextSibling);
+  }
+  var box = document.getElementById(input.id + '-spec');
+  if (!box) return;
+
+  var namn = (input.value || '').trim();
+  if (!namn) { box.innerHTML = ''; return; }
+
+  // Körsträckan styr "ladda var N:e dag" — läs formulärets värde så rutan säger samma sak
+  // som kortet skulle ha gjort för samma sökning. Den ingår därför i cachenyckeln: annars
+  // hade en ändrad körsträcka fått tillbaka gamla laddintervallet ur cachen.
+  var milEl = document.getElementById('ca-km');
+  var km = milEl && parseInt(milEl.value) > 0 ? parseInt(milEl.value) * 10 : 12430;
+  var nyckel = namn + '@' + km;
+  if (caFcSpecCache[nyckel] !== undefined) { box.innerHTML = caFcSpecCache[nyckel]; return; }
+
+  fetch(CA_API_BASE + '/api/ev-spec?car=' + encodeURIComponent(namn) + '&kmPerYear=' + km)
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var html = (d && d.wltpKm > 0) ? caEvChips(d, 0) : '';
+      caFcSpecCache[nyckel] = html;
+      // Hann man byta bil medan svaret var i luften vinner det senare valet.
+      if ((input.value || '').trim() === namn) box.innerHTML = html;
+    })
+    .catch(function () { box.innerHTML = ''; });
 }
 
 function caFcInit() {
