@@ -950,11 +950,78 @@ class GroqServiceTest {
     }
 
     @Test
-    void hogBudgetFarIngenKandidatlista() {
-        // Ryms hela tabellen är listan bara brus som kostar tokens — och tokenbudgeten är den
-        // bindande gränsen (8 000/min hos Groq), inte appens sökkvot
-        assertThat(GroqService.affordableModelsLine(prefsMedBudget(400_000))).isEmpty();
+    void hogBudgetFarRadenOmBudgetensOvreDel() {
+        // Väntade TOM sträng fram till 2026-08-28, med motiveringen att listan bara var brus
+        // när hela tabellen rymdes. Brusinvändningen var riktig — slutsatsen var fel. Skarpt
+        // fall samma dag: 350 000 kr på elbil gav Nissan Leaf (golv 70 000) och Hyundai Kona
+        // Electric, eftersom taket 380 000 ligger över tabellens dyraste golv (EV6, 317 000)
+        // och `over` därför var tom. Styrningen försvann precis vid de budgetar där frågan
+        // inte längre är "vad har jag råd med" utan "vad ska jag välja".
+        //
+        // Nu skickas en KORT rad om budgetens övre del i stället för hela tabellen.
+        String rad = GroqService.affordableModelsLine(prefsMedBudget(400_000));
+        assertThat(rad)
+                .contains("UTNYTTJA BUDGETEN")
+                .contains("Kia EV6")
+                .contains("HÖGST ETT av tre")
+                .contains("Nissan Leaf");
+        // Hela tabellen med priser hör inte hemma här — det var den brusinvändningen handlade om
+        assertThat(rad).doesNotContain("MODELLER SOM RYMS");
     }
+
+    @Test
+    void ovreDelenPekarPaRattAndeAvTabellen() {
+        String rad = GroqService.ovreDelenAvBudgeten(350_000);
+        // Förstahandsvalen: golv >= 60 % av budgeten (210 000)
+        int forstahand = rad.indexOf("förstahandsval");
+        int forBilliga = rad.indexOf("HÖGST ETT");
+        assertThat(forstahand).isGreaterThan(-1);
+        assertThat(forBilliga).isGreaterThan(forstahand);
+        String ovre = rad.substring(forstahand, forBilliga);
+        assertThat(ovre).contains("Kia EV6").contains("Skoda Enyaq").contains("Hyundai Ioniq 5");
+        // Leaf och Zoe ligger under 35 % av budgeten och ska stå som för billiga, inte som val
+        assertThat(ovre).doesNotContain("Nissan Leaf").doesNotContain("Renault Zoe");
+        assertThat(rad.substring(forBilliga)).contains("Nissan Leaf").contains("Renault Zoe");
+    }
+
+    // --- Budgetgolvet: når något förslag upp mot budgeten? ---
+
+    @Test
+    void allaForslagLangtUnderBudgetenRaknasSomOanvandBudget() {
+        // Skarpa fallet: 350 000 kr gav Leaf och Kona Electric. Mätt på DYRASTE annonsen —
+        // finns inte ens ett dyrt exemplar i budgetens närhet är modellen en klass under.
+        var leaf = new BlocketPriceService.PriceRange(70_000, 189_000, 30, "...");
+        var kona = new BlocketPriceService.PriceRange(195_000, 239_000, 25, "...");
+        var ranges = Map.of("Nissan Leaf (2021)", leaf, "Hyundai Kona Electric (2022)", kona);
+        var bilar = List.of(bil("Nissan Leaf (2021)"), bil("Hyundai Kona Electric (2022)"));
+
+        assertThat(GroqService.utnyttjarBudgeten(bilar, ranges, 350_000)).isFalse();
+    }
+
+    @Test
+    void enBilSomNarBudgetenRacker() {
+        // Promptregeln säger uttryckligen att EN billig outlier är OK — vakten ska alltså
+        // fälla på att HELA svaret ligger lågt, aldrig på att ett av tre gör det.
+        var enyaq = new BlocketPriceService.PriceRange(279_000, 389_000, 40, "...");
+        var leaf = new BlocketPriceService.PriceRange(70_000, 189_000, 30, "...");
+        var ranges = Map.of("Skoda Enyaq (2022)", enyaq, "Nissan Leaf (2021)", leaf);
+        var bilar = List.of(bil("Skoda Enyaq (2022)"), bil("Nissan Leaf (2021)"));
+
+        assertThat(GroqService.utnyttjarBudgeten(bilar, ranges, 350_000)).isTrue();
+    }
+
+    @Test
+    void omattBilFallerAldrigPaBudgetgolvet() {
+        // Positivt bevis krävs, som i drivmedels- och SUV-vakterna: utan Blocket-data går det
+        // inte att avgöra, och en ensam annons får varken fria eller fälla (count < 2).
+        var bilar = List.of(bil("Okänd Modell (2022)"));
+        assertThat(GroqService.utnyttjarBudgeten(bilar, Map.of(), 350_000)).isTrue();
+
+        var ensam = Map.of("Okänd Modell (2022)",
+                new BlocketPriceService.PriceRange(50_000, 60_000, 1, "..."));
+        assertThat(GroqService.utnyttjarBudgeten(bilar, ensam, 350_000)).isTrue();
+    }
+
 
     @Test
     void kandidatlistanGallerBaraElbilssok() {

@@ -952,6 +952,23 @@ public class GroqService {
         //
         // Leasing stod utanför så länge Blocket inte hämtades där. Nu finns kr/mån att mäta mot,
         // och samma natt föreslogs Kia EV6 GT-Line på 8 295 kr/mån mot en 5 000-budget.
+        // GOLVET, mätt mot marknaden. Taket har haft tre lager sedan 2026-08-07 — validatorn,
+        // exceedsBudgetCeiling med sitt omförsök, och prompten. Golvet hade BARA promptregeln
+        // ("UTNYTTJA BUDGETEN ... en billig outlier är OK men aldrig som enda nivå"), och en
+        // promptregel är ett önskemål: samma lärdom som familje-, drivmedels- och SUV-vakterna,
+        // och som response_format. Skarpt fall 2026-08-28: elbil, 350 000 kr, 4 passagerare,
+        // 300 l bagage → Nissan Leaf och Hyundai Kona Electric, alla tre en klass under.
+        //
+        // Körs FÖRE takkontrollen så att båda mäter på samma data: omförsökets bilar skrivs in
+        // i samma ranges/nypriser, och taket får sista ordet över det golvet släppt fram.
+        //
+        // Bara begagnatköp. Nypris och leasing har egna prisvärldar, precis som golvvakten
+        // ovan (harGolvvakt) — och ett nybilssök kan inte "utnyttja budgeten" åt fel håll på
+        // samma sätt, där är nypriset given måttstock.
+        if (!isLeasing && !prefs.newCar() && !utnyttjarBudgeten(result, ranges, prefs.budget())) {
+            result = retryForBudgetUsage(prefs, systemPrompt, prompt, result, ranges, nypriser);
+        }
+
         Integer shortfall = null;
         List<CarRecommendation> over = overBudget(result, ranges, nypriser, prefs.budget(), isLeasing, prefs.newCar());
         if (!over.isEmpty()) {
@@ -1061,6 +1078,99 @@ public class GroqService {
     }
 
     /** Rekommendationer vars billigaste Blocket-annons — eller nypris när annonser saknas — ligger över taket. */
+    /** Andel av budgeten som minst en bil måste nå för att svaret ska räknas som ett svar på frågan. */
+    static final double BUDGET_GOLV_ANDEL = 0.70;
+
+    /**
+     * Når någon av bilarna upp mot budgeten?
+     *
+     * <p><b>Mätt på DYRASTE annonsen, inte på golvet.</b> Golvet är billigaste exemplaret, och
+     * en Škoda Enyaq med golv 279 000 kr är ett utmärkt svar på 350 000 — man får en nyare och
+     * bättre utrustad. Frågan är om det över huvud taget FINNS exemplar av modellen i
+     * budgetens närhet. Når inte ens den dyraste annonsen dit är modellen en klass under det
+     * användaren bett om, och då är svaret fel oavsett hur prisvärd bilen är.
+     *
+     * <p><b>Fäller bara på positivt bevis</b>, precis som drivmedels- och SUV-vakterna: en bil
+     * utan Blocket-data kan inte dömas, och finns ingen mätt bil alls svarar metoden ja. Två
+     * annonser krävs av samma skäl som i correctedPrice — en ensam fel- eller scamannons ska
+     * varken fria eller fälla.
+     */
+    static boolean utnyttjarBudgeten(List<CarRecommendation> cars,
+                                     Map<String, BlocketPriceService.PriceRange> ranges, int budgetKr) {
+        int krav = (int) Math.round(budgetKr * BUDGET_GOLV_ANDEL);
+        boolean nagonMatt = false;
+        for (CarRecommendation r : cars) {
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            if (pr == null || pr.count() < 2) continue;
+            nagonMatt = true;
+            if (pr.maxKr() >= krav) return true;
+        }
+        return !nagonMatt;
+    }
+
+    /**
+     * Ett omförsök när ingen av bilarna når budgeten — och det ORIGINALET behålls om omförsöket
+     * inte blev bättre.
+     *
+     * <p>Skillnaden mot takets omförsök är viktig: en bil över taket går inte att köpa, alltså
+     * MÅSTE den bort. En bil under budget är fullt köpbar, bara ett svar på en annan fråga —
+     * därför får den här vakten aldrig göra svaret tommare. Omförsöket vinner bara om det både
+     * utnyttjar budgeten OCH håller taket; i alla andra utfall står originalet kvar.
+     */
+    private List<CarRecommendation> retryForBudgetUsage(CarPreferences prefs, String systemPrompt, String prompt,
+                                                        List<CarRecommendation> original,
+                                                        Map<String, BlocketPriceService.PriceRange> ranges,
+                                                        Map<String, Integer> nypriser) {
+        String namn = original.stream().map(r -> {
+            BlocketPriceService.PriceRange pr = ranges.get(r.title());
+            return pr == null ? r.title()
+                    : r.title() + " (dyraste annons " + formatSekSpace(pr.maxKr()) + " kr)";
+        }).collect(java.util.stream.Collectors.joining(", "));
+        log.warn("Ingen bil når {} % av budgeten {} kr: {} — omförsök",
+                Math.round(BUDGET_GOLV_ANDEL * 100), prefs.budget(), namn);
+
+        String skarptPrompt = prompt + String.format("""
+
+                VIKTIGT — FÖRRA FÖRSÖKET UTNYTTJADE INTE BUDGETEN: %s. Inte ens de dyraste
+                annonserna för de bilarna ligger i närheten av budgeten %,d kr, alltså är de en
+                klass under det användaren frågat efter. Föreslå minst TVÅ bilar där %,d kr
+                räcker till något nyare, rymligare eller bättre utrustat. Den tredje får vara
+                ett billigare prisvärt alternativ.
+                """, namn, prefs.budget(), prefs.budget())
+                + ovreDelenAvBudgeten(prefs.budget());
+
+        try {
+            Map<String, Object> body = jsonCallBody(model, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> fallback = jsonCallBody(chatModel, 0.3, systemPrompt, skarptPrompt);
+            Map<String, Object> reserve = jsonCallBody(reserveModel, 0.3, systemPrompt, skarptPrompt);
+            HttpResponse<String> response = callGroqWithFallback(body, fallback, reserve);
+            if (response.statusCode() != 200) return original;
+
+            List<CarRecommendation> parsed = parseWithRetry(response, reserve,
+                    "getRecommendation (budgetgolv)", validatorFor(prefs));
+            // Samma ranges/nypriser som originalet: takkontrollen nedanför läser dem, och en
+            // egen karta hade lämnat de nya titlarna omätta och därmed osynliga för taket.
+            List<CarRecommendation> retried = enrichRecommendations(parsed, prefs.kmPerYear(),
+                    prefs.fuelType(), false, ranges, nypriser, prefs.newCar(),
+                    adFilterFor(prefs.fuelType(), prefs.carCategory(), prefs.transmission()));
+
+            if (retried.isEmpty()) return original;
+            if (!utnyttjarBudgeten(retried, ranges, prefs.budget())) {
+                log.warn("Omförsöket nådde inte heller budgeten — behåller originalet");
+                return original;
+            }
+            if (!overBudget(retried, ranges, nypriser, prefs.budget(), false, prefs.newCar()).isEmpty()) {
+                log.warn("Omförsöket utnyttjade budgeten men bröt taket — behåller originalet");
+                return original;
+            }
+            log.info("Budgetgolvet: omförsöket gav {}", retried.stream().map(CarRecommendation::title).toList());
+            return retried;
+        } catch (Exception e) {
+            log.warn("Omförsöket för budgetgolvet misslyckades: {} — behåller originalet", e.toString());
+            return original;
+        }
+    }
+
     private static List<CarRecommendation> overBudget(List<CarRecommendation> recs,
                                                       Map<String, BlocketPriceService.PriceRange> ranges,
                                                       Map<String, Integer> nypriser,
@@ -2409,12 +2519,59 @@ public class GroqService {
                 .filter(e -> e.getValue() > tak)
                 .map(Map.Entry::getKey)
                 .toList();
-        if (over.isEmpty() || ryms.isEmpty()) return "";
+        if (ryms.isEmpty()) return "";
+
+        // RYMS HELA TABELLEN fick raden falla bort ända till 2026-08-28, med motiveringen att
+        // den då bara var brus som kostade tokens. Skarpt fall samma dag: budget 350 000 kr,
+        // elbil — taket blev 380 000 och tabellens dyraste golv är Kia EV6 på 317 000, alltså
+        // var `over` tom och HELA styrningen avstängd. Svaret blev Nissan Leaf (golv 70 000)
+        // och Hyundai Kona Electric. Styrningen försvann alltså precis vid de budgetar där
+        // frågan inte längre är "vad har jag råd med" utan "vad ska jag välja".
+        //
+        // Vid hög budget skickas därför en KORT rad om budgetens övre del i stället för hela
+        // tabellen — brusinvändningen var riktig, det var slutsatsen som var fel.
+        String ovreDel = ovreDelenAvBudgeten(prefs.budget());
+        if (over.isEmpty()) return ovreDel;
 
         return " MODELLER SOM RYMS I BUDGETEN (uppmätta begagnatgolv, billigaste exemplar): "
                 + String.join(", ", ryms) + ". Utgå från dessa. Följande ligger ÖVER taket "
                 + tak + " kr och kastas av kontrollen även om de passar profilen i övrigt: "
-                + String.join(", ", over) + ".";
+                + String.join(", ", over) + "." + ovreDel;
+    }
+
+    /** Golvet räknat som andel av budgeten: modeller häröver hör hemma i budgetens övre del. */
+    static final double BUDGET_OVRE_DEL_ANDEL = 0.60;
+    /** Under den här andelen av budgeten är modellen ett billigare alternativ, inte ett svar. */
+    static final double BUDGET_LANGT_UNDER_ANDEL = 0.35;
+
+    /**
+     * Vilka modeller som hör hemma i budgetens övre del, och vilka som är för billiga för att
+     * vara mer än ett prisvärt alternativ.
+     *
+     * <p>Golven är BILLIGASTE ANNONS, inte vad budgeten köper: en Enyaq med golv 279 000 kr är
+     * rätt bil för 350 000 — man får bara en nyare och bättre utrustad. Därför säger raden
+     * inget om exakta priser, bara vilken ände av tabellen frågan gäller.
+     *
+     * <p>Tom sträng när uppdelningen inte säger något: utan billiga modeller finns inget att
+     * varna för, och utan dyra finns inget att peka på.
+     */
+    static String ovreDelenAvBudgeten(int budgetKr) {
+        int ovreGrans = (int) Math.round(budgetKr * BUDGET_OVRE_DEL_ANDEL);
+        int langtUnder = (int) Math.round(budgetKr * BUDGET_LANGT_UNDER_ANDEL);
+        List<String> ovre = EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() >= ovreGrans && e.getValue() <= budgetKr + BUDGET_CEILING_MARGIN_KR)
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(Map.Entry::getKey)
+                .toList();
+        List<String> billiga = EV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() < langtUnder)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (ovre.isEmpty() || billiga.isEmpty()) return "";
+        return " UTNYTTJA BUDGETEN: dessa ligger i budgetens övre del och är förstahandsval — "
+                + String.join(", ", ovre) + ". Följande är byggda för en betydligt lägre budget"
+                + " och får vara HÖGST ETT av tre förslag, aldrig hela svaret: "
+                + String.join(", ", billiga) + ".";
     }
 
     /**
