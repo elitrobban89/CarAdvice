@@ -232,7 +232,74 @@
     "@keyframes ev-slide-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}" +
     "@keyframes ev-slide-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-8px)}}" +
     ".ev-slide-entering{animation:ev-slide-in .5s cubic-bezier(.22,1,.36,1) forwards;}" +
-    ".ev-slide-leaving{animation:ev-slide-out .35s ease forwards;pointer-events:none;position:absolute;top:0;left:0;width:100%;}";
+    ".ev-slide-leaving{animation:ev-slide-out .35s ease forwards;pointer-events:none;position:absolute;top:0;left:0;width:100%;}" +
+
+    // --- Märkesväljaren -----------------------------------------------------
+    // Ligger här och inte i sidans <style> av samma skäl som allt annat i den här
+    // funktionen: WP-sidan är en manuell kopia och uppdateras inte av en deploy.
+    ".ev-picker{position:relative;}" +
+    // Avtryckaren är byggd att se ut EXAKT som .ev-select — samma padding, ram, radie och
+    // fokusring — så bytet inte läser som ett främmande element mitt i formuläret.
+    ".ev-picker-trigger{width:100%;display:flex;align-items:center;gap:10px;padding:9px 14px 9px 9px;background:#060c1a;border:1.5px solid rgba(59,130,246,0.18);border-radius:10px;color:#f0f4ff;font-size:.92rem;font-family:inherit;text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s;}" +
+    ".ev-picker-trigger:hover{border-color:rgba(59,130,246,0.45);}" +
+    ".ev-picker-trigger:focus-visible{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}" +
+    ".ev-picker-open .ev-picker-trigger{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}" +
+    ".ev-picker-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(200,215,255,0.5);}" +
+    ".ev-picker-vald{color:#f0f4ff;font-weight:600;}" +
+    ".ev-picker-chevron{color:#3b82f6;font-size:.8rem;transition:transform .25s cubic-bezier(.22,1,.36,1);}" +
+    ".ev-picker-open .ev-picker-chevron{transform:rotate(180deg);}" +
+
+    // Emblemet: monogram i märkets färg. --emblem sätts per knapp, så en enda regel bär
+    // alla 64 märkena i stället för 64 klasser.
+    ".ev-picker-emblem{flex-shrink:0;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;letter-spacing:.02em;color:var(--emblem,#93c5fd);background:color-mix(in srgb,var(--emblem,#3b82f6) 14%,transparent);border:1.5px solid color-mix(in srgb,var(--emblem,#3b82f6) 38%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:transform .2s cubic-bezier(.22,1,.36,1),box-shadow .2s;}" +
+    // color-mix saknas i äldre webbläsare och ger då ingen bakgrund alls — reservregeln
+    // nedan körs bara där stödet fattas och håller plattan synlig.
+    "@supports not (background:color-mix(in srgb,red 10%,transparent)){.ev-picker-emblem{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.38);}}" +
+    ".ev-picker-emblem-tom{color:#3b82f6;background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.25);font-size:1rem;}" +
+    ".ev-picker-emblem-sm{width:26px;height:26px;border-radius:7px;font-size:.62rem;}" +
+
+    ".ev-picker-panel{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 8px);background:#0d1526;border:1.5px solid rgba(59,130,246,0.28);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.55);padding:12px;animation:ev-picker-in .22s cubic-bezier(.22,1,.36,1);}" +
+    "@keyframes ev-picker-in{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}" +
+    ".ev-picker-search{width:100%;padding:9px 12px;margin-bottom:10px;background:#060c1a;border:1.5px solid rgba(59,130,246,.2);border-radius:9px;color:#f0f4ff;font-size:.86rem;font-family:inherit;}" +
+    ".ev-picker-search:focus{outline:none;border-color:#3b82f6;}" +
+    ".ev-picker-search::placeholder{color:rgba(200,215,255,.35);}" +
+
+    // De två stegen ligger sida vid sida i ett dubbelbrett spår som skjuts i sidled. Att
+    // glida är inte dekoration: det visar att modellerna ligger INUTI märket man tryckte på,
+    // så vägen tillbaka blir självklar.
+    ".ev-picker-steps{display:flex;width:200%;transition:transform .32s cubic-bezier(.22,1,.36,1);}" +
+    ".ev-picker-steps.ev-picker-at-models{transform:translateX(-50%);}" +
+    ".ev-picker-step{width:50%;flex-shrink:0;max-height:326px;overflow-y:auto;overscroll-behavior:contain;}" +
+    "@media (prefers-reduced-motion:reduce){.ev-picker-steps{transition:none;}.ev-picker-panel{animation:none;}}" +
+
+    ".ev-picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px;padding:1px;}" +
+    ".ev-picker-brand{display:flex;align-items:center;gap:9px;padding:8px;background:rgba(59,130,246,.04);border:1.5px solid rgba(59,130,246,.14);border-radius:11px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,background .16s,transform .16s;}" +
+    ".ev-picker-brand:hover{background:rgba(59,130,246,.11);border-color:rgba(59,130,246,.42);transform:translateY(-1px);}" +
+    ".ev-picker-brand:hover .ev-picker-emblem{transform:scale(1.07);}" +
+    ".ev-picker-brand:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
+    ".ev-picker-brand-txt{display:flex;flex-direction:column;min-width:0;}" +
+    // Långa märkesnamn kapas med ellips i stället för att bryta raden: "Mercedes-Benz" och
+    // "Rolls-Royce" gjorde annars plattan dubbelt så hög som grannens.
+    ".ev-picker-brand-name{font-size:.82rem;font-weight:700;color:#f0f4ff;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
+    ".ev-picker-brand-count{font-size:.66rem;color:rgba(200,215,255,.45);line-height:1.3;white-space:nowrap;}" +
+
+    ".ev-picker-back-row{display:flex;align-items:center;gap:9px;padding:0 2px 10px;position:sticky;top:0;background:#0d1526;z-index:2;}" +
+    ".ev-picker-back{background:none;border:none;color:#3b82f6;font-size:.78rem;font-weight:700;cursor:pointer;padding:4px 6px 4px 0;font-family:inherit;}" +
+    ".ev-picker-back:hover{color:#93c5fd;}" +
+    ".ev-picker-brand-head{font-size:.86rem;font-weight:800;color:#f0f4ff;}" +
+    ".ev-picker-model-list{display:flex;flex-direction:column;gap:5px;padding:1px;}" +
+    ".ev-picker-model{display:flex;flex-direction:column;gap:2px;padding:9px 11px;background:rgba(59,130,246,.04);border:1.5px solid rgba(59,130,246,.13);border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,background .16s;}" +
+    ".ev-picker-model:hover{background:rgba(59,130,246,.11);border-color:rgba(59,130,246,.42);}" +
+    ".ev-picker-model:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
+    ".ev-picker-model-name{font-size:.84rem;font-weight:600;color:#f0f4ff;}" +
+    ".ev-picker-model-specs{font-size:.7rem;color:rgba(200,215,255,.45);}" +
+    ".ev-picker-tom{padding:22px 10px;text-align:center;font-size:.82rem;color:rgba(200,215,255,.45);}" +
+    // Under 500 px blir rutnätet två kolumner och panelen lite lägre, så tangentbordet på
+    // mobilen inte täcker hela listan.
+    "@media (max-width:500px){.ev-picker-grid{grid-template-columns:repeat(2,1fr);}.ev-picker-step{max-height:270px;}.ev-picker-trigger{font-size:1rem;}.ev-picker-search{font-size:1rem;}}" +
+    // Hjälpraden under körsträckan
+    ".ev-mil-hint{font-size:.7rem;color:rgba(200,215,255,.45);margin-top:6px;line-height:1.4;}" +
+    ".ev-mil-hint b{color:rgba(147,197,253,.8);font-weight:700;}";
     document.head.appendChild(s);
   })();
 
@@ -339,6 +406,280 @@
     aterstallBilText = bilVantetext(document.getElementById("ev-car-select"));
   }, VANTETEXT_MS);
 
+  // ---------------------------------------------------------------------------
+  // MÄRKESVÄLJAREN: bilmärke först, modellerna sedan
+  //
+  // Rullgardinen bar 462 bilar i EN lista. Att hitta sin egen bil betydde att rulla förbi
+  // 31 andra Mercedes-modeller, och märkena låg utspridda mitt bland modellnamnen. Nu är
+  // det två steg: 64 märken i ett rutnät, och först när man valt märke visas det märkets
+  // modeller.
+  //
+  // BYGGD HELT I JS, MED FLIT. WP-sidan är en manuell kopia av elbilsladdning-web.html —
+  // ny markup där syns inte förrän sidan klistras om för hand. Väljaren skapas därför ur
+  // den <select> som redan finns: selecten blir kvar i DOM:en (dold) och är fortfarande
+  // sanningen. Väljaren sätter `sel.value` och skickar ett "change"-event, så allt nedanför
+  // — state.carIndex, renderSpecs, fetchAndRender — körs oförändrat och märker aldrig att
+  // gränssnittet bytts ut. Samma skäl som bakom att stilarna injiceras i injectStyles.
+  // ---------------------------------------------------------------------------
+
+  // Handplockade färger för de märken vi har flest bilar av; resten får en färg ur paletten
+  // via namnets teckensumma, så samma märke alltid får samma färg mellan sidladdningar.
+  const MARKESFARG = {
+    "Tesla": "#e11d48", "BMW": "#0ea5e9", "Mercedes-Benz": "#94a3b8", "Volkswagen": "#3b82f6",
+    "Audi": "#ef4444", "Volvo": "#60a5fa", "Polestar": "#e2e8f0", "Kia": "#f43f5e",
+    "Hyundai": "#38bdf8", "Škoda": "#22c55e", "Porsche": "#eab308", "Renault": "#facc15",
+    "Peugeot": "#3b82f6", "Citroën": "#ef4444", "Opel": "#f59e0b", "Ford": "#2563eb",
+    "Toyota": "#dc2626", "Nissan": "#f87171", "MG": "#f43f5e", "BYD": "#ef4444",
+    "Mini": "#fbbf24", "Fiat": "#a3e635", "CUPRA": "#f97316", "Smart": "#facc15",
+    "Lexus": "#cbd5e1", "Mazda": "#60a5fa", "Honda": "#f87171", "Subaru": "#818cf8",
+    "Dacia": "#4ade80", "Jeep": "#a3e635", "Alpine": "#38bdf8", "XPENG": "#22d3ee"
+  };
+  const RESERVPALETT = ["#3b82f6", "#22c55e", "#f59e0b", "#818cf8", "#ec4899",
+                        "#14b8a6", "#f97316", "#a78bfa", "#06b6d4", "#84cc16"];
+
+  function markesfarg(marke) {
+    if (MARKESFARG[marke]) return MARKESFARG[marke];
+    let sum = 0;
+    for (let i = 0; i < marke.length; i++) sum += marke.charCodeAt(i);
+    return RESERVPALETT[sum % RESERVPALETT.length];
+  }
+
+  /**
+   * Märket ur bilnamnet. Namnen bär inget eget märkesfält — ev_spec har bara car_name —
+   * så första ordet får duga, med tre uppmätta undantag bland de 462 namnen:
+   *   "Alfa Romeo Junior…"  första ordet ger "Alfa", som inte är ett märke
+   *   "MG4 Standard"        egen grupp bredvid "MG" — 5 bilar som hörde hemma bland de 15
+   *   "firefly …"           gemener, hamnade sist i en skiftlägeskänslig sortering
+   */
+  function markeAv(namn) {
+    const n = (namn || "").trim();
+    if (/^Alfa\s+Romeo/i.test(n)) return "Alfa Romeo";
+    const forsta = n.split(/\s+/)[0] || "";
+    if (/^MG\d/i.test(forsta)) return "MG";
+    if (forsta.toLowerCase() === "firefly") return "Firefly";
+    return forsta;
+  }
+
+  // Modellnamnet utan märkesprefix — men BARA när prefixet faktiskt står där. "MG4 Trophy"
+  // hör till märket MG utan att börja på "MG ", och att korta den till "4 Trophy" hade
+  // gjort raden obegriplig.
+  function modellAv(namn, marke) {
+    const n = (namn || "").trim();
+    return n.toLowerCase().startsWith(marke.toLowerCase() + " ") ? n.slice(marke.length + 1) : n;
+  }
+
+  // Emblemet är märkets initialer. Riktiga bilmärkesloggor är varumärkesskyddade och finns
+  // inte i repot — en monogramplatta i märkets färg ger igenkänningen utan att hämta bilder
+  // från någon annans server.
+  function emblemText(marke) {
+    if (/^[A-ZÅÄÖ&]{2,4}$/.test(marke)) return marke.slice(0, 3);   // BMW, MG, BYD, GWM, NIO
+    const ord = marke.split(/[\s-]+/).filter(Boolean);
+    if (ord.length > 1) return (ord[0][0] + ord[1][0]).toUpperCase();
+    return marke.slice(0, 2).toUpperCase();
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function skapaMarkesvaljare() {
+    const sel = document.getElementById("ev-car-select");
+    if (!sel) return null;
+    sel.style.display = "none";
+
+    const rot = document.createElement("div");
+    rot.className = "ev-picker";
+    rot.innerHTML =
+      '<button type="button" class="ev-picker-trigger" aria-haspopup="listbox" aria-expanded="false">' +
+        '<span class="ev-picker-emblem ev-picker-emblem-tom">⚡</span>' +
+        '<span class="ev-picker-text">Välj bilmärke…</span>' +
+        '<span class="ev-picker-chevron">▾</span>' +
+      '</button>' +
+      '<div class="ev-picker-panel" hidden>' +
+        '<input type="text" class="ev-picker-search" placeholder="Sök märke eller modell — skriv T för Tesla" autocomplete="off">' +
+        '<div class="ev-picker-steps">' +
+          '<div class="ev-picker-step ev-picker-brands"></div>' +
+          '<div class="ev-picker-step ev-picker-models"></div>' +
+        '</div>' +
+      '</div>';
+    sel.parentNode.insertBefore(rot, sel.nextSibling);
+
+    const trigger = rot.querySelector(".ev-picker-trigger");
+    const panel   = rot.querySelector(".ev-picker-panel");
+    const steps   = rot.querySelector(".ev-picker-steps");
+    const sok     = rot.querySelector(".ev-picker-search");
+    const brands  = rot.querySelector(".ev-picker-brands");
+    const models  = rot.querySelector(".ev-picker-models");
+
+    let bilar = [];
+    let marken = [];            // [{ marke, bilar: [{ index, namn, modell, spec }] }]
+    let aktivtMarke = null;
+    let laddar = true;
+
+    function stang() {
+      panel.hidden = true;
+      rot.classList.remove("ev-picker-open");
+      trigger.setAttribute("aria-expanded", "false");
+    }
+    function oppna() {
+      if (laddar) return;
+      panel.hidden = false;
+      rot.classList.add("ev-picker-open");
+      trigger.setAttribute("aria-expanded", "true");
+      sok.value = "";
+      aktivtMarke = null;
+      ritaMarken("");
+      visaSteg(1);
+      // Fokus först när panelen målats, annars scrollar mobilen till fel läge
+      setTimeout(function () { sok.focus({ preventScroll: true }); }, 30);
+    }
+    function visaSteg(n) {
+      steps.classList.toggle("ev-picker-at-models", n === 2);
+    }
+
+    function ritaMarken(filter) {
+      const f = (filter || "").trim().toLowerCase();
+      // EN bokstav betyder "hoppa till bokstaven" — märken som BÖRJAR på den, inget annat.
+      // Uppmätt i harnessen: med samma delsträngsregel som för längre sökningar gav "T"
+      // 48 av 63 märken, eftersom nästan varje märke har ett t någonstans i sina modellnamn.
+      // Det är raka motsatsen till vad ett bokstavstryck ska göra.
+      //
+      // Från två tecken och uppåt matchar filtret märket ELLER någon av dess modeller:
+      // skriver man "enyaq" ska Škoda stå kvar, annars ser det ut som att bilen inte finns.
+      const traffar = marken.filter(function (m) {
+        if (!f) return true;
+        const namn = m.marke.toLowerCase();
+        if (f.length === 1) return namn.charAt(0) === f;
+        return namn.indexOf(f) !== -1
+            || m.bilar.some(function (b) { return b.namn.toLowerCase().indexOf(f) !== -1; });
+      });
+      if (!traffar.length) {
+        brands.innerHTML = '<div class="ev-picker-tom">Ingen bil matchar “' + esc(f) + '”.</div>';
+        return;
+      }
+      brands.innerHTML = '<div class="ev-picker-grid">' + traffar.map(function (m) {
+        return '<button type="button" class="ev-picker-brand" data-marke="' + esc(m.marke) + '">' +
+          '<span class="ev-picker-emblem" style="--emblem:' + markesfarg(m.marke) + '">' + esc(emblemText(m.marke)) + '</span>' +
+          // Texten i en egen kolumn: som syskon till emblemet i samma flexrad hamnade namn
+          // och antal bredvid varandra, och "Alfa Romeo" och "Citroën" bröt då över två rader
+          // med antalet hängande i luften.
+          '<span class="ev-picker-brand-txt">' +
+            '<span class="ev-picker-brand-name">' + esc(m.marke) + '</span>' +
+            '<span class="ev-picker-brand-count">' + m.bilar.length + (m.bilar.length === 1 ? ' modell' : ' modeller') + '</span>' +
+          '</span>' +
+        '</button>';
+      }).join("") + '</div>';
+    }
+
+    function ritaModeller(marke, filter) {
+      const grupp = marken.find(function (m) { return m.marke === marke; });
+      if (!grupp) return;
+      aktivtMarke = marke;
+      const f = (filter || "").trim().toLowerCase();
+      const lista = grupp.bilar.filter(function (b) { return !f || b.namn.toLowerCase().indexOf(f) !== -1; });
+      models.innerHTML =
+        '<div class="ev-picker-back-row">' +
+          '<button type="button" class="ev-picker-back">‹ Alla märken</button>' +
+          '<span class="ev-picker-emblem ev-picker-emblem-sm" style="--emblem:' + markesfarg(marke) + '">' + esc(emblemText(marke)) + '</span>' +
+          '<span class="ev-picker-brand-head">' + esc(marke) + '</span>' +
+        '</div>' +
+        '<div class="ev-picker-model-list">' + lista.map(function (b) {
+          return '<button type="button" class="ev-picker-model" data-index="' + b.index + '">' +
+            '<span class="ev-picker-model-name">' + esc(b.modell) + '</span>' +
+            '<span class="ev-picker-model-specs">' + esc(b.spec) + '</span>' +
+          '</button>';
+        }).join("") + '</div>';
+    }
+
+    // Klicken tas emot på panelen i stället för på varje knapp: rutnätet ritas om vid varje
+    // tangenttryckning, och lyssnare per knapp hade behövt sättas om lika ofta.
+    panel.addEventListener("click", function (e) {
+      const brandBtn = e.target.closest(".ev-picker-brand");
+      if (brandBtn) { sok.value = ""; ritaModeller(brandBtn.dataset.marke, ""); visaSteg(2); sok.focus({ preventScroll: true }); return; }
+      if (e.target.closest(".ev-picker-back")) { sok.value = ""; aktivtMarke = null; ritaMarken(""); visaSteg(1); return; }
+      const modelBtn = e.target.closest(".ev-picker-model");
+      if (modelBtn) { valj(parseInt(modelBtn.dataset.index, 10)); stang(); }
+    });
+
+    sok.addEventListener("input", function () {
+      // Söker man medan ett märke är öppet filtreras det märkets modeller. Blir sökningen
+      // tom igen backar vi ut till rutnätet — annars sitter man fast i ett märke.
+      if (aktivtMarke && steps.classList.contains("ev-picker-at-models")) {
+        if (!this.value.trim()) { aktivtMarke = null; ritaMarken(""); visaSteg(1); return; }
+        ritaModeller(aktivtMarke, this.value);
+        return;
+      }
+      ritaMarken(this.value);
+    });
+
+    sok.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { stang(); trigger.focus(); return; }
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      // Enter när bara ett märke är kvar öppnar det direkt — "tesla" + Enter är hela vägen
+      // fram utan att lyfta handen från tangentbordet.
+      if (!steps.classList.contains("ev-picker-at-models")) {
+        const kvar = brands.querySelectorAll(".ev-picker-brand");
+        if (kvar.length === 1) { this.value = ""; ritaModeller(kvar[0].dataset.marke, ""); visaSteg(2); }
+        return;
+      }
+      const enda = models.querySelectorAll(".ev-picker-model");
+      if (enda.length === 1) { valj(parseInt(enda[0].dataset.index, 10)); stang(); }
+    });
+
+    trigger.addEventListener("click", function () { if (panel.hidden) oppna(); else stang(); });
+    document.addEventListener("click", function (e) {
+      if (!panel.hidden && !rot.contains(e.target)) stang();
+    });
+
+    function valj(index) {
+      if (isNaN(index)) return;
+      const bil = bilar[index];
+      if (!bil) return;
+      const marke = markeAv(bil.name);
+      trigger.innerHTML =
+        '<span class="ev-picker-emblem" style="--emblem:' + markesfarg(marke) + '">' + esc(emblemText(marke)) + '</span>' +
+        '<span class="ev-picker-text ev-picker-vald">' + esc(bil.name) + '</span>' +
+        '<span class="ev-picker-chevron">▾</span>';
+      // Selecten är fortfarande sanningen: allt nedanför lyssnar på DEN, inte på väljaren.
+      sel.value = String(index);
+      sel.dispatchEvent(new Event("change"));
+    }
+
+    return {
+      fyll: function (cars) {
+        bilar = cars;
+        laddar = false;
+        const karta = new Map();
+        cars.forEach(function (c, i) {
+          const marke = markeAv(c.name);
+          if (!karta.has(marke)) karta.set(marke, []);
+          const bat = c.batteryKwh
+            ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + " kWh · " : "";
+          karta.get(marke).push({
+            index: i, namn: c.name, modell: modellAv(c.name, marke),
+            spec: bat + "AC " + c.maxAcKw + " kW · DC " + c.maxDcKw + " kW"
+          });
+        });
+        // localeCompare med "sv": utan den hamnar Škoda efter Zeekr och firefly allra sist.
+        marken = Array.from(karta).map(function (par) { return { marke: par[0], bilar: par[1] }; })
+                      .sort(function (a, b) { return a.marke.localeCompare(b.marke, "sv"); });
+        trigger.querySelector(".ev-picker-text").textContent = "Välj bilmärke…";
+        trigger.classList.add("ev-picker-klar");
+      },
+      vantar: function () {
+        trigger.querySelector(".ev-picker-text").textContent = "Tjänsten startar — bilarna dyker upp strax…";
+      },
+      fel: function () {
+        laddar = true;
+        trigger.querySelector(".ev-picker-text").textContent = "Kunde inte hämta bilar";
+      }
+    };
+  }
+
+  const markesvaljare = skapaMarkesvaljare();
+
   fetch(API + "/api/cars")
     .then(r => r.json())
     .then(cars => {
@@ -352,11 +693,13 @@
         o.value = i; o.textContent = `${c.name}  (${bat}AC ${c.maxAcKw} kW · DC ${c.maxDcKw} kW)`;
         sel.appendChild(o);
       });
+      if (markesvaljare) markesvaljare.fyll(cars);
       evDataKlar();
     })
     .catch(() => {
       clearTimeout(bilVantetimer);
       document.getElementById("ev-car-select").innerHTML = "<option>Kunde inte hämta bilar</option>";
+      if (markesvaljare) markesvaljare.fel();
       evDataKlar();
     });
 
@@ -473,6 +816,31 @@
   function conLabel(t) { return { type2:"Type 2", ccs:"CCS", chademo:"CHAdeMO" }[t] || t; }
 
   document.getElementById("ev-daily-mil").addEventListener("input", renderSpecs);
+
+  // Årlig körsträcka förvald till den genomsnittliga svenskens 1 243 mil.
+  //
+  // Fältet stod tomt, och laddfrekvensbadgen ("ladda var 4:e dag") är den enda uppgiften i
+  // hela specraden som KRÄVER en körsträcka — chargingFreqBadge returnerar null utan den.
+  // Alltså saknade badgen tills man råkade fylla i rutan, och en bil man valde såg ut att
+  // sakna uppgiften helt. Ett förval gör att raden alltid renderas komplett, och siffran är
+  // inte gissad: den är riksgenomsnittet, alltså rätt svar för den som inte vet sitt eget.
+  //
+  // Skriver användaren något eget rörs det aldrig — förvalet sätts bara i ett tomt fält, så
+  // en ifylld siffra överlever att skriptet körs om.
+  //
+  // step=1 sätts här: markupen har step=100, och 1243 är inte en multipel av 100. Talet blir
+  // då stepMismatch, vilket gör fältet :invalid och får pilarna att hoppa till 1200/1300.
+  const SVENSK_SNITTMIL = 1243;
+  (function forvaljKorstracka() {
+    const f = document.getElementById("ev-daily-mil");
+    if (!f) return;
+    f.step = "1";
+    if (!f.value) f.value = String(SVENSK_SNITTMIL);
+    const hint = document.createElement("div");
+    hint.className = "ev-mil-hint";
+    hint.innerHTML = "Förvalt: <b>1 243 mil/år</b> — genomsnittssvensken. Ändra till din egen siffra.";
+    f.parentNode.insertBefore(hint, f.nextSibling);
+  })();
 
   function chargingFreqBadge(rangeMil) {
     const annualMil = parseFloat(document.getElementById("ev-daily-mil").value);
