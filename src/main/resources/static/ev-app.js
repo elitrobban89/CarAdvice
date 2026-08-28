@@ -653,7 +653,16 @@
   const MARKESEMBLEM = {
     "Mercedes-Benz": "mercedes", "Volkswagen": "volkswagen", "BMW": "bmw", "Škoda": "skoda",
     "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla",
-    "Citroën": "citroen", "Kia": "kia", "Volvo": "volvo", "Toyota": "toyota"
+    "Citroën": "citroen", "Kia": "kia", "Volvo": "volvo", "Toyota": "toyota",
+    "Renault": "renault", "Opel": "opel", "BYD": "byd", "CUPRA": "cupra", "Mini": "mini",
+    "NIO": "nio", "Polestar": "polestar", "Subaru": "subaru", "Alpine": "alpine",
+    "Geely": "geely", "Jeep": "jeep", "KGM": "kgm", "VinFast": "vinfast", "Fiat": "fiat",
+    "Dacia": "dacia", "Honda": "honda", "JAC": "jac", "Mitsubishi": "mitsubishi",
+    "Rolls-Royce": "rollsroyce",  "Lexus": "lexus", 
+     "GWM": "gwm",  
+      "Nissan": "nissan", "Mazda": "mazda", "Suzuki": "suzuki",
+       
+    "Mercedes": "mercedes"
   };
 
   /**
@@ -1175,7 +1184,7 @@
     mer:        "https://mer.eco/se/",
     allego:     "https://www.allego.eu/sv/",
     eviny:      "https://www.eviny.no/en/ev-charging/",
-    st1:        "https://www.st1.se/tanka/el",
+    st1:        "https://www.st1.se/tanka/el"
   };
 
   function operatorUrl(name) {
