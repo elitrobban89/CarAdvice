@@ -43,6 +43,27 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.body || document.documentElement).appendChild(s);
 })();
 
+// Emblemet på bilkortet. Egen injektion av samma skäl som mobil-CSS:en ovan: WP-sidan är
+// en manuell kopia och ska slippa klistras om för en ren stiländring.
+//
+// VIT platta. Logotyperna är gjorda för ljus botten — på en mörk blir Mercedes-stjärnan,
+// VW-ringen och Audi-ringarna nästan osynliga. Mätt på kontaktark i Elbilsassistenten
+// innan valet gjordes, och samma slutsats gäller här.
+(function caEmblemCss() {
+  if (document.getElementById('ca-emblem-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-emblem-css';
+  s.textContent = '.ca-title-rad{display:flex;align-items:center;gap:11px;}' +
+    '.ca-title-rad h3{margin:0;}' +
+    '.ca-emblem{width:38px;height:38px;flex-shrink:0;border-radius:10px;background:#fff;' +
+    'border:1.5px solid rgba(255,255,255,.5);padding:5px;box-sizing:border-box;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'box-shadow:0 2px 10px rgba(0,0,0,.35);}' +
+    '.ca-emblem img{width:100%;height:100%;object-fit:contain;display:block;}' +
+    '@media(max-width:520px){.ca-emblem{width:32px;height:32px;padding:4px;}}';
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 // Polish-lager: mer glöd + glasmorphism + skiftande lila. Injiceras (som mobil-CSS:en)
 // så WP-sidan slipper omklistring; läggs sist i <body> → vinner över snippetens inline-<style>.
 (function caPolishCss() {
@@ -1513,6 +1534,47 @@ function caFetchBudgetAlternatives() {
     .catch(function() {});
 }
 
+// ── Märkesemblem på bilkorten ────────────────────────────────────────────────
+// Samma filer som Elbilsassistenten använder, och de serveras redan härifrån
+// (/ev-emblem/*.svg) — appen behöver alltså varken ny fil eller nytt beroende.
+//
+// Alla är public domain på Wikimedia Commons. Commons märker dem samtidigt "trademarked":
+// det är varumärket och inte licensen, och att visa märket intill just den bilen är den
+// beskrivande användning varje bilsajt gör.
+//
+// Listan är de slugs som FAKTISKT finns i katalogen. Alternativet — att gissa filnamnet ur
+// märket och låta 404:an bli fallbacken — hade gett en misslyckad förfrågan per okänt märke
+// vid varje sökning, och CarAdvices bildatabas har långt fler märken än elbilstabellen.
+var CA_EMBLEM = ['alpine', 'audi', 'bmw', 'byd', 'citroen', 'cupra', 'dacia', 'fiat', 'ford',
+  'geely', 'gwm', 'honda', 'jac', 'jeep', 'kgm', 'kia', 'lexus', 'mazda', 'mercedes', 'mg',
+  'mini', 'mitsubishi', 'nio', 'nissan', 'opel', 'polestar', 'renault', 'rollsroyce', 'skoda',
+  'smart', 'subaru', 'suzuki', 'tesla', 'toyota', 'vinfast', 'volkswagen', 'volvo'];
+
+/**
+ * Emblemet för en biltitel, eller tom sträng när märket saknar fil.
+ *
+ * <p>Titeln börjar med märket ("Volkswagen ID.4 (2022)"), men inte alltid med ETT ord:
+ * "Alfa Romeo" och "Land Rover" är två. Därför prövas tvåordsprefixet först.
+ *
+ * <p>Diakriterna kokas bort innan uppslaget — "Škoda" och "Citroën" heter skoda.svg och
+ * citroen.svg. Samma sorts avkodning som insiktsmatchningen i backenden behövde.
+ */
+function caEmblemHtml(title) {
+  var t = String(title || '').trim();
+  if (!t) return '';
+  var ord = t.split(/\s+/);
+  var kandidater = [ord.slice(0, 2).join(' '), ord[0]];
+  for (var i = 0; i < kandidater.length; i++) {
+    var slug = String(kandidater[i] || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (slug && CA_EMBLEM.indexOf(slug) !== -1) {
+      return '<span class="ca-emblem"><img src="' + CA_API_BASE + '/ev-emblem/' + slug + '.svg"'
+        + ' alt="" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></span>';
+    }
+  }
+  return '';
+}
+
 function caRenderCards(recommendations) {
   caRestoreResults();
   var container = document.getElementById('ca-cards');
@@ -1551,7 +1613,7 @@ function caRenderCards(recommendations) {
         '</div>' +
         '<div class="ca-card-head">' +
           '<span class="ca-card-num">Bil ' + (i + 1) + '</span>' +
-          '<h3>' + caEsc(r.title) + '</h3>' +
+          '<div class="ca-title-rad">' + caEmblemHtml(r.title) + '<h3>' + caEsc(r.title) + '</h3></div>' +
           priceRow +
         '</div>' +
         '<div class="ca-card-body">' +
