@@ -220,6 +220,20 @@
     ".ev-carousel-head-icon{font-size:19px;line-height:1;flex-shrink:0;filter:drop-shadow(0 0 9px rgba(251,191,36,0.5));}" +
     ".ev-carousel-head-title{font-size:14px;font-weight:800;color:#fbbf24;letter-spacing:0.02em;line-height:1.2;}" +
     ".ev-carousel-head-sub{font-size:11.5px;color:rgba(147,197,253,0.55);margin-top:3px;line-height:1.35;}" +
+
+    // --- Flikarna i karusellavdelningen -------------------------------------
+    // Ligger där rubriken låg, med samma luft under. Aktiv flik bär avdelningens gula ton, så
+    // det syns vilken av de två man tittar på utan att läsa texten.
+    ".ev-flikar{display:flex;flex-wrap:wrap;gap:7px;padding:0 2px 14px;}" +
+    ".ev-flik{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;"
+      + "border:1.5px solid rgba(251,191,36,.18);background:rgba(251,191,36,.05);"
+      + "color:rgba(200,215,255,.62);font-size:12.5px;font-weight:700;font-family:inherit;"
+      + "cursor:pointer;transition:all .16s;white-space:nowrap;}" +
+    ".ev-flik:hover{border-color:rgba(251,191,36,.4);color:rgba(251,191,36,.85);}" +
+    ".ev-flik-aktiv{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.55);color:#fbbf24;}" +
+    ".ev-flik:focus-visible{outline:2px solid rgba(251,191,36,.6);outline-offset:2px;}" +
+    "@media (max-width:420px){.ev-flik{font-size:11.5px;padding:7px 11px;}}" +
+
     // Verktygsavdelningen: samma form som karusellen, egen färg. Blå i stället för gul, så de
     // två avdelningarna går att skilja åt på en meter utan att formspråket blir ett nytt.
     ".ev-tools-area{background:linear-gradient(180deg,rgba(59,130,246,0.06),rgba(59,130,246,0));"
@@ -1526,7 +1540,9 @@
      * Nu: AI-kort och favoriter → KARUSELLOMRÅDET (båda korten under en gemensam rubrik) →
      * stationslistan hopfälld bakom en knapp → laddkalkylen.
      */
-    const carouselSection = carouselArea(funfactHtml + factHtml);
+    // Tva argument och inte en ihopslagen strang: avdelningen bygger flikar av dem, och
+    // da maste den veta var den ena slutar och den andra borjar.
+    const carouselSection = carouselArea(funfactHtml, factHtml);
 
     /*
      * Stationslistan är hopfälld från start. Öppet läge lever i state och inte i DOM:en:
@@ -1595,17 +1611,54 @@
       </div>`;
   }
 
-  function carouselArea(bodyHtml) {
-    if (!bodyHtml) return '';
-    return `<div class="ev-carousel-area">
-        <div class="ev-carousel-head">
-          <div class="ev-carousel-head-icon">💡</div>
-          <div>
-            <div class="ev-carousel-head-title">AI-tips &amp; Visste du att</div>
-            <div class="ev-carousel-head-sub">Bläddra själv, eller pausa och läs i lugn och ro</div>
+  /**
+   * Karusellavdelningen — FLIKAR när det finns två karuseller, rubrik när det finns en.
+   *
+   * <p>Förut låg de två korten staplade, och eftersom de har identisk uppbyggnad betydde det
+   * TVÅ prickrader, TVÅ förloppslinjer och TVÅ Paus-knappar under varandra. Kontrollerna tog
+   * mer höjd än innehållet, och det gick inte att se vilken Paus som pausade vad.
+   *
+   * <p>Flikarna ÄR rubriken: en avdelningstitel ovanför två flikar som säger samma sak hade
+   * varit ett lager för mycket. Har bara den ena karusellen innehåll — förstavyn, innan man
+   * valt bil och sökt — finns ingen flik att välja mellan, och då står den gamla rubriken kvar.
+   *
+   * <p>Båda panelerna ligger kvar i DOM:en och den inaktiva göms med {@code hidden}. Att bygga
+   * om dem vid flikbytet hade nollställt karusellens position och pausläge, alltså straffat
+   * den som just pausat för att läsa.
+   */
+  function carouselArea(tipsHtml, tabellHtml) {
+    const delar = [
+      { id: 'tips', ikon: '💡', etikett: 'AI-tips &amp; Visste du att', html: tipsHtml },
+      { id: 'tabeller', ikon: '📊', etikett: 'Jämför bilarna', html: tabellHtml }
+    ].filter(function (d) { return !!d.html; });
+    if (!delar.length) return '';
+
+    if (delar.length === 1) {
+      return `<div class="ev-carousel-area">
+          <div class="ev-carousel-head">
+            <div class="ev-carousel-head-icon">${delar[0].ikon}</div>
+            <div>
+              <div class="ev-carousel-head-title">${delar[0].etikett}</div>
+              <div class="ev-carousel-head-sub">Bläddra själv, eller pausa och läs i lugn och ro</div>
+            </div>
           </div>
-        </div>
-        ${bodyHtml}
+          ${delar[0].html}
+        </div>`;
+    }
+
+    const flikar = delar.map(function (d, i) {
+      return `<button class="ev-flik${i === 0 ? ' ev-flik-aktiv' : ''}" type="button" role="tab"`
+        + ` aria-selected="${i === 0}" aria-controls="ev-flikpanel-${d.id}" data-flik="${d.id}">`
+        + `<span aria-hidden="true">${d.ikon}</span> ${d.etikett}</button>`;
+    }).join('');
+    const paneler = delar.map(function (d, i) {
+      return `<div id="ev-flikpanel-${d.id}" role="tabpanel" data-flikpanel="${d.id}"`
+        + `${i === 0 ? '' : ' hidden'}>${d.html}</div>`;
+    }).join('');
+
+    return `<div class="ev-carousel-area">
+        <div class="ev-flikar" role="tablist" aria-label="Tips och tabeller">${flikar}</div>
+        ${paneler}
       </div>`;
   }
 
@@ -1763,6 +1816,27 @@
     document.getElementById("ev-output").innerHTML = html;
 
     if (document.getElementById('ev-calc-card')) evCalcUpdate();
+
+    // Flikbytet i karusellavdelningen. Lyssnaren sitter på fliklisten och inte på varje knapp:
+    // hela utdatan byggs om vid varje sortering och filtrering, och lyssnare per knapp hade
+    // behövt sättas om lika ofta. Panelerna göms med `hidden` — karusellerna fortsätter räkna
+    // i bakgrunden, så den man kommer tillbaka till står där man lämnade den.
+    const flikList = document.querySelector('.ev-flikar');
+    if (flikList) {
+      flikList.addEventListener('click', function (e) {
+        const knapp = e.target.closest('.ev-flik');
+        if (!knapp) return;
+        const vald = knapp.dataset.flik;
+        flikList.querySelectorAll('.ev-flik').forEach(function (k) {
+          const aktiv = k.dataset.flik === vald;
+          k.classList.toggle('ev-flik-aktiv', aktiv);
+          k.setAttribute('aria-selected', aktiv ? 'true' : 'false');
+        });
+        document.querySelectorAll('[data-flikpanel]').forEach(function (p) {
+          p.hidden = p.dataset.flikpanel !== vald;
+        });
+      });
+    }
 
     // Stationslistans öppna/stäng. Etiketten för stängt läge bärs i data-open-label, så
     // antalet stationer inte behöver räknas om här — det är renderingen som vet det.
