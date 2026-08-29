@@ -661,4 +661,68 @@ class ExpertInsightServiceTest {
                        .containsEntry("carMake", null)
                        .containsEntry("category", null);
     }
+
+    // --- kategorivakten (InsightTaxonomy) ---
+
+    /**
+     * Kategorin är inte fri text: buildExpertContext matchar den mot formulärets värde med
+     * likhet, så "crossover" gör raden osynlig för rekommendationsprompten i stället för
+     * felplacerad. Den skrevs tyst före 2026-08-29 — två Dacia Striker-rader låg så i drift.
+     */
+    @Test
+    void patchOkandKategoriAvvisas() {
+        raddaMedId(42L);
+        assertThatThrownBy(() -> service().updateInsight(42L, Map.of("category", "crossover")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Okänd kategori");
+        verify(repo, never()).save(any());
+    }
+
+    /** Alias är stavningar av en kategori som FINNS — de skrivs om, inte avvisas. */
+    @Test
+    void patchSkriverOmAliasTillFormularetsVarde() {
+        ExpertInsight row = raddaMedId(42L);
+        savePasserarIgenom();
+
+        service().updateInsight(42L, Map.of("category", " Småbil "));
+
+        assertThat(row.getCategory()).isEqualTo("smaabil");
+    }
+
+    /**
+     * CSV-importen kastar inte raden — texten är fortfarande värd ett bilkort — men kategorin
+     * nollas, för ett påhittat värde är samma sak som inget värde i matchningen.
+     */
+    @Test
+    void csvImportNollarOkandKategoriMenBehallerRaden() {
+        savePasserarIgenom();
+        ArgumentCaptor<ExpertInsight> sparad = ArgumentCaptor.forClass(ExpertInsight.class);
+
+        int antal = service().importCsv("Ford,Transit,diesel,transportbil,Rymlig skåpbil.,"
+                + System.lineSeparator() + "Kia,Picanto,bensin,ekonomibil,Billig i drift.,");
+
+        assertThat(antal).isEqualTo(2);
+        verify(repo, times(2)).save(sparad.capture());
+        assertThat(sparad.getAllValues().get(0).getCategory()).isNull();
+        assertThat(sparad.getAllValues().get(0).getInsight()).isEqualTo("Rymlig skåpbil.");
+        assertThat(sparad.getAllValues().get(1).getCategory()).isEqualTo("smaabil");
+    }
+
+    /**
+     * Kategoribytet finns för att RÄTTA stavningar. Utan kontroll av målet kunde samma
+     * endpoint skapa felet den ska laga: "suv" -> "crossover" gör 382 rader osynliga i ett anrop.
+     */
+    @Test
+    void kategoribyteTillOkantVardeAvvisas() {
+        assertThatThrownBy(() -> service().renameCategory("suv", "crossover"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Okänd kategori");
+        verify(repo, never()).renameCategory(anyString(), anyString());
+    }
+
+    @Test
+    void kategoribyteKanoniserarMalet() {
+        when(repo.renameCategory("småbil", "smaabil")).thenReturn(12);
+        assertThat(service().renameCategory("småbil", "Ekonomibil")).isEqualTo(12);
+    }
 }

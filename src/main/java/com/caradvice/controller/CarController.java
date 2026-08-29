@@ -1104,7 +1104,12 @@ public class CarController {
     public ResponseEntity<?> renameInsightCategory(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                                    @RequestParam String from, @RequestParam String to) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        int updated = expertInsightService.renameCategory(from, to);
+        int updated;
+        try {
+            updated = expertInsightService.renameCategory(from, to);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
         return ResponseEntity.ok(Map.of("updated", updated, "from", from, "to", to));
     }
 

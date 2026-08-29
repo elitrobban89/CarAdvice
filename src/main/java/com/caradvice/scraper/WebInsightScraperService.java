@@ -1,6 +1,7 @@
 package com.caradvice.scraper;
 
 import com.caradvice.model.ExpertInsight;
+import com.caradvice.model.InsightTaxonomy;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.service.UpcomingInsightService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -933,7 +934,7 @@ public class WebInsightScraperService {
                     blankToNull(ins.path("car_make").asText("")),
                     blankToNull(ins.path("car_model").asText("")),
                     validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES),
-                    validOrNull(ins.path("category").asText(""), VALID_CATEGORIES),
+                    InsightTaxonomy.canonicalCategory(ins.path("category").asText("")),
                     insightText,
                     parseRating(ins.path("rating"))));
             if (ins.path(UPCOMING_FIELD).asBoolean(false)) {
@@ -1384,15 +1385,13 @@ public class WebInsightScraperService {
     // värde utanför listan gör ingen skada, men ett FELAKTIGT (Ferrari som "smaabil") förgiftar
     // rekommendationsprompten. Whitelist + promptregeln ovan håller fälten ärliga.
     //
-    // "ekonomibil" ströks 2026-08-10 när kategorin slogs ihop med småbil. Listan MÅSTE spegla
-    // formulärets värden exakt: buildExpertContext matchar på likhet, så en insikt med ett
-    // värde som inte finns i rullgardinen når aldrig en prompt. Vid räkningen samma dag låg
-    // 45 insikter och skräpade med kategorier som aldrig funnits i formuläret (sportbil,
+    // "ekonomibil" ströks 2026-08-10 när kategorin slogs ihop med småbil — numera är det ett
+    // ALIAS i InsightTaxonomy och skrivs om i stället för att kastas. Vid räkningen samma dag
+    // låg 45 insikter och skräpade med kategorier som aldrig funnits i formuläret (sportbil,
     // crossover, transportbil, tom) — de är osynliga, inte farliga, och lämnades medvetet.
-    private static final Set<String> VALID_CATEGORIES =
-            Set.of("familjebil", "suv", "elbil", "laddhybrid", "smaabil");
-    private static final Set<String> VALID_FUEL_TYPES =
-            Set.of("elbil", "bensin", "diesel", "hybrid", "laddhybrid");
+    // Listorna bor i InsightTaxonomy — CSV-importen och admin-PATCH vaktar på samma värden,
+    // och en fjärde kopia hade varit en fjärde plats att glömma uppdatera.
+    private static final Set<String> VALID_FUEL_TYPES = InsightTaxonomy.FUEL_TYPES;
 
     /** AI:n ekar ibland fältmallen tillbaka som en rad ("car_make car_model" / "insight") — hittades 6 st i DB. */
     static boolean isTemplateEcho(JsonNode ins) {

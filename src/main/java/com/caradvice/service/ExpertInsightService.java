@@ -2,7 +2,10 @@ package com.caradvice.service;
 
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.ExpertInsight;
+import com.caradvice.model.InsightTaxonomy;
 import com.caradvice.repository.ExpertInsightRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,8 @@ import java.util.Set;
 
 @Service
 public class ExpertInsightService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExpertInsightService.class);
 
     /** Max insikter i rekommendationsprompten — 5 st ≈ 300 tokens, ryms i TPM-budgeten */
     static final int MAX_RECOMMEND_INSIGHTS = 5;
@@ -437,7 +442,7 @@ ett bilkort.*/
         if (fields.containsKey("carMake"))  row.setCarMake(requireText(fields.get("carMake"), "carMake"));
         if (fields.containsKey("carModel")) row.setCarModel(optionalText(fields.get("carModel"), false));
         if (fields.containsKey("fuelType")) row.setFuelType(optionalText(fields.get("fuelType"), true));
-        if (fields.containsKey("category")) row.setCategory(optionalText(fields.get("category"), true));
+        if (fields.containsKey("category")) row.setCategory(requireKnownCategory(optionalText(fields.get("category"), true)));
         if (fields.containsKey("rating"))   row.setRating(parseRating(fields.get("rating")));
         return Optional.of(toAdminMap(repo.save(row)));
     }
@@ -452,6 +457,17 @@ ett bilkort.*/
         if (!(v instanceof String s)) throw new IllegalArgumentException("Fältet måste vara en sträng eller null");
         if (s.isBlank()) return null;
         return lowercase ? s.trim().toLowerCase() : s.trim();
+    }
+
+    /**
+     * Kategorin som admin skickar måste finnas i formuläret. Ett påhittat värde sparades
+     * tidigare tyst och gjorde raden osynlig för rekommendationsprompten — samma tysta
+     * bortfall som skrapan haft en whitelist mot sedan 2026-08-10. Alias ({@code småbil},
+     * {@code ekonomibil}) skrivs om i stället för att avvisas.
+     */
+    private String requireKnownCategory(String raw) {
+        if (InsightTaxonomy.isUnknownCategory(raw)) throw new IllegalArgumentException(InsightTaxonomy.categoryError(raw));
+        return InsightTaxonomy.canonicalCategory(raw);
     }
 
     private Integer parseRating(Object v) {
@@ -486,7 +502,11 @@ ett bilkort.*/
     @Transactional
     public int renameCategory(String from, String to) {
         if (from == null || from.isBlank() || to == null || to.isBlank()) return 0;
-        return repo.renameCategory(from.trim(), to.trim());
+        // Endpointen finns för att RÄTTA stavningar. Utan kontroll av målet kan den lika gärna
+        // skapa felet den ska laga: "suv" -> "crossover" gör 382 rader osynliga i ett anrop.
+        String mal = InsightTaxonomy.canonicalCategory(to);
+        if (mal == null) throw new IllegalArgumentException(InsightTaxonomy.categoryError(to));
+        return repo.renameCategory(from.trim(), mal);
     }
 
     @Transactional
@@ -500,6 +520,7 @@ ett bilkort.*/
 
     public int importCsv(String csv, String expertName) {
         int count = 0;
+        int okandaKategorier = 0;
         for (String line : csv.split("\\R")) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#") || line.startsWith("car_make")) continue;
@@ -509,6 +530,8 @@ ett bilkort.*/
             String carModel  = blank(f[1]) ? null : f[1];
             String fuelType  = blank(f[2]) ? null : f[2];
             String category  = blank(f[3]) ? null : f[3];
+            if (InsightTaxonomy.isUnknownCategory(category)) { okandaKategorier++; category = null; }
+            else category = InsightTaxonomy.canonicalCategory(category);
             String insight   = f[4];
             Integer rating   = null;
             if (f.length > 5 && !blank(f[5])) {
@@ -517,6 +540,11 @@ ett bilkort.*/
             repo.save(new ExpertInsight(expertName, carMake, carModel, fuelType, category, insight, rating));
             count++;
         }
+        // Raden sparas utan kategori i stället för att kastas — texten är fortfarande värd att
+        // visa på ett bilkort. Men tystnad är det som lät crossover-raderna ligga kvar i drift
+        // i veckor, så bortfallet ska synas i loggen.
+        if (okandaKategorier > 0)
+            log.warn("CSV-import [{}]: {} rader hade en kategori utanför formuläret och sparades utan kategori", expertName, okandaKategorier);
         return count;
     }
 

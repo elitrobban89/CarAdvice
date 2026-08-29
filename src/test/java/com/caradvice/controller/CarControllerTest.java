@@ -971,6 +971,23 @@ class CarControllerTest {
            .andExpect(jsonPath("$.to").value("smaabil"));
     }
 
+    /**
+     * Kategoribytet ska svara 400, inte 500, när målet inte finns i formuläret — vakten sitter
+     * i tjänsten och kastar IllegalArgumentException, och utan try/catch här hade admin fått
+     * ett stackspår i stället för att få veta vilka kategorier som går att välja.
+     */
+    @Test
+    void adminKategoribyteTillOkantVardeGer400() throws Exception {
+        when(expertInsightService.renameCategory("suv", "crossover"))
+                .thenThrow(new IllegalArgumentException("Okänd kategori: crossover"));
+
+        mvc.perform(post("/api/admin/insights/rename-category")
+                .header("X-Admin-Key", "test-admin")
+                .param("from", "suv").param("to", "crossover"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.error").value("Okänd kategori: crossover"));
+    }
+
     @Test
     void adminInsiktsraderingPaIdGer404NarIdSaknas() throws Exception {
         when(expertInsightService.deleteById(999L)).thenReturn(false);
