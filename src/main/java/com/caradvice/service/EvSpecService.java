@@ -799,7 +799,7 @@ public class EvSpecService {
         variants = keepGenerationForYear(variants, modelYear(title));
         variants.sort(java.util.Comparator.comparingDouble(Variant::kwh).thenComparingInt(Variant::km));
         List<Group> grupper = groupByBattery(variants);
-        java.util.Map<Integer, String> arsspann = arsspannFor(grupper);
+        java.util.Map<Integer, String> arsspann = arsspannFor(grupper, modelYear(title));
         return grupper.stream()
                 .map(g -> formatGroup(g, arsspann))
                 .collect(java.util.stream.Collectors.joining(", "));
@@ -880,9 +880,9 @@ public class EvSpecService {
      * en annons med årsmodell — se {@link #generationForYear}. Otaggade rader är per definition
      * den äldre generationen och behandlas som {@code fromYear = 0}.
      */
-    private record Generation(String label, int fromYear) {}
+    private record Generation(String label, int fromYear, String model) {}
 
-    private static final Generation MG4_GEN2 = new Generation("MG4 gen 2", 2025);
+    private static final Generation MG4_GEN2 = new Generation("MG4 gen 2", 2025, "mg4");
 
     /**
      * Nissan Leafs tre generationer. Till skillnad från MG4 måste ALLA tre taggas, inte bara de
@@ -893,21 +893,21 @@ public class EvSpecService {
      * <p>Gen 1 och gen 2 skapas i {@code DataLoader.LEAF_UTGANGNA}; gen 3-raden heter bara
      * "Nissan Leaf" och underhålls av nattsynken.
      */
-    private static final Generation LEAF_GEN1 = new Generation("Leaf gen 1", 2011);
-    private static final Generation LEAF_GEN2 = new Generation("Leaf gen 2", 2018);
-    private static final Generation LEAF_GEN3 = new Generation("Leaf gen 3", 2026);
+    private static final Generation LEAF_GEN1 = new Generation("Leaf gen 1", 2011, "nissan leaf");
+    private static final Generation LEAF_GEN2 = new Generation("Leaf gen 2", 2018, "nissan leaf");
+    private static final Generation LEAF_GEN3 = new Generation("Leaf gen 3", 2026, "nissan leaf");
 
     /**
      * MG ZS EV, samma fall som Leaf: den otaggade raden ("MG ZS EV", 72,6 kWh / 440 km) är
      * faceliftens Long Range, alltså den NYARE bilen, så båda måste taggas. Pre-facelift-raden
      * skapas i {@code DataLoader.UTGANGNA_GENERATIONER}.
      */
-    private static final Generation ZS_GEN1 = new Generation("ZS EV pre-facelift", 2019);
-    private static final Generation ZS_GEN2 = new Generation("ZS EV facelift", 2022);
+    private static final Generation ZS_GEN1 = new Generation("ZS EV pre-facelift", 2019, "mg zs ev");
+    private static final Generation ZS_GEN2 = new Generation("ZS EV facelift", 2022, "mg zs ev");
 
     /** e-Golf: 24,2 kWh 2014–2016, 35,8 kWh från facelift 2017. Ingen otaggad rad att ta hänsyn till. */
-    private static final Generation EGOLF_GEN1 = new Generation("e-Golf 24 kWh", 2014);
-    private static final Generation EGOLF_GEN2 = new Generation("e-Golf 35 kWh", 2017);
+    private static final Generation EGOLF_GEN1 = new Generation("e-Golf 24 kWh", 2014, "volkswagen e-golf");
+    private static final Generation EGOLF_GEN2 = new Generation("e-Golf 35 kWh", 2017, "volkswagen e-golf");
 
     /**
      * Škoda Enyaq under TVÅ namnkonventioner, vilket är en femte ingång till samma fel som
@@ -930,17 +930,17 @@ public class EvSpecService {
      * grupperingen i {@code verifiedEngineOptions} slår redan ihop brutto/netto när räckvidden
      * är densamma — det är därför generationstaggen, inte en omräkning, som är rätt åtgärd.
      */
-    private static final Generation ENYAQ_GEN1 = new Generation("Enyaq iV", 2020);
-    private static final Generation ENYAQ_GEN2 = new Generation("Enyaq facelift", 2025);
+    private static final Generation ENYAQ_GEN1 = new Generation("Enyaq iV", 2020, "skoda enyaq");
+    private static final Generation ENYAQ_GEN2 = new Generation("Enyaq facelift", 2025, "skoda enyaq");
 
     /**
      * Renault Zoe i tre generationer, tillagda 2026-08-13 tillsammans med raderna i
      * {@code DataLoader.UTGANGNA_GENERATIONER}. Q210/R240 2013–2016, ZE40 2017–2018,
      * ZE50 2019–2024 (då modellen lades ned och ersattes av Renault 5).
      */
-    private static final Generation ZOE_GEN1 = new Generation("Zoe 22 kWh", 2013);
-    private static final Generation ZOE_GEN2 = new Generation("Zoe ZE40", 2017);
-    private static final Generation ZOE_GEN3 = new Generation("Zoe ZE50", 2019);
+    private static final Generation ZOE_GEN1 = new Generation("Zoe 22 kWh", 2013, "renault zoe");
+    private static final Generation ZOE_GEN2 = new Generation("Zoe ZE40", 2017, "renault zoe");
+    private static final Generation ZOE_GEN3 = new Generation("Zoe ZE50", 2019, "renault zoe");
 
     /**
      * Tesla Model 3 före och efter Highland-faceliften (hösten 2023, i handeln 2024).
@@ -951,8 +951,8 @@ public class EvSpecService {
      * Leaf-arbetet 2026-08-11 skrev upp: <b>en otaggad rad räknas som {@code fromYear} 0,
      * alltså äldst</b>, så utan den här posten hade en 2020:a fått faceliftens siffror ändå.
      */
-    private static final Generation M3_GEN1 = new Generation("Model 3 pre-facelift", 2019);
-    private static final Generation M3_GEN2 = new Generation("Model 3 Highland", 2024);
+    private static final Generation M3_GEN1 = new Generation("Model 3 pre-facelift", 2019, "tesla model 3");
+    private static final Generation M3_GEN2 = new Generation("Model 3 Highland", 2024, "tesla model 3");
 
     /**
      * Kia EV6 före och efter faceliften (2024, i handeln 2025). Enda modellen i hela tabellen
@@ -964,8 +964,8 @@ public class EvSpecService {
      * 63 respektive 84 — {@code verifiedEngineOptions} slår redan ihop dem eftersom räckvidden
      * är identisk, så de hör till samma generation som sin bruttotvilling.
      */
-    private static final Generation EV6_GEN1 = new Generation("EV6 pre-facelift", 2021);
-    private static final Generation EV6_GEN2 = new Generation("EV6 facelift", 2025);
+    private static final Generation EV6_GEN1 = new Generation("EV6 pre-facelift", 2021, "kia ev6");
+    private static final Generation EV6_GEN2 = new Generation("EV6 facelift", 2025, "kia ev6");
 
     /**
      * Resten av klass A ur inventeringen 2026-08-13 — modeller vars enda rad bar den nyaste
@@ -975,18 +975,18 @@ public class EvSpecService {
      * <p>Årtalen är faceliftens/generationsskiftets FÖRSTA säljår i Sverige, inte
      * presentationsåret — det är årsmodellen på en annons som filtret jämför mot.
      */
-    private static final Generation MODELY_GEN1 = new Generation("Model Y pre-facelift", 2021);
-    private static final Generation MODELY_GEN2 = new Generation("Model Y Juniper", 2025);
-    private static final Generation KONA_GEN1   = new Generation("Kona Electric gen 1", 2018);
-    private static final Generation KONA_GEN2   = new Generation("Kona Electric gen 2", 2023);
-    private static final Generation PS2_GEN1    = new Generation("Polestar 2 pre-facelift", 2020);
-    private static final Generation PS2_GEN2    = new Generation("Polestar 2 facelift", 2024);
-    private static final Generation ID4_GEN1    = new Generation("ID.4 launch", 2021);
-    private static final Generation ID4_GEN2    = new Generation("ID.4 facelift", 2024);
-    private static final Generation IONIQ5_GEN1 = new Generation("IONIQ 5 pre-facelift", 2021);
-    private static final Generation IONIQ5_GEN2 = new Generation("IONIQ 5 facelift", 2024);
-    private static final Generation BZ4X_GEN1   = new Generation("bZ4X pre-facelift", 2022);
-    private static final Generation BZ4X_GEN2   = new Generation("bZ4X facelift", 2025);
+    private static final Generation MODELY_GEN1 = new Generation("Model Y pre-facelift", 2021, "tesla model y");
+    private static final Generation MODELY_GEN2 = new Generation("Model Y Juniper", 2025, "tesla model y");
+    private static final Generation KONA_GEN1   = new Generation("Kona Electric gen 1", 2018, "hyundai kona");
+    private static final Generation KONA_GEN2   = new Generation("Kona Electric gen 2", 2023, "hyundai kona");
+    private static final Generation PS2_GEN1    = new Generation("Polestar 2 pre-facelift", 2020, "polestar 2");
+    private static final Generation PS2_GEN2    = new Generation("Polestar 2 facelift", 2024, "polestar 2");
+    private static final Generation ID4_GEN1    = new Generation("ID.4 launch", 2021, "volkswagen id.4");
+    private static final Generation ID4_GEN2    = new Generation("ID.4 facelift", 2024, "volkswagen id.4");
+    private static final Generation IONIQ5_GEN1 = new Generation("IONIQ 5 pre-facelift", 2021, "hyundai ioniq 5");
+    private static final Generation IONIQ5_GEN2 = new Generation("IONIQ 5 facelift", 2024, "hyundai ioniq 5");
+    private static final Generation BZ4X_GEN1   = new Generation("bZ4X pre-facelift", 2022, "toyota bz4x");
+    private static final Generation BZ4X_GEN2   = new Generation("bZ4X facelift", 2025, "toyota bz4x");
 
     /**
      * ID.3 och i3 — hittade först när exponeringslistan gjordes om mot RÄTT matchningsregel.
@@ -1014,13 +1014,13 @@ public class EvSpecService {
      * ingen träff och därmed en OTAGGAD rad, vilket räknas som äldst och tyst återskapar precis
      * det fel taggningen skulle laga.
      */
-    private static final Generation ECMP_GEN1 = new Generation("e-CMP 50 kWh", 2020);
-    private static final Generation ECMP_GEN2 = new Generation("e-CMP 54 kWh", 2024);
+    private static final Generation ECMP_GEN1 = new Generation("e-CMP 50 kWh", 2020, "e-cmp (delad plattform)");
+    private static final Generation ECMP_GEN2 = new Generation("e-CMP 54 kWh", 2024, "e-cmp (delad plattform)");
 
-    private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020);
-    private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026);
-    private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013);
-    private static final Generation I3_GEN2  = new Generation("i3 Neue Klasse", 2026);
+    private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020, "volkswagen id.3");
+    private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026, "volkswagen id.3");
+    private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013, "bmw i3");
+    private static final Generation I3_GEN2  = new Generation("i3 Neue Klasse", 2026, "bmw i3");
 
     private static final Map<String, Generation> GENERATION = Map.ofEntries(
             Map.entry("mg4 urban standard range",     MG4_GEN2),
@@ -1103,6 +1103,38 @@ public class EvSpecService {
             Map.entry("peugeot e-208 50 kwh",            ECMP_GEN1),
             Map.entry("peugeot e-208 54 kwh",            ECMP_GEN2),
             Map.entry("peugeot e-208 gti",               ECMP_GEN2));
+
+    /**
+     * Startåren per modell, stigande — underlaget för en generations SLUTår.
+     *
+     * <p>Tabellen bär bara {@code fromYear}, så slutåret är nästa generations start minus ett.
+     * Det går bara att räkna ut om man vet vilka generationer som hör till samma modell, och
+     * det är precis vad {@link Generation#model} bär. Härleds ur {@link #GENERATION} i stället
+     * för att skrivas en gång till: två listor av samma sak glider isär.
+     *
+     * <p><b>Varför nyckeln behövdes.</b> Utan den kunde ett spann bara räknas fram när flera
+     * generationer råkade finnas bland titelns egna träffar. Kortet "Polestar 2 Long Range" har
+     * bara EN matchande rad — förfaceliften är den enda som heter Long Range — så det stod
+     * omärkt bredvid ett "Polestar 2"-kort med större batteri, vilket var hela bugganmälan.
+     */
+    private static final Map<String, List<Integer>> GENERATIONSAR = byggGenerationsar();
+
+    private static Map<String, List<Integer>> byggGenerationsar() {
+        Map<String, java.util.TreeSet<Integer>> per = new java.util.HashMap<>();
+        for (Generation g : GENERATION.values())
+            per.computeIfAbsent(g.model(), k -> new java.util.TreeSet<>()).add(g.fromYear());
+        Map<String, List<Integer>> ut = new java.util.HashMap<>();
+        per.forEach((modell, ar) -> ut.put(modell, List.copyOf(ar)));
+        return ut;
+    }
+
+    /** "2020–2023" för en generation som fått en efterföljare, annars "från 2024". */
+    private static String spannFor(Generation g) {
+        List<Integer> ar = GENERATIONSAR.getOrDefault(g.model(), List.of());
+        int i = ar.indexOf(g.fromYear());
+        if (i < 0 || i == ar.size() - 1) return "från " + g.fromYear();
+        return g.fromYear() + "–" + (ar.get(i + 1) - 1);
+    }
 
 
     /**
@@ -1274,27 +1306,41 @@ public class EvSpecService {
      * basmodellen. Båda siffrorna är riktiga; de beskriver bara olika bilar. Faceliften 2024
      * har 79 kWh och förfaceliften 75, och raden sa inte det.
      *
-     * <p><b>Bara vid flera generationer</b>, eftersom "från 2020" på en modell som bara funnits
-     * i ett utförande inte tillför något och gör varje rad längre. Har annonsen en årsmodell har
-     * {@link #keepGenerationForYear} redan valt EN generation, och då står ingen märkning kvar —
-     * kortet svarar då på en bestämd bil och behöver inte redovisa alternativen.
+     * <p><b>Har annonsen en årsmodell står ingen märkning kvar.</b> Då har
+     * {@link #keepGenerationForYear} redan valt EN generation, kortet svarar på en bestämd bil,
+     * och ett spann hade bara upprepat årtalet som redan står i rubriken.
+     *
+     * <p><b>Utan årsmodell räcker det att RADEN är taggad</b> — listan behöver inte själv spänna
+     * över flera. Det villkoret var första försökets, och det nådde inte fallet märkningen fanns
+     * för: kortet "Polestar 2 Long Range" har bara EN matchande rad, eftersom förfaceliften är
+     * den enda som heter Long Range, och stod därför omärkt bredvid ett "Polestar 2"-kort med
+     * större batteri. Att en rad står i {@link #GENERATION} betyder att modellen HAR flera
+     * generationer, och {@link #GENERATIONSAR} vet vilka — spannet går att räkna ut även när
+     * syskonet inte är med i listan.
      *
      * <p><b>Otaggade rader är per definition den äldsta generationen</b> (se {@link Generation}),
-     * och får därför ett öppet spann bakåt: "till 2024" i stället för ett påhittat startår. Den
-     * nyaste generationen får "från 2025" av samma skäl — den säljs fortfarande.
+     * och får ett öppet spann bakåt: "till 2024" i stället för ett påhittat startår, räknat ur
+     * modellens äldsta kända generation.
      */
-    private static java.util.Map<Integer, String> arsspannFor(List<Group> grupper) {
+    private static java.util.Map<Integer, String> arsspannFor(List<Group> grupper, int year) {
         List<Integer> ar = grupper.stream()
                 .map(EvSpecService::fromYear)
                 .distinct().sorted()
                 .collect(java.util.stream.Collectors.toList());
-        if (ar.size() < 2) return java.util.Map.of();
+        if (year != 0 && ar.size() < 2) return java.util.Map.of();
+        Generation taggad = grupper.stream().map(Group::generation)
+                .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+        if (taggad == null) return java.util.Map.of();
+
         java.util.Map<Integer, String> ut = new java.util.HashMap<>();
-        for (int i = 0; i < ar.size(); i++) {
-            int from = ar.get(i);
-            if (i == ar.size() - 1)  ut.put(from, "från " + from);
-            else if (from == 0)      ut.put(from, "till " + (ar.get(i + 1) - 1));
-            else                     ut.put(from, from + "–" + (ar.get(i + 1) - 1));
+        for (Group g : grupper) {
+            if (g.generation() != null) {
+                ut.put(g.generation().fromYear(), spannFor(g.generation()));
+            } else {
+                int aldsta = GENERATIONSAR.getOrDefault(taggad.model(), List.of())
+                        .stream().mapToInt(Integer::intValue).min().orElse(0);
+                if (aldsta > 0) ut.put(0, "till " + (aldsta - 1));
+            }
         }
         return ut;
     }

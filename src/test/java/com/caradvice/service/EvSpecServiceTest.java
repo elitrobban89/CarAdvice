@@ -93,6 +93,20 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void enskildTaggadRadFarSittSpannUtanSyskonIListan() {
+        // Bugganmälans andra kort. "Polestar 2 Long Range" matchar BARA förfaceliftraden —
+        // den är den enda som heter Long Range — så listan spänner inte över flera
+        // generationer och stod därför omärkt bredvid ett Polestar 2-kort med större batteri.
+        // Modellnyckeln på Generation gör att slutåret ändå går att räkna ut.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000),
+                new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0)));
+
+        assertThat(service().verifiedEngineOptions("Polestar 2 Long Range"))
+                .isEqualTo("75 kWh (515 km) · 2020–2023");
+    }
+
+    @Test
     void ingenGenerationsmarkningNarModellenBaraHarEn() {
         // "från 2020" på varje rad i en modell som bara funnits i ett utförande tillför inget
         // och gör listan längre — märkningen finns för att lösa en tvetydighet, inte som pynt.
@@ -1018,7 +1032,7 @@ class EvSpecServiceTest {
                 new EvSpec("Kia EV6 Standard Range 2WD", 11.0, 180.0, 60.0, 428, 400_000),
                 new EvSpec("Kia EV6 Standard Range 63 kWh", 11.0, 180.0, 63.0, 428, 400_000)));
 
-        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km)");
+        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km) · från 2025");
     }
 
     @Test
@@ -1208,7 +1222,7 @@ class EvSpecServiceTest {
         when(repo.findAll()).thenReturn(List.of(
                 new EvSpec("MG MG4 XPOWER", 11.0, 140.0, 61.7, 405, 471_000)));
 
-        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("61.7 kWh (405 km) · XPOWER");
+        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("61.7 kWh (405 km) · XPOWER · från 2025");
     }
 
     @Test
@@ -1219,7 +1233,7 @@ class EvSpecServiceTest {
                 new EvSpec("Kia EV6 Standard Range 2WD", 11.0, 180.0, 60.0, 428, 400_000),
                 new EvSpec("Kia EV6 Standard Range 63 kWh", 11.0, 180.0, 63.0, 428, 400_000)));
 
-        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km)");
+        assertThat(service().verifiedEngineOptions("Kia EV6")).isEqualTo("63 kWh (428 km) · från 2025");
     }
 
     @Test
@@ -1247,7 +1261,7 @@ class EvSpecServiceTest {
                 new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0),
                 new EvSpec("MG4 Urban Premium Long Range", 11.0, 87.0, 54.0, 416, 0)));
 
-        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("54 kWh (416 km)");
+        assertThat(service().verifiedEngineOptions("MG4")).isEqualTo("54 kWh (416 km) · från 2025");
     }
 
     @Test
@@ -1323,7 +1337,7 @@ class EvSpecServiceTest {
                 new EvSpec("Hyundai IONIQ 5", 11.0, 233.0, 84.0, 570, 500_000)));
 
         assertThat(service().verifiedEngineOptions("Hyundai" + nbsp + "IONIQ" + zeroWidth + " 5"))
-                .isEqualTo("84 kWh (570 km)");
+                .isEqualTo("84 kWh (570 km) · från 2024");
     }
 
     @Test
