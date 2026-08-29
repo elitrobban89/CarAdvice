@@ -1000,6 +1000,108 @@ function caVaxelladeForval() {
  * <p>Rutorna FLYTTAS in i behållaren i stället för att döljas, så rutnätet inte får hål.
  * Körs efter caEnsureCargoField, eftersom bagagefältet injiceras därifrån.
  */
+/**
+ * Snabbstart: fyller formuläret och söker i ETT klick.
+ *
+ * <p>Formuläret är redan nedbantat till fyra fält framme, men den som kommer in första gången
+ * ska ändå välja kategori, dra ett reglage, svara på laddbox och drivmedel innan något händer.
+ * Knapparna här är de vanligaste kombinationerna, och de gör hela vägen på en tryckning.
+ *
+ * <p><b>Budgetarna ligger på reglagets egen rutnät.</b> Steget är 25 000 kr från 50 000, så
+ * 80 000 kr GÅR INTE att sätta — reglaget hade snäppt till 75 000 och knappens text hade ljugit.
+ * Alla fyra tal är därför multiplar av 25 000 räknat från 50 000.
+ *
+ * <p><b>Värdena sätts inuti caUtanForval</b>, annars hinner de smarta förvalen skriva över dem
+ * medan raden fylls (laddbox=Ja tvingar drivmedlet till El). Drivmedlet markeras sedan som ett
+ * EGET val med dataset.rord där knappen uttryckligen säger ett — knappen ÄR ett användarval, och
+ * ska inte kunna slås ut av kategorins förval. Där knappen inte säger något släpps flaggan så
+ * förvalen får gälla som vanligt.
+ *
+ * <p>Byggs i JS och inte i markupen med flit: WordPress-sidan är en manuell kopia av snippeten,
+ * och allt som bara finns i HTML kräver omklistring för att synas. Samma skäl som "Fler val".
+ */
+var CA_SNABBSTART = [
+  { ikon: '\uD83D\uDC6A', namn: 'Barnfamilj',   hint: 'el \u00b7 300 000 kr',
+    kategori: 'familjebil', budget: 300000, laddare: 'true',  drivmedel: 'el' },
+  { ikon: '\uD83D\uDE97', namn: 'Pendlare',     hint: 'bensin \u00b7 150 000 kr',
+    kategori: 'smaabil',    budget: 150000, laddare: 'false', drivmedel: 'bensin', anvandning: 'pendling' },
+  { ikon: '\uD83D\uDE99', namn: 'SUV',          hint: '350 000 kr',
+    kategori: 'suv',        budget: 350000 },
+  { ikon: '\uD83D\uDD30', namn: 'F\u00f6rsta bilen', hint: '75 000 kr',
+    kategori: 'smaabil',    budget: 75000 }
+];
+
+function caSnabbstartCss() {
+  if (document.getElementById('ca-snabb-css')) return;
+  var st = document.createElement('style');
+  st.id = 'ca-snabb-css';
+  st.textContent =
+    '#ca-snabbstart{margin:0 0 16px;}' +
+    '.ca-snabb-rubrik{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;' +
+      'color:rgba(226,232,240,.45);margin-bottom:7px;}' +
+    '.ca-snabb-rad{display:flex;flex-wrap:wrap;gap:7px;}' +
+    '.ca-snabb-btn{display:flex;align-items:center;gap:8px;padding:9px 13px;cursor:pointer;' +
+      'background:rgba(139,92,246,.10);border:1px solid rgba(167,139,250,.35);border-radius:999px;' +
+      'color:rgba(226,232,240,.9);font-family:inherit;font-size:.78rem;font-weight:700;' +
+      'transition:all .16s;}' +
+    '.ca-snabb-btn:hover{background:rgba(139,92,246,.22);border-color:rgba(167,139,250,.7);color:#fff;}' +
+    '.ca-snabb-ikon{font-size:1rem;line-height:1;}' +
+    '.ca-snabb-hint{font-weight:400;color:rgba(226,232,240,.5);}' +
+    // Under 520 px far raden radbrytas fritt och hintarna tas bort: fyra knappar med
+    // undertext blev tre rader hoga pa en telefon, alltsa hogre an formularet de skulle spara.
+    '@media(max-width:520px){.ca-snabb-hint{display:none;}.ca-snabb-btn{padding:8px 11px;}}';
+  document.head.appendChild(st);
+}
+
+function caSnabbstart() {
+  if (document.getElementById('ca-snabbstart')) return;
+  var forstaGrid = document.querySelector('#ca-wrap .ca-grid');
+  if (!forstaGrid) return;
+  caSnabbstartCss();
+
+  var box = document.createElement('div');
+  box.id = 'ca-snabbstart';
+  var html = '<div class="ca-snabb-rubrik">Snabbstart</div><div class="ca-snabb-rad">';
+  CA_SNABBSTART.forEach(function (p, i) {
+    html += '<button type="button" class="ca-snabb-btn" data-i="' + i + '"'
+      + ' title="Fyller formul\u00e4ret och s\u00f6ker direkt">'
+      + '<span class="ca-snabb-ikon">' + p.ikon + '</span>'
+      + '<span>' + caEsc(p.namn) + '</span>'
+      + '<span class="ca-snabb-hint">' + caEsc(p.hint) + '</span></button>';
+  });
+  box.innerHTML = html + '</div>';
+  forstaGrid.parentNode.insertBefore(box, forstaGrid);
+
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.ca-snabb-btn') : null;
+    if (!b) return;
+    caKorSnabbstart(CA_SNABBSTART[parseInt(b.dataset.i, 10)]);
+  });
+}
+
+/** Fyller formuläret ur ett förval och startar sökningen. */
+function caKorSnabbstart(p) {
+  if (!p) return;
+  caUtanForval(function () {
+    // Släpp först: knappen ska ge ett jungfruligt formulär utom där den själv säger något,
+    // annars sitter förra sökningens egna val kvar och motsäger etiketten på knappen.
+    caSlappEgnaVal();
+    document.getElementById('ca-category').value = p.kategori;
+    document.getElementById('ca-charger').value  = p.laddare || 'false';
+    if (p.anvandning) document.getElementById('ca-usage').value = p.anvandning;
+    if (p.drivmedel) {
+      var f = document.getElementById('ca-fuel');
+      f.value = p.drivmedel;
+      f.dataset.rord = '1';
+    }
+  });
+  caSetBudgetMode('k\u00f6p', p.budget);   // satter min/max/steg, varde, fyllnad och varning
+  caUpdateFuelVisibility();                 // drar hela beroendekedjan + caSynkaChips
+  caCheckMismatch();
+  var btn = document.getElementById('ca-btn');
+  if (btn) btn.click();
+}
+
 function caFlerVal() {
   if (document.getElementById('ca-fler')) return;
 
@@ -3616,6 +3718,9 @@ function caInit() {
   // Efter caEnsureCargoField och förvalen: rutorna måste finnas OCH vara ifyllda innan de
   // flyttas, annars fälls tomma fält ihop.
   caFlerVal();
+  // Efter caFlerVal: raden ska ligga överst i formuläret, och caFlerVal flyttar fält mellan
+  // rutnäten. Egen klass och inget .ca-grid, så den aldrig plockas in i "Fler val"-lådan.
+  caSnabbstart();
   caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och

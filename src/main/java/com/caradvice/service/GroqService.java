@@ -3303,8 +3303,28 @@ public class GroqService {
     private static final String PRISFABRIKATION_REGEL =
             "FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.";
 
+    /**
+     * Enda raden som är skriven FÖR chatten, och skälet är utdataformen — inte att reglerna skiljer.
+     *
+     * <p>{@link #EV_PRICE_FLOORS} och {@link #DEPRECIATION_RULE} talar om samma tal på två sätt:
+     * golven är uppmätta BEGAGNATpriser att använda "i stället för att räkna fram priset ur
+     * nypriset", medan avskrivningsregeln säger "begagnatpris = nypris × koefficient". I ett kort
+     * krockar de aldrig — där finns ETT prisfält och en kodvakt efteråt. I fritext bygger modellen
+     * en tabell med båda kolumnerna och fyller den ena med den andras tal.
+     *
+     * <p><b>Uppmätt 2026-08-29</b>, i samma svar som annars var rätt: kolumnen "Pris (nypris)"
+     * innehöll golven — Enyaq 279 000, ID.4 229 500, Polestar 2 209 000, MG4 195 000, MG5 180 000,
+     * alltså nästan exakt tabellens värden — medan de riktiga nypriserna är 494 000, 440 000 och
+     * 510 000 kr. Sedan drogs värdeminskning av EN GÅNG TILL ur golvet, så Enyaq landade på
+     * "begagnatpris ≈ 221 000 kr". Fabriceringen var borta; dubbelavdraget kom i stället.
+     */
+    private static final String GOLVEN_AR_BEGAGNATPRIS =
+            "BEGAGNATGOLVEN OVAN ÄR REDAN BEGAGNATPRISER: kalla dem aldrig nypris, och dra aldrig av"
+            + " värdeminskning på dem en gång till. Golvet är vad billigaste annonsen kostar i dag;"
+            + " nypriset står i nypristabellen och är ett HÖGRE tal.\n";
+
     static final String PRISREGLER_CHATT =
-            DEPRECIATION_RULE + "\n" + EV_PRICE_FLOORS + "\n" + PRISFABRIKATION_REGEL + "\n";
+            DEPRECIATION_RULE + "\n" + EV_PRICE_FLOORS + "\n" + GOLVEN_AR_BEGAGNATPRIS + PRISFABRIKATION_REGEL + "\n";
 
     /**
      * Rubriken som gör de lånade reglerna sanna i chatten.
