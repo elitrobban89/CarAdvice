@@ -75,6 +75,53 @@ class EvSpecServiceTest {
         assertThat(dto.wltpKm()).isEqualTo(500); // den specifika, inte den generiska (400)
     }
 
+    // ── verifiedEngineOptions pass 2: titeln får vara bredare än radnamnet ──────
+
+    @Test
+    void trimordITitelnStopparInteDenVerifieradeVariantlistan() {
+        // Skarpt i drift 2026-08-29: AI:n döpte ett jämförelsekort till "Polestar 2 Single
+        // Motor". Orden "single" och "motor" står inte i något radnamn, så pass 1 gav noll och
+        // kortet föll tillbaka på AI:ns FRITEXT - medan spec-chipsen bredvid visade verifierade
+        // siffror, eftersom matchByTitle har ett pass 2 som det här saknade.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000),
+                new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0)));
+
+        assertThat(service().verifiedEngineOptions("Polestar 2 Single Motor"))
+                .isEqualTo("79 kWh (659 km) · från 2024");
+    }
+
+    @Test
+    void pass1HarFortfarandeForetrade() {
+        // Pass 2 är en RESERV, inte ett tillägg: när titeln matchar radnamnen direkt ska hela
+        // variantlistan visas som förut, inte kapas till basmodellen.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000),
+                new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0)));
+
+        assertThat(service().verifiedEngineOptions("Polestar 2"))
+                .contains("75 kWh (515 km)").contains("79 kWh (659 km)");
+    }
+
+    @Test
+    void pass2SlapperInteEnLaddhybridrubrikPaEnElbilsrad() {
+        // Samma riktning som i matchByTitle är den riskabla: titeln bredare än radnamnet.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo XC60", 11.0, 150.0, 78.0, 500, 600_000, "EV")));
+
+        assertThat(service().verifiedEngineOptions("Volvo XC60 T8 Plug-in Hybrid")).isNull();
+    }
+
+    @Test
+    void pass2SiffranEfterNamnetGorTitelnTillEnAnnanBil() {
+        // "BYD Seal 6" är laddhybridkombin, en annan bil än elbilssedanen "BYD Seal".
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("BYD Seal", 11.0, 150.0, 82.5, 570, 500_000)));
+
+        assertThat(service().verifiedEngineOptions("BYD Seal 6 DM-i")).isNull();
+        assertThat(service().verifiedEngineOptions("BYD Seal Excellence AWD")).isNotNull();
+    }
+
     // ── Generationen skrivs ut när listan spänner över flera ───────────────────
 
     @Test

@@ -776,24 +776,37 @@ public class EvSpecService {
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
                 .trim());
         String[] titleWords = cleaned.split("\\s+");
+        java.util.Set<String> titleSet = titleSetOf(titleWords);
         java.util.Set<String> raw = rawWords(title);
+        List<EvSpec> alla = repo.findAll();
 
-        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
-        List<Variant> variants = new java.util.ArrayList<>();
-        for (EvSpec ev : repo.findAll()) {
-            if (drivlinekrock(ev.getCarName(), raw)) continue;   // se drivlinekrock: PHEV-raden på elbilskortet
-            java.util.Set<String> nameSet = new java.util.HashSet<>(
-                    java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
-            boolean matches = true;
-            for (String w : titleWords) if (!nameSet.contains(w)) { matches = false; break; }
-            if (!matches) continue;
-            if (ev.getBatteryKwh() == null || ev.getBatteryKwh() <= 0) continue;
-            int range = ev.getRangeKm() != null ? ev.getRangeKm() : 0;
-            String key = ev.getBatteryKwh() + "|" + range;
-            if (!seen.add(key)) continue;
-            variants.add(new Variant(ev.getBatteryKwh(), range,
-                    trimName(ev.getCarName(), titleSetOf(titleWords)),
-                    GENERATION.get(normalize(ev.getCarName()))));
+        // Pass 1: alla titelns ord finns som hela ord i radens namn — modellens alla varianter.
+        List<Variant> variants = varianterSom(alla, titleWords, raw, ev -> {
+            java.util.Set<String> nameSet = ordUr(matchningsNamn(ev.getCarName()));
+            for (String w : titleWords) if (!nameSet.contains(w)) return false;
+            return true;
+        });
+
+        // Pass 2: radens ord ryms i titeln — samma andra pass som matchByTitle redan hade.
+        //
+        // Saknades här, och skillnaden syntes i drift 2026-08-29: AI:n döpte ett jämförelsekort
+        // till "Polestar 2 Single Motor", och eftersom orden "single" och "motor" inte står i
+        // något radnamn gav pass 1 noll träffar. Kortet föll då tillbaka på AI:ns fritext
+        // ("Single Motor 79 kWh 231hk (659km)") medan spec-chipsen bredvid visade verifierade
+        // siffror — chipsen går via matchByTitle, som HAR passet. Samma bil, två vägar, olika
+        // kvalitet på svaret, och inget generationsspann på den overifierade raden.
+        //
+        // Vakterna är desamma som i matchByTitle, för det är samma riktning som är riskabel:
+        // titeln får vara BREDARE än radnamnet, och då kan en laddhybridrubrik nå en elbilsrad
+        // och "BYD Seal 6" nå sedanen "BYD Seal".
+        if (variants.isEmpty()) {
+            boolean hybridtitel = titelnSagerHybrid(title);
+            variants = varianterSom(alla, titleWords, raw, ev -> {
+                if (hybridtitelMotElbilsrad(hybridtitel, ev)) return false;
+                String[] nameWords = matchningsNamn(ev.getCarName()).split("\\s+");
+                for (String w : nameWords) if (!titleSet.contains(w)) return false;
+                return !titelnUtokarNamnetMedSiffra(title, titleWords, nameWords);
+            });
         }
         if (variants.isEmpty()) return null;
         variants = keepGenerationForYear(variants, modelYear(title));
@@ -803,6 +816,31 @@ public class EvSpecService {
         return grupper.stream()
                 .map(g -> formatGroup(g, arsspann))
                 .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    /**
+     * Raderna som passar filtret, som varianter — batteri utan siffra hoppas över, och två rader
+     * med samma batteri OCH samma räckvidd räknas som en.
+     *
+     * <p>Bryts ut för att de två passen ska dela allt utom just filtret. Drivlinevakten gäller
+     * båda: en PHEV-rad får aldrig hamna på ett elbilskort, oavsett vilken väg den kom in.
+     */
+    private List<Variant> varianterSom(List<EvSpec> alla, String[] titleWords,
+                                       java.util.Set<String> raw,
+                                       java.util.function.Predicate<EvSpec> passar) {
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        List<Variant> ut = new java.util.ArrayList<>();
+        for (EvSpec ev : alla) {
+            if (drivlinekrock(ev.getCarName(), raw)) continue;   // se drivlinekrock: PHEV-raden på elbilskortet
+            if (!passar.test(ev)) continue;
+            if (ev.getBatteryKwh() == null || ev.getBatteryKwh() <= 0) continue;
+            int range = ev.getRangeKm() != null ? ev.getRangeKm() : 0;
+            if (!seen.add(ev.getBatteryKwh() + "|" + range)) continue;
+            ut.add(new Variant(ev.getBatteryKwh(), range,
+                    trimName(ev.getCarName(), titleSetOf(titleWords)),
+                    GENERATION.get(normalize(ev.getCarName()))));
+        }
+        return ut;
     }
 
     /** En matchad ev_spec-rad: batteri, räckvidd (0 = okänd), trimnamn och modellgeneration. */
