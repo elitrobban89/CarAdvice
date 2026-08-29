@@ -75,6 +75,44 @@ class EvSpecServiceTest {
         assertThat(dto.wltpKm()).isEqualTo(500); // den specifika, inte den generiska (400)
     }
 
+    // ── Radens EGET namn slår en längre rad ────────────────────────────────────
+
+    @Test
+    void radensEgetNamnSlarLangreRadMedFlerOrd() {
+        // Skarpt fel 2026-08-29: /api/ev-spec?car=Polestar 2 svarade 75 kWh, 155 kW DC och
+        // 515 km — siffrorna från "Polestar 2 Long Range 75 kWh". Kortet motsade sig självt,
+        // eftersom motorlistan strax under DC-brickan listade radens egna 79 kWh (659 km).
+        EvSpec egen   = new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000);
+        EvSpec langre = new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0);
+        when(repo.findAll()).thenReturn(List.of(langre, egen));
+
+        EvSpecDto dto = service().formatForTitle("Polestar 2", 15000);
+        assertThat(dto.wltpKm()).isEqualTo(659);
+        assertThat(dto.maxDcKw()).isEqualTo(207);
+        assertThat(dto.batteryKwh()).isEqualTo(79.0);
+    }
+
+    @Test
+    void titelSomStavarUtVariantenFarFortfarandeDenLangreRaden() {
+        // Motprovet till ovan: säger titeln SJÄLV "Long Range 75 kWh" är den längre raden
+        // rätt svar, och exakthetsregeln får inte dra tillbaka den till basraden.
+        EvSpec egen   = new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000);
+        EvSpec langre = new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0);
+        when(repo.findAll()).thenReturn(List.of(egen, langre));
+
+        assertThat(service().formatForTitle("Polestar 2 Long Range 75 kWh", 15000).wltpKm()).isEqualTo(515);
+    }
+
+    @Test
+    void utanExaktRadVinnerFortfarandeLangstaNamnet() {
+        // Finns ingen rad som HETER titeln rör regeln ingenting — pickForYear väljer som förr.
+        EvSpec kort = new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 400_000);
+        EvSpec lang = new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 450_000);
+        when(repo.findAll()).thenReturn(List.of(kort, lang));
+
+        assertThat(service().formatForTitle("Volvo EX30", 15000).wltpKm()).isEqualTo(480);
+    }
+
     // ── PHEV-rader får inte fastna på ett elbilskort ────────────────────────────
 
     @Test

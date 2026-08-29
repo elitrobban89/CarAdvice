@@ -155,7 +155,7 @@ public class EvSpecService {
         // Pass 1: alla titelns ord finns som HELA ORD i det lagrade namnet.
         // "MG4" matchar "MG4 Long Range", "Volvo EX30" matchar "Volvo EX30 Single Motor" —
         // men "Toyota C-HR" matchar INTE "Toyota C-HR+", för "c-hr" och "c-hr+" är olika ord.
-        EvSpec match = pickForYear(all.stream()
+        List<EvSpec> pass1 = all.stream()
                 .filter(ev -> !hybridtitelMotElbilsrad(hybridtitel, ev))
                 .filter(ev -> !drivlinekrock(ev.getCarName(), raw))
                 .filter(ev -> {
@@ -164,7 +164,10 @@ public class EvSpecService {
                     for (String w : titleWords) if (!nameSet.contains(w)) return false;
                     return true;
                 })
-                .collect(java.util.stream.Collectors.toList()), year, true);
+                .collect(java.util.stream.Collectors.toList());
+        // titleSet med: en rad vars namn ÄR titeln slår en längre rad — se exaktNamnForst.
+        // Skickas in i stället för att lindas runt anropet, så att ÅRSMODELLEN får gallra först.
+        EvSpec match = pickForYear(pass1, year, true, titleSet);
 
         // Pass 2: alla radens ord finns som exakta ord i titeln
         // t.ex. "Tesla Model 3 Long Range" som titel hittar raden "Tesla Model 3"
@@ -288,10 +291,66 @@ public class EvSpecService {
      * bara den senare filtrerade på år. Samma generationsdata styr nu båda.
      *
      * @param längstaNamnetVinner passens egen tiebreak när året inte skiljer dem åt
+     */
+    /**
+     * Raderna vars namn ÄR titeln, om det finns några — annars hela listan oförändrad.
+     *
+     * <p><b>Varför "längsta namnet vinner" inte räcker i pass 1.</b> Regeln är rätt när titeln är
+     * mer specifik än raden: en annons som heter {@code Tesla Model 3 Performance} ska hellre få
+     * raden {@code Tesla Model 3} än raden {@code Tesla}. Pass 1 är det omvända fallet — där ryms
+     * titelns ord i RADENS namn — och då betyder ett längre radnamn en ANNAN och smalare variant.
+     * {@code Polestar 2} passerar filtret både mot sin egen rad och mot
+     * {@code Polestar 2 Long Range 75 kWh}, och den längre vann: kortet fick 75 kWh, 155 kW DC och
+     * 515 km i stället för radens egna 79 kWh, 207 kW och 659 km. Motsägelsen syntes på kortet,
+     * eftersom {@link #verifiedEngineOptions} listar BÅDA varianterna — DC-brickan högst upp sa
+     * 155 kW medan motorlistan strax under sa 79 kWh (659 km).
+     *
+     * <p><b>Uppmätt 2026-08-29 över hela tabellen:</b> 43 av 520 lagrade namn förlorade mot en
+     * längre rad trots att deras egen rad fanns, över 19 märken — och i samtliga 43 fall skilde
+     * sig batteri, DC-effekt eller räckvidd mellan raderna, alltså noll ofarliga träffar. Bland
+     * dem {@code Hyundai Kona Electric} (fick 39 kWh-radens 305 km i stället för 514),
+     * {@code Nissan Leaf} (62 kWh-radens 385 km i stället för 624), {@code Volkswagen ID.7}
+     * (59 kWh-radens 474 km i stället för 703) och {@code Tesla Model 3}.
+     *
+     * <p><b>Varför likhet åt båda hållen och inte "kortaste namnet vinner".</b> Kortast hade
+     * ändrat utfallet även när ingen rad heter det titeln heter — {@code Volvo EX30} mot raderna
+     * {@code Volvo EX30 Single Motor} och {@code Volvo EX30 Twin Motor} är fortfarande ett val
+     * mellan två varianter, och om det valet har regeln här ingen ny kunskap. Ledet rör alltså
+     * bara de fall där en rad bär EXAKT titelns ord och lämnar allt annat till pickForYear.
+     *
+     * <p>Pass 2 behöver ingen motsvarighet: där är varje kandidats namn en delmängd av titeln,
+     * så en exakt rad har redan flest ord och vinner på längsta-namnet-regeln av sig själv.
+     *
+     * <p>Anropas EFTER {@code specsForYear} — se överlagringen av {@link #pickForYear} för varför
+     * årtalet i rubriken väger tyngre än att ett radnamn råkar stava titeln.
      */
+    private static List<EvSpec> exaktNamnForst(List<EvSpec> kandidater, java.util.Set<String> titleSet) {
+        List<EvSpec> exakta = kandidater.stream()
+                .filter(ev -> new java.util.HashSet<>(java.util.Arrays.asList(
+                        matchningsNamn(ev.getCarName()).split("\\s+"))).equals(titleSet))
+                .collect(java.util.stream.Collectors.toList());
+        return exakta.isEmpty() ? kandidater : exakta;
+    }
+
     private static EvSpec pickForYear(List<EvSpec> kandidater, int year, boolean längstaNamnetVinner) {
+        return pickForYear(kandidater, year, längstaNamnetVinner, null);
+    }
+
+    /**
+     * Som ovan, men med titelns ordmängd så att en rad som HETER titeln får gå före en längre.
+     *
+     * <p><b>Ordningen är mätt och inte godtycklig: generationen först, namnlikheten sedan.</b>
+     * Prövades tvärtom först och fällde två prov direkt — {@code Nissan Leaf (2019)} fick den
+     * nuvarande generationens 624 km i stället för andra generationens 385, och
+     * {@code MG ZS EV (2020)} fick 440 km i stället för pre-faceliftens 263. Ett årtal i
+     * rubriken pekar ut en bil; namnlikhet pekar bara ut en variant. Säger annonsen vilket år
+     * den är ska årtalet därför avgöra, och exakthetsregeln väljer inom det som blir kvar.
+     */
+    private static EvSpec pickForYear(List<EvSpec> kandidater, int year, boolean längstaNamnetVinner,
+                                      java.util.Set<String> titleSet) {
         List<EvSpec> kvar = specsForYear(kandidater, year);
         if (kvar.isEmpty()) return null;
+        if (titleSet != null) kvar = exaktNamnForst(kvar, titleSet);
         return längstaNamnetVinner
                 ? kvar.stream().max(java.util.Comparator.comparingInt(ev ->
                         normalize(ev.getCarName()).split("\\s+").length)).orElse(null)

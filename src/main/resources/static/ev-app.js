@@ -377,6 +377,15 @@
     ".ev-picker-model:focus-visible{outline:2px solid #3b82f6;outline-offset:2px;}" +
     ".ev-picker-model-name{font-size:.84rem;font-weight:600;color:#f0f4ff;}" +
     ".ev-picker-model-specs{font-size:.7rem;color:rgba(200,215,255,.45);}" +
+    // Milen är det man faktiskt väljer bil på, så den får samma ljusblå som resten av
+    // appens mätvärden — inte samma nedtonade grå som specarna omkring.
+    ".ev-picker-model-mil{color:rgba(147,197,253,.92);font-weight:700;}" +
+    ".ev-picker-model-saknas{color:rgba(251,191,36,.75);}" +
+    // Laddeffekten står kvar men ett steg svagare: den avgör hur snabbt det går, inte
+    // hur långt man kommer, och får därför inte konkurrera med milen om blicken.
+    ".ev-picker-model-ladd{font-size:.66rem;color:rgba(200,215,255,.32);}" +
+    ".ev-picker-model-legend{font-size:.66rem;color:rgba(200,215,255,.38);padding:0 2px 8px;line-height:1.4;}" +
+    ".ev-picker-model-legend b{color:rgba(147,197,253,.7);font-weight:700;}" +
     // Namnbytesnotisen far amber, samma farg som appens ovriga "las har"-markorer
     ".ev-picker-model-alias{font-size:.68rem;color:rgba(251,191,36,.75);margin-top:2px;}" +
     ".ev-picker-tom{padding:22px 10px;text-align:center;font-size:.82rem;color:rgba(200,215,255,.45);}" +
@@ -794,10 +803,17 @@
           emblemHtml(marke, "ev-picker-emblem-sm") +
           '<span class="ev-picker-brand-head">' + esc(marke) + '</span>' +
         '</div>' +
+        '<div class="ev-picker-model-legend">Räckvidden är <b>verklig</b> — WLTP minus 15 %, samma avdrag som resten av appen.</div>' +
         '<div class="ev-picker-model-list">' + lista.map(function (b) {
+          // Saknas talet sägs det rakt ut. En rad som bara tappar milen ser identisk ut med
+          // en bil som inte finns i datan, och då låter felet som ett designval.
+          const mil = b.mil
+            ? '<b class="ev-picker-model-mil">~' + b.mil + ' mil</b> verklig'
+            : '<span class="ev-picker-model-saknas">räckvidd saknas</span>';
           return '<button type="button" class="ev-picker-model" data-index="' + b.index + '">' +
             '<span class="ev-picker-model-name">' + esc(b.modell) + '</span>' +
-            '<span class="ev-picker-model-specs">' + esc(b.spec) + '</span>' +
+            '<span class="ev-picker-model-specs">' + mil + (b.batteri ? ' · ' + esc(b.batteri) : '') + '</span>' +
+            '<span class="ev-picker-model-ladd">' + esc(b.ladd) + '</span>' +
             (b.notis ? '<span class="ev-picker-model-alias">' + esc(b.notis) + '</span>' : '') +
           '</button>';
         }).join("") + '</div>';
@@ -876,11 +892,19 @@
           r.set(marke, (r.get(marke) || 0) + 1);
           if (!karta.has(nyckel)) karta.set(nyckel, []);
           const bat = c.batteryKwh
-            ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + " kWh · " : "";
+            ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + " kWh" : "";
+          // Verklig räckvidd på VARJE rad, inte WLTP: WLTP-talet är det man blir besviken
+          // på, och samma 15 %-avdrag används redan i "Din elbil" och i laddkalkylen.
+          // Samma funktion som där — inte en fjärde kopia av 0.85.
+          const mil = verkligaMil(c.rangeKm);
           const byte = namnbyteFor(c.name);
           karta.get(nyckel).push({
             index: i, namn: c.name, modell: modellAv(c.name, marke),
-            spec: bat + "AC " + c.maxAcKw + " kW · DC " + c.maxDcKw + " kW",
+            mil: mil, batteri: bat,
+            // Tre bilar (Zoe 22, Zoe ZE40, R5 40 kWh 95 hk) har maxDcKw 0. "DC 0 kW" läste
+            // som en mätning som gått fel; de kan helt enkelt inte snabbladdas, och det är
+            // en sak man vill veta INNAN man väljer bilen.
+            ladd: "AC " + c.maxAcKw + " kW · " + (c.maxDcKw ? "DC " + c.maxDcKw + " kW" : "ingen snabbladdning"),
             notis: byte ? byte.notis : "",
             // Söktexten bär BÅDA namnen: den som letar "XC40" ska hitta EX40 och tvärtom.
             sok: (c.name + " " + (byte ? byte.ocksa : "")).toLowerCase()
@@ -915,7 +939,9 @@
       cars.forEach((c, i) => {
         const o = document.createElement("option");
         const bat = c.batteryKwh ? (Number.isInteger(c.batteryKwh) ? c.batteryKwh : c.batteryKwh.toFixed(1)) + ' kWh · ' : '';
-        o.value = i; o.textContent = `${c.name}  (${bat}AC ${c.maxAcKw} kW · DC ${c.maxDcKw} kW)`;
+        const mil = verkligaMil(c.rangeKm);
+        const dc  = c.maxDcKw ? `DC ${c.maxDcKw} kW` : 'ingen snabbladdning';
+        o.value = i; o.textContent = `${c.name}  (${mil ? `~${mil} mil verklig · ` : ''}${bat}AC ${c.maxAcKw} kW · ${dc})`;
         sel.appendChild(o);
       });
       if (markesvaljare) markesvaljare.fyll(cars);
