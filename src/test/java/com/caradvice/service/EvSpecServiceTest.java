@@ -75,6 +75,47 @@ class EvSpecServiceTest {
         assertThat(dto.wltpKm()).isEqualTo(500); // den specifika, inte den generiska (400)
     }
 
+    // ── Generationen skrivs ut när listan spänner över flera ───────────────────
+
+    @Test
+    void polestar2VarianternaSagerVilkenGenerationDeGaller() {
+        // Skarpt fall 2026-08-29: en användare jämförde Polestar 2 med Polestar 2 Long Range och
+        // såg "79 kWh (659 km)" mot "75 kWh (515 km)" — en Long Range med MINDRE batteri än
+        // basmodellen. Båda siffrorna är riktiga, de beskriver olika bilar: faceliften 2024 mot
+        // förfaceliften. Raden sa inte det.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000),
+                new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0)));
+
+        String rader = service().verifiedEngineOptions("Polestar 2");
+        assertThat(rader).contains("75 kWh (515 km)").contains("2020–2023");
+        assertThat(rader).contains("79 kWh (659 km)").contains("från 2024");
+    }
+
+    @Test
+    void ingenGenerationsmarkningNarModellenBaraHarEn() {
+        // "från 2020" på varje rad i en modell som bara funnits i ett utförande tillför inget
+        // och gör listan längre — märkningen finns för att lösa en tvetydighet, inte som pynt.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX30 Single Motor", 11.0, 153.0, 51.0, 344, 400_000),
+                new EvSpec("Volvo EX30 Twin Motor", 11.0, 153.0, 69.0, 460, 450_000)));
+
+        assertThat(service().verifiedEngineOptions("Volvo EX30"))
+                .doesNotContain("från").doesNotContain("till 2");
+    }
+
+    @Test
+    void arsmodellIRubrikenTarBortBehovetAvMarkning() {
+        // Har annonsen ett årtal har generationsfiltret redan valt EN generation, och då svarar
+        // kortet på en bestämd bil. Att ändå räkna upp årsspann hade varit brus.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Polestar 2", 11.0, 207.0, 79.0, 659, 510_000),
+                new EvSpec("Polestar 2 Long Range 75 kWh", 11.0, 155.0, 75.0, 515, 0)));
+
+        assertThat(service().verifiedEngineOptions("Polestar 2 (2021)"))
+                .contains("75 kWh (515 km)").doesNotContain("2020–2023").doesNotContain("från");
+    }
+
     // ── Radens EGET namn slår en längre rad ────────────────────────────────────
 
     @Test
@@ -1101,11 +1142,13 @@ class EvSpecServiceTest {
                 new EvSpec("Kia EV6 Long Range 2WD 84 kWh", 11.0, 263.0, 84.0, 582, 0),
                 new EvSpec("Kia EV6 Long Range AWD 84 kWh", 11.0, 263.0, 84.0, 546, 0)));
 
+        // Årsspannen kom till 2026-08-29: utan årsmodell i rubriken står generationerna bredvid
+        // varandra, och då måste raden säga VILKEN bil varje siffra gäller.
         assertThat(service().verifiedEngineOptions("Kia EV6"))
-                .isEqualTo("77.4 kWh (424 km) · GT 77.4 kWh, "
-                         + "77.4 kWh (528 km) · Long Range 2WD 77.4 kWh, "
-                         + "84 kWh (546 km) · Long Range AWD 84 kWh, "
-                         + "84 kWh (582 km) · Long Range 2WD 84 kWh");
+                .isEqualTo("77.4 kWh (424 km) · GT 77.4 kWh · 2021–2024, "
+                         + "77.4 kWh (528 km) · Long Range 2WD 77.4 kWh · 2021–2024, "
+                         + "84 kWh (546 km) · Long Range AWD 84 kWh · från 2025, "
+                         + "84 kWh (582 km) · Long Range 2WD 84 kWh · från 2025");
     }
 
     @Test
@@ -1149,11 +1192,13 @@ class EvSpecServiceTest {
                 new EvSpec("MG MG4 XPOWER", 11.0, 140.0, 61.7, 405, 471_000),
                 new EvSpec("MG4 Extended Range", 11.0, 150.0, 74.4, 545, 375_000)));
 
+        // "MG MG4 XPOWER" är den enda av de fyra som står i GENERATION (gen 2), och otaggade
+        // rader räknas som den äldsta generationen — därav "till 2024" på de tre andra.
         assertThat(service().verifiedEngineOptions("MG4"))
-                .isEqualTo("41.9 kWh (325 km) · Standard Range, "
-                         + "52.8 kWh (405 km) · Long Range, "
-                         + "61.7 kWh (405 km) · XPOWER, "
-                         + "74.4 kWh (545 km) · Extended Range");
+                .isEqualTo("41.9 kWh (325 km) · Standard Range · till 2024, "
+                         + "52.8 kWh (405 km) · Long Range · till 2024, "
+                         + "61.7 kWh (405 km) · XPOWER · från 2025, "
+                         + "74.4 kWh (545 km) · Extended Range · till 2024");
     }
 
     @Test
@@ -1188,9 +1233,10 @@ class EvSpecServiceTest {
                 new EvSpec("MG4 Standard Range", 11.0, 117.0, 51.0, 350, 295_000),
                 new EvSpec("MG4 Urban Comfort Long Range", 11.0, 87.0, 52.8, 416, 0)));
 
+        // Spärren håller isär raderna i datan; årsspannet säger samma sak till användaren.
         assertThat(service().verifiedEngineOptions("MG4"))
-                .isEqualTo("51 kWh (350 km) · Standard Range, "
-                         + "52.8 kWh (416 km) · Urban Comfort Long Range");
+                .isEqualTo("51 kWh (350 km) · Standard Range · till 2024, "
+                         + "52.8 kWh (416 km) · Urban Comfort Long Range · från 2025");
     }
 
     @Test

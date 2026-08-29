@@ -798,8 +798,10 @@ public class EvSpecService {
         if (variants.isEmpty()) return null;
         variants = keepGenerationForYear(variants, modelYear(title));
         variants.sort(java.util.Comparator.comparingDouble(Variant::kwh).thenComparingInt(Variant::km));
-        return groupByBattery(variants).stream()
-                .map(EvSpecService::formatGroup)
+        List<Group> grupper = groupByBattery(variants);
+        java.util.Map<Integer, String> arsspann = arsspannFor(grupper);
+        return grupper.stream()
+                .map(g -> formatGroup(g, arsspann))
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 
@@ -1248,7 +1250,7 @@ public class EvSpecService {
     }
 
     /** → "69 kWh (436–480 km)", "52.8 kWh (405 km) · Long Range" eller "51 kWh". */
-    private static String formatGroup(Group g) {
+    private static String formatGroup(Group g, java.util.Map<Integer, String> arsspann) {
         StringBuilder sb = new StringBuilder(formatKwh(g.kwh())).append(" kWh");
         if (g.maxKm() > 0) {
             sb.append(g.minKm() == g.maxKm()
@@ -1256,7 +1258,50 @@ public class EvSpecService {
                     : " (" + g.minKm() + "–" + g.maxKm() + " km)");
         }
         if (g.trim() != null && !baraKapacitet(g.trim(), g.kwh())) sb.append(" · ").append(g.trim());
+        String spann = arsspann.get(fromYear(g));
+        if (spann != null) sb.append(" · ").append(spann);
         return sb.toString();
+    }
+
+    /**
+     * Årsspann per generation — men BARA när listan faktiskt spänner över mer än en.
+     *
+     * <p><b>Varför märkningen behövs.</b> Utan årsmodell i titeln finns inget att gallra på, så
+     * listan visar alla generationer bredvid varandra. Det är rätt — vi vet inte vilken bil
+     * frågan gäller — men det läser som en motsägelse: en användare jämförde 2026-08-29
+     * {@code Polestar 2} med {@code Polestar 2 Long Range} och såg "79 kWh (659 km)" mot
+     * "75 kWh (515 km)", alltså en Long Range med MINDRE batteri och kortare räckvidd än
+     * basmodellen. Båda siffrorna är riktiga; de beskriver bara olika bilar. Faceliften 2024
+     * har 79 kWh och förfaceliften 75, och raden sa inte det.
+     *
+     * <p><b>Bara vid flera generationer</b>, eftersom "från 2020" på en modell som bara funnits
+     * i ett utförande inte tillför något och gör varje rad längre. Har annonsen en årsmodell har
+     * {@link #keepGenerationForYear} redan valt EN generation, och då står ingen märkning kvar —
+     * kortet svarar då på en bestämd bil och behöver inte redovisa alternativen.
+     *
+     * <p><b>Otaggade rader är per definition den äldsta generationen</b> (se {@link Generation}),
+     * och får därför ett öppet spann bakåt: "till 2024" i stället för ett påhittat startår. Den
+     * nyaste generationen får "från 2025" av samma skäl — den säljs fortfarande.
+     */
+    private static java.util.Map<Integer, String> arsspannFor(List<Group> grupper) {
+        List<Integer> ar = grupper.stream()
+                .map(EvSpecService::fromYear)
+                .distinct().sorted()
+                .collect(java.util.stream.Collectors.toList());
+        if (ar.size() < 2) return java.util.Map.of();
+        java.util.Map<Integer, String> ut = new java.util.HashMap<>();
+        for (int i = 0; i < ar.size(); i++) {
+            int from = ar.get(i);
+            if (i == ar.size() - 1)  ut.put(from, "från " + from);
+            else if (from == 0)      ut.put(from, "till " + (ar.get(i + 1) - 1));
+            else                     ut.put(from, from + "–" + (ar.get(i + 1) - 1));
+        }
+        return ut;
+    }
+
+    /** Generationens startår för en hopslagen grupp, 0 för otaggade rader. */
+    private static int fromYear(Group g) {
+        return g.generation() == null ? 0 : g.generation().fromYear();
     }
 
     /**
