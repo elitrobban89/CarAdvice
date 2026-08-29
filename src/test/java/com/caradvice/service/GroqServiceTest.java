@@ -1780,6 +1780,43 @@ class GroqServiceTest {
         assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
     }
 
+    // --- jämförelsevyn: AI:ns påhittade årsmodell ---
+
+    @Test
+    void jamforelseTitlarTapparAiensEgnaArtal() {
+        // Skarpt mätt mot /api/compare-cars 2026-08-29: en jämförelse mellan "Polestar 2" och
+        // "Polestar 2 Long Range 75 kWh" gav korten "Polestar 2 (2024)" och "Polestar 2 Long
+        // Range (2024)". Årtalet var AI:ns gissning - och fel på det andra kortet, som visar
+        // förfaceliften (2020-2023). Värre: årtalet STYR vår datahämtning, så årsfiltret valde
+        // en generation och variantlistan slutade visa den andra.
+        var rader = List.of(bil("Polestar 2 (2024)"), bil("Polestar 2 Long Range (2024)"));
+
+        assertThat(GroqService.utanPahittadArsmodell(rader, "Polestar 2", "Polestar 2 Long Range 75 kWh"))
+                .extracting(CarRecommendation::title)
+                .containsExactly("Polestar 2", "Polestar 2 Long Range");
+    }
+
+    @Test
+    void anvandarensEgetArtalStarKvar() {
+        // Angav användaren själv ett årtal är det ingen gissning, och då ska årsfiltret göra
+        // precis det det är till för - titeln rörs inte.
+        var rader = List.of(bil("Polestar 2 (2021)"), bil("Volvo XC40 (2021)"));
+
+        assertThat(GroqService.utanPahittadArsmodell(rader, "Polestar 2 2021", "Volvo XC40"))
+                .extracting(CarRecommendation::title)
+                .containsExactly("Polestar 2 (2021)", "Volvo XC40 (2021)");
+    }
+
+    @Test
+    void ovrigaFaltFoljerMedOforandrade() {
+        // Titeln byggs om i en record med fjorton fält - resten får inte tappas på vägen.
+        var rader = List.of(bilMedNypris("Polestar 2 (2024)", 510_000));
+        var ut = GroqService.utanPahittadArsmodell(rader, "Polestar 2", "Tesla Model 3");
+
+        assertThat(ut).first().extracting(CarRecommendation::title).isEqualTo("Polestar 2");
+        assertThat(ut.get(0).evSpec()).isEqualTo(rader.get(0).evSpec());
+    }
+
     // --- mergeWithinBudget (vilka bilar som överlever budgettaket) ---
 
     private static CarRecommendation bil(String titel) {

@@ -1605,10 +1605,39 @@ public class GroqService {
             throw new RuntimeException(buildGroqErrorMessage(response.statusCode(), response.body()));
 
         List<CarRecommendation> parsed = parseWithRetry(response, reserveBody, "compareSpecific");
+        parsed = utanPahittadArsmodell(parsed, car1, car2);
 
         List<CarRecommendation> result = enrichRecommendations(parsed, 15000);
         store(compareCacheKey, result, null);   // jämförelsen har ingen budget att bryta mot
         return result;
+    }
+
+    /**
+     * Korttitlarna utan AI:ns egen årsmodell — men bara när användaren själv inte angav någon.
+     *
+     * <p>Systemprompten ber om titeln på formen {@code "Märke Modell (år)"}, och AI:n fyller i ett
+     * årtal även när frågan bara var två modellnamn. I en jämförelse är den siffran en gissning,
+     * och den <b>styr vår egen datahämtning</b>: {@code keepGenerationForYear} väljer generation
+     * ur den, varpå {@code verifiedEngineOptions} slutar visa modellens övriga generationer.
+     *
+     * <p><b>Uppmätt skarpt mot {@code /api/compare-cars} 2026-08-29:</b> en jämförelse mellan
+     * {@code Polestar 2} och {@code Polestar 2 Long Range 75 kWh} gav korten "Polestar 2 (2024)"
+     * och "Polestar 2 Long Range (2024)" med en variant var — 79 kWh (659 km) mot 75 kWh (515 km)
+     * — utan att någonstans säga att den senare är 2020 års bil. Årtalet var dessutom fel på just
+     * det kortet: raden är förfaceliften, som slutade säljas 2023. Generationsmärkningen i
+     * variantlistan kunde aldrig slå till, eftersom listan efter årsfiltret bara bar EN generation.
+     *
+     * <p>Anger användaren själv ett årtal ("Polestar 2 2021") är det inte en gissning, och då rörs
+     * titeln inte — filtret ska då göra precis det det är till för.
+     */
+    static List<CarRecommendation> utanPahittadArsmodell(List<CarRecommendation> rader, String car1, String car2) {
+        if (rader == null) return null;
+        if (EvSpecService.modelYear(car1) != 0 || EvSpecService.modelYear(car2) != 0) return rader;
+        return rader.stream().map(r -> new CarRecommendation(
+                        CarTitle.stripYear(r.title()), r.price(), r.whyRecommended(), r.pros(), r.con(),
+                        r.fitSummary(), r.expertOpinion(), r.safetyRating(), r.evSpec(), r.cargoSpec(),
+                        r.fuelSpec(), r.blocketPrice(), r.horsepower(), r.engineOptions()))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     String buildCompareSystemPrompt() {
