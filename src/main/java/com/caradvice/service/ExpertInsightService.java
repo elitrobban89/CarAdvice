@@ -399,6 +399,10 @@ ett bilkort.*/
         m.put("expert", resolveExpertName(i.getExpertName()));
         m.put("carMake", i.getCarMake());
         m.put("carModel", i.getCarModel());
+        // fuelType är enda vägen in i rekommendationsprompten för rader utan car_make:
+        // buildExpertContext matchar på kategori ELLER fuel_type, och utan fältet i svaret
+        // gick det inte att se om en märkeslös rad nådde AI:n eller låg död i tabellen
+        m.put("fuelType", i.getFuelType());
         m.put("category", i.getCategory());
         m.put("insight", i.getInsight());
         m.put("rating", i.getRating());

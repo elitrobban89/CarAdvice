@@ -9,6 +9,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -636,5 +638,27 @@ class ExpertInsightServiceTest {
         when(evSpecService.isKnownEv("Volvo EX30 (2024)")).thenThrow(new RuntimeException("DB nere"));
 
         assertThat(service().findForCarTitle("Volvo EX30 (2024)")).hasSize(1);
+    }
+
+    // --- listRecent (admin-vyn) ---
+
+    /**
+     * Admin-svaret måste bära fuel_type, inte bara kategorin. Rader utan car_make (allmänna
+     * köpråd) når varken bilkort eller chatt — de filtreras bort på carMake == null — och kommer
+     * bara in i rekommendationsprompten via buildExpertContext, som matchar kategori ELLER
+     * fuel_type. Utan fältet i listan går det inte att skilja en rad som når AI:n från en som
+     * ligger död i tabellen: 2026-08-29 stod fem sådana rader omätbara just därför.
+     */
+    @Test
+    void adminlistanBarFuelTypeAvenNarMarketSaknas() {
+        ExpertInsight utanMarke = new ExpertInsight("Bilexpert", null, null, "el", null,
+                "Räkna med 20-25 % sämre räckvidd vintertid.", null);
+        when(repo.findAllByOrderByIdDesc(any(Pageable.class))).thenReturn(List.of(utanMarke));
+
+        Map<String, Object> rad = service().listRecent(null, 50).get(0);
+
+        assertThat(rad).containsEntry("fuelType", "el")
+                       .containsEntry("carMake", null)
+                       .containsEntry("category", null);
     }
 }
