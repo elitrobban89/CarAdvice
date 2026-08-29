@@ -1780,6 +1780,43 @@ class GroqServiceTest {
         assertThat(GroqService.exceedsBudgetCeiling(blocket, 275_000)).isFalse();
     }
 
+    // --- chatten har samma kategoriregler som korten ---
+
+    @Test
+    void chattenBarSammaKategorireglerSomKorten() {
+        // Skarpt 2026-08-29: chatten svarade på "familjebil under 300 000 kr" med bl.a.
+        // "Renault Zoe" - en fyrasitsig småbil som står uttryckligen i FAMILJEBIL-regelns
+        // ALDRIG-lista. Reglerna fanns bara i sökprompten, så korten följde dem och chatten
+        // hade aldrig sett dem.
+        String chatt = serviceMedPristabeller().buildChatSystemPrompt(null, null);
+
+        assertThat(chatt).contains(GroqService.ALLA_KATEGORIREGLER);
+        assertThat(chatt)
+                .contains("FAMILJEBIL")
+                .contains("rekommendera ALDRIG småbilar/stadsbilar")
+                .contains("Renault 5/Zoe/Clio")
+                .contains("SUV betyder HÖG bil")
+                .contains("SMÅBIL");
+    }
+
+    @Test
+    void familjeexemplenBarElroqOchEv3() {
+        // Användarens egna förslag på vad som SKA komma upp i klassen.
+        assertThat(GroqService.ALLA_KATEGORIREGLER)
+                .contains("Škoda Elroq")
+                .contains("Kia EV6/EV3/Niro");
+    }
+
+    @Test
+    void sokningensAlltLageGerExaktSammaTextSomChatten() {
+        // Driftvakt: läggs ett sjunde kategoriblock till i buildSystemPrompt men inte i
+        // ALLA_KATEGORIREGLER får chatten en regel mindre än korten - tyst, och exakt den
+        // sortens glidning som gav Zoe-svaret. Utan prefs tar sökningen med ALLA block.
+        String sok = serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", null);
+
+        assertThat(sok).contains(GroqService.ALLA_KATEGORIREGLER);
+    }
+
     // --- jämförelsevyn: AI:ns påhittade årsmodell ---
 
     @Test

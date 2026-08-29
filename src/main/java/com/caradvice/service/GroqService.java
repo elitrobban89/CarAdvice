@@ -3008,7 +3008,7 @@ public class GroqService {
         return response.body();
     }
 
-    private String buildChatSystemPrompt(String carContext, String expertContext) {
+    String buildChatSystemPrompt(String carContext, String expertContext) {
         String icePrices = getIcePrices();
         String evPrices = getEvPrices();
         String base = ("""
@@ -3025,6 +3025,9 @@ public class GroqService {
                 BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh.
                 ENHETER: 1 svensk mil = 10 km (1500 mil/år = 15 000 km/år). Förbrukning anges i l/100km eller l/mil — håll isär dem i beräkningar.
                 """).formatted(SUBSCRIPTION_PRICE)
+                // Samma kategoriregler som korten. Chatten vet inte vilken kategori frågan
+                // gäller, så hela uppsättningen följer med — se ALLA_KATEGORIREGLER.
+                + ALLA_KATEGORIREGLER
                 + (icePrices.isBlank() ? "" : icePrices + "\n")
                 + (evPrices.isBlank() ? "" : evPrices + "\n");
         if (carContext != null && !carContext.isBlank()) {
@@ -3246,7 +3249,7 @@ public class GroqService {
     //
     // Raderna är ORDAGRANT de som stod i textblocket; bara var de bor har ändrats.
     private static final String FAMILJEBIL_REGEL =
-            "FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, VW ID.4, Kia EV6/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).\n";
+            "FAMILJEBIL (kategori \"familjebil\", användning \"familj\" eller 5+ passagerare): rekommendera ALDRIG småbilar/stadsbilar (t.ex. Dacia Spring, Citroën ë-C3, Renault 5/Zoe/Clio, Fiat 500e/Panda, Opel Corsa, Toyota Aygo) — välj kombi, SUV eller rymlig halvkombi/sedan. Utgå från — bensin/diesel/hybrid: Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW, Dacia Jogger (finns med 7 säten); elbil: Škoda Enyaq, Škoda Elroq, VW ID.4, Kia EV6/EV3/Niro, Polestar 2, MG4, MG5 (elkombi, 578 l bagage, billigast i klassen under ca 250 000 kr).\n";
     private static final String SUV_REGEL =
             "SUV (kategori \"suv\"): SUV betyder HÖG bil — hög sittposition, stor markfrigång, kaross i storleksklass Volvo XC40 / Škoda Kamiq eller större. En halvkombi, sedan eller låg crossover är ALDRIG en SUV: föreslå aldrig MG4, MG5, VW ID.3, Tesla Model 3, Polestar 2, Renault Zoe, Nissan Leaf, Kia Niro eller Hyundai Kona i den här kategorin, hur väl de än passar i övrigt. Drivmedlet avgör modellen, blanda ALDRIG ihop namn som liknar varandra men är olika bilar — bensin/diesel/hybrid: Volvo XC40/XC60/XC90, Audi Q3/Q5/Q7, Škoda Kamiq/Karoq/Kodiaq, VW T-Roc/Tiguan, Toyota RAV4/C-HR (hybrid), Kia Sportage, Hyundai Tucson, BMW X1/X3, Mercedes GLA/GLC; elbil: Volvo EX40/EC40 (ALDRIG \"XC40\" som elbil — XC40 är bensin/diesel/PHEV, EX40 är den rena elbilen), VW ID.4/ID.5, Hyundai Ioniq 5, Kia EV6/EV9, Tesla Model Y, Škoda Enyaq, Audi Q4 e-tron, Peugeot e-2008 (prisvärd liten el-SUV), BMW iX1/iX3, Mercedes EQB.\n";
     private static final String SUV_BUDGET_REGEL =
@@ -3257,6 +3260,24 @@ public class GroqService {
             "DRIVMEDLET ÄR ETT VAL, INTE ETT UNGEFÄR: väljer användaren \"bensin\" eller \"diesel\" ska ALLA tre bilar ha ren förbränningsmotor. En hybrid är ett EGET val i formuläret (\"Hybrid (ej laddhybrid)\"), så ett bensinsök som svarar med Toyota Corolla Hybrid, Honda Jazz Hybrid eller Kia Niro Hybrid har svarat på fel fråga. Kontrolleras i kod efteråt; en bil som bryter mot det kastas.\n";
     private static final String PHEV_REGEL =
             "PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).\n";
+
+    /**
+     * Alla kategori- och drivmedelsblock i sökningens egen ordning.
+     *
+     * <p>Sökvägen plockar blocken efter formulärets svar; det går inte i chatten, som inte vet
+     * vad frågan gäller förrän den ställts. Men det läget finns redan — {@code prefs == null}
+     * ger hela uppsättningen, och det är exakt samma situation. Konstanten är den uppsättningen
+     * under ett namn, så chatten kan få ORDAGRANT samma regler som korten i stället för en egen
+     * formulering som glider isär från vakterna i koden.
+     *
+     * <p><b>Varför chatten behövde dem.</b> Reglerna fanns bara i sökprompten, och 2026-08-29
+     * svarade chatten på en fråga om familjebil under 300 000 kr med "Volkswagen ID.4, Škoda
+     * Enyaq iV, Kia EV6, Hyundai Kona PHEV, Renault Zoe och MG4" — Zoe är en fyrasitsig småbil
+     * och står uttryckligen i FAMILJEBIL-regelns ALDRIG-lista, den som korten alltid följt.
+     * Samma fråga genom sökformuläret hade aldrig gett det svaret.
+     */
+    static final String ALLA_KATEGORIREGLER =
+            FAMILJEBIL_REGEL + SUV_REGEL + SUV_BUDGET_REGEL + SMABIL_REGEL + DRIVMEDEL_REGEL + PHEV_REGEL;
 
     /**
      * Utan prefs vet vi inte vad sökningen gäller — då följer ALLA kategoriblock med.
