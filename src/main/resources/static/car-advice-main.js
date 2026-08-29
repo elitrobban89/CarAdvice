@@ -3741,7 +3741,33 @@ function caInit() {
     caSetBudgetMode('leasing'); caCheckChanges();
   });
 
-  function caBindEl(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
+  /**
+   * Binder en knapp EN gång — och tar bort markupens onclick när den gör det.
+   *
+   * <p>Fem knappar bär både `onclick="window._ca(...)"` i snippeten och en lyssnare härifrån.
+   * Båda vägarna leder till samma funktion, så ett klick körde den TVÅ gånger. För sökknappen
+   * betyder det två fulla /api/recommend — två Groq-kedjor och två avdrag från timkvoten — per
+   * tryckning. Uppmätt i webbläsare mot den riktiga snippeten 2026-08-29: ett klick, ett
+   * funktionsanrop räknat på window._caFns-vägen, men TVÅ nätverksanrop.
+   *
+   * <p><b>Om det slog igenom i drift vet vi inte säkert</b>, och det är hela poängen: WordPress
+   * CSP kan blockera inline-attribut, och gör den det fyrade bara lyssnaren. Beteendet hängde
+   * alltså på värdsidans policy i stället för på vår kod, och lättas policyn någon gång
+   * fördubblas varje sökning tyst.
+   *
+   * <p><b>Attributet är ändå kvar som reserv där reserven behövs.</b> Går main.js inte att ladda
+   * körs den här raden aldrig, attributet står orört och knappen fungerar via `window._ca`.
+   * Vi tar bara bort det i det läge där vi bevisligen har ersatt det.
+   *
+   * <p>`history` och `delHistory` i `_caFns` har inga lyssnare — de anropas från onclick i
+   * dynamiskt renderad HTML och rörs inte.
+   */
+  function caBindEl(id, fn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.removeAttribute('onclick');
+    el.addEventListener('click', fn);
+  }
   caBindEl('ca-btn', caGetRecommendation);
   caBindEl('ca-share-search-btn', caShareSearch);
   caBindEl('ca-reset-btn', caResetForm);
