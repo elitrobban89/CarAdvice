@@ -1817,6 +1817,51 @@ class GroqServiceTest {
         assertThat(sok).contains(GroqService.ALLA_KATEGORIREGLER);
     }
 
+    // --- chatten har samma prisdisciplin som korten ---
+
+    @Test
+    void chattenBarSammaPrisreglerSomKorten() {
+        // Skarpt 2026-08-29, direkt efter att kategoribristen lagats: chatten svarade att Enyaq,
+        // ID.4, EV6, Ioniq 5 och Polestar 2 ALLA har nypris 295 000 kr och alla går 520 km.
+        // Riktiga nypriser i vår egen tabell: 494 000, 440 000, 569 000. Talet var valt för att
+        // rymmas i budgeten - bilarna "passade" genom att priset ändrades.
+        String chatt = serviceMedPristabeller().buildChatSystemPrompt(null, null);
+
+        assertThat(chatt).contains(GroqService.PRISREGLER_CHATT);
+        assertThat(chatt)
+                .contains("FABRICERA ALDRIG PRISER")
+                .contains("NYPRIS PER GENERATION")
+                .contains("UPPMÄTTA BEGAGNATGOLV")
+                .contains("Renault Zoe fr. ca 58 000");
+    }
+
+    @Test
+    void chattenLovaringenBudgetkontrollSomInteFinns() {
+        // Sökningens BUDGETTAK-rad slutar "kontrolleras mot riktiga Blocket-annonser efteråt; en
+        // bil som bryter mot det kastas". Sant om korten (requireAffordableModels), inte om
+        // chatten. En regel som lovar en kontroll som inte finns är värre än ingen regel.
+        String chatt = serviceMedPristabeller().buildChatSystemPrompt(null, null);
+
+        // Sökningens BUDGETTAK-rad följer inte med alls - den lovar en Blocket-kontroll som
+        // chatten saknar, och samma information finns i begagnatgolven utan påståendet.
+        assertThat(chatt).doesNotContain("Taket kontrolleras mot riktiga Blocket-annonser");
+        assertThat(chatt).contains("golv ligger över budgeten + 30 000 kr är fel förslag");
+        // DRIVMEDEL_REGEL bär däremot meningen inuti sig och kan inte redigeras utan att
+        // chatten får en egen text. Rubriken gör den sann i stället.
+        assertThat(chatt).contains("gäller det kortens svar; i chatten är det din egen kvalitetsgräns");
+    }
+
+    @Test
+    void prisfabrikationsregelnArHAMTADUrSokprompten() {
+        // Driftvakt: skrivs raden om i sökprompten men inte i konstanten får chatten en egen
+        // formulering - exakt den glidning som gav både Zoe-svaret och 295 000-svaret.
+        String sok = serviceMedPristabeller().buildSystemPrompt("", "spelar ingen roll", null);
+
+        assertThat(sok).contains("FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient");
+        assertThat(GroqService.PRISREGLER_CHATT)
+                .contains("FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient");
+    }
+
     // --- jämförelsevyn: AI:ns påhittade årsmodell ---
 
     @Test

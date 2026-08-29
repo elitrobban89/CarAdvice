@@ -3025,9 +3025,9 @@ public class GroqService {
                 BATTERIKEMI: LFP = ladda till 100%% dagligen, tålig i kyla. NMC = ladda till 80%% för livslängd, mer räckvidd per kWh.
                 ENHETER: 1 svensk mil = 10 km (1500 mil/år = 15 000 km/år). Förbrukning anges i l/100km eller l/mil — håll isär dem i beräkningar.
                 """).formatted(SUBSCRIPTION_PRICE)
-                // Samma kategoriregler som korten. Chatten vet inte vilken kategori frågan
-                // gäller, så hela uppsättningen följer med — se ALLA_KATEGORIREGLER.
-                + ALLA_KATEGORIREGLER
+                // Samma kategori- och prisregler som korten. Chatten vet inte vilken kategori
+                // frågan gäller, så hela uppsättningen följer med — se ALLA_KATEGORIREGLER.
+                + REGELRUBRIK_CHATT + ALLA_KATEGORIREGLER + PRISREGLER_CHATT
                 + (icePrices.isBlank() ? "" : icePrices + "\n")
                 + (evPrices.isBlank() ? "" : evPrices + "\n");
         if (carContext != null && !carContext.isBlank()) {
@@ -3278,6 +3278,51 @@ public class GroqService {
      */
     static final String ALLA_KATEGORIREGLER =
             FAMILJEBIL_REGEL + SUV_REGEL + SUV_BUDGET_REGEL + SMABIL_REGEL + DRIVMEDEL_REGEL + PHEV_REGEL;
+
+    /**
+     * Prisdisciplinen ur sökprompten, ordagrant, åt chatten.
+     *
+     * <p><b>Varför.</b> Chatten hade en enda mening om priser och ingen kontroll efteråt. Skarpt
+     * 2026-08-29, direkt efter att kategoribristen lagats: på "familjebil under 300 000 kr" svarade
+     * den att Enyaq, ID.4, EV6, Ioniq 5 och Polestar 2 <b>alla</b> har nypris 295 000 kr, alla går
+     * 520 km och alla tappar 45 % på fem år. De riktiga nypriserna i vår egen tabell är 494 000,
+     * 440 000 respektive 569 000 kr. Talet var valt för att rymmas i budgeten, alltså fabricerat
+     * precis så som sökprompten förbjuder — bilarna "passade" budgeten genom att priset ändrades.
+     *
+     * <p><b>Vad som INTE följer med.</b> Sökningens BUDGETTAK-rad slutar med "kontrolleras mot
+     * riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas". Det är sant om korten,
+     * som går genom {@code requireAffordableModels}, men inte om chatten — den har ingen sådan
+     * vakt. En regel som lovar en kontroll som inte finns är värre än ingen regel, så chatten får
+     * i stället begagnatgolven, som bär samma information utan påståendet: en modell vars golv
+     * ligger över budgeten + 30 000 kr är fel förslag.
+     *
+     * <p>Raden om fabricerade priser är hämtad ur sökprompten och inte avskriven; ett prov kräver
+     * att sökprompten fortfarande innehåller exakt den strängen, annars faller bygget i stället
+     * för att chatten tyst får en egen formulering.
+     */
+    private static final String PRISFABRIKATION_REGEL =
+            "FABRICERA ALDRIG PRISER: price = nypris × ålderskoefficient, kontrollera mot nypristabellen. Ex: Octavia 2021+ nypris 340 000 kr, 3 år → 221 000 kr — kan ALDRIG kosta 100 000 kr. Räcker inte budgeten: byt till billigare bil, sänk ALDRIG priset.";
+
+    static final String PRISREGLER_CHATT =
+            DEPRECIATION_RULE + "\n" + EV_PRICE_FLOORS + "\n" + PRISFABRIKATION_REGEL + "\n";
+
+    /**
+     * Rubriken som gör de lånade reglerna sanna i chatten.
+     *
+     * <p>Blocken är skrivna för sökningen och några av dem lovar en kodkontroll:
+     * {@code DRIVMEDEL_REGEL} slutar "Kontrolleras i kod efteråt; en bil som bryter mot det
+     * kastas". Det gäller korten, som går genom drivmedels- och budgetvakterna, men inte chattens
+     * fritext. Att redigera bort meningen ur den delade texten hade gett chatten en egen version
+     * — precis den glidning som orsakade både Zoe-svaret och 295 000-svaret. Rubriken säger i
+     * stället vems svar kontrollerna gäller, så samma ord blir sanna på båda ställena.
+     *
+     * <p>Föll ut av ett prov som krävde att chatten INTE lovar en kontroll den saknar; utan det
+     * hade meningen följt med tyst.
+     */
+    private static final String REGELRUBRIK_CHATT =
+            "\nREGLER FÖR MODELLVAL OCH PRIS — samma regler som sökresultaten följer. "
+            + "Där en regel säger att något \"kontrolleras i kod\" eller \"kastas\" gäller det "
+            + "kortens svar; i chatten är det din egen kvalitetsgräns och den är lika bindande.\n";
 
     /**
      * Utan prefs vet vi inte vad sökningen gäller — då följer ALLA kategoriblock med.
