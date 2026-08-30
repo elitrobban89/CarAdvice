@@ -297,6 +297,12 @@
     ".ev-slide-entering{animation:ev-slide-in .5s cubic-bezier(.22,1,.36,1) forwards;}" +
     ".ev-slide-leaving{animation:ev-slide-out .35s ease forwards;pointer-events:none;position:absolute;top:0;left:0;width:100%;}" +
 
+    // Källfelsrutan. Stilen bor HÄR och inte i sidans <style>: `.ev-status` gör det, och
+    // WP-sidan är en manuell kopia som inte uppdateras av en deploy — en ny klass där hade
+    // synts först vid nästa omklistring. Dämpad varning, inte larm: felet ligger hos källan
+    // och användaren har inget att åtgärda, bara att veta.
+    ".ev-kallfel{padding:18px 20px;border:1.5px solid rgba(251,191,36,.35);border-radius:12px;background:rgba(251,191,36,.07);color:#fde68a;line-height:1.5;text-align:left;}" +
+
     // --- Märkesväljaren -----------------------------------------------------
     // Ligger här och inte i sidans <style> av samma skäl som allt annat i den här
     // funktionen: WP-sidan är en manuell kopia och uppdateras inte av en deploy.
@@ -1707,7 +1713,17 @@
      */
     const stationsOpen = !!state.stationsOpen;
     const oppnaEtikett = `Visa ${stations.length} kompatibla stationer inom 15 km`;
-    const stationsSection = stationsHtml
+    // Ett tomt resultat har TVÅ orsaker och de betyder motsatta saker. Utan besked visades
+    // ingenting alls där stationslistan skulle stått — sidan såg färdig ut, och den enda
+    // rimliga slutsatsen för den som läser den är att det inte finns laddare i närheten.
+    // `sourceError` sätts av backenden BARA när källan fallerade (2026-08-30: OpenChargeMap
+    // slutade svara helt — vår tjänst var frisk hela tiden).
+    const tomtBesked = stations.length === 0
+      ? (data.sourceError
+          ? `<div class="ev-status ev-kallfel">⚠️ ${data.sourceError}</div>`
+          : '<div class="ev-status">Inga laddstationer som passar din bil inom 15 km. Prova en annan position.</div>')
+      : '';
+    const stationsSection = tomtBesked || (stationsHtml
       ? `<button class="ev-stations-toggle" id="ev-stations-toggle" aria-expanded="${stationsOpen}"
                  aria-controls="ev-stations-body" data-open-label="${oppnaEtikett}">
            <span aria-hidden="true">⚡</span>
@@ -1715,7 +1731,7 @@
            <span class="ev-chevron" aria-hidden="true">▼</span>
          </button>
          <div id="ev-stations-body" style="display:${stationsOpen ? 'block' : 'none'};">${stationsHtml}</div>`
-      : '';
+      : '');
 
     // Stationsknappen FÖRST i utdatan, alltså direkt under kartan — #ev-map ligger
     // omedelbart ovanför #ev-output i elbilsladdning-web.html. Kartan visar samma
