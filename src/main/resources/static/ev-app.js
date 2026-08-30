@@ -327,6 +327,37 @@
     ".ev-picker-emblem-bild img{width:100%;height:100%;object-fit:contain;display:block;}" +
     ".ev-picker-emblem-sm.ev-picker-emblem-bild{padding:3px;}" +
 
+    // --- Väntelaget: avtryckaren medan tjänsten vaknar ------------------------
+    // Texten ensam räckte inte. En knapp som byter ord men i övrigt ser exakt likadan
+    // ut läser som att sidan står still — och "står still" är precis det beskedet ska
+    // motbevisa. Rörelsen är beviset: så länge något snurrar pågår det något. Uppvak-
+    // ningen är mätt till 115-121 s, alltså en lång stund att hålla någon lugn.
+    //
+    // Svepet ligger i background-IMAGE, inte i ett absolut ::after över knappen: ett
+    // positionerat pseudoelement målas OVANPÅ texten och tvättar ur den (samma fälla
+    // som en gång bleknade korttexterna). background-image målas över background-color
+    // men under innehållet.
+    ".ev-picker-vantar .ev-picker-trigger{cursor:progress;border-color:rgba(59,130,246,.42);background-image:linear-gradient(100deg,transparent 30%,rgba(96,165,250,.16) 50%,transparent 70%);background-size:220% 100%;background-repeat:no-repeat;animation:ev-picker-svep 2.4s linear infinite;}" +
+    "@keyframes ev-picker-svep{from{background-position:120% 0}to{background-position:-120% 0}}" +
+    // Ringen sitter UTANFÖR plattan (inset:-4px), så blixten inuti står kvar orörd:
+    // snurran ska läsa som att något laddas, inte som att ikonen bytts ut.
+    ".ev-picker-vantar .ev-picker-emblem-tom{position:relative;box-shadow:0 0 14px rgba(96,165,250,.3),inset 0 1px 0 rgba(255,255,255,.06);animation:ev-picker-blixt 1.6s ease-in-out infinite;}" +
+    // Hela ringen är svagt tänd och BARA toppbågen ljus: utan spåret syns en ensam båge
+    // knappt mot den mörka plattan — den lästes som en kantartefakt i första provet.
+    // RUND, trots att plattan är en rundad fyrkant: en roterande fyrkant läser som att
+    // ikonen står och vickar, en cirkel som att något laddas.
+    ".ev-picker-vantar .ev-picker-emblem-tom::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:2.5px solid rgba(96,165,250,.17);border-top-color:#7dd3fc;border-right-color:rgba(125,211,252,.55);animation:ev-picker-snurr .85s linear infinite;pointer-events:none;}" +
+    "@keyframes ev-picker-snurr{to{transform:rotate(360deg)}}" +
+    "@keyframes ev-picker-blixt{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.07)}}" +
+    // Skimret får bara finnas där background-clip:text går att lita på: utan vakten blir
+    // color:transparent en OSYNLIG text i de webbläsare som inte klipper, alltså värre
+    // än ingen effekt alls.
+    "@supports ((-webkit-background-clip:text) or (background-clip:text)){" +
+      ".ev-picker-vantar .ev-picker-text{background-image:linear-gradient(100deg,rgba(200,215,255,.45) 30%,#dbeafe 50%,rgba(200,215,255,.45) 70%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ev-picker-svep 2.4s linear infinite;}}" +
+    // Rörelsen är en förklaring, inte en dekoration — den som stängt av animationer ska
+    // ändå se att knappen väntar. Ringen och den tända ramen står kvar, stilla.
+    "@media (prefers-reduced-motion:reduce){.ev-picker-vantar .ev-picker-trigger,.ev-picker-vantar .ev-picker-text,.ev-picker-vantar .ev-picker-emblem-tom,.ev-picker-vantar .ev-picker-emblem-tom::after{animation:none;}}" +
+
     ".ev-picker-panel{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 8px);background:#0d1526;border:1.5px solid rgba(59,130,246,0.28);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.55);padding:12px;animation:ev-picker-in .22s cubic-bezier(.22,1,.36,1);}" +
     "@keyframes ev-picker-in{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}" +
     ".ev-picker-search{width:100%;padding:9px 12px;margin-bottom:10px;background:#060c1a;border:1.5px solid rgba(59,130,246,.2);border-radius:9px;color:#f0f4ff;font-size:.86rem;font-family:inherit;}" +
@@ -736,6 +767,15 @@
     function visaVantetext() {
       trigger.querySelector(".ev-picker-text").textContent =
         "Tjänsten startar — bilarna dyker upp strax…";
+      // Klassen bär hela väntelaget (snurran, svepet, skimret). Den sitter på ROTEN och
+      // inte på avtryckaren, eftersom valj() byter ut avtryckarens innehåll — en klass
+      // satt där hade följt med i tvätten.
+      rot.classList.add("ev-picker-vantar");
+    }
+    // Väntan har exakt ETT slut, och båda utgångarna nedan går igenom den här: texten och
+    // rörelsen ska aldrig kunna sluta på olika ställen.
+    function slutaVanta() {
+      rot.classList.remove("ev-picker-vantar");
     }
 
     function oppna() {
@@ -916,12 +956,16 @@
             .sort(function (a, b) { return b[1] - a[1]; })[0][0];
           return { marke: vanligast, bilar: par[1] };
         }).sort(function (a, b) { return a.marke.localeCompare(b.marke, "sv"); });
+        slutaVanta();
         trigger.querySelector(".ev-picker-text").textContent = "Välj bilmärke…";
         trigger.classList.add("ev-picker-klar");
       },
       vantar: visaVantetext,
       fel: function () {
         laddar = true;
+        // Snurran måste bort HÄR också: ett besked om att hämtningen misslyckats som
+        // fortsätter snurra säger två motsatta saker samtidigt.
+        slutaVanta();
         trigger.querySelector(".ev-picker-text").textContent = "Kunde inte hämta bilar";
       }
     };
