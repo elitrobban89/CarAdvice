@@ -296,6 +296,48 @@ public class ExpertInsightService {
     }
 
     /**
+     * Är träffen på {@code pos} ett FAMILJESUFFIX i stället för kortets egen modell?
+     *
+     * <p>{@link #tidigasteModellenVinner} löser det här redan — men bara när en KONKURRENT finns
+     * i databasen. "Audi A6 Avant e-tron" räddas av att vi har A6-insikter som börjar tidigare;
+     * "Audi SQ6 Sportback e-tron" har ingen SQ6-rad alls, och då vann den generella e-tron-raden
+     * på walkover. Mätt 2026-09-01 i drift: en värdetappsrad om första generationens e-tron
+     * (2019–2021) låg på tio e-tron-kort, varav fem PPE-bilar från 2024 som den inte handlar om.
+     *
+     * <p>Regeln generaliserar därför konkurrenten från "en annan insiktsrad" till "vilken
+     * modellbeteckning som helst i TITELN": står det ett ord med BÅDE bokstav och siffra
+     * ("sq6", "s6", "q8") helt före träffen, är det kortets modell och träffen bara ett
+     * familjenamn på slutet.
+     *
+     * <p>Ordet måste stå HELT före träffen — annars hade "citroen e-c3" fallit på sitt eget
+     * "e-c3", och elprefixen (e-C3, e-3008, e-Soul, ë-Berlingo) är riktiga träffar. Märkesordet
+     * hoppas över åt båda hållen: {@code carMake "MG"} mot titeln "MG4" (ordet bär märket) och
+     * {@code carMake "Mercedes"} mot "Mercedes-Benz CLA 200" (titeln bär ett längre märkesord).
+     *
+     * <p>MÄTT ALTERNATIV, FÖRKASTAT: att kräva att modellen börjar direkt efter märket tog
+     * 1707 → 1615 kopplingar och tömde 58 kort — MG4, Mercedes-Benz CLA, e-C3, RS e-tron GT och
+     * Grand Cherokee föll allihop. Den här regeln tar 1707 → 1701, och alla sex är Audi e-tron.
+     *
+     * <p>KÄND GRÄNS: en insiktsrad vars carModel är en UNDERbeteckning ("xDrive40" på titeln
+     * "BMW iX3 xDrive40") skulle falla felaktigt. Ingen sådan rad fanns när regeln byggdes.
+     */
+    static boolean familjesuffix(String flatTitle, String make, int pos) {
+        if (pos <= 0) return false;
+        String mk = foldDiacritics(flattenSpaces(make));
+        for (String ord : foldDiacritics(flatTitle).substring(0, pos).split(" ")) {
+            if (ord.isBlank()) continue;
+            if (!mk.isBlank() && (mk.contains(ord) || ord.contains(mk))) continue;
+            boolean bokstav = false, siffra = false;
+            for (int k = 0; k < ord.length(); k++) {
+                if (Character.isLetter(ord.charAt(k))) bokstav = true;
+                else if (Character.isDigit(ord.charAt(k))) siffra = true;
+            }
+            if (bokstav && siffra) return true;
+        }
+        return false;
+    }
+
+    /**
      * Av flera modellnamn som matchar samma titel vinner det som börjar TIDIGAST; vid samma
      * position vinner det längsta. Titeln inleds med bilens egen modell, så positionen är en
      * bättre mätare på vilken bil kortet gäller än längden.
@@ -341,7 +383,8 @@ public class ExpertInsightService {
                 if (insightDrive != null && !drivetrainsCompatible(titleDrive, insightDrive)) continue;
             }
             if (i.getCarModel() != null) {
-                if (modelPosition(t, i.getCarModel()) >= 0) makeAndModel.add(i);
+                int p = modelPosition(t, i.getCarModel());
+                if (p >= 0 && !familjesuffix(t, i.getCarMake(), p)) makeAndModel.add(i);
             } else {
                 makeOnly.add(i);
             }

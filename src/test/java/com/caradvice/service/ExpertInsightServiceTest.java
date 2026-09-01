@@ -488,6 +488,49 @@ class ExpertInsightServiceTest {
     }
 
     @Test
+    void familjesuffixFallerNarTitelnBarEnEgenModellbeteckning() {
+        // Skarpt fall 2026-09-01: värdetappsraden om första generationens Audi e-tron (2019–2021)
+        // låg på tio e-tron-kort, varav fem PPE-bilar från 2024 som den inte handlar om
+        assertThat(ExpertInsightService.familjesuffix("audi sq6 sportback e-tron", "Audi", 22)).isTrue();
+        assertThat(ExpertInsightService.familjesuffix("audi s6 avant e-tron", "Audi", 15)).isTrue();
+        assertThat(ExpertInsightService.familjesuffix("audi q8 e-tron", "Audi", 8)).isTrue();
+        // Kortets EGEN modell står först — inget suffix
+        assertThat(ExpertInsightService.familjesuffix("audi e-tron sportback", "Audi", 5)).isFalse();
+        assertThat(ExpertInsightService.familjesuffix("audi e-tron s", "Audi", 5)).isFalse();
+    }
+
+    @Test
+    void familjesuffixRorInteDeFyraFallfamiljerna() {
+        // Alla fyra mättes 2026-09-01 som falska förluster hos den förkastade "direkt efter
+        // märket"-regeln, som tömde 58 kort. De MÅSTE överleva den här regeln.
+        // 1) märket är prefix i modellen
+        assertThat(ExpertInsightService.familjesuffix("mg4 long range", "MG", 0)).isFalse();
+        // 2) titelns märkessträng är längre än den lagrade
+        assertThat(ExpertInsightService.familjesuffix("mercedes-benz cla 200", "Mercedes", 14)).isFalse();
+        // 3) elprefix — ordet bär siffran men står inte HELT före träffen
+        assertThat(ExpertInsightService.familjesuffix("citroen e-c3 aircross", "Citroën", 10)).isFalse();
+        assertThat(ExpertInsightService.familjesuffix("peugeot e-3008", "Peugeot", 10)).isFalse();
+        // 4) trimord före modellen
+        assertThat(ExpertInsightService.familjesuffix("audi rs e-tron gt", "Audi", 8)).isFalse();
+        assertThat(ExpertInsightService.familjesuffix("jeep grand cherokee", "Jeep", 11)).isFalse();
+    }
+
+    @Test
+    void generellModellinsiktNarInteVariantkortMedEgenBeteckning() {
+        // Hela kedjan: "e-tron" matchar titeln, ingen SQ6-rad finns som konkurrent, och utan
+        // regeln vann suffixträffen på walkover
+        ExpertInsight etron = insikt("Marknadsläget", "Audi", "e-tron",
+                "Första generationens Audi e-tron har tappat 65-70 % av nypriset.", null);
+        when(repo.findAll()).thenReturn(List.of(etron));
+        when(evSpecService.isKnownEv(anyString())).thenReturn(true);
+        assertThat(service().findForCarTitle("Audi SQ6 Sportback e-tron")).isEmpty();
+        assertThat(service().findForCarTitle("Audi S6 Avant e-tron")).isEmpty();
+        // ... men bilen den FAKTISKT handlar om behåller sin rad
+        assertThat(service().findForCarTitle("Audi e-tron")).hasSize(1);
+        assertThat(service().findForCarTitle("Audi e-tron Sportback")).hasSize(1);
+    }
+
+    @Test
     void motorkoderRaknasSomForbranning() {
         // Skarpt fall 2026-08-24: Teknikens Världs bensin-Polo-test nämnde ingen av de gamla
         // markörerna — bara motorkoden — och landade därför på elbilskortet ID. Polo
