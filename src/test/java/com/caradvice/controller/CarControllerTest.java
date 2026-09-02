@@ -78,6 +78,7 @@ class CarControllerTest {
     @MockBean private EvSpecService evSpecService;
     @MockBean private com.caradvice.service.UsageStatsService usageStatsService;
     @MockBean private com.caradvice.service.VpicYearCheckService vpicYearCheckService;
+    @MockBean private com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
 
     // --- health ---
 
@@ -886,6 +887,47 @@ class CarControllerTest {
            .andExpect(jsonPath("$.perStatus.INGEN_DATA").value(107))
            .andExpect(jsonPath("$.avvikelser[0].model").value("Volvo s90"))
            .andExpect(jsonPath("$.avvikelser[0].vartArtal").value(1997));
+    }
+
+    @Test
+    void annonskollenAvKonKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/insights/upcoming/ad-check"))
+           .andExpect(status().isForbidden());
+        verify(upcomingAdCheckService, never()).granska(any());
+    }
+
+    @Test
+    void annonskollenRedovisarLarmetOchRadernaBakomDet() throws Exception {
+        /*
+         * Rapporten är rådgivande: den ska svara "vilka rader ska jag titta på", inte bara
+         * "något är fel". Därför följer id:na med — och LARM skiljs från GRANSKA, för en bil
+         * som säljs kan mycket väl ha en korrekt parkerad rad om nästa generation.
+         */
+        var larm = new com.caradvice.service.UpcomingAdCheckService.Dom(
+                "Hyundai", "Ioniq 3",
+                com.caradvice.service.UpcomingAdCheckService.Status.LARM, 4,
+                List.of(1381L, 1384L), List.of(1381L, 1384L),
+                List.of("Hyundai IONIQ 3 Standard Range Select"));
+        when(upcomingAdCheckService.granska(any())).thenReturn(
+                new com.caradvice.service.UpcomingAdCheckService.Rapport(
+                        14, 48, 0,
+                        new java.util.LinkedHashMap<>(Map.of(
+                                "LARM", 1L, "UPPSLAG_MISSLYCKADES", 0L,
+                                "GRANSKA", 3L, "INGA_ANNONSER", 10L)),
+                        List.of(larm)));
+
+        mvc.perform(get("/api/admin/insights/upcoming/ad-check").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.bilar").value(14))
+           .andExpect(jsonPath("$.rader").value(48))
+           .andExpect(jsonPath("$.hoppade").value(0))
+           .andExpect(jsonPath("$.perStatus.GRANSKA").value(3))
+           .andExpect(jsonPath("$.domar[0].status").value("LARM"))
+           .andExpect(jsonPath("$.domar[0].carModel").value("Ioniq 3"))
+           .andExpect(jsonPath("$.domar[0].raderUtanNyhetsord[0]").value(1381));
+
+        // Kollen är rådgivande — den får aldrig släppa en rad på egen hand.
+        verify(upcomingInsightService, never()).release(any());
     }
 
     @Test

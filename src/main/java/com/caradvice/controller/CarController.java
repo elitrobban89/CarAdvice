@@ -81,6 +81,7 @@ public class CarController {
     private final UpcomingInsightService upcomingInsightService;
     private final com.caradvice.service.UsageStatsService usageStatsService;
     private final com.caradvice.service.EvFactCandidateService evFactCandidateService;
+    private final com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -170,7 +171,9 @@ public class CarController {
                          com.caradvice.service.EvPowerService evPowerService,
                          com.caradvice.service.UsageStatsService usageStatsService,
                          com.caradvice.service.VpicYearCheckService vpicYearCheckService,
-                         com.caradvice.service.EvFactCandidateService evFactCandidateService) {
+                         com.caradvice.service.EvFactCandidateService evFactCandidateService,
+                         com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService) {
+        this.upcomingAdCheckService = upcomingAdCheckService;
         this.evFactCandidateService = evFactCandidateService;
         this.vpicYearCheckService = vpicYearCheckService;
         this.usageStatsService = usageStatsService;
@@ -304,6 +307,26 @@ public class CarController {
         return upcomingInsightService.release(id)
                 ? ResponseEntity.ok(Map.of("released", id))
                 : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte markerad som kommande"));
+    }
+
+    /**
+     * Admin: rådgivande koll av kommande-kön mot Blockets annonser.
+     *
+     * <p>Svarar på frågan "står någon rad i kö för en bil som redan går att köpa?" och <b>ändrar
+     * ingenting</b> — släpp görs som förut med {@code DELETE /api/admin/insights/{id}/upcoming},
+     * och skälet till att den inte släpper själv står i {@link com.caradvice.service.UpcomingAdCheckService}.
+     */
+    @GetMapping("/admin/insights/upcoming/ad-check")
+    public ResponseEntity<?> upcomingAdCheck(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        var rapport = upcomingAdCheckService.granska(upcomingInsightService.list());
+        return ResponseEntity.ok(Map.of(
+                "bilar", rapport.bilar(),
+                "rader", rapport.rader(),
+                // hoppade > 0 betyder att anropstaket tog slut, inte att resten var frisk
+                "hoppade", rapport.hoppade(),
+                "perStatus", rapport.perStatus(),
+                "domar", rapport.domar()));
     }
 
     /**

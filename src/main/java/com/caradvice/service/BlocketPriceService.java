@@ -291,6 +291,31 @@ public class BlocketPriceService {
         }
     }
 
+    /**
+     * Rå träfflista för en fritextsökning — annonsernas NAMN, inte deras priser.
+     *
+     * <p>Finns för kommande-köns annonskoll ({@link UpcomingAdCheckService}): frågan där är inte
+     * "vad kostar bilen" utan "finns bilen över huvud taget till salu", och den frågan går inte
+     * att ställa till {@link #priceRange} — den svarar {@code null} både när modellen saknas helt
+     * och när annonserna finns men inga priser överlever milgränsen och prisvakterna.
+     *
+     * <p><b>{@code null} och tom lista betyder olika saker och slås aldrig ihop.</b> {@code null}
+     * är "uppslaget misslyckades" (nätfel, annat svar än 200), tom array är "Blocket svarade,
+     * noll träffar". Ett misslyckat uppslag som såg ut som noll annonser hade blivit ett tyst
+     * godkännande av varje parkering i kön — samma fälla som cargo-jobbet stod i när en död
+     * parser rapporterade 100 % täckning.
+     */
+    public JsonNode searchAds(String query) {
+        try {
+            return fetchDocs(query, null, false, "PRICE_ASC", null);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private JsonNode fetchDocs(String query, Integer year, boolean leasing, String sort, Integer mileageTo)
             throws Exception {
         String url = SEARCH_URL + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
