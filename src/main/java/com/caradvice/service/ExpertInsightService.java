@@ -471,10 +471,30 @@ ett bilkort.*/
 
     /** Admin: senaste insikterna (högsta id först — tabellen saknar created_at), valfritt filtrerat på expert/källa. */
     public List<Map<String, Object>> listRecent(String expert, int limit) {
-        Pageable page = PageRequest.of(0, Math.max(1, Math.min(limit, 500)));
+        return listRecent(expert, limit, 0);
+    }
+
+    /**
+     * Som ovan, men med sidnummer — <b>enda sättet att räkna upp HELA tabellen</b>.
+     *
+     * <p><b>Varför sidan behövdes</b> (2026-09-03). Taket är 500 rader, och utan sidnummer gav
+     * {@code ?limit=500} bara de 500 nyaste av 981. Nattkontrollen hämtade därför resten genom att
+     * fråga per expertnamn — och kom fram till <b>974 av 981</b>. De sju som saknades går inte att
+     * nå den vägen alls: {@link #resolveExpertName} visar {@code expert_name = NULL} som
+     * "Bilexpert", medan {@code findByExpertNameIgnoreCase("Bilexpert")} bara matchar rader som
+     * verkligen HETER så. Raderna syns alltså i listan under ett namn som inte kan användas för
+     * att hitta dem igen.
+     *
+     * <p>Samma familj som {@code car_type = NULL} tidigare samma dag: <b>ett defaultvärde i
+     * presentationslagret döljer att fältet är tomt</b>, och den enda som märker det är den som
+     * försöker räkna. Visningsnamnet är med flit orört — korten ska stå "Bilexpert" — men nu går
+     * tabellen att gå igenom utan att gissa namn.
+     */
+    public List<Map<String, Object>> listRecent(String expert, int limit, int page) {
+        Pageable sida = PageRequest.of(Math.max(0, page), Math.max(1, Math.min(limit, 500)));
         List<ExpertInsight> rows = (expert == null || expert.isBlank())
-                ? repo.findAllByOrderByIdDesc(page)
-                : repo.findByExpertNameIgnoreCaseOrderByIdDesc(expert, page);
+                ? repo.findAllByOrderByIdDesc(sida)
+                : repo.findByExpertNameIgnoreCaseOrderByIdDesc(expert, sida);
         return rows.stream().map(this::toAdminMap).toList();
     }
 

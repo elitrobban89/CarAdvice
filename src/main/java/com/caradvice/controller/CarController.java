@@ -1116,9 +1116,10 @@ public class CarController {
     @GetMapping("/admin/insights")
     public ResponseEntity<?> listInsights(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                           @RequestParam(required = false) String expert,
-                                          @RequestParam(defaultValue = "50") int limit) {
+                                          @RequestParam(defaultValue = "50") int limit,
+                                          @RequestParam(defaultValue = "0") int page) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
-        return ResponseEntity.ok(expertInsightService.listRecent(expert, limit));
+        return ResponseEntity.ok(expertInsightService.listRecent(expert, limit, page));
     }
 
     // Admin: normalisera en kategoristavning i insiktstabellen ("småbil" → "smaabil") —

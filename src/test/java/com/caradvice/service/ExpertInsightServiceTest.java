@@ -716,6 +716,30 @@ class ExpertInsightServiceTest {
                        .containsEntry("category", null);
     }
 
+    /**
+     * Sidnumret ar enda sattet att rakna upp HELA tabellen. Taket ar 500 rader, och 2026-09-03
+     * hade tabellen 981: nattkontrollen fick darfor hamta resten per expertnamn och kom fram
+     * till 974. De sju som saknades gar inte att na sa: resolveExpertName VISAR ett tomt
+     * expert_name som "Bilexpert", men findByExpertNameIgnoreCase("Bilexpert") matchar bara
+     * rader som verkligen heter sa. Raderna star alltsa i listan under ett namn som inte kan
+     * anvandas for att hitta dem igen.
+     */
+    @Test
+    void sidnumretGorHelaTabellenUppraknelig() {
+        ExpertInsight utanExpert = new ExpertInsight(null, "Volvo", "XC60", "bensin", "suv",
+                "Rad utan expertnamn - visas som Bilexpert men heter inget.", null);
+        when(repo.findAllByOrderByIdDesc(any(Pageable.class))).thenReturn(List.of(utanExpert));
+
+        service().listRecent(null, 500, 1);
+
+        ArgumentCaptor<Pageable> cap = ArgumentCaptor.forClass(Pageable.class);
+        verify(repo).findAllByOrderByIdDesc(cap.capture());
+        assertThat(cap.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(cap.getValue().getPageSize()).isEqualTo(500);
+        // Och raden syns under sitt visningsnamn, inte under ett tomt falt
+        assertThat(service().listRecent(null, 500, 0).get(0)).containsEntry("expert", "Bilexpert");
+    }
+
     // --- kategorivakten (InsightTaxonomy) ---
 
     /**

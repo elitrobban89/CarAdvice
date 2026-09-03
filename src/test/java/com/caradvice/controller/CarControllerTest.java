@@ -985,13 +985,24 @@ class CarControllerTest {
 
     @Test
     void adminInsiktslistanReturnerarSenasteInsikter() throws Exception {
-        when(expertInsightService.listRecent(null, 50)).thenReturn(List.of(
+        when(expertInsightService.listRecent(null, 50, 0)).thenReturn(List.of(
                 Map.of("id", 42, "expert", "CarUp", "insight", "Bra bil.")));
 
         mvc.perform(get("/api/admin/insights").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[0].id").value(42))
            .andExpect(jsonPath("$[0].expert").value("CarUp"));
+    }
+
+    @Test
+    void adminInsiktslistanSkickarVidareSidnumret() throws Exception {
+        // Sidan ar enda satten att rakna upp hela tabellen — taket ar 500 rader.
+        when(expertInsightService.listRecent(null, 500, 1)).thenReturn(List.of(
+                Map.of("id", 7, "expert", "Bilexpert", "insight", "Rad pa sida tva.")));
+
+        mvc.perform(get("/api/admin/insights?limit=500&page=1").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].id").value(7));
     }
 
     @Test
