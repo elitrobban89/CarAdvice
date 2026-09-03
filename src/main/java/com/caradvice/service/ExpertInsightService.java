@@ -253,6 +253,44 @@ public class ExpertInsightService {
     }
 
     /**
+     * Insiktens drivlina: modellnamnet först, sedan texten — men <b>radens egen drivmedelsruta
+     * bryter ett ENDA fall</b>, att en elbilsrad NÄMNER förbränning.
+     *
+     * <p><b>Felet regeln lagar</b> (uppmätt 2026-09-03). {@code drivetrainOf} läser texten, och
+     * {@code ICE_MARKER} bryr sig inte om varför ordet står där: "Toyota bZ4X är billigare i drift
+     * … jämfört med motsvarande <b>bensinbil</b>" (id 233) och "Ford Puma Gen-E, en omarbetad
+     * <b>bensinbil</b> som anpassats för eldrift, uppvisade 10 kWh/100 km" (id 1259) klassades som
+     * förbränningsinnehåll och föll bort från sina EGNA elbilskort. Båda är fakta OM elbilen; ordet
+     * står i en jämförelse.
+     *
+     * <p><b>Varför drivmedelsrutan får bryta just här, och ingen annanstans.</b> Hela tabellen
+     * mättes: av 851 rader med satt {@code fuel_type} har 297 också en drivlina ur texten, och de
+     * två signalerna är eniga i 254 fall. Av de 39 oeniga ligger <b>exakt 2 i cellen
+     * el→ice</b> — de två raderna ovan. De övriga oenigheterna är hybrid/laddhybrid-förväxlingar
+     * (phev→hev 11, ice→hev 9, phev→ice 5 …), där texten är den mer specifika källan och ska
+     * fortsätta vinna. Regeln är därför skriven som cellen den lagar, inte som ett allmänt
+     * företräde för {@code fuel_type}: <b>ett allmänt företräde hade ändrat 39 rader i stället för 2.</b>
+     *
+     * <p><b>Svaret blir OKÄND, inte "ev".</b> Första försöket lät raden bli en elbilsrad, och då
+     * föll den bort från förbrännings- och hybridkorten i stället — fyra tester i sviten fångade
+     * det direkt (bensinkortet tömdes, och Toyotas oljebytesråd försvann från Corolla Hybrid).
+     * Två signaler som säger emot varandra är inte ett bevis åt något håll, så vakten står över:
+     * regeln kan därför bara LÄGGA TILL rader på ett kort, aldrig ta bort dem.
+     *
+     * <p>Se även den motsatta frestelsen, prövad och förkastad 2026-09-01: att göra
+     * {@code fuel_type} till ett HÅRT filter. Fyra av fem uppmätta motsägelser var
+     * drivlineoberoende fakta (besiktning, ISA, interiör, bagage) som hör hemma på båda korten.
+     */
+    private static String insiktensDrivlina(ExpertInsight i) {
+        String fromModel = drivetrainOf(i.getCarModel());
+        if (fromModel != null) return fromModel;
+        String fromText = drivetrainOf(i.getInsight());
+        String fuel = i.getFuelType() == null ? "" : i.getFuelType().trim().toLowerCase();
+        if ("ice".equals(fromText) && ("elbil".equals(fuel) || "el".equals(fuel))) return null;
+        return fromText;
+    }
+
+    /**
      * Får en insikt om drivlinan {@code insight} visas på ett kort med drivlinan {@code card}?
      * Samma drivlina duger alltid. Förbränningsinnehåll ("ice") är däremot fel BARA på en ren
      * elbil — en laddhybrid och en hybrid har faktiskt en bensinmotor, så Toyotas oljebytesråd
@@ -378,8 +416,7 @@ public class ExpertInsightService {
             if (i.getCarMake() == null
                     || !tFold.contains(foldDiacritics(i.getCarMake().toLowerCase()))) continue;
             if (titleDrive != null) {
-                String insightDrive = drivetrainOf(i.getCarModel());
-                if (insightDrive == null) insightDrive = drivetrainOf(i.getInsight());
+                String insightDrive = insiktensDrivlina(i);
                 if (insightDrive != null && !drivetrainsCompatible(titleDrive, insightDrive)) continue;
             }
             if (i.getCarModel() != null) {

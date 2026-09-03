@@ -53,6 +53,17 @@ class ExpertInsightServiceTest {
         return new ExpertInsight(expert, make, model, "el", "suv", text, rating);
     }
 
+    /**
+     * Som ovan men med radens VERKLIGA drivmedelsruta. Behovs sedan 2026-09-03: hjalparen
+     * satter "el" pa varje rad, och de bensinrader som testerna citerar (id 978, 941,
+     * 1214-1215) bar i sjalva verket "bensin". Kombinationen el-rad + bensintext ar den enda
+     * dar insiktensDrivlina staller in vakten, sa fixturen maste saga vad raden verkligen sager.
+     */
+    private static ExpertInsight insikt(String expert, String make, String model, String drivmedel,
+                                        String text, Integer rating) {
+        return new ExpertInsight(expert, make, model, drivmedel, "suv", text, rating);
+    }
+
     // --- buildExpertContext (rekommendationsflödet) ---
 
     @Test
@@ -563,7 +574,7 @@ class ExpertInsightServiceTest {
     void bensinInsiktMedMotorkodVisasInteFaElbilskort() {
         // Hela kedjan: "polo" är en delsträng av "id. polo", så bensinraden matchar titeln —
         // det är drivlinefiltret som måste stoppa den
-        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo",
+        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo", "bensin",
                 "Provbilen hade en 115-hästkrafts TSI-motor kopplad till en dubbelkopplingslåda.", 7);
         when(repo.findAll()).thenReturn(List.of(bensinPolo));
         when(evSpecService.isKnownEv("Volkswagen ID. Polo 155 kW - 52 kWh")).thenReturn(true);
@@ -573,7 +584,7 @@ class ExpertInsightServiceTest {
     @Test
     void bensinInsiktMedMotorkodVisasFortfarandePaBensinkort() {
         // Motsatsen måste också hålla: filtret får inte tömma bensinkortet
-        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo",
+        ExpertInsight bensinPolo = insikt("Teknikens Värld", "Volkswagen", "Polo", "bensin",
                 "Provbilen hade en 115-hästkrafts TSI-motor kopplad till en dubbelkopplingslåda.", 7);
         when(repo.findAll()).thenReturn(List.of(bensinPolo));
         assertThat(service().findForCarTitle("Volkswagen Polo 1.0 TSI Life")).hasSize(1);
@@ -634,7 +645,7 @@ class ExpertInsightServiceTest {
     void forbranningsinsiktVisasIntePaElbilskort() {
         // Fords EcoBoost-kamremsvarning är märkesbred (carModel == null) och hamnade därför
         // på VARJE Ford-kort — inklusive Mustang Mach-E, som är en ren elbil
-        ExpertInsight kamrem = insikt("CarUp", "Ford", null,
+        ExpertInsight kamrem = insikt("CarUp", "Ford", null, "bensin",
                 "Ford med trecylindriga EcoBoost-motorer har problem med kamremmar i olja.", null);
         when(repo.findAll()).thenReturn(List.of(kamrem));
         when(evSpecService.isKnownEv("Ford Mustang Mach-E (2023)")).thenReturn(true);
@@ -645,7 +656,7 @@ class ExpertInsightServiceTest {
     @Test
     void forbranningsinsiktVisasFortfarandePaForbranningskort() {
         // Samma insikt på en bensin-/dieselbil av samma märke ska INTE filtreras bort
-        ExpertInsight kamrem = insikt("CarUp", "Ford", null,
+        ExpertInsight kamrem = insikt("CarUp", "Ford", null, "bensin",
                 "Ford med trecylindriga EcoBoost-motorer har problem med kamremmar i olja.", null);
         when(repo.findAll()).thenReturn(List.of(kamrem));
         when(evSpecService.isKnownEv("Ford Focus (2019)")).thenReturn(false);
@@ -657,7 +668,7 @@ class ExpertInsightServiceTest {
     void hybridkortBehallerForbranningsinsikt() {
         // En hybrid HAR en bensinmotor — Toyotas oljebytesråd hör hemma på ett Corolla
         // Hybrid-kort. Ren likhetsjämförelse hade tystat hybridkorten när ice-ledet infördes
-        ExpertInsight olja = insikt("CarUp", "Toyota", null,
+        ExpertInsight olja = insikt("CarUp", "Toyota", null, "bensin",
                 "För vanliga bensinmotorer i moderna Toyota-bilar föreslås oljebyten var 8 000 km.", null);
         when(repo.findAll()).thenReturn(List.of(olja));
 

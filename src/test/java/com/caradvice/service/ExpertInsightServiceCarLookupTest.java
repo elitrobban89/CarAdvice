@@ -144,4 +144,42 @@ class ExpertInsightServiceCarLookupTest {
         assertThat(ExpertInsightService.drivetrainOf("Bilen behover nya tändstift.")).isEqualTo("ice");
         assertThat(ExpertInsightService.drivetrainOf("En gammal förgasarmotor.")).isEqualTo("ice");
     }
+
+    @Test
+    void elbilsradSomNAMNERBensinFallerInteBortFranSittEgetKort() {
+        // Uppmatt 2026-09-03: id 233 ("Toyota bZ4X ar billigare i drift ... jamfort med
+        // motsvarande bensinbil") och id 1259 (Ford Puma Gen-E) klassades som
+        // forbranningsinnehall och foll bort fran sina EGNA elbilskort. Ordet star i en
+        // jamforelse; raden ar ett faktum OM elbilen. Radens egen drivmedelsruta bryter.
+        when(evSpecService.isKnownEv("Toyota bZ4X")).thenReturn(true);
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "Vi Bilägare", "Toyota", "bZ4X", "elbil", "suv",
+                "Toyota bZ4X är billigare i drift på en semesterresa jämfört med motsvarande bensinbil.", null)));
+
+        assertThat(service.findForCarTitle("Toyota bZ4X")).hasSize(1);
+    }
+
+    @Test
+    void enBensinradFallerFortfarandePaElbilskortet() {
+        // Motprovet, och skalet att regeln ar skriven som EN cell och inte som ett allmant
+        // foretrade for fuel_type: sager raden sjalv "bensin" ska den fortsatta falla.
+        when(evSpecService.isKnownEv("Toyota bZ4X")).thenReturn(true);
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "CarUp", "Toyota", "bZ4X", "bensin", "suv",
+                "Motorn behöver nya tändstift efter 6 000 mil.", null)));
+
+        assertThat(service.findForCarTitle("Toyota bZ4X")).isEmpty();
+    }
+
+    @Test
+    void drivlineordIModellnamnetVinnerOverDrivmedelsrutan() {
+        // Ordningen ar modellnamn -> text -> drivmedelsruta. Sager modellnamnet "PHEV" ar
+        // raden en laddhybrid aven om drivmedelsrutan rakar saga elbil.
+        when(evSpecService.isKnownEv("Kia Niro")).thenReturn(true);
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "CarUp", "Kia", "Niro PHEV", "elbil", "suv",
+                "Laddhybriden går 5 mil på el.", null)));
+
+        assertThat(service.findForCarTitle("Kia Niro")).isEmpty();
+    }
 }
