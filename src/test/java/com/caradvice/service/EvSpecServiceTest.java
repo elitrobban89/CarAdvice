@@ -348,6 +348,43 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void radMedNullCarTypeArEnRenElbil() {
+        /*
+         * Uppmätt i drift 2026-09-03: kortet "Renault Megane E-Tech" bar laddhybridinsikten
+         * id 478 trots att titeln ordagrant ÄR namnet på en EV-rad. car_type kom till med
+         * laddhybridaliasen och fylls bara av konstruktorn, så rader som fanns FÖRE kolumnen
+         * står kvar med NULL. toDto läste dem som elbilar (admin-dumpen visar "EV"), de tre
+         * matchningsreglerna hoppade tyst över dem — och isKnownEv föll vidare till
+         * ice_consumption-företrädet, hittade en bensin-Megane och svarade false. Kortets
+         * drivlina blev okänd, och då stängs HELA drivlinefiltret av.
+         *
+         * Testerna ovan kunde aldrig fånga det: en stubbad rad får sitt carType av
+         * konstruktorn och kan inte vara null. Den här raden bygger driftens data.
+         */
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Renault Megane E-Tech", 22.0, 130.0, 60.0, 470, 400_000, null)));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "Renault", "Megane 1.3 TCe 140 hk", "bensin", 0.62));
+
+        assertThat(service().isKnownEv("Renault Megane E-Tech")).isTrue();
+    }
+
+    @Test
+    void nullCarTypeSlapperInteIgenomLaddhybridraderna() {
+        // Motprovet: uppluckringen gäller BARA null. En rad som säger "PHEV" ska fortsatt
+        // falla på ice_consumption-företrädet, annars hade tabellens 37 laddhybridalias
+        // börjat svara "ren elbil" på sina egna namn.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("BMW 530e", 3.7, 0.0, 12.0, 53, 680_000, "PHEV")));
+        when(iceConsumptionService.consumptionForTitle(anyString(), any(), any()))
+                .thenReturn(new IceConsumptionService.Variant(
+                        "BMW", "530i 2.0 252 hk", "bensin", 0.72));
+
+        assertThat(service().isKnownEv("BMW 530e")).isFalse();
+    }
+
+    @Test
     void annonstitelSomStavarUtEnHelForbranningsvariantArIngenElbil() {
         /*
          * Villkor 3. "Mini Countryman Cooper SE ALL4 PHEV 224 hk" bär elbilsradens alla ord

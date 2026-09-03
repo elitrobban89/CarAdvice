@@ -216,9 +216,38 @@ public class EvSpecService {
         return "phev".equals(d) || "hev".equals(d);
     }
 
+    /**
+     * Är raden en REN elbil? Enda stället som besvarar frågan, och {@code car_type = NULL}
+     * räknas som elbil.
+     *
+     * <p><b>Varför null måste betyda EV.</b> Kolumnen kom till med laddhybridaliasen och fylls
+     * bara av {@link EvSpec}s konstruktor, som sätter {@code "EV"} när ingen typ anges — rader
+     * som fanns FÖRE kolumnen står därför kvar med {@code NULL}. {@link #toDto} har alltid läst
+     * dem som elbilar (och admin-dumpen visar dem som {@code "EV"}), medan de tre reglerna som
+     * frågade {@code "EV".equalsIgnoreCase(...)} tyst hoppade över dem. Två läsningar av samma
+     * kolumn, och skillnaden syntes ingenstans.
+     *
+     * <p><b>Vad splittringen kostade, uppmätt 2026-09-03:</b> kortet {@code Renault Megane E-Tech}
+     * bar laddhybridinsikten id 478 ("Laddhybriden Renault Megane E-Tech Plug-in Hybrid…") trots
+     * att titeln ordagrant ÄR namnet på en EV-rad. {@link #arRenElbilMedExaktNamn} hoppade över
+     * raden, {@link #isKnownEv} föll vidare till {@code ice_consumption}-företrädet, hittade en
+     * bensin-Megane och svarade false — varpå {@code ExpertInsightService.findForCarTitle} inte
+     * visste kortets drivlina och stängde av HELA drivlinefiltret. Samma sökning på
+     * "Renault Megane E-Tech Electric" (drivlineord i titeln, isKnownEv aldrig anropad) uteslöt
+     * raden korrekt, och fyra andra exakta EV-namn med ICE-tvilling (Fiat 500e, Ford Puma Gen-E,
+     * Peugeot e-208 54 kWh, Audi Q8 e-tron) uteslöt sina — felet var alltså radens data, inte regeln.
+     *
+     * <p>Regeln var "prövad isolerat och svarade true" i två tidigare sessioner: en stubbad rad
+     * får sitt {@code carType} av konstruktorn och kan aldrig vara null. <b>Fixturen bar inte
+     * driftens data.</b>
+     */
+    private static boolean arRenElbilsrad(EvSpec ev) {
+        return ev.getCarType() == null || "EV".equalsIgnoreCase(ev.getCarType());
+    }
+
     /** Sant när en hybridrubrik står mot en ren elbilsrad — den kombinationen får aldrig matcha. */
     private static boolean hybridtitelMotElbilsrad(boolean hybridtitel, EvSpec ev) {
-        return hybridtitel && "EV".equalsIgnoreCase(ev.getCarType());
+        return hybridtitel && arRenElbilsrad(ev);
     }
 
     /**
@@ -291,7 +320,7 @@ public class EvSpecService {
      * bara den senare filtrerade på år. Samma generationsdata styr nu båda.
      *
      * @param längstaNamnetVinner passens egen tiebreak när året inte skiljer dem åt
-     */
+     */
     /**
      * Raderna vars namn ÄR titeln, om det finns några — annars hela listan oförändrad.
      *
@@ -603,7 +632,7 @@ public class EvSpecService {
                 new java.util.HashSet<>(java.util.Arrays.asList(cleaned.split("\\s+")));
         try {
             for (EvSpec ev : repo.findAll()) {
-                if (!"EV".equalsIgnoreCase(ev.getCarType())) continue;
+                if (!arRenElbilsrad(ev)) continue;
                 java.util.Set<String> nameSet = new java.util.HashSet<>(
                         java.util.Arrays.asList(matchningsNamn(ev.getCarName()).split("\\s+")));
                 if (nameSet.equals(titleSet)) return true;
@@ -673,7 +702,7 @@ public class EvSpecService {
             }
 
             for (EvSpec ev : repo.findAll()) {
-                if (!"EV".equalsIgnoreCase(ev.getCarType())) continue;
+                if (!arRenElbilsrad(ev)) continue;
                 String namn = matchningsNamn(ev.getCarName());
                 java.util.Set<String> namnOrd = ordUr(namn);
                 if (!titleSet.containsAll(namnOrd)) continue;          // villkor 1
@@ -1577,7 +1606,9 @@ public class EvSpecService {
                        : "";
         }
 
-        String carType = spec.getCarType() != null ? spec.getCarType() : "EV";
+        // Samma regel som reglerna ovan läser: null = ren elbil. Se arRenElbilsrad för vad
+        // två läsningar av kolumnen kostade innan de slogs ihop.
+        String carType = arRenElbilsrad(spec) ? "EV" : spec.getCarType();
         return new EvSpecDto(wltp, summer, winter, days, daysLabel, bat, maxDc, maxAc, price, valueLabel, carType, chemistry);
     }
 

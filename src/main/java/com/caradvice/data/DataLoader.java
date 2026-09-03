@@ -834,6 +834,15 @@ public class DataLoader implements CommandLineRunner {
         if (!existing.contains("Seat Leon PHEV"))
             extras.add(new EvSpec("Seat Leon PHEV",           3.6, 0.0, 13.0,  60, 350_000, "PHEV"));
 
+        // Polestar 4 SUV — EGEN bil, inte en utrustningsnivå på Polestar 4. Avslöjad i september
+        // 2026 med svenskt pris (634 000 kr bakhjulsdriven, 664 000 kr fyrhjulsdriven) och samma
+        // 100 kWh-batteri i båda. Raden finns för att fem insikter (1396-1399, 1409) namnger
+        // SUV:en och saknade kort helt: utan namnet i ev_spec bygger /api/cars inget kort, och
+        // {@code carModel = "4 SUV"} kunde bara nå golvet. Kortas modellnamnet i stället till
+        // "4" landar bagagevolym och pris på kupén, som har 526/1 536 l och eget pris.
+        if (!existing.contains("Polestar 4 SUV"))
+            extras.add(new EvSpec("Polestar 4 SUV",          22.0, 200.0, 100.0, 630, 634_000));
+
         if (!extras.isEmpty()) evSpecRepo.saveAll(extras);
     }
 
