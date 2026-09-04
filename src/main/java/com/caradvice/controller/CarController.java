@@ -931,8 +931,13 @@ public class CarController {
      */
     @GetMapping("/admin/cargo-specs")
     public ResponseEntity<?> listaCargoSpecs(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestParam(required = false) String car) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        // Med ?car= svarar endpointen på VILKEN rad titeln landar på och vilka andra som fanns
+        // att välja på. Tabellens värden gick att läsa sedan 2026-08-20, men inte VALET mellan
+        // dem — och MG4 har tre volymer i tabellen (två generationer, två källor).
+        if (car != null && !car.isBlank()) return ResponseEntity.ok(cargoSpecService.traffForTitle(car));
         var rader = cargoSpecService.allaMedVolym();
         return ResponseEntity.ok(Map.of("total", rader.size(), "cargoSpecs", rader));
     }

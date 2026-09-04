@@ -133,6 +133,45 @@ public class CargoSpecService {
     }
 
     public CargoSpecDto formatForTitle(String title) {
+        CargoSpec match = matchForTitle(title);
+        if (match == null || match.getCargoLiters() == null) return null;
+        return new CargoSpecDto(match.getCargoLiters(),
+                match.getCargoMaxLiters() != null ? match.getCargoMaxLiters() : 0);
+    }
+
+    /**
+     * Vilken rad en korttitel FAKTISKT landar på, och vilka andra rader som var möjliga.
+     *
+     * <p>Finns sedan 2026-09-04 av samma skäl som listan över hela tabellen: ett fel som sitter i
+     * VALET mellan rader syns inte i värdena. MG4 har tre volymer i tabellen — 363 l (första
+     * generationen, 4 287 mm), 388 l (samma kaross enligt ev-database) och 577 l (MY26-bilen som
+     * ev-database kallar "MG4 Urban", 4 395 mm och en helt annan bil) — och frågan "vilken av dem
+     * får ett MG4-kort?" gick inte att svara på utan att läsa Render-loggen.
+     */
+    public Map<String, Object> traffForTitle(String title) {
+        Map<String, Object> ut = new LinkedHashMap<>();
+        ut.put("titel", title);
+        CargoSpec match = matchForTitle(title);
+        ut.put("matchadRad", match == null ? null : match.getCarName());
+        ut.put("liter", match == null ? null : match.getCargoLiters());
+        ut.put("maxLiter", match == null ? null : match.getCargoMaxLiters());
+        String cleaned = normalize(CarTitle.stripYear(title == null ? "" : title));
+        String forstaOrdet = cleaned.isBlank() ? "" : cleaned.split("\\s+")[0];
+        List<Map<String, Object>> kandidater = new ArrayList<>();
+        for (CargoSpec cs : repo.findAll()) {
+            if (cs.getCargoLiters() == null || cs.getCargoLiters() <= 0) continue;
+            if (forstaOrdet.isBlank() || !normalize(cs.getCarName()).contains(forstaOrdet)) continue;
+            Map<String, Object> rad = new LinkedHashMap<>();
+            rad.put("carName", cs.getCarName());
+            rad.put("cargoLiters", cs.getCargoLiters());
+            rad.put("cargoMaxLiters", cs.getCargoMaxLiters());
+            kandidater.add(rad);
+        }
+        ut.put("kandidater", kandidater);
+        return ut;
+    }
+
+    private CargoSpec matchForTitle(String title) {
         if (title == null) return null;
         String cleaned = normalize(CarTitle.stripYear(title));
         String[] titleWords = cleaned.split("\\s+");
@@ -162,9 +201,7 @@ public class CargoSpecService {
                     .orElse(null);
         }
 
-        if (match == null || match.getCargoLiters() == null) return null;
-        return new CargoSpecDto(match.getCargoLiters(),
-                match.getCargoMaxLiters() != null ? match.getCargoMaxLiters() : 0);
+        return match;
     }
 
     // Updates existing entries that have null cargo_liters; inserts new entries
