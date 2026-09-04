@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class CargoSpecServiceFillTest {
 
     private final CargoSpecRepository repo = mock(CargoSpecRepository.class);
-    private final CargoSpecService service = new CargoSpecService(repo);
+    private final CargoSpecService service = new CargoSpecService(repo, null);   // null = ingen arsmodellstabell i enhetsprovet
 
     @Test
     void tomRadFyllsMedSkrapadVolym() {

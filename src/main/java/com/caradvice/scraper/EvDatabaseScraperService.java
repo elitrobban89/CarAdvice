@@ -168,7 +168,8 @@ public class EvDatabaseScraperService {
                 try {
                     if (scraped.cargoLiters() > 0
                             && cargoSpecService.fillFromScrape(scraped.name(),
-                                    scraped.cargoLiters(), scraped.cargoMaxLiters())) {
+                                    scraped.cargoLiters(), scraped.cargoMaxLiters(),
+                                    scraped.modelYear())) {
                         cargoFilled++;
                         log.info("Bagagevolym ifylld från {}: {} l ({} l nedfällt)",
                                 scraped.name(), scraped.cargoLiters(), scraped.cargoMaxLiters());
@@ -366,8 +367,10 @@ public class EvDatabaseScraperService {
             // Car name from h1 or page title
             String name = "";
             Element h1 = doc.selectFirst("h1");
-            if (h1 != null) name = h1.text().replaceAll("\\s*\\(MY\\d.*", "").trim();
+            String rubrik = h1 == null ? "" : h1.text();
+            if (h1 != null) name = rubrik.replaceAll("\\s*\\(MY\\d.*", "").trim();
             if (name.isBlank()) name = doc.title().replaceAll("[|\\-].*", "").trim();
+            int modellar = modelYearFrom(rubrik.isBlank() ? doc.title() : rubrik);
 
             String text = doc.body().text();
 
@@ -380,7 +383,8 @@ public class EvDatabaseScraperService {
                     extractPrice(text),
                     extractCargoCell(doc, "Cargo Volume"),
                     extractCargoCell(doc, "Cargo Volume Max"),
-                    parseSystemPowerHk(doc)
+                    parseSystemPowerHk(doc),
+                    modellar
             );
         } catch (Exception e) {
             log.debug("Skipped {}: {}", url, e.getMessage());
@@ -672,7 +676,24 @@ public class EvDatabaseScraperService {
     }
 
     record ScrapedSpec(String name, int rangeKm, double batteryKwh, int dcKw, int acKw, int priceKr,
-                       int cargoLiters, int cargoMaxLiters, int hk) {}
+                       int cargoLiters, int cargoMaxLiters, int hk, int modelYear) {}
+
+    /**
+     * Årsmodellen ur rubriken: "MG MG4 Urban Comfort Long Range (MY26) (2026)" → 2026.
+     *
+     * <p>Den stod redan på sidan och kastades bort — {@code name} strippar just "(MY…)" för att
+     * namnet ska matcha våra egna. Årtalet behövs i {@code cargo_spec_year}: MG4 finns i tabellen
+     * som två generationer (363 l på 4 287 mm-bilen, 577 l på MY26-bilen som är 4 395 mm), och
+     * utan årtal var valet mellan dem tabellordningen.
+     */
+    static int modelYearFrom(String rubrik) {
+        if (rubrik == null || rubrik.isBlank()) return 0;
+        Matcher my = Pattern.compile("\\(MY(\\d{2})\\)").matcher(rubrik);
+        if (my.find()) return 2000 + Integer.parseInt(my.group(1));
+        Matcher ar = Pattern.compile("\\((20\\d{2})\\)").matcher(rubrik);
+        if (ar.find()) return Integer.parseInt(ar.group(1));
+        return 0;
+    }
 
     /**
      * Bagagevolymen ur specifikationstabellen på bilsidan.

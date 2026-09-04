@@ -391,4 +391,17 @@ class EvDatabaseScraperServiceMatchTest {
         assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 long range", "MG MG4 Premium Long Range")).isNull();
         assertThat(EvDatabaseScraperService.claimRow(claims, "mg4 standard range", "MG MG4 Urban Standard Range")).isNull();
     }
+
+    @Test
+    void arsmodellen_lases_ur_rubriken() {
+        // Ratalet stod redan pa sidan och kastades bort — name strippar "(MY...)" med flit.
+        // cargo_spec_year behover det: MG4 finns som tva generationer i tabellen (363 l pa
+        // 4 287 mm-bilen, 577 l pa MY26-bilen som ar 4 395 mm).
+        assertThat(EvDatabaseScraperService.modelYearFrom(
+                "MG MG4 Urban Comfort Long Range (MY26)")).isEqualTo(2026);
+        assertThat(EvDatabaseScraperService.modelYearFrom(
+                "MG MG4 Premium Extended Range (MY26) (2026) price and specifications")).isEqualTo(2026);
+        assertThat(EvDatabaseScraperService.modelYearFrom("Kia EV6")).isZero();
+        assertThat(EvDatabaseScraperService.modelYearFrom(null)).isZero();
+    }
 }

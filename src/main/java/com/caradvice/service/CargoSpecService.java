@@ -14,10 +14,80 @@ import java.util.stream.Collectors;
 @Service
 public class CargoSpecService {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(CargoSpecService.class);
+
     private final CargoSpecRepository repo;
 
-    public CargoSpecService(CargoSpecRepository repo) {
+    /**
+     * Årsmodellen bor i en EGEN tabell, inte som kolumn på {@code cargo_spec}.
+     *
+     * <p>Skälet är {@code ddl-auto=validate}: ett nytt fält på entiteten valideras när
+     * EntityManagerFactory startar, alltså INNAN någon {@code @PostConstruct} hinner köra sitt
+     * {@code ALTER TABLE} — appen hade fallit i uppstarten på den kolumn den själv skulle skapa.
+     * Samma grepp som {@code ice_generation}, {@code car_video} och {@code ev_power}: en liten
+     * sidotabell som koden skapar själv, kopplad på bilnamnet.
+     */
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    /** Cachead årsmodellkarta — tabellen är liten men läses en gång per bilkort. */
+    private volatile Map<String, Integer> arsmodellCache = Map.of();
+    private volatile long arsmodellCacheTid = 0L;
+    private static final long ARSMODELL_TTL_MS = 10 * 60 * 1000L;
+
+    public CargoSpecService(CargoSpecRepository repo, org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.repo = repo;
+        this.jdbc = jdbc;
+        skapaArsmodellTabell();
+    }
+
+    private void skapaArsmodellTabell() {
+        if (jdbc == null) return;
+        try {
+            jdbc.execute("CREATE TABLE IF NOT EXISTS cargo_spec_year ("
+                    + "car_name VARCHAR(200) PRIMARY KEY, from_year INT NOT NULL)");
+        } catch (Exception e) {
+            log.warn("cargo_spec_year kunde inte skapas: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Årsmodellen per rad, tom map när tabellen saknas eller är tom.
+     *
+     * <p>En tom map betyder "ingen rad är daterad" och ger exakt det beteende matchningen hade
+     * före 2026-09-04 — det är med flit: ett DB-fel ska inte kunna göra bagagevolymer OSYNLIGA,
+     * bara odaterade.
+     */
+    Map<String, Integer> arsmodeller() {
+        if (jdbc == null) return Map.of();
+        long nu = System.currentTimeMillis();
+        if (nu - arsmodellCacheTid < ARSMODELL_TTL_MS) return arsmodellCache;
+        try {
+            Map<String, Integer> ny = new HashMap<>();
+            for (Map<String, Object> rad : jdbc.queryForList("SELECT car_name, from_year FROM cargo_spec_year")) {
+                Object namn = rad.get("car_name");
+                Object ar = rad.get("from_year");
+                if (namn != null && ar instanceof Number n) ny.put(normalize(namn.toString()), n.intValue());
+            }
+            arsmodellCache = ny;
+            arsmodellCacheTid = nu;
+        } catch (Exception e) {
+            log.warn("cargo_spec_year kunde inte läsas: {}", e.getMessage());
+        }
+        return arsmodellCache;
+    }
+
+    /** Skriver årsmodellen för EN rad. Idempotent; nyare värde vinner. */
+    void sattArsmodell(String carName, int year) {
+        if (jdbc == null || carName == null || carName.isBlank() || year < 1990 || year > 2100) return;
+        try {
+            jdbc.update("INSERT INTO cargo_spec_year (car_name, from_year) VALUES (?, ?) "
+                    + "ON CONFLICT (car_name) DO UPDATE SET from_year = EXCLUDED.from_year",
+                    carName, year);
+            arsmodellCacheTid = 0L;   // tvinga omläsning
+        } catch (Exception e) {
+            log.warn("Årsmodell {} för {} kunde inte skrivas: {}", year, carName, e.getMessage());
+        }
     }
 
     /** Alla kända bilnamn i cargo_spec — används av GroqServices modellhallucinationsvakt. */
@@ -105,6 +175,20 @@ public class CargoSpecService {
      */
     @Transactional
     public boolean fillFromScrape(String scrapedName, int liters, int maxLiters) {
+        return fillFromScrape(scrapedName, liters, maxLiters, 0);
+    }
+
+    /**
+     * Som ovan, men med sidans årsmodell.
+     *
+     * <p><b>Årtalet skrivs BARA på en rad som är sidans egen bil</b> — den som skapades här, eller
+     * en vars namn är exakt det skrapade. En rad som matchades under ett KORTARE namn (skrapad
+     * "Kia EV6 Long Range 2WD" fyller raden "Kia EV6") får förbli odaterad: daterade vi den med
+     * 2026 hade ett EV6-kort från 2022 stängts ute från sin egen bagagevolym. Generalisten ska
+     * gälla alla år; bara varianten bär sitt årtal.
+     */
+    @Transactional
+    public boolean fillFromScrape(String scrapedName, int liters, int maxLiters, int modelYear) {
         if (scrapedName == null || scrapedName.isBlank() || liters <= 0) return false;
         Set<String> scrapedWords = new HashSet<>(Arrays.asList(normalize(scrapedName).split("\\s+")));
 
@@ -122,8 +206,13 @@ public class CargoSpecService {
 
         if (match == null) {
             repo.save(new CargoSpec(scrapedName, liters, maxLiters > 0 ? maxLiters : null));
+            if (modelYear > 0) sattArsmodell(scrapedName, modelYear);
             return true;
         }
+        // Årtalet skrivs FÖRE den tidiga returen nedan: en rad som redan bär volym ska ändå bli
+        // daterad, annars hade backfyllningen krävt att tabellen tömdes först.
+        if (modelYear > 0 && normalize(match.getCarName()).equals(normalize(scrapedName)))
+            sattArsmodell(match.getCarName(), modelYear);
         if (match.getCargoLiters() != null && match.getCargoLiters() > 0) return false;
 
         match.setCargoLiters(liters);
@@ -152,9 +241,12 @@ public class CargoSpecService {
         Map<String, Object> ut = new LinkedHashMap<>();
         ut.put("titel", title);
         CargoSpec match = matchForTitle(title);
+        Map<String, Integer> ar = arsmodeller();
+        ut.put("titelAr", CarTitle.year(title));
         ut.put("matchadRad", match == null ? null : match.getCarName());
         ut.put("liter", match == null ? null : match.getCargoLiters());
         ut.put("maxLiter", match == null ? null : match.getCargoMaxLiters());
+        ut.put("matchadArsmodell", match == null ? null : ar.get(normalize(match.getCarName())));
         String cleaned = normalize(CarTitle.stripYear(title == null ? "" : title));
         String forstaOrdet = cleaned.isBlank() ? "" : cleaned.split("\\s+")[0];
         List<Map<String, Object>> kandidater = new ArrayList<>();
@@ -165,6 +257,7 @@ public class CargoSpecService {
             rad.put("carName", cs.getCarName());
             rad.put("cargoLiters", cs.getCargoLiters());
             rad.put("cargoMaxLiters", cs.getCargoMaxLiters());
+            rad.put("arsmodell", ar.get(normalize(cs.getCarName())));
             kandidater.add(rad);
         }
         ut.put("kandidater", kandidater);
@@ -178,15 +271,18 @@ public class CargoSpecService {
         Set<String> titleSet = new HashSet<>(Arrays.asList(titleWords));
 
         List<CargoSpec> all = repo.findAll();
+        Integer titelAr = CarTitle.year(title);
+        Map<String, Integer> ar = arsmodeller();
 
         // Pass 1: all title words appear as substrings in stored name
-        CargoSpec match = all.stream()
+        List<CargoSpec> kandidater = all.stream()
                 .filter(cs -> {
                     String name = normalize(cs.getCarName());
                     for (String w : titleWords) if (!name.contains(w)) return false;
                     return true;
                 })
-                .findFirst().orElse(null);
+                .toList();
+        CargoSpec match = valjBastaRad(kandidater, titelAr, ar);
 
         // Pass 2: all stored-name words are exact words in title (longest match wins)
         if (match == null) {
@@ -202,6 +298,42 @@ public class CargoSpecService {
         }
 
         return match;
+    }
+
+    /**
+     * Vilken av flera matchande rader som gäller för titeln.
+     *
+     * <p><b>Felet regeln lagar</b> (uppmätt 2026-09-04). Pass 1 tog {@code findFirst()} ur
+     * {@code repo.findAll()} — alltså tabellordningen — och MG4 har rader från TVÅ generationer:
+     * {@code MG4} 363 l (4 287 mm), {@code MG4 Premium/XPOWER} 388 l (samma kaross enligt
+     * ev-database) och {@code MG4 Urban} 577 l, som är MY26-bilen på 4 395 mm. Ett kort för
+     * "MG4 (2026)" fick förra generationens 363 l, och vilken rad som vann var en slump i
+     * radordningen snarare än ett val.
+     *
+     * <p>Ordningen är: <b>(1)</b> en rad vars årsmodell ligger EFTER kortets år får aldrig
+     * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> högsta årsmodell
+     * som ryms i kortets år vinner; <b>(3)</b> odaterade rader vinner när titeln saknar år, så
+     * "MG4" utan årtal fortsätter ge basraden; <b>(4)</b> kortast namn (närmast titeln); och
+     * <b>(5)</b> vid kvarstående lika: MINSTA volymen. Sista steget är medvetet konservativt —
+     * hellre lova för lite bagage än för mycket.
+     */
+    private CargoSpec valjBastaRad(List<CargoSpec> kandidater, Integer titelAr, Map<String, Integer> ar) {
+        CargoSpec bast = null;
+        int bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
+        for (CargoSpec cs : kandidater) {
+            Integer radAr = ar.get(normalize(cs.getCarName()));
+            if (titelAr != null && radAr != null && radAr > titelAr) continue;   // framtida generation
+            int arPoang = radAr == null ? (titelAr == null ? Integer.MAX_VALUE : -1) : radAr;
+            int ord = normalize(cs.getCarName()).split("\\s+").length;
+            int liter = cs.getCargoLiters() == null ? Integer.MAX_VALUE : cs.getCargoLiters();
+            if (bast == null
+                    || arPoang > bastAr
+                    || (arPoang == bastAr && ord < bastOrd)
+                    || (arPoang == bastAr && ord == bastOrd && liter < bastLiter)) {
+                bast = cs; bastAr = arPoang; bastOrd = ord; bastLiter = liter;
+            }
+        }
+        return bast;
     }
 
     // Updates existing entries that have null cargo_liters; inserts new entries
