@@ -1814,7 +1814,14 @@ public class EvSpecService {
             .map(e -> e.getKey() + " fr. " + formatSek(e.getValue()))
             .collect(java.util.stream.Collectors.joining(", "));
         String valuePicks = buildValueRangeLine();
-        return "EV-referenspriser (fr.pris från databas): " + prices
+        // PRISSLAGET STÅR I RUBRIKEN sedan 2026-09-04. Raden hette "EV-referenspriser (fr.pris
+        // från databas)" och sa aldrig VILKET slags pris det var — talen är nypriser ur ev_spec
+        // (Kia EV6 fr. 569 000 kr). Bredvid dem står GroqServices uppmätta BEGAGNATGOLV (EV6
+        // 317 000 kr), och i chattens fritext blandades de: modellen ankrade på golvet, jämförde
+        // med nypriser och svarade att ingen bil rymdes i prisklassen — fast referensbilen själv
+        // gjorde det. ICE-tabellen har alltid sagt "ICE-nypris"; den här raden var den enda
+        // omärkta av de tre.
+        return "EV-NYPRIS Sverige (fr.pris NYTT ur ev_spec — INTE begagnatpriser): " + prices
             + (valuePicks.isEmpty() ? "" : "\n" + valuePicks);
     }
 

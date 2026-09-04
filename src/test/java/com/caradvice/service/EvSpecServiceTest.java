@@ -1077,7 +1077,10 @@ class EvSpecServiceTest {
         EvSpec ev3 = new EvSpec("Kia EV3 Long Range", 11.0, 101.0, 81.4, 605, 370_000);
         when(repo.findAll()).thenReturn(List.of(ev3));
         assertThat(service().buildPriceReferenceContext())
-                .contains("EV-referenspriser")
+                // Prisslaget MÅSTE stå i rubriken: raden ligger bredvid de uppmätta
+                // begagnatgolven i chattprompten, och en omärkt prisrad blandades med dem.
+                .contains("EV-NYPRIS")
+                .contains("INTE begagnatpriser")
                 .contains("PRISVÄRD RÄCKVIDD");
     }
 

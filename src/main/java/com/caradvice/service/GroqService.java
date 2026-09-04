@@ -3533,8 +3533,42 @@ public class GroqService {
             + " värdeminskning på dem en gång till. Golvet är vad billigaste annonsen kostar i dag;"
             + " nypriset står i nypristabellen och är ett HÖGRE tal.\n";
 
+    /**
+     * Nypris och begagnatpris får aldrig hamna i samma jämförelse.
+     *
+     * <p><b>Felet den lagar, rapporterat 2026-09-04.</b> Chatten fick frågan "vilka elbilar har
+     * mer än 420 l bagage och kostar ungefär som en Kia EV6?" och svarade <b>"det finns inga"</b>
+     * — med en tabell där EV6 stod på 317 000 kr och de föreslagna bilarna på 450 000–550 000 kr.
+     * 317 000 kr är EV6:s uppmätta BEGAGNATGOLV ({@link #EV_PRICE_FLOOR_KR}); de andra talen var
+     * nypriser. Referensbilen jämfördes alltså med sig själv i ett annat prisslag, och svaret blev
+     * nej trots att både MG5 och EV6 klarade kravet till samma sorts pris.
+     *
+     * <p>{@link #GOLVEN_AR_BEGAGNATPRIS} täckte grannfallet (kalla inte golvet nypris, dra inte av
+     * värdeminskning två gånger) men sa ingenting om att JÄMFÖRA de två slagen. Det gjorde 08-29:s
+     * mätning heller inte — då fylldes en nypriskolumn med golven, nu jämförs kolumnerna med
+     * varandra. Samma glidning, ett steg bort.
+     *
+     * <p><b>Sista meningen är samma lärdom som bagagevakten samma dag:</b> tystnad om ett pris får
+     * inte bli ett nej. En bil utan känt begagnatpris ska föreslås med brasklapp, inte avfärdas.
+     */
+    private static final String PRISSLAG_REGEL =
+            "BLANDA ALDRIG PRISSLAG: nypris och begagnatpris är olika tal om SAMMA bil och får aldrig"
+            + " stå i samma jämförelse eller tabellkolumn. Skriv alltid ut vilket slag du använder."
+            + " Jämför användaren med en bil (\"kostar ungefär som en Kia EV6\") gäller BEGAGNATGOLVEN"
+            + " ovan för BÅDE referensbilen och förslagen"
+            + (EV_PRICE_FLOOR_KR.get("Kia EV6") == null ? "." :
+                    " — Kia EV6:s golv är "
+                    + String.format(java.util.Locale.ROOT, "%,d", EV_PRICE_FLOOR_KR.get("Kia EV6"))
+                            .replace(',', ' ')
+                    + " kr medan nypriset är över en halv miljon, och en tabell som blandar dem svarar"
+                    + " fel oavsett vilka tal som är rätt.")
+            + " Referensbilen kan själv vara ett giltigt svar. Saknar du begagnatpris för en bil:"
+            + " säg det — avfärda den ALDRIG som för dyr genom att ställa dess nypris mot ett"
+            + " begagnatgolv.\n";
+
     static final String PRISREGLER_CHATT =
-            DEPRECIATION_RULE + "\n" + EV_PRICE_FLOORS + "\n" + GOLVEN_AR_BEGAGNATPRIS + PRISFABRIKATION_REGEL + "\n";
+            DEPRECIATION_RULE + "\n" + EV_PRICE_FLOORS + "\n" + GOLVEN_AR_BEGAGNATPRIS
+            + PRISSLAG_REGEL + PRISFABRIKATION_REGEL + "\n";
 
     /**
      * Rubriken som gör de lånade reglerna sanna i chatten.

@@ -2690,6 +2690,19 @@ class GroqServiceTest {
     }
 
     @Test
+    void chattpromptenForbjuderAttNyprisJamforsMedBegagnatgolv() {
+        // Skarpt fall 2026-09-04: chatten svarade "det finns inga elbilar i EV6:s prisklass" med
+        // en tabell där EV6 stod på sitt BEGAGNATGOLV (317 000) och förslagen på nypriser
+        // (450 000–550 000). Referensbilen jämfördes med sig själv i ett annat prisslag.
+        String prompt = GroqService.PRISREGLER_CHATT;
+        assertThat(prompt).contains("BLANDA ALDRIG PRISSLAG");
+        assertThat(prompt).contains("Referensbilen kan själv vara ett giltigt svar");
+        // Exemplet byggs UR tabellen, aldrig som en egen siffra — annars glider text och vakt isär
+        assertThat(prompt).contains("317 000");
+        assertThat(GroqService.EV_PRICE_FLOOR_KR.get("Kia EV6")).isEqualTo(317_000);
+    }
+
+    @Test
     void bagagekravetLasesUrFraganMenBaraNaraEttBagageord() {
         assertThat(GroqService.bagagetroskel("Vilka elbilar har mer än 420 liter bagage?")).isEqualTo(420);
         assertThat(GroqService.bagagetroskel("Jag vill ha bagageutrymme över 400 l")).isEqualTo(400);
