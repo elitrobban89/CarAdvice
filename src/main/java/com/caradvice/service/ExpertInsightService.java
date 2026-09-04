@@ -326,13 +326,32 @@ public class ExpertInsightService {
      * PRISET, medvetet taget: "SQ7" får inte längre Q7-insikter trots att en SQ7 ÄR en Q7.
      */
     static int modelPosition(String flatTitle, String model) {
-        if (model == null || model.isBlank()) return -1;
-        int bast = -1;
+        return traff(flatTitle, model)[0];
+    }
+
+    /**
+     * Träffen som {@code position, längd} — längden är det ALTERNATIVS längd som matchade, inte
+     * hela {@code carModel}. {@code {-1, 0}} när inget alternativ matchar.
+     *
+     * <p><b>Varför längden måste räknas per alternativ</b> (uppmätt skarpt i drift 2026-09-04,
+     * innan snedstrecksregeln fanns en timme). {@link #tidigasteModellenVinner} bryter lika
+     * position med det LÄNGSTA modellnamnet, och med hela strängens längd blev "EX/XC40"
+     * (7 tecken) längre än "XC40" (4) trots att det var just delen "XC40" som matchade titeln.
+     * Följden: kortet "Volvo XC40 (2024)" tappade ALLA sina riktiga XC40-rader till en enda
+     * försäljningsstatistikrad. En regel som skulle lägga TILL en rad tog bort tre.
+     */
+    static int[] traff(String flatTitle, String model) {
+        if (model == null || model.isBlank()) return new int[]{-1, 0};
+        int bastPos = -1, bastLangd = 0;
         for (String alternativ : modellAlternativ(model)) {
             int p = enModellsPosition(flatTitle, alternativ);
-            if (p >= 0 && (bast < 0 || p < bast)) bast = p;
+            if (p < 0) continue;
+            if (bastPos < 0 || p < bastPos || (p == bastPos && alternativ.length() > bastLangd)) {
+                bastPos = p;
+                bastLangd = alternativ.length();
+            }
         }
-        return bast;
+        return new int[]{bastPos, bastLangd};
     }
 
     /**
@@ -436,16 +455,20 @@ public class ExpertInsightService {
      * kortet fortfarande bensin-Polons rader — det är drivlinevakten som är skyddet då.
      */
     private static List<ExpertInsight> tidigasteModellenVinner(String t, List<ExpertInsight> rader) {
+        // {position, -längd}, båda ur samma träff: längden är det matchande alternativets, så en
+        // snedstrecksrad inte vinner på tecken som aldrig stod i titeln (se traff)
         Map<String, long[]> bast = new LinkedHashMap<>(); // per märke: {position, -längd}
         for (ExpertInsight i : rader) {
-            long[] v = {modelPosition(t, i.getCarModel()), -i.getCarModel().length()};
+            int[] tr = traff(t, i.getCarModel());
+            long[] v = {tr[0], -tr[1]};
             bast.merge(foldDiacritics(i.getCarMake().toLowerCase()), v,
                     (a, b) -> (a[0] != b[0]) ? (a[0] < b[0] ? a : b) : (a[1] <= b[1] ? a : b));
         }
         List<ExpertInsight> kvar = new ArrayList<>();
         for (ExpertInsight i : rader) {
             long[] v = bast.get(foldDiacritics(i.getCarMake().toLowerCase()));
-            if (modelPosition(t, i.getCarModel()) == v[0] && -i.getCarModel().length() == v[1]) kvar.add(i);
+            int[] tr = traff(t, i.getCarModel());
+            if (tr[0] == v[0] && -tr[1] == v[1]) kvar.add(i);
         }
         return kvar;
     }

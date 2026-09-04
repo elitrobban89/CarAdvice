@@ -218,6 +218,22 @@ class ExpertInsightServiceCarLookupTest {
     }
 
     @Test
+    void snedstrecksradenTrangerInteUtKortetsEgnaRader() {
+        // Uppmatt skarpt i drift 2026-09-04, en timme efter att snedstrecksregeln deployats:
+        // "Volvo XC40 (2024)" visade BARA forsaljningsstatistikraden EX/XC40, och kortets tre
+        // riktiga XC40-rader var borta. tidigasteModellenVinner bryter lika position med det
+        // langsta namnet, och hela strangen "EX/XC40" (7 tecken) slog "XC40" (4) trots att det
+        // var delen "XC40" som matchade. Langden maste komma ur samma traff som positionen.
+        when(repo.findAll()).thenReturn(List.of(
+                new ExpertInsight("Vi Bilägare", "Volvo", "EX/XC40", null, null,
+                        "Mest salda bilen till privatpersoner.", null),
+                new ExpertInsight("CarUp", "Volvo", "XC40", null, null,
+                        "Batterikapaciteten haller efter 10 000 mil.", null)));
+
+        assertThat(service.findForCarTitle("Volvo XC40 (2024)")).hasSize(2);
+    }
+
+    @Test
     void delarnaBehallerOrdgransen() {
         // Ordgransen galler varje del: "S60" far inte matcha "S60L", och "EX" ur "EX/XC40"
         // far inte matcha "EX30". Delen maste sta som eget namn i titeln.
