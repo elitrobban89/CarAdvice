@@ -2689,6 +2689,46 @@ class GroqServiceTest {
         assertThat(parsed).hasSize(1);
     }
 
+    @Test
+    void bagagekravetLasesUrFraganMenBaraNaraEttBagageord() {
+        assertThat(GroqService.bagagetroskel("Vilka elbilar har mer än 420 liter bagage?")).isEqualTo(420);
+        assertThat(GroqService.bagagetroskel("Jag vill ha bagageutrymme över 400 l")).isEqualTo(400);
+        assertThat(GroqService.bagagetroskel("500 liter lastutrymme minst")).isEqualTo(500);
+        // Ett tal nära ett ANNAT ord är inget bagagekrav — annars hade batteri- och
+        // tankvolymer dragit in hela bagagelistan i prompten.
+        assertThat(GroqService.bagagetroskel("Vilken elbil har 500 km räckvidd?")).isNull();
+        assertThat(GroqService.bagagetroskel("Rymmer tanken 450 liter?")).isNull();
+        assertThat(GroqService.bagagetroskel("Vad kostar en Kia EV6?")).isNull();
+        assertThat(GroqService.bagagetroskel(null)).isNull();
+    }
+
+    @Test
+    void bagagekontextenListarBaraBilarSomKlararKravet() {
+        // Skarpt fall 2026-09-04: chatten svarade "Renault Zoe" på frågan om elbilar med mer
+        // än 420 l bagage. Tabellen sa 338 l hela tiden — talet nådde bara aldrig prompten.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Renault Zoe", "cargoLiters", 338),
+                Map.of("carName", "Hyundai Kona PHEV", "cargoLiters", 374),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "Skoda Enyaq", "cargoLiters", 585)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("Kia EV6 490").contains("Skoda Enyaq 585");
+        // Zoe och Kona får finnas i "klarar INTE"-raden, men aldrig bland dem som klarar kravet
+        assertThat(kontext).contains("Klarar INTE kravet");
+        String klarar = kontext.substring(kontext.indexOf("Klarar 420"), kontext.indexOf("Klarar INTE"));
+        assertThat(klarar).doesNotContain("Zoe").doesNotContain("Kona");
+        assertThat(kontext).contains("Hyundai Kona PHEV 374").contains("Renault Zoe 338");
+        assertThat(kontext).contains("gissa aldrig");
+    }
+
+    @Test
+    void bagagekontextenTystnarUtanData() {
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of());
+        assertThat(service().bagagekontext(420)).isEmpty();
+    }
+
     private static CarPreferences prefsMed(String kategori) {
         return new CarPreferences(400_000, kategori, false, 15_000, "pendling",
                 4, false, "el", null, "köp", null, null);

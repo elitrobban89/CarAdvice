@@ -2958,7 +2958,9 @@ public class GroqService {
     public String chat(List<Map<String, String>> messages, String carContext) throws Exception {
         String expertContext = "";
         try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages), carContext); } catch (Exception ignored) {}
-        String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
+        // Användarens egen text följer med: bär frågan ett bagagekrav grundas svaret i cargo_spec.
+        String systemPrompt = buildChatSystemPrompt(carContext, expertContext,
+                String.join(" ", extractUserTexts(messages)));
 
         List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY
                 ? messages.subList(messages.size() - CHAT_MAX_HISTORY, messages.size()) : messages;
@@ -2985,7 +2987,9 @@ public class GroqService {
     public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
         String expertContext = "";
         try { expertContext = expertInsightService.buildChatExpertContext(extractUserTexts(messages), carContext); } catch (Exception ignored) {}
-        String systemPrompt = buildChatSystemPrompt(carContext, expertContext);
+        // Användarens egen text följer med: bär frågan ett bagagekrav grundas svaret i cargo_spec.
+        String systemPrompt = buildChatSystemPrompt(carContext, expertContext,
+                String.join(" ", extractUserTexts(messages)));
 
         List<Map<String, String>> history = messages.size() > CHAT_MAX_HISTORY
                 ? messages.subList(messages.size() - CHAT_MAX_HISTORY, messages.size()) : messages;
@@ -3009,6 +3013,10 @@ public class GroqService {
     }
 
     String buildChatSystemPrompt(String carContext, String expertContext) {
+        return buildChatSystemPrompt(carContext, expertContext, null);
+    }
+
+    String buildChatSystemPrompt(String carContext, String expertContext, String userText) {
         String icePrices = getIcePrices();
         String evPrices = getEvPrices();
         String base = ("""
@@ -3035,6 +3043,12 @@ public class GroqService {
             String specFacts = buildChatSpecFacts(carContext);
             if (!specFacts.isBlank())
                 base += "\n\nVerifierade fakta om rekommenderade bilar:\n" + specFacts;
+        }
+        // Bagagefrågor grundas i cargo_spec i stället för i modellens minne — se bagagekontext.
+        Integer troskel = bagagetroskel(userText);
+        if (troskel != null) {
+            String bagage = bagagekontext(troskel);
+            if (!bagage.isBlank()) base += "\n\n" + bagage;
         }
         if (expertContext != null && !expertContext.isBlank())
             base += "\n\n" + expertContext;
@@ -3079,6 +3093,10 @@ public class GroqService {
             String chem = null;
             String safety = null;
             String consumption = null;
+            com.caradvice.model.CargoSpecDto bagage = null;
+            // Bagagevolymen fanns i tabellen men aldrig i chattens prompt — bara benutrymmet
+            // gick in här. Chatten svarade därför på bagagefrågor ur modellens eget minne.
+            try { bagage = cargoSpecService.formatForTitle(name); } catch (Exception ignored) {}
             try { legroom = cargoSpecService.getLegroom(name); } catch (Exception ignored) {}
             try { chem = evSpecService.getBatteryChemistry(name); } catch (Exception ignored) {}
             try { safety = safetyRatingService.formatForTitle(name); } catch (Exception ignored) {}
@@ -3086,10 +3104,20 @@ public class GroqService {
             // behöver det för att kunna avstå när bilen är äldre än tabellens generation.
             try { consumption = iceConsumptionService.consumptionSummaryForTitle(
                     name, CarTitle.year(raw)); } catch (Exception ignored) {}
-            if (legroom == null && chem == null && safety == null && consumption == null) continue;
+            boolean harBagage = bagage != null && bagage.cargoLiters() > 0;
+            if (legroom == null && chem == null && safety == null && consumption == null && !harBagage) continue;
             sb.append(name).append(": ");
             boolean needsComma = false;
-            if (legroom != null) { sb.append("benutrymme bak ").append(legroom).append(" mm"); needsComma = true; }
+            if (harBagage) {
+                sb.append("bagage ").append(bagage.cargoLiters()).append(" l");
+                if (bagage.cargoMaxLiters() > 0) sb.append(" (max ").append(bagage.cargoMaxLiters()).append(" l)");
+                needsComma = true;
+            }
+            if (legroom != null) {
+                if (needsComma) sb.append(", ");
+                sb.append("benutrymme bak ").append(legroom).append(" mm");
+                needsComma = true;
+            }
             if (chem != null) {
                 if (needsComma) sb.append(", ");
                 sb.append("batterikemi ").append(chem);
@@ -3107,6 +3135,112 @@ public class GroqService {
             sb.append("\n");
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Bagagekravet i användarens egen fråga, eller {@code null} när frågan inte handlar om
+     * bagagevolym. Talet måste stå NÄRA ett bagageord — "420 liter" i en fråga om tankvolym
+     * eller batteri är inte ett bagagekrav.
+     */
+    private static final java.util.regex.Pattern BAGAGEKRAV = java.util.regex.Pattern.compile(
+            "(?iu)(?:(?:bagage|lastutrymm|lastvolym|baklucka)\\w*[^.!?]{0,60}?(\\d{3,4})\\s*(?:l\\b|liter)"
+            + "|(\\d{3,4})\\s*(?:l\\b|liter)[^.!?]{0,60}?(?:bagage|lastutrymm|lastvolym|baklucka))");
+
+    static Integer bagagetroskel(String text) {
+        if (text == null || text.isBlank()) return null;
+        java.util.regex.Matcher m = BAGAGEKRAV.matcher(text);
+        if (!m.find()) return null;
+        String tal = m.group(1) != null ? m.group(1) : m.group(2);
+        try {
+            int v = Integer.parseInt(tal);
+            // Under 100 l är ingen bagagevolym och över 2500 l är ingen personbil — ett tal
+            // utanför spannet är något annat som råkade stå nära ordet.
+            return (v >= 100 && v <= 2500) ? v : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Hur många tecken den verifierade bagagelistan får ta i systemprompten. */
+    private static final int BAGAGELISTA_TECKEN = 3000;
+    /** Hur många bilar strax UNDER kravet som räknas upp som avskräckande exempel. */
+    private static final int BAGAGELISTA_UNDER = 12;
+
+    /**
+     * Verifierade bagagevolymer ur {@code cargo_spec} som chatten måste grunda sitt svar i.
+     *
+     * <p><b>Felet regeln lagar</b> (rapporterat av användaren 2026-09-04). På frågan om elbilar
+     * med mer än 420 l bagage svarade chatten bl.a. <b>Renault Zoe</b> och <b>Hyundai Kona PHEV</b>.
+     * Vår egen tabell säger 338 l respektive 374 l — siffrorna FANNS, men de nådde aldrig
+     * prompten: {@code buildChatSpecFacts} injicerade benutrymme, batterikemi, säkerhet och
+     * förbrukning, men aldrig bagagevolymen, och bara för bilar som redan låg i kortkontexten.
+     * En fråga utan kortkontext ("vilka elbilar har mer än 420 liter?") hade därför noll
+     * verifierade tal att stå på, och modellen svarade ur sitt eget minne.
+     *
+     * <p><b>Varför en lista och inte bara en regel.</b> Rekommendationsvägen har en efterkontroll
+     * mot {@code cargo_spec} som kastar bilar under kravet ({@code requireCargoCapacity}), men
+     * chatten <b>strömmar</b> sitt svar — det finns inget färdigt svar att granska innan
+     * användaren läser det. Vakten måste därför sitta i prompten, och en regel utan data hade
+     * bara gjort chatten svarslös.
+     *
+     * <p><b>Listan kapas med flit.</b> 411 av 642 rader klarar 420 l, vilket är ~1 100 tokens —
+     * för mycket bredvid en prompt som redan är stor (Groqs 8 000 TPM räknar prompt + svar, se
+     * 413-fällan). Urvalet sprids därför jämnt över hela spannet i stället för att toppa listan
+     * med de största bilarna: både gränsfallen strax över kravet och de riktigt rymliga ska
+     * finnas med. Raderna strax UNDER kravet följer med som avskräckande exempel — det är de
+     * som annars smyger in i ett svar.
+     */
+    String bagagekontext(int troskel) {
+        List<Map<String, Object>> alla;
+        try { alla = cargoSpecService.allaMedVolym(); } catch (Exception e) { return ""; }
+        if (alla == null || alla.isEmpty()) return "";
+
+        record Rad(String namn, int liter) {}
+        List<Rad> over = new ArrayList<>();
+        List<Rad> under = new ArrayList<>();
+        for (Map<String, Object> r : alla) {
+            Object namn = r.get("carName");
+            Object liter = r.get("cargoLiters");
+            if (namn == null || !(liter instanceof Number n) || n.intValue() <= 0) continue;
+            (n.intValue() >= troskel ? over : under).add(new Rad(namn.toString(), n.intValue()));
+        }
+        if (over.isEmpty()) return "";
+        over.sort(java.util.Comparator.comparingInt(Rad::liter));
+        under.sort(java.util.Comparator.comparingInt(Rad::liter).reversed());
+
+        // Jämnt spritt urval: varje k:te rad, så att både 420 l och 900 l finns representerade.
+        int tecken = 0;
+        for (Rad r : over) tecken += r.namn().length() + 6;
+        int steg = Math.max(1, (int) Math.ceil((double) tecken / BAGAGELISTA_TECKEN));
+        StringBuilder listan = new StringBuilder();
+        int antal = 0;
+        for (int i = 0; i < over.size(); i += steg) {
+            if (antal++ > 0) listan.append(", ");
+            listan.append(over.get(i).namn()).append(" ").append(over.get(i).liter());
+        }
+
+        StringBuilder ut = new StringBuilder();
+        ut.append("VERIFIERADE BAGAGEVOLYMER (vår egen cargo_spec-tabell, liter med baksätet uppfällt).\n");
+        ut.append("Klarar ").append(troskel).append(" l — ").append(antal).append(" av ")
+          .append(over.size()).append(" modeller, urvalet spritt över hela spannet: ")
+          .append(listan).append("\n");
+        if (!under.isEmpty()) {
+            // Också de här sprids i stället för att toppas: en ren närmiss-lista blev tolv rader
+            // strax under kravet (och tre av dem samma AMG GT), medan felet vi lagar handlar om
+            // små bilar långt under gränsen. Spridningen visar hela fallhöjden.
+            int stegUnder = Math.max(1, (int) Math.ceil((double) under.size() / BAGAGELISTA_UNDER));
+            ut.append("Klarar INTE kravet (spritt urval): ");
+            int skrivna = 0;
+            for (int i = 0; i < under.size() && skrivna < BAGAGELISTA_UNDER; i += stegUnder) {
+                if (skrivna++ > 0) ut.append(", ");
+                ut.append(under.get(i).namn()).append(" ").append(under.get(i).liter());
+            }
+            ut.append("\n");
+        }
+        ut.append("REGEL: påstå ALDRIG att en bil klarar ett bagagekrav utan att ha dess verifierade ")
+          .append("siffra. Saknas bilen i listan ovan — säg att du inte har en verifierad volym för den, ")
+          .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.");
+        return ut.toString();
     }
 
     private List<String> extractUserTexts(List<Map<String, String>> messages) {
