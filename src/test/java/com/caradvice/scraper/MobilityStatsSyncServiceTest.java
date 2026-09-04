@@ -20,6 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tester för Mobility Sweden-månadssynken: xlsx-parsning av rankingarken,
@@ -78,6 +79,27 @@ class MobilityStatsSyncServiceTest {
         assertThat(insights.get(1).getCarModel()).isEqualTo("EX40");
         assertThat(insights.get(1).getFuelType()).isEqualTo("elbil");
         assertThat(insights.get(1).getInsight()).contains("6 275").contains("före Tesla Model Y");
+    }
+
+    /**
+     * Rapporten säger inte vilken hylla bilen står på. Utan uppslaget bär totalettans rad varken
+     * kategori eller drivmedel, och når då aldrig rekommendationsprompten.
+     */
+    @Test
+    void radernaFarKategoriUrTabellensOvrigaRader() throws Exception {
+        when(insightService.kategoriForModell("Volvo", "XC60", "Mobility Sweden månadsläget"))
+                .thenReturn("suv");
+        when(insightService.kategoriForModell("Volvo", "EX40", "Mobility Sweden månadsläget"))
+                .thenReturn(null);
+        byte[] xlsx = workbook("juni 2026",
+                new Object[][]{{"VOLVO XC60", 2092, 7594}},
+                new Object[][]{{"VOLVO EX/XC40", 982, 6275}});
+
+        List<ExpertInsight> insights = service().parseReport(xlsx);
+
+        assertThat(insights.get(0).getCategory()).isEqualTo("suv");
+        assertThat(insights.get(1).getCategory()).isNull();
+        assertThat(insights.get(1).getFuelType()).isEqualTo("elbil");
     }
 
     @Test

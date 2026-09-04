@@ -187,28 +187,43 @@ public class MobilityStatsSyncService {
 
             RankRow leader = totalTop.get(0);
             String[] lm = normalizeName(leader.rawName());
-            out.add(new ExpertInsight(EXPERT_NAME, lm[0], lm[1], null, null,
+            out.add(medKategori(new ExpertInsight(EXPERT_NAME, lm[0], lm[1], null, null,
                     "Sveriges mest registrerade bil " + range + ": " + fmt(leader.ytd())
-                            + " nyregistreringar (Mobility Swedens månadsrapport).", null));
+                            + " nyregistreringar (Mobility Swedens månadsrapport).", null)));
 
             RankRow evLeader = evTop.get(0);
             String[] em = normalizeName(evLeader.rawName());
             String runnerUp = evTop.size() > 1 ? displayName(evTop.get(1).rawName()) : null;
-            out.add(new ExpertInsight(EXPERT_NAME, em[0], em[1], "elbil", null,
+            out.add(medKategori(new ExpertInsight(EXPERT_NAME, em[0], em[1], "elbil", null,
                     "Sveriges mest registrerade elbil " + range + ": " + fmt(evLeader.ytd())
-                            + " nyregistreringar" + (runnerUp != null ? ", före " + runnerUp : "") + ".", null));
+                            + " nyregistreringar" + (runnerUp != null ? ", före " + runnerUp : "") + ".", null)));
 
             // Månadens etta (kan skilja sig från YTD-ettan) — hoppa över om samma bil
             RankRow monthLeader = totalTop.stream()
                     .max((a, b) -> Integer.compare(a.monthCount(), b.monthCount())).orElse(leader);
             if (!monthLeader.rawName().equals(leader.rawName())) {
                 String[] mm = normalizeName(monthLeader.rawName());
-                out.add(new ExpertInsight(EXPERT_NAME, mm[0], mm[1], null, null,
+                out.add(medKategori(new ExpertInsight(EXPERT_NAME, mm[0], mm[1], null, null,
                         "Månadens mest registrerade bil i Sverige (" + period + "): "
-                                + fmt(monthLeader.monthCount()) + " nyregistreringar.", null));
+                                + fmt(monthLeader.monthCount()) + " nyregistreringar.", null)));
             }
             return out;
         }
+    }
+
+    /**
+     * Rapporten namnger bilen men inte hyllan — kategorin lånas av tabellens övriga rader för
+     * samma modell. Utan den bär total- och månadsettans rader varken kategori eller drivmedel,
+     * och då når de aldrig rekommendationsprompten (mätt 2026-09-04: id 1416 Volvo XC60 var en av
+     * fem sådana rader i hela tabellen). En handrättelse hade inte hjälpt: jobbet raderar och
+     * skriver om sina EGNA rader varje månad, så kategorin måste sättas här, vid skrivningen.
+     *
+     * <p>Egna rader räknas inte med i uppslaget — annars hade en felaktig kategori kunnat
+     * ärva sig själv månad efter månad.
+     */
+    private ExpertInsight medKategori(ExpertInsight rad) {
+        rad.setCategory(insightService.kategoriForModell(rad.getCarMake(), rad.getCarModel(), EXPERT_NAME));
+        return rad;
     }
 
     /** Datarader = sträng i modellkolumnen + tal i YTD-kolumnen (hoppar rubrikrader) */

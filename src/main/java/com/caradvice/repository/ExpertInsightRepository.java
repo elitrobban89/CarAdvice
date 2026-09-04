@@ -29,6 +29,20 @@ public interface ExpertInsightRepository extends JpaRepository<ExpertInsight, Lo
     List<ExpertInsight> findByMakePrefix(@Param("make") String make, Pageable pageable);
     List<ExpertInsight> findByExpertNameIgnoreCaseOrderByIdDesc(String expertName, Pageable pageable);
 
+    /**
+     * Kategorierna tabellens övriga rader ger en modell — underlaget för majoritetsvalet i
+     * {@code ExpertInsightService.kategoriForModell}. Tom sträng i exkluderaExpert matchar
+     * inget expertnamn och släpper alltså igenom hela tabellen.
+     */
+    @Query("""
+        SELECT i.category FROM ExpertInsight i
+        WHERE lower(i.carMake) = lower(:make) AND lower(i.carModel) = lower(:model)
+          AND i.category IS NOT NULL
+          AND lower(i.expertName) <> lower(:exkluderaExpert)
+        """)
+    List<String> findCategoriesForModel(@Param("make") String make, @Param("model") String model,
+                                        @Param("exkluderaExpert") String exkluderaExpert);
+
     @Modifying
     @Query("UPDATE ExpertInsight i SET i.category = :to WHERE lower(i.category) = lower(:from)")
     int renameCategory(@Param("from") String from, @Param("to") String to);

@@ -460,6 +460,35 @@ ett bilkort.*/
         }).toList();
     }
 
+    /**
+     * Kategorin tabellens ÖVRIGA rader ger modellen — majoriteten bland rader med samma märke
+     * och modell som har en kategori satt. Utan träff, eller vid oavgjort, {@code null}.
+     *
+     * <p>Finns för skrivvägar som känner bilen men inte hyllan: månadsjobbet
+     * {@code MobilityStatsSyncService} läser ur registreringsstatistiken att Volvo XC60 var mest
+     * registrerad, men rapporten säger ingenstans att XC60 är en suv. En rad utan BÅDE kategori
+     * och drivmedel når aldrig {@link #buildExpertContext} — den är inte fel, den är osynlig.
+     *
+     * <p><b>Oavgjort ger null, inte ett godtyckligt av de delade förstaplatserna.</b> Volvo EX30
+     * står 6 elbil / 6 smaabil / 4 suv i tabellen (mätt 2026-09-04); att slå mynt där vore att
+     * hitta på data, och en kategorilös rad är tillåten.
+     */
+    public String kategoriForModell(String carMake, String carModel, String exkluderaExpert) {
+        if (carMake == null || carMake.isBlank() || carModel == null || carModel.isBlank()) return null;
+        List<String> rader = repo.findCategoriesForModel(carMake.trim(), carModel.trim(),
+                exkluderaExpert == null ? "" : exkluderaExpert.trim());
+        Map<String, Long> antal = new LinkedHashMap<>();
+        for (String kategori : rader) {
+            String kanonisk = InsightTaxonomy.canonicalCategory(kategori);
+            if (kanonisk != null) antal.merge(kanonisk, 1L, Long::sum);
+        }
+        if (antal.isEmpty()) return null;
+        long hogst = Collections.max(antal.values());
+        List<String> vinnare = antal.entrySet().stream()
+                .filter(e -> e.getValue() == hogst).map(Map.Entry::getKey).toList();
+        return vinnare.size() == 1 ? vinnare.get(0) : null;
+    }
+
     public ExpertInsight save(ExpertInsight insight) {
         return repo.save(insight);
     }
@@ -469,7 +498,7 @@ ett bilkort.*/
         return repo.count();
     }
 
-    /** Admin: senaste insikterna (högsta id först — tabellen saknar created_at), valfritt filtrerat på expert/källa. */
+    /** Admin: senaste insikterna (hogsta id först — tabellen saknar created_at), valfritt filtrerat på expert/källa. */
     public List<Map<String, Object>> listRecent(String expert, int limit) {
         return listRecent(expert, limit, 0);
     }

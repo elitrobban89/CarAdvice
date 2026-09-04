@@ -803,4 +803,43 @@ class ExpertInsightServiceTest {
         when(repo.renameCategory("småbil", "smaabil")).thenReturn(12);
         assertThat(service().renameCategory("småbil", "Ekonomibil")).isEqualTo(12);
     }
+
+    // ── kategoriForModell: kategorin lånas av tabellens övriga rader ──
+
+    @Test
+    void kategoriForModellTarMajoritetenBlandRaderMedSammaModell() {
+        when(repo.findCategoriesForModel("Volvo", "XC60", "Mobility Sweden månadsläget"))
+                .thenReturn(List.of("suv", "SUV", "familjebil"));
+
+        assertThat(service().kategoriForModell("Volvo", "XC60", "Mobility Sweden månadsläget"))
+                .isEqualTo("suv");
+    }
+
+    /** Volvo EX30 står 6 elbil / 6 smaabil i drift — att slå mynt där vore att hitta på data. */
+    @Test
+    void kategoriForModellSvararNullVidOavgjort() {
+        when(repo.findCategoriesForModel("Volvo", "EX30", ""))
+                .thenReturn(List.of("elbil", "smaabil", "elbil", "smaabil", "suv"));
+
+        assertThat(service().kategoriForModell("Volvo", "EX30", null)).isNull();
+    }
+
+    /** Aliaset räknas på sin kanoniska hylla, och en kategori utanför formuläret röstar inte. */
+    @Test
+    void kategoriForModellKanoniserarAliasOchIgnorerarOkandaKategorier() {
+        when(repo.findCategoriesForModel("Toyota", "Yaris", ""))
+                .thenReturn(List.of("småbil", "smaabil", "crossover"));
+
+        assertThat(service().kategoriForModell("Toyota", "Yaris", "")).isEqualTo("smaabil");
+    }
+
+    @Test
+    void kategoriForModellSvararNullUtanTraffOchUtanModell() {
+        when(repo.findCategoriesForModel("Volvo", "EX99", "")).thenReturn(List.of());
+
+        assertThat(service().kategoriForModell("Volvo", "EX99", "")).isNull();
+        assertThat(service().kategoriForModell("Volvo", null, "")).isNull();
+        assertThat(service().kategoriForModell(null, "XC60", "")).isNull();
+        verify(repo, times(1)).findCategoriesForModel(anyString(), anyString(), anyString());
+    }
 }
