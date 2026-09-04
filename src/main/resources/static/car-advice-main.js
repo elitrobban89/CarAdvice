@@ -77,6 +77,16 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // ALDRIG varit ihopfälld i drift — och mitt prov läste .hidden-EGENSKAPEN, som var true
     // hela tiden. Ett grönt prov som mäter fel sak är värre än inget prov.
     '#ca-fler[hidden]{display:none;}' +
+    // Sammanfattningsraden: samma tysta ton som notiserna, men med värdet framhävt — det är
+    // raden som ersätter en fråga, och då måste svaret gå att läsa i förbifarten.
+    '#ca-fuel-sum{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px;'
+    + 'padding:9px 12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);'
+    + 'border-radius:10px;font-size:.78rem;}' +
+    '.ca-fuel-sum-etikett{color:rgba(226,232,240,.5);font-weight:700;letter-spacing:.02em;'
+    + 'text-transform:uppercase;font-size:.68rem;}' +
+    '.ca-fuel-sum-varde{color:#e2e8f0;font-weight:700;}' +
+    '.ca-fuel-sum-hjalp{margin-left:auto;color:rgba(226,232,240,.4);font-size:.72rem;}' +
+    '@media(max-width:520px){.ca-fuel-sum-hjalp{margin-left:0;}}' +
     '#ca-fc-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}' +
     '#ca-fc-specs:empty{display:none;}' +
     '#ca-fc-specs .ca-ev{margin:0;}' +
@@ -754,6 +764,48 @@ function caUpdateFuelVisibility() {
   caVaxelladeForval();
   caAlderForval();
   caSynkaChips();
+  caDrivmedelsrad();
+}
+
+/**
+ * Raden som säger vilket drivmedel sökningen faktiskt får.
+ *
+ * <p><b>Varför den behövs.</b> Drivmedelsrutan ligger sedan 2026-09-04 under "Fler val", och
+ * laddarfrågan avgör värdet i båda riktningarna. Ja syntes redan (rutan sattes till El), men
+ * NEJ syntes inte alls: chippet stod kvar på "Spelar ingen roll" medan payloaden
+ * {@code charger:false} ger prompten "undvik renodlad elbil (BEV) och laddhybrid (PHEV) —
+ * föreslå ENDAST elhybrid (HEV)". Appen hade alltså bestämt bensin/hybrid utan att säga det.
+ *
+ * <p>Raden ändrar ingenting i det som skickas. Den läser bara läget och skriver ut det, så att
+ * ett förval aldrig är osynligt — samma princip som att ett eget klick (dataset.rord) alltid
+ * vinner över förvalet.
+ */
+function caDrivmedelsrad() {
+  var rad = document.getElementById('ca-fuel-sum');
+  if (!rad) return;                          // körs före caFlerVal vid sidladdning
+  var cat  = document.getElementById('ca-category');
+  var fuel = document.getElementById('ca-fuel');
+  var chg  = document.getElementById('ca-charger');
+  if (!cat || !fuel) { rad.style.display = 'none'; return; }
+
+  // Elbil och laddhybrid som KATEGORI svarar redan på frågan — då göms rutan, och då ska
+  // raden inte upprepa den.
+  var k = caCanonCat ? caCanonCat(cat.value) : cat.value;
+  if (k === 'elbil' || k === 'laddhybrid') { rad.style.display = 'none'; return; }
+
+  var v = fuel.value;
+  var text;
+  if (v === 'el')            text = '⚡ El';
+  else if (v === 'bensin')   text = '⛽ Bensin';
+  else if (v === 'diesel')   text = '🛢️ Diesel';
+  else if (v === 'hybrid')   text = '♻️ Hybrid (ej laddbar)';
+  else if (chg && chg.value === 'false') text = '⛽ Bensin eller elhybrid — inget laddbart';
+  else                       text = '✨ Spelar ingen roll';
+
+  rad.style.display = '';
+  rad.innerHTML = '<span class="ca-fuel-sum-etikett">Drivmedel</span>'
+    + '<span class="ca-fuel-sum-varde">' + text + '</span>'
+    + '<span class="ca-fuel-sum-hjalp">ändra under Fler val</span>';
 }
 
 /**
@@ -1115,7 +1167,19 @@ function caFlerVal() {
   var passRuta = pass && pass.closest ? pass.closest('.ca-field') : null;
   if (passRuta) passRuta.style.display = 'none';
 
-  var ids = ['ca-km', 'ca-usage', 'ca-cargo', 'ca-transmission', 'ca-maxage'];
+  // ANVÄNDNING bort ur formuläret på samma sätt (2026-09-04). Fältet matar en enda mening i
+  // prompten ("Användning: pendling"), och den vakt det en gång fanns för — usage som
+  // innehåller "familj" i requiresFamilySizedCar — kan inte tändas av rullgardinens
+  // alternativ (pendling/blandat/landsväg/stad). Kategorin Familjebil tänder samma vakt.
+  // Markupens förval skickas fortfarande, så prompten och cachenyckeln ser likadana ut.
+  var usage = document.getElementById('ca-usage');
+  var usageRuta = usage && usage.closest ? usage.closest('.ca-field') : null;
+  if (usageRuta) usageRuta.style.display = 'none';
+
+  // DRIVMEDLET flyttar in hit (2026-09-04). Laddarfrågan avgör det i båda riktningarna —
+  // Ja ger El, Nej ger bensin/elhybrid — och den som vill säga "diesel" hittar rutan här.
+  // Raden #ca-fuel-sum nedanför visar alltid vad valet blev, så inget sker i det tysta.
+  var ids = ['ca-fuel', 'ca-km', 'ca-cargo', 'ca-transmission', 'ca-maxage'];
   var rutor = [];
   ids.forEach(function (id) {
     var el = document.getElementById(id);
@@ -1128,7 +1192,7 @@ function caFlerVal() {
   knapp.type = 'button';
   knapp.id = 'ca-fler-btn';
   knapp.setAttribute('aria-expanded', 'false');
-  knapp.innerHTML = '<span>Fler val</span><span class="ca-fler-hint">körsträcka, användning, bagage, växellåda, ålder</span><span class="ca-fler-pil">▾</span>';
+  knapp.innerHTML = '<span>Fler val</span><span class="ca-fler-hint">drivmedel, körsträcka, bagage, växellåda, ålder</span><span class="ca-fler-pil">▾</span>';
 
   var box = document.createElement('div');
   box.id = 'ca-fler';
@@ -1144,6 +1208,13 @@ function caFlerVal() {
   rad.parentNode.insertBefore(knapp, rad.nextSibling);
   knapp.parentNode.insertBefore(box, knapp.nextSibling);
   rutor.forEach(function (r) { box.appendChild(r); });
+
+  // Sammanfattningsraden står MELLAN de synliga fälten och knappen: drivmedlet är inte
+  // längre en fråga på skärmen, och då måste svaret synas någonstans.
+  var sum = document.createElement('div');
+  sum.id = 'ca-fuel-sum';
+  knapp.parentNode.insertBefore(sum, knapp);
+  caDrivmedelsrad();
 
   // Rader som blev helt tomma när fälten flyttades ska inte lämna en lucka i formuläret.
   Array.prototype.forEach.call(document.querySelectorAll('#ca-wrap .ca-grid'), function (g) {
@@ -1169,20 +1240,36 @@ function caAnpassaBegagnatFormular() {
   // sällanfrågorna (se caFlerVal). Förvalet 5 år står kvar, men den som vill ha en äldre bil
   // kan fortfarande säga det: att gömma ett val är sämre än att fälla ihop det.
 
+  // Notisen kan redan stå i markupen (snippeten omklistrad) ELLER byggas ur ny/begagnad-rutan.
+  // BÅDA vägarna måste kompakteras, annars ser WordPress-sidan annorlunda ut än test.html —
+  // och den skillnaden syns inte förrän någon klistrar om snippeten.
+  var befintlig = document.getElementById('ca-usedcar-note');
+  if (befintlig) { caKompaktNotis(befintlig); return; }
+
   var sel = document.getElementById('ca-newcar');
-  if (!sel) return;                       // snippeten är redan omklistrad — notisen står i HTML
+  if (!sel) return;
   sel.value = 'false';
   var falt = sel.closest ? sel.closest('.ca-field') : null;
   if (!falt) { sel.style.display = 'none'; return; }
   falt.id = 'ca-usedcar-note';
+  caKompaktNotis(falt);
+}
+
+/**
+ * Notisen "Bilarna vi visar" som en smal rad över hela bredden.
+ *
+ * <p>Etiketten är borta sedan 2026-09-04: notisen är ingen fråga, och när drivmedelsrutan
+ * flyttade ned under "Fler val" blev notisen ensam kvar i sin rutnätsrad — en halvbred ruta
+ * med en tom cell bredvid. Idempotent, så den tål att köras på båda markupvarianterna.
+ */
+function caKompaktNotis(falt) {
+  falt.style.gridColumn = '1 / -1';
   falt.innerHTML =
-    '<label>Bilarna vi visar</label>' +
     // Neutral vit genomskinlighet i stället för en blå ram: sidans tema är violett, och en
     // blåtonad ruta läste som ett främmande element mitt i formuläret.
-    '<div style="font-size:0.82rem;line-height:1.45;color:#8b93a7;background:rgba(255,255,255,0.04);' +
-    'border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:9px 11px;">' +
-    'Begagnade bilar ur <b>Blockets annonser</b>, <b>högst 5 år gamla</b> — priser och prisgolv ' +
-    'mäts mot riktiga annonser.' +
+    '<div style="font-size:0.76rem;line-height:1.4;color:#8b93a7;background:rgba(255,255,255,0.035);' +
+    'border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:8px 12px;">' +
+    'Begagnat ur <b>Blockets annonser</b>, <b>högst 5 år gamla</b> — priserna mäts mot riktiga annonser.' +
     '</div>';
 }
 
