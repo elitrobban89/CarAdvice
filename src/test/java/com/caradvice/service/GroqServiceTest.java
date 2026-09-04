@@ -2724,6 +2724,25 @@ class GroqServiceTest {
     }
 
     @Test
+    void modellerPromptenSjalvRekommenderarFarSinUppmattaVolym() {
+        // Skarpt fall efter första fixen: chatten svarade "MG 4 — 520 L" på 420-litersfrågan.
+        // Talet finns ingenstans i tabellen (MG4 = 363 l), och listorna kunde inte hjälpa — en
+        // bil under kravet kan inte stå bland dem som klarar det. MG4 är däremot en av bilarna
+        // ALLA_KATEGORIREGLER själv rekommenderar, så volymen följer nu med den vägen.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "MG4", "cargoLiters", 363),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "Ferrari 296", "cargoLiters", 201)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("MG4 363 (klarar INTE)");
+        assertThat(kontext).contains("Kia EV6 490");
+        // En bil som reglerna inte nämner ska inte dras in i den raden
+        assertThat(kontext).doesNotContain("Ferrari 296 201 (klarar INTE)");
+    }
+
+    @Test
     void bagagekontextenTystnarUtanData() {
         when(cargoSpecService.allaMedVolym()).thenReturn(List.of());
         assertThat(service().bagagekontext(420)).isEmpty();

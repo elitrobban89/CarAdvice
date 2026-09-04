@@ -3237,10 +3237,59 @@ public class GroqService {
             }
             ut.append("\n");
         }
+        String rekommenderade = volymerForRekommenderadeModeller(alla, troskel);
+        if (!rekommenderade.isBlank())
+            ut.append("Uppmätt volym för modeller som mina egna kategoriregler pekar ut: ")
+              .append(rekommenderade).append("\n");
         ut.append("REGEL: påstå ALDRIG att en bil klarar ett bagagekrav utan att ha dess verifierade ")
           .append("siffra. Saknas bilen i listan ovan — säg att du inte har en verifierad volym för den, ")
           .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.");
         return ut.toString();
+    }
+
+    /** Hur många rekommenderade modeller som får sin volym med. */
+    private static final int BAGAGELISTA_REKOMMENDERADE = 40;
+
+    /**
+     * Uppmätta volymer för de modeller som prompten SJÄLV pekar ut som förstahandsval.
+     *
+     * <p><b>Felet den lagar, uppmätt skarpt efter första fixen 2026-09-04.</b> Med bara "klarar"-
+     * och "klarar inte"-listorna svarade chatten fortfarande <b>"MG 4 — 520 L"</b> på
+     * 420-litersfrågan. Talet finns ingenstans i vår tabell (MG4 står på 363 l), och listorna
+     * kunde inte hjälpa: en bil UNDER kravet kan per definition inte stå bland dem som klarar
+     * det, och det spridda urvalet av underkända bilar råkade inte träffa just MG4. Samtidigt är
+     * MG4 en av modellerna {@link #ALLA_KATEGORIREGLER} själv rekommenderar för elbilssök — så
+     * prompten bad om bilen med ena handen och lämnade volymen öppen för gissning med den andra.
+     *
+     * <p>Matchningen går via {@link ExpertInsightService#modelPosition} med samma ordgränsregel
+     * som bilkorten, och prövar både hela modellnamnet ("Enyaq iV") och första modellordet
+     * ("Enyaq") — reglerna skriver "Škoda Enyaq" medan tabellen har "Škoda Enyaq iV", och en
+     * exakt jämförelse gav 8 träffar där ordgränsvarianten ger 29.
+     */
+    private String volymerForRekommenderadeModeller(List<Map<String, Object>> alla, int troskel) {
+        String regler = ExpertInsightService.flattenSpaces(ALLA_KATEGORIREGLER);
+        StringBuilder sb = new StringBuilder();
+        int antal = 0;
+        for (Map<String, Object> r : alla) {
+            if (antal >= BAGAGELISTA_REKOMMENDERADE) break;
+            Object namnO = r.get("carName");
+            Object literO = r.get("cargoLiters");
+            if (namnO == null || !(literO instanceof Number n) || n.intValue() <= 0) continue;
+            String namn = namnO.toString();
+            String[] ord = namn.trim().split("\\s+");
+            List<String> kandidater = ord.length > 1
+                    ? List.of(String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length)), ord[1])
+                    : List.of(namn);
+            boolean traff = false;
+            for (String k : kandidater) {
+                if (k.length() >= 2 && ExpertInsightService.modelPosition(regler, k) >= 0) { traff = true; break; }
+            }
+            if (!traff) continue;
+            if (antal++ > 0) sb.append(", ");
+            sb.append(namn).append(" ").append(n.intValue());
+            if (n.intValue() < troskel) sb.append(" (klarar INTE)");
+        }
+        return sb.toString();
     }
 
     private List<String> extractUserTexts(List<Map<String, String>> messages) {
