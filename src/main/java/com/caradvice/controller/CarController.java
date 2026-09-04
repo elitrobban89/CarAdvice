@@ -606,6 +606,12 @@ public class CarController {
         String context = (String) req.get("context");
 
         StreamingResponseBody body = outputStream -> {
+            // Ström som aldrig bar ett enda innehållstoken = tom chattbubbla hos användaren.
+            // Resonemangsmodellerna lägger ibland allt i "reasoning" och lämnar content tomt —
+            // uppmätt 2026-09-04 på den icke-strömmande vägen ({"reply":""}), och strömmen
+            // vidarebefordrar bara delta/content och hade tystnat på exakt samma sätt.
+            // Tankeinnehållet skickas MED FLIT inte vidare; en förklarande rad är bättre.
+            boolean[] fickInnehall = {false};
             try (InputStream is = groqService.chatStream(messages, context);
                  BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
@@ -617,10 +623,17 @@ public class CarController {
                         JsonNode node = mapper.readTree(data);
                         String token = node.at("/choices/0/delta/content").asText("");
                         if (!token.isEmpty()) {
+                            fickInnehall[0] = true;
                             outputStream.write(("data: " + mapper.writeValueAsString(token) + "\n\n").getBytes(StandardCharsets.UTF_8));
                             outputStream.flush();
                         }
                     } catch (Exception ignored) {}
+                }
+                if (!fickInnehall[0]) {
+                    outputStream.write(("data: " + mapper.writeValueAsString(
+                            "Jag fick inget svar från AI-tjänsten den här gången. Ställ frågan igen.")
+                            + "\n\n").getBytes(StandardCharsets.UTF_8));
+                    outputStream.flush();
                 }
             } catch (Exception e) {
                 outputStream.write(("data: " + mapper.writeValueAsString("[ERR]" + e.getMessage()) + "\n\n").getBytes(StandardCharsets.UTF_8));

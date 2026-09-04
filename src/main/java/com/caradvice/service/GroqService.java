@@ -2981,7 +2981,18 @@ public class GroqService {
             throw new RuntimeException("Groq svarade " + response.statusCode());
 
         JsonNode json = mapper.readTree(response.body());
-        return json.at("/choices/0/message/content").asText("Inget svar.");
+        String svar = json.at("/choices/0/message/content").asText("");
+        // TOMT content betyder inte tomt svar: resonemangsmodellerna lägger ibland allt i
+        // "reasoning" och lämnar content tomt — kortvägen har haft den reservläsningen sedan
+        // länge (se extractAndParse), men chatten svarade "" rakt ut. Uppmätt 2026-09-04 med
+        // ett skarpt prov mot /api/chat: HTTP 200 och {"reply":""}.
+        if (svar.isBlank()) svar = json.at("/choices/0/message/reasoning").asText("");
+        if (svar.isBlank()) {
+            log.warn("Groq tomt chattsvar, finish_reason={}",
+                    json.at("/choices/0/finish_reason").asText("unknown"));
+            return "Jag fick inget svar från AI-tjänsten den här gången. Ställ frågan igen.";
+        }
+        return svar;
     }
 
     public InputStream chatStream(List<Map<String, String>> messages, String carContext) throws Exception {
@@ -3169,9 +3180,21 @@ public class GroqService {
      * Cadillac, skåpbilar) som inte gör svaret bättre på frågan "mer än 420 liter". Kortare
      * lista, samma spridning.
      */
-    private static final int BAGAGELISTA_TECKEN = 1500;
+    private static final int BAGAGELISTA_TECKEN = 1200;
     /** Hur många bilar UNDER kravet som räknas upp som kontrast. */
     private static final int BAGAGELISTA_UNDER = 6;
+    /**
+     * Hur långt ÖVER kravet listan sträcker sig.
+     *
+     * <p>En bil med 1 231 l svarar inte bättre på "mer än 420 liter" än en med 585 l, men den tar
+     * lika mycket plats. Fönstret håller listan vid de bilar frågan handlar om — skåpbilarna och
+     * lyxbarerna föll bort och kvar blev familjebilarna. Kostnaden spelar roll: chattmodellen
+     * (gpt-oss-20b) räknar resonemang mot samma {@code max_tokens} som svaret, och ett skarpt prov
+     * 2026-09-04 gav tomt content när prompten växte.
+     */
+    private static final int BAGAGELISTA_SPANN = 250;
+    /** Under så här många träffar öppnas fönstret igen — hellre stora bilar än nästan inga. */
+    private static final int BAGAGELISTA_MINSTA = 15;
 
     /**
      * Verifierade bagagevolymer ur {@code cargo_spec} som chatten måste grunda sitt svar i.
@@ -3215,6 +3238,10 @@ public class GroqService {
         over.sort(java.util.Comparator.comparingInt(Rad::liter));
         under.sort(java.util.Comparator.comparingInt(Rad::liter).reversed());
 
+        int totalt = over.size();
+        List<Rad> fonster = over.stream().filter(r -> r.liter() <= troskel + BAGAGELISTA_SPANN).toList();
+        if (fonster.size() >= BAGAGELISTA_MINSTA) over = new ArrayList<>(fonster);
+
         // Jämnt spritt urval: varje k:te rad, så att både 420 l och 900 l finns representerade.
         int tecken = 0;
         for (Rad r : over) tecken += r.namn().length() + 6;
@@ -3228,8 +3255,11 @@ public class GroqService {
 
         StringBuilder ut = new StringBuilder();
         ut.append("VERIFIERADE BAGAGEVOLYMER (vår egen cargo_spec-tabell, liter med baksätet uppfällt).\n");
+        // TOTALEN är hela träffmängden, inte fönstret: annars hade raden sagt "59 av 59" och
+        // låtit som att listan var uttömmande.
         ut.append("Klarar ").append(troskel).append(" l — ").append(antal).append(" av ")
-          .append(over.size()).append(" modeller, urvalet spritt över hela spannet: ")
+          .append(totalt).append(" modeller, spritt urval upp till ")
+          .append(over.get(over.size() - 1).liter()).append(" l (ännu rymligare bilar finns): ")
           .append(listan).append("\n");
         if (!under.isEmpty()) {
             // Också de här sprids i stället för att toppas: en ren närmiss-lista blev tolv rader
