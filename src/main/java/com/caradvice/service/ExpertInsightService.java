@@ -327,6 +327,52 @@ public class ExpertInsightService {
      */
     static int modelPosition(String flatTitle, String model) {
         if (model == null || model.isBlank()) return -1;
+        int bast = -1;
+        for (String alternativ : modellAlternativ(model)) {
+            int p = enModellsPosition(flatTitle, alternativ);
+            if (p >= 0 && (bast < 0 || p < bast)) bast = p;
+        }
+        return bast;
+    }
+
+    /**
+     * Ett modellnamn med snedstreck är TVÅ modeller, inte en — "Volvo S60/V60" är namnet på två
+     * bilar som delar en uppgift, och den skrivs så av källan själv.
+     *
+     * <p><b>Felet regeln lagar</b> (uppmätt 2026-09-04 över hela tabellen). Fem rader bär
+     * snedstreck, och ingen av dem nådde ett enda bilkort: {@code Transit Connect/Tourneo Connect}
+     * (id 485, 821), {@code S60/V60} (524), {@code S90/V90} (525) och {@code EX/XC40} (531).
+     * Ingen korttitel innehåller ett snedstreck, så namnet kunde aldrig matcha som helhet.
+     * Fyra av fem kommer från Folksams krocksäkerhetsrapport, som listar syskonmodellerna
+     * tillsammans — källan fortsätter skriva så, och därför är det matchningen som ska förstå det.
+     *
+     * <p><b>Två av de fem nådde INGENTING alls</b> och var därmed tabellens enda helt osynliga
+     * rader: 485 och 821 saknar både kategori och drivmedel, så {@code buildExpertContext} såg
+     * dem inte heller (samma familj som månadsjobbets rader 2026-09-04). Kortvägen var deras enda.
+     *
+     * <p><b>Delarna prövas var för sig, aldrig hopslagna.</b> Varje del matchas med samma
+     * ordgränsregel som ett vanligt modellnamn, så "S60" fortfarande inte matchar "S60L" och
+     * "EX" inte matchar "EX30" — delen måste stå som eget namn i titeln. Hela strängen prövas
+     * först: en modell som verkligen HETER något med snedstreck ska fortsätta matcha sig själv.
+     *
+     * <p><b>KÄND GRÄNS, medvetet lämnad:</b> {@code EX/XC40} är Volvos eget sätt att skriva
+     * "EX40 och XC40" i registreringsstatistiken, men delen "EX" är inget eget modellnamn och
+     * matchar därför bara XC40-kort. Att gissa fram "EX40" ur den delade sifferändelsen vore att
+     * hitta på ett modellnamn ur en förkortning — raden når sitt XC40-kort, och det räcker.
+     */
+    static List<String> modellAlternativ(String model) {
+        if (model == null || model.indexOf('/') < 0) return model == null ? List.of() : List.of(model);
+        List<String> ut = new ArrayList<>();
+        ut.add(model);
+        for (String del : model.split("/")) {
+            String rensad = del.trim();
+            if (!rensad.isBlank()) ut.add(rensad);
+        }
+        return ut;
+    }
+
+    private static int enModellsPosition(String flatTitle, String model) {
+        if (model == null || model.isBlank()) return -1;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile(
                 "(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(foldDiacritics(flattenSpaces(model)))
                 + "(?![\\p{L}\\p{N}])").matcher(foldDiacritics(flatTitle));

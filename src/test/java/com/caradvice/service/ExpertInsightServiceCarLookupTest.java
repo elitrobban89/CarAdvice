@@ -182,4 +182,47 @@ class ExpertInsightServiceCarLookupTest {
 
         assertThat(service.findForCarTitle("Kia Niro")).isEmpty();
     }
+
+    @Test
+    void syskonmodellerMedSnedstreckNarBadaSinaKort() {
+        // Folksams rapport listar syskonmodellerna tillsammans, och raden lagras som kallan
+        // skriver den. Ingen korttitel bar snedstreck, sa namnet kunde aldrig matcha som helhet:
+        // uppmatt 2026-09-04 nadde tabellens fem snedstrecksrader (485, 821, 524, 525, 531)
+        // inte ett enda kort.
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "Folksam", "Volvo", "S60/V60", null, null, "Bra val i krocksakerhetsstudien.", null)));
+
+        assertThat(service.findForCarTitle("Volvo S60 (2020)")).hasSize(1);
+        assertThat(service.findForCarTitle("Volvo V60 Recharge (2021)")).hasSize(1);
+    }
+
+    @Test
+    void snedstrecksradenNarInteEnAnnanModellAvSammaMarke() {
+        // Delarna provas var for sig med samma ordgransregel som ett vanligt modellnamn —
+        // "S60" ska inte plotsligt na XC90-kortet bara for att raden bar tva namn.
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "Folksam", "Volvo", "S60/V60", null, null, "Bra val i krocksakerhetsstudien.", null)));
+
+        assertThat(service.findForCarTitle("Volvo XC90 (2020)")).isEmpty();
+    }
+
+    @Test
+    void andraDelenAvSnedstrecksnamnetRacker() {
+        // id 485 och 821: "Transit Connect/Tourneo Connect". Vi har inget Transit Connect-kort,
+        // men "Ford Tourneo Connect" finns — den andra delen ar radens enda vag till ett kort.
+        when(repo.findAll()).thenReturn(List.of(new ExpertInsight(
+                "Folksam", "Ford", "Transit Connect/Tourneo Connect", null, null,
+                "Fick Bra val i Folksams rapport.", null)));
+
+        assertThat(service.findForCarTitle("Ford Tourneo Connect (2022)")).hasSize(1);
+    }
+
+    @Test
+    void delarnaBehallerOrdgransen() {
+        // Ordgransen galler varje del: "S60" far inte matcha "S60L", och "EX" ur "EX/XC40"
+        // far inte matcha "EX30". Delen maste sta som eget namn i titeln.
+        assertThat(ExpertInsightService.modelPosition("volvo s60l", "S60/V60")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("volvo ex30", "EX/XC40")).isEqualTo(-1);
+        assertThat(ExpertInsightService.modelPosition("volvo xc40 recharge", "EX/XC40")).isEqualTo(6);
+    }
 }
