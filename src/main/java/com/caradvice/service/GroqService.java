@@ -3278,6 +3278,10 @@ public class GroqService {
         if (!rekommenderade.isBlank())
             ut.append("Uppmätt volym för modeller som mina egna kategoriregler pekar ut: ")
               .append(rekommenderade).append("\n");
+        String golvOchVolym = golvMedVolym(alla, troskel);
+        if (!golvOchVolym.isBlank())
+            ut.append("VOLYM + BEGAGNATGOLV ihopslaget (samma bilar som golvtabellen ovan, ")
+              .append("golvet är ett begagnatpris): ").append(golvOchVolym).append("\n");
         ut.append("REGEL: påstå ALDRIG att en bil klarar ett bagagekrav utan att ha dess verifierade ")
           .append("siffra. Saknas bilen i listan ovan — säg att du inte har en verifierad volym för den, ")
           .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.\n")
@@ -3290,6 +3294,51 @@ public class GroqService {
           .append("ALDRIG som för dyr på en gissning, och glöm inte att bilen användaren själv ")
           .append("jämför med kan stå i listan.");
         return ut.toString();
+    }
+
+    /**
+     * Volym och begagnatgolv på SAMMA rad för de bilar där vi har båda.
+     *
+     * <p><b>Varför en hopslagen rad slår ännu en regel.</b> Frågan "stort bagage till ungefär
+     * EV6:s pris" kräver att två tabeller läses ihop, och modellen gjorde det fel om och om igen:
+     * först kallade den golvet nypris (uppmätt 08-29), sedan jämförde den golvet med andras
+     * nypriser och svarade "inga bilar finns" (09-04), och efter den regeln listade den två bilar
+     * men missade MG5 — 578 l till 180 000 kr, alltså det bästa svaret, och det stod redan i
+     * prompten fast i en annan tabell. Tre försök att beskriva hopslagningen i ord; det fjärde
+     * gör den åt modellen i stället.
+     *
+     * <p>Volymen hämtas ur {@code cargo_spec} och golvet ur {@link #EV_PRICE_FLOOR_KR}, matchade
+     * med samma ordgränsregel som bilkorten ({@link ExpertInsightService#modelPosition}) eftersom
+     * tabellerna stavar olika: golvet säger "Kia Niro EV" och "Hyundai Ioniq 5", volymtabellen
+     * "Kia Niro" och "Hyundai IONIQ 5". Minsta volymen per modell används — hellre för lågt än
+     * ett löfte bilen inte håller.
+     */
+    private String golvMedVolym(List<Map<String, Object>> alla, int troskel) {
+        StringBuilder sb = new StringBuilder();
+        int antal = 0;
+        for (Map.Entry<String, Integer> golv : EV_PRICE_FLOOR_KR.entrySet()) {
+            String[] ord = golv.getKey().trim().split("\\s+");
+            String modell = ord.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length))
+                                           : golv.getKey();
+            Integer minsta = null;
+            for (Map<String, Object> r : alla) {
+                Object namn = r.get("carName");
+                Object liter = r.get("cargoLiters");
+                if (namn == null || !(liter instanceof Number n) || n.intValue() <= 0) continue;
+                // flattenSpaces på TITELSIDAN, inte bara på modellen: modelPosition gemenar bara
+                // modellnamnet, så ett otvättat "MG5" i tabellen matchade aldrig sitt eget golv.
+                if (ExpertInsightService.modelPosition(
+                        ExpertInsightService.flattenSpaces(namn.toString()), modell) < 0) continue;
+                if (minsta == null || n.intValue() < minsta) minsta = n.intValue();
+            }
+            if (minsta == null) continue;
+            if (antal++ > 0) sb.append(", ");
+            sb.append(golv.getKey()).append(" ").append(minsta).append(" l / golv ")
+              .append(String.format(java.util.Locale.ROOT, "%,d", golv.getValue()).replace(',', ' '))
+              .append(" kr");
+            if (minsta < troskel) sb.append(" (klarar INTE)");
+        }
+        return sb.toString();
     }
 
     /** Hur många rekommenderade modeller som får sin volym med. */

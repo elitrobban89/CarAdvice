@@ -2756,6 +2756,24 @@ class GroqServiceTest {
     }
 
     @Test
+    void volymOchBegagnatgolvSlasIhopPaSammaRad() {
+        // Tre försök att BESKRIVA hopslagningen i ord räckte inte: modellen kallade golvet
+        // nypris (08-29), jämförde golv med nypris (09-04) och missade sedan MG5 — 578 l till
+        // 180 000 kr, det bästa svaret, som redan stod i prompten fast i en annan tabell.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "MG5", "cargoLiters", 578),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "Renault Zoe", "cargoLiters", 338)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("MG5 578 l / golv 180 000 kr");
+        assertThat(kontext).contains("Kia EV6 490 l / golv 317 000 kr");
+        assertThat(kontext).contains("Renault Zoe 338 l / golv 58 000 kr (klarar INTE)");
+        assertThat(kontext).contains("golvet är ett begagnatpris");
+    }
+
+    @Test
     void bagagekontextenTystnarUtanData() {
         when(cargoSpecService.allaMedVolym()).thenReturn(List.of());
         assertThat(service().bagagekontext(420)).isEmpty();
