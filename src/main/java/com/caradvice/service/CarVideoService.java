@@ -161,6 +161,32 @@ public class CarVideoService {
         }
     }
 
+    /**
+     * Varje korttitel som frontenden någonsin har renderat, nyast först — cachenyckeln är
+     * titeln utan årsmodell, och raden skrivs när kortet visas.
+     *
+     * <p><b>Varför en videocache får svara på en helt annan fråga.</b> Insiktsraderna matchas
+     * mot korttiteln, och rekommendationsprompten ber AI:n om formen "Märke Modell (år)" — utan
+     * trimnivå. Frågan "når en rad som heter {@code XC40 B4} någonsin ett kort?" gick därför inte
+     * att svara på: våra egna 1 833 spec-namn bär inga trimnamn, och AI-titlarna fanns bara i
+     * Render-loggen. {@code car_video} är den enda plats där de faktiskt renderade titlarna
+     * ligger kvar, eftersom frontenden slår upp en video per kort.
+     *
+     * <p><b>Läsning kostar ingenting</b> — inga YouTube-uppslag, ingen skrivning. Urvalet är
+     * däremot inte hela historiken: rader skrivs bara när {@code canLookUp()} är sant (nyckel
+     * satt, dygnstaket inte nått), så en dag utan kvot lämnar inga spår.
+     */
+    public List<Map<String, Object>> listCarNames(int limit) {
+        try {
+            return jdbc.queryForList(
+                    "SELECT car_name, video_id, fetched_at FROM car_video ORDER BY fetched_at DESC LIMIT ?",
+                    Math.max(1, Math.min(limit, 5000)));
+        } catch (Exception e) {
+            log.warn("car_video: kunde inte lista korttitlar: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     /** Tömmer hela cachen — nästa visning av varje bil kostar ett nytt uppslag. */
     public int forgetAll() {
         try {

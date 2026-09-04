@@ -721,6 +721,17 @@ public class CarController {
         return ResponseEntity.ok(carVideoService.findForCarTitle(car));
     }
 
+    // Admin: korttitlarna som frontenden faktiskt har renderat (cachenyckeln i car_video,
+    // titeln utan årsmodell). Enda stället där AI:ns egna titlar finns kvar utanför
+    // Render-loggen — behövs för att svara på om en insiktsrad med trimnamn ("XC40 B4")
+    // någonsin når ett kort. Ren läsning: inga YouTube-uppslag, ingen skrivning.
+    @GetMapping("/admin/card-titles")
+    public ResponseEntity<?> listCardTitles(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                            @RequestParam(defaultValue = "1000") int limit) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(carVideoService.listCarNames(limit));
+    }
+
     // Admin: glöm cachad YouTube-video så nästa visning slår upp på nytt — efter ändrad
     // sökning/rankning, eller när en bil fått en video som inte håller måttet.
     @DeleteMapping("/admin/car-video")
