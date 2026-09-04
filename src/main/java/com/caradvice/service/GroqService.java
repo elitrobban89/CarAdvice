@@ -3250,7 +3250,15 @@ public class GroqService {
               .append(rekommenderade).append("\n");
         ut.append("REGEL: påstå ALDRIG att en bil klarar ett bagagekrav utan att ha dess verifierade ")
           .append("siffra. Saknas bilen i listan ovan — säg att du inte har en verifierad volym för den, ")
-          .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.");
+          .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.\n")
+          // Utan den här raden slog vakten över åt andra hållet: två skarpa prov i rad svarade
+          // "inga elbilar med mer än 420 l finns i prisklassen" — trots att listan innehöll både
+          // MG5 (578 l) och frågans egen prisreferens Kia EV6 (490 l). Listan säger inget om
+          // pris, och tystnad om priset får inte bli ett nej.
+          .append("Listan säger BARA volym, aldrig pris. Har en bil verifierad volym men du saknar ")
+          .append("prisuppgift: föreslå den ändå och skriv att priset behöver kollas — avfärda den ")
+          .append("ALDRIG som för dyr på en gissning, och glöm inte att bilen användaren själv ")
+          .append("jämför med kan stå i listan.");
         return ut.toString();
     }
 
