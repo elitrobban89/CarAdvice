@@ -3161,10 +3161,17 @@ public class GroqService {
         }
     }
 
-    /** Hur många tecken den verifierade bagagelistan får ta i systemprompten. */
-    private static final int BAGAGELISTA_TECKEN = 3000;
-    /** Hur många bilar strax UNDER kravet som räknas upp som avskräckande exempel. */
-    private static final int BAGAGELISTA_UNDER = 12;
+    /**
+     * Hur många tecken den verifierade bagagelistan får ta i systemprompten.
+     *
+     * <p>Sänkt från 3 000 till 1 500 efter det andra skarpa provet: hela blocket landade på
+     * ~940 tokens, och den långa listan fylldes av bilar långt över kravet (Rolls-Royce,
+     * Cadillac, skåpbilar) som inte gör svaret bättre på frågan "mer än 420 liter". Kortare
+     * lista, samma spridning.
+     */
+    private static final int BAGAGELISTA_TECKEN = 1500;
+    /** Hur många bilar UNDER kravet som räknas upp som kontrast. */
+    private static final int BAGAGELISTA_UNDER = 6;
 
     /**
      * Verifierade bagagevolymer ur {@code cargo_spec} som chatten måste grunda sitt svar i.
@@ -3248,7 +3255,9 @@ public class GroqService {
     }
 
     /** Hur många rekommenderade modeller som får sin volym med. */
-    private static final int BAGAGELISTA_REKOMMENDERADE = 40;
+    private static final int BAGAGELISTA_REKOMMENDERADE = 24;
+    /** Hur många varianter av samma modell som får plats — sex Enyaq-rader säger inget mer än tre. */
+    private static final int BAGAGELISTA_PER_MODELL = 3;
 
     /**
      * Uppmätta volymer för de modeller som prompten SJÄLV pekar ut som förstahandsval.
@@ -3269,6 +3278,7 @@ public class GroqService {
     private String volymerForRekommenderadeModeller(List<Map<String, Object>> alla, int troskel) {
         String regler = ExpertInsightService.flattenSpaces(ALLA_KATEGORIREGLER);
         StringBuilder sb = new StringBuilder();
+        Map<String, Integer> perModell = new LinkedHashMap<>();  // "skoda enyaq" -> antal varianter
         int antal = 0;
         for (Map<String, Object> r : alla) {
             if (antal >= BAGAGELISTA_REKOMMENDERADE) break;
@@ -3285,6 +3295,15 @@ public class GroqService {
                 if (k.length() >= 2 && ExpertInsightService.modelPosition(regler, k) >= 0) { traff = true; break; }
             }
             if (!traff) continue;
+            // Sex Enyaq-varianter och fem MG MG4-rader säger inget mer än ett par av varje, och
+            // de trängde ut andra modeller ur listan. TVÅ nycklar behövs: "Hyundai IONIQ" som
+            // enda grupp gjorde IONIQ 5 och 6 till varianter av IONIQ 3 och klippte bort dem,
+            // medan "Škoda Enyaq 85" och "85x" verkligen är varianter av samma bil.
+            String grupp = ExpertInsightService.flattenSpaces(
+                    ord.length > 1 ? ord[0] + " " + ord[1] : namn);
+            String variant = ord.length > 2 ? grupp + " " + ExpertInsightService.flattenSpaces(ord[2]) : grupp;
+            if (perModell.merge(variant, 1, Integer::sum) > 1) continue;
+            if (perModell.merge(grupp, 1, Integer::sum) > BAGAGELISTA_PER_MODELL) continue;
             if (antal++ > 0) sb.append(", ");
             sb.append(namn).append(" ").append(n.intValue());
             if (n.intValue() < troskel) sb.append(" (klarar INTE)");
