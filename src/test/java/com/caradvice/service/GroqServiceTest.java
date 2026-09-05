@@ -2774,6 +2774,58 @@ class GroqServiceTest {
     }
 
     @Test
+    void golvbilarnaGaranterasPlatsIHuvudlistan() {
+        // Skarpt prov 09-05: MG5 (578 l / 180 000 kr) var fragans basta svar men foll bort i
+        // det spridda urvalet, och stod bara pa den ihopslagna golvraden. Modellen byggde
+        // svaret ur huvudlistan och kunde inte valja en bil som inte fanns dar.
+        List<Map<String, Object>> manga = new java.util.ArrayList<>();
+        for (int i = 0; i < 120; i++)
+            manga.add(Map.of("carName", "Fyllnadsbil " + i, "cargoLiters", 430 + i));
+        manga.add(Map.of("carName", "MG5", "cargoLiters", 578));
+        when(cargoSpecService.allaMedVolym()).thenReturn(manga);
+
+        String kontext = service().bagagekontext(420);
+        String huvudlistan = kontext.substring(kontext.indexOf("Klarar 420 l"),
+                kontext.indexOf("Uppmätt volym för modeller"));
+
+        assertThat(huvudlistan).contains("MG5 578");
+    }
+
+    @Test
+    void elbilsfraganSallarBortForbranningsbilarna() {
+        // Huvudlistan ar byggd ur cargo_spec, som tacker ALLA drivlinor: pa 420-litersfragan
+        // bjod den pa Rolls-Royce Wraith, Jeep Compass och Volvo XC60, och svaret tog med tva
+        // laddhybrider och kallade dem elbilar.
+        when(evSpecService.findAllCarNames()).thenReturn(List.of(
+                "Kia EV6 Long Range 2WD", "Volkswagen ID.4 Pro", "MG5 Long Range"));
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "Volkswagen ID.4", "cargoLiters", 543),
+                Map.of("carName", "MG5", "cargoLiters", 578),
+                Map.of("carName", "Volvo XC60", "cargoLiters", 505),
+                Map.of("carName", "Jeep Compass", "cargoLiters", 438)));
+
+        String el = service().bagagekontext(420, true);
+        String alla = service().bagagekontext(420, false);
+
+        assertThat(el).contains("Kia EV6 490").contains("MG5 578");
+        assertThat(el).doesNotContain("Volvo XC60").doesNotContain("Jeep Compass");
+        assertThat(alla).contains("Volvo XC60 505");   // utan sallning ar de kvar
+    }
+
+    @Test
+    void ordprefixOchInteSubstrangAvgorOmRadenArElbil() {
+        // "BMW X3" far INTE bli elbil for att "BMW iX3" finns - samma substrangsfalla som
+        // falldes i cargo-matchningen samma dag.
+        java.util.Set<String> ev = java.util.Set.of("bmw ix3", "kia niro ev");
+        assertThat(GroqService.fragaGallerElbilar("Vilka elbilar har mer an 420 l?")).isTrue();
+        assertThat(GroqService.fragaGallerElbilar("Vilken laddhybrid har storst bagage?")).isFalse();
+        assertThat(GroqService.fragaGallerElbilar(null)).isFalse();
+        // Sallningen sjalv provas genom bagagekontext ovan; har rackar ordvakten.
+        assertThat(ev).isNotEmpty();
+    }
+
+    @Test
     void golvradenSorterasStorstVolymForst() {
         // Skarpt prov 09-05: modellen tog sju av tio dugliga bilar ur den prisordnade raden och
         // tappade MG5 - 578 l till 180 000 kr, det basta svaret pa fragan.

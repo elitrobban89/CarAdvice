@@ -3075,7 +3075,7 @@ public class GroqService {
         // Bagagefrågor grundas i cargo_spec i stället för i modellens minne — se bagagekontext.
         Integer troskel = bagagetroskel(userText);
         if (troskel != null) {
-            String bagage = bagagekontext(troskel);
+            String bagage = bagagekontext(troskel, fragaGallerElbilar(userText));
             if (!bagage.isBlank()) base += "\n\n" + bagage;
         }
         if (expertContext != null && !expertContext.isBlank())
@@ -3238,6 +3238,19 @@ public class GroqService {
      * som annars smyger in i ett svar.
      */
     String bagagekontext(int troskel) {
+        return bagagekontext(troskel, false);
+    }
+
+    /**
+     * Som ovan, men {@code baraElbilar} sållar listan till bilar som finns i {@code ev_spec}.
+     *
+     * <p><b>Felet det lagar</b> (skarpt prov 2026-09-05): huvudlistan är byggd ur
+     * {@code cargo_spec}, som täcker ALLA drivlinor. På frågan "vilka elbilar har mer än 420 l?"
+     * bjöd den därför på Rolls-Royce Wraith 470, Jeep Compass 438, Jaguar XF 459, Mercedes E 300e
+     * 430 och Volvo XC60 505 — och svaret tog med Toyota RAV4 PHEV och Hyundai Tucson PHEV och
+     * skrev ändå "alla ovanstående modeller är elbilar".
+     */
+    String bagagekontext(int troskel, boolean baraElbilar) {
         List<Map<String, Object>> alla;
         try { alla = cargoSpecService.allaMedVolym(); } catch (Exception e) { return ""; }
         if (alla == null || alla.isEmpty()) return "";
@@ -3252,6 +3265,26 @@ public class GroqService {
             (n.intValue() >= troskel ? over : under).add(new Rad(namn.toString(), n.intValue()));
         }
         if (over.isEmpty()) return "";
+
+        // Golvbilarna räknas ut FÖRE urvalet: de ska garanteras plats i huvudlistan, och de är
+        // alla elbilar — därför överlever de även drivmedelssållningen.
+        GolvRader golvOchVolym = golvMedVolym(alla, troskel);
+
+        // Tom mängd = ingen sållning. Gäller både när frågan inte handlar om elbilar och när
+        // ev_spec inte gick att läsa — ett trasigt uppslag får inte tömma bagagelistan.
+        Set<String> evNamn = baraElbilar ? elbilsnamn() : Set.of();
+        if (!evNamn.isEmpty()) {
+            List<Rad> el = over.stream()
+                    .filter(r -> arElbilsnamn(r.namn(), evNamn))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            // Blir sållningen tom faller vi tillbaka på hela listan: hellre några
+            // förbränningsbilar i urvalet än ett svar utan bilar att stå på. Golvbilarna
+            // garanteras plats längre ned och är alla elbilar, så listan blir aldrig tunn.
+            if (!el.isEmpty()) over = el;
+            under = under.stream()
+                    .filter(r -> arElbilsnamn(r.namn(), evNamn))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        }
         over.sort(java.util.Comparator.comparingInt(Rad::liter));
         under.sort(java.util.Comparator.comparingInt(Rad::liter).reversed());
 
@@ -3268,6 +3301,16 @@ public class GroqService {
         for (int i = 0; i < over.size(); i += steg) {
             if (antal++ > 0) listan.append(", ");
             listan.append(over.get(i).namn()).append(" ").append(over.get(i).liter());
+        }
+        // GOLVBILARNA GARANTERAS PLATS. Urvalet tar var k:te rad, och MG5 föll bort i gallringen
+        // (skarpt prov 2026-09-05): 578 l till 180 000 kr, alltså frågans bästa svar, fanns bara
+        // på den ihopslagna golvraden. Modellen byggde sitt svar ur huvudlistan och kunde inte
+        // välja en bil som inte stod där. De femton golvbilarna är dessutom de enda vi har ett
+        // begagnatpris för — de är alltid relevanta för en fråga om vad man kan köpa.
+        for (String bil : golvOchVolym.klarar()) {
+            if (listan.indexOf(bil) >= 0) continue;
+            if (antal++ > 0) listan.append(", ");
+            listan.append(bil);
         }
 
         StringBuilder ut = new StringBuilder();
@@ -3291,11 +3334,11 @@ public class GroqService {
             }
             ut.append("\n");
         }
-        String rekommenderade = volymerForRekommenderadeModeller(alla, troskel);
+        // Samma sallning har: raden namngav Volvo XC60 505 pa en elbilsfraga.
+        String rekommenderade = volymerForRekommenderadeModeller(alla, troskel, evNamn);
         if (!rekommenderade.isBlank())
             ut.append("Uppmätt volym för modeller som mina egna kategoriregler pekar ut: ")
               .append(rekommenderade).append("\n");
-        GolvRader golvOchVolym = golvMedVolym(alla, troskel);
         if (!golvOchVolym.medVolym().isBlank())
             ut.append("VOLYM + BEGAGNATGOLV ihopslaget (samma bilar som golvtabellen ovan, ")
               .append("golvet är ett begagnatpris): ").append(golvOchVolym.medVolym()).append("\n");
@@ -3359,6 +3402,7 @@ public class GroqService {
     private GolvRader golvMedVolym(List<Map<String, Object>> alla, int troskel) {
         record Rad(int liter, String text) {}
         List<Rad> rader = new ArrayList<>();
+        List<String> klarar = new ArrayList<>();
         StringBuilder saknar = new StringBuilder();
         int antalSaknar = 0;
         for (Map.Entry<String, Integer> golv : EV_PRICE_FLOOR_KR.entrySet()) {
@@ -3397,6 +3441,7 @@ public class GroqService {
                .append(" kr");
             if (minsta < troskel) rad.append(" (klarar INTE)");
             rader.add(new Rad(minsta, rad.toString()));
+            if (minsta >= troskel) klarar.add(golv.getKey() + " " + minsta);
         }
         // STÖRST VOLYM FÖRST: raden svarar på en bagagefråga, och i skarpt prov 2026-09-05 tog
         // modellen sju av tio dugliga bilar ur en prisordnad lista och tappade MG5 — 578 l till
@@ -3406,11 +3451,82 @@ public class GroqService {
                 .thenComparing(Rad::text));
         return new GolvRader(
                 rader.stream().map(Rad::text).collect(java.util.stream.Collectors.joining(", ")),
-                saknar.toString());
+                saknar.toString(), klarar);
     }
 
-    /** Golvtabellens bilar med respektive utan uppmätt volym — räknade i SAMMA pass. */
-    private record GolvRader(String medVolym, String utanVolym) {}
+    /**
+     * Golvtabellens bilar med respektive utan uppmätt volym — räknade i SAMMA pass.
+     *
+     * @param klarar "Namn liter" för de golvbilar som når kravet, till huvudlistans garanti
+     */
+    private record GolvRader(String medVolym, String utanVolym, List<String> klarar) {}
+
+    /**
+     * Alla bilnamn i {@code ev_spec}, normaliserade — underlaget för drivmedelssållningen.
+     *
+     * <p>EN fråga i stället för {@code isKnownEv} per rad: uppslaget gör {@code repo.findAll()}
+     * varje gång, och huvudlistan har 415 rader över kravet. Tom mängd vid DB-fel, och då sållas
+     * ingenting — ett trasigt uppslag får inte tömma bagagelistan.
+     */
+    private Set<String> elbilsnamn() {
+        try {
+            Set<String> ut = new HashSet<>();
+            for (String n : evSpecService.findAllCarNames())
+                if (n != null && !n.isBlank())
+                    ut.add(ExpertInsightService.foldDiacritics(ExpertInsightService.flattenSpaces(n)));
+            return ut;
+        } catch (Exception e) {
+            log.warn("elbilsnamn kunde inte läsas: {}", e.getMessage());
+            return Set.of();
+        }
+    }
+
+    /**
+     * Är {@code cargo_spec}-raden en elbil, mätt mot {@code ev_spec}:s namn?
+     *
+     * <p>Jämförelsen är ett ORDPREFIX åt båda hållen: tabellerna stavar olika djupt, så
+     * {@code "Kia Niro"} möter {@code "Kia Niro EV"} och {@code "Kia EV6"} möter
+     * {@code "Kia EV6 Long Range 2WD"}. Ett prefix på ordgräns och inte en substräng —
+     * annars hade {@code "BMW X3"} matchat {@code "BMW iX3"}, exakt den fällan som fälldes
+     * i cargo-matchningen samma dag.
+     */
+    private static boolean arElbilsnamn(String cargoNamn, Set<String> evNamn) {
+        // Säger raden SJÄLV att den är laddhybrid eller hybrid är frågan besvarad — ev_spec bär
+        // egna PHEV-rader ("Toyota RAV4 PHEV", "Kia Niro PHEV"), så en exakt namnträff hade
+        // annars gjort dem till elbilar.
+        String drivlina = ExpertInsightService.drivetrainOf(cargoNamn);
+        if ("phev".equals(drivlina) || "hev".equals(drivlina)) return false;
+        String n = ExpertInsightService.foldDiacritics(ExpertInsightService.flattenSpaces(cargoNamn));
+        if (n.isBlank()) return false;
+        if (evNamn.contains(n)) return true;
+        for (String ev : evNamn) {
+            if (n.startsWith(ev + " ")) return true;          // vår rad är variantens, ev_spec bär basnamnet
+            // Åt andra hållet duger inte en LADDHYBRID som vittne: ev_spec bär rader som
+            // "Toyota RAV4 PHEV" och "Mitsubishi Outlander PHEV", och utan det här ledet
+            // slank förbränningsraden "Toyota RAV4 580" in i en elbilslista på sitt basnamn.
+            // Uppmätt 2026-09-05: RAV4, Prius, Outlander och Jeep Compass kom in den vägen.
+            if (ev.startsWith(n + " ")) {
+                String suffix = ev.substring(n.length() + 1);
+                if (!suffix.contains("phev") && !suffix.contains("plug in")
+                        && !suffix.contains("hybrid")) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Frågar användaren efter ELBILAR?
+     *
+     * <p>Bara ord som betyder ren eldrift. "Hybrid" och "laddhybrid" ska INTE tända sållningen:
+     * en laddhybridfråga besvaras ur samma tabell, och att tysta den hade bytt ett fel mot ett
+     * annat. Ordet "ev" är med flit uteslutet — det är ett vanligt ordled på svenska.
+     */
+    static boolean fragaGallerElbilar(String text) {
+        if (text == null) return false;
+        String t = ExpertInsightService.flattenSpaces(text);
+        return t.contains("elbil") || t.contains("eldriv") || t.contains("helelektrisk")
+                || t.contains("batteridriv") || t.contains("ren el");
+    }
 
     /** Hur många rekommenderade modeller som får sin volym med. */
     private static final int BAGAGELISTA_REKOMMENDERADE = 24;
@@ -3433,7 +3549,8 @@ public class GroqService {
      * ("Enyaq") — reglerna skriver "Škoda Enyaq" medan tabellen har "Škoda Enyaq iV", och en
      * exakt jämförelse gav 8 träffar där ordgränsvarianten ger 29.
      */
-    private String volymerForRekommenderadeModeller(List<Map<String, Object>> alla, int troskel) {
+    private String volymerForRekommenderadeModeller(List<Map<String, Object>> alla, int troskel,
+                                                    Set<String> evNamn) {
         String regler = ExpertInsightService.flattenSpaces(ALLA_KATEGORIREGLER);
         StringBuilder sb = new StringBuilder();
         Map<String, Integer> perModell = new LinkedHashMap<>();  // "skoda enyaq" -> antal varianter
@@ -3444,6 +3561,9 @@ public class GroqService {
             Object literO = r.get("cargoLiters");
             if (namnO == null || !(literO instanceof Number n) || n.intValue() <= 0) continue;
             String namn = namnO.toString();
+            // Samma drivmedelssållning som huvudlistan: raden namngav "Volvo XC60 505" på en
+            // elbilsfråga, eftersom kategorireglerna täcker alla drivlinor.
+            if (!evNamn.isEmpty() && !arElbilsnamn(namn, evNamn)) continue;
             String[] ord = namn.trim().split("\\s+");
             List<String> kandidater = ord.length > 1
                     ? List.of(String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length)), ord[1])
