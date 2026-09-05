@@ -3324,8 +3324,20 @@ public class GroqService {
      * <p>Volymen hämtas ur {@code cargo_spec} och golvet ur {@link #EV_PRICE_FLOOR_KR}, matchade
      * med samma ordgränsregel som bilkorten ({@link ExpertInsightService#modelPosition}) eftersom
      * tabellerna stavar olika: golvet säger "Kia Niro EV" och "Hyundai Ioniq 5", volymtabellen
-     * "Kia Niro" och "Hyundai IONIQ 5". Minsta volymen per modell används — hellre för lågt än
-     * ett löfte bilen inte håller.
+     * "Kia Niro" och "Hyundai IONIQ 5".
+     *
+     * <p><b>EXAKT NAMN GÅR FÖRE MINSTA VOLYM (2026-09-05).</b> Regeln tog länge minsta volymen
+     * bland alla matchande rader — "hellre för lågt än ett löfte bilen inte håller". Den var
+     * konservativ på TALET och fel på BILEN: golvraden "Skoda Enyaq" matchar även
+     * {@code Škoda Enyaq Coupe 60/85/85x/RS} (570 l), så prompten skrev bokstavligen
+     * <b>"Skoda Enyaq 570 l"</b> medan basbilens egen rad står på 585. Chatten blev alltså
+     * beskylld för en felmärkning den läste rakt ur prompten — den upprepades i två av tre
+     * skarpa prov, och ingen regeltext i världen hade kunnat rädda den.
+     *
+     * <p>Bär tabellen en rad vars namn ÄR golvets namn (diakriter bortkokade, så "Škoda" möter
+     * "Skoda") är det den bilen raden handlar om, och dess volym vinner. Minsta volymen står kvar
+     * som reserv för golvrader utan egen tabellrad — där finns ingen bättre uppgift, och en för
+     * låg siffra är fortfarande bättre än en för hög.
      */
     private GolvRader golvMedVolym(List<Map<String, Object>> alla, int troskel) {
         StringBuilder sb = new StringBuilder();
@@ -3335,17 +3347,23 @@ public class GroqService {
             String[] ord = golv.getKey().trim().split("\\s+");
             String modell = ord.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length))
                                            : golv.getKey();
-            Integer minsta = null;
+            String golvNyckel = ExpertInsightService.foldDiacritics(
+                    ExpertInsightService.flattenSpaces(golv.getKey()));
+            Integer minsta = null, exakt = null;
             for (Map<String, Object> r : alla) {
                 Object namn = r.get("carName");
                 Object liter = r.get("cargoLiters");
                 if (namn == null || !(liter instanceof Number n) || n.intValue() <= 0) continue;
                 // flattenSpaces på TITELSIDAN, inte bara på modellen: modelPosition gemenar bara
                 // modellnamnet, så ett otvättat "MG5" i tabellen matchade aldrig sitt eget golv.
-                if (ExpertInsightService.modelPosition(
-                        ExpertInsightService.flattenSpaces(namn.toString()), modell) < 0) continue;
+                String flat = ExpertInsightService.flattenSpaces(namn.toString());
+                if (ExpertInsightService.modelPosition(flat, modell) < 0) continue;
+                // Bär tabellen en rad med EXAKT golvets namn är det den bilen raden handlar om.
+                if (exakt == null && ExpertInsightService.foldDiacritics(flat).equals(golvNyckel))
+                    exakt = n.intValue();
                 if (minsta == null || n.intValue() < minsta) minsta = n.intValue();
             }
+            if (exakt != null) minsta = exakt;
             // En bil med golv men UTAN volym utelämnades tyst förut, och luckan fyllde modellen
             // själv: skarpt prov 2026-09-05 gav "Volkswagen e-Golf 441 l", ett tal som finns i
             // tabellen men på Cupra Raval, IONIQ 3, Solterra och ID. Polo. Gapet står nu i

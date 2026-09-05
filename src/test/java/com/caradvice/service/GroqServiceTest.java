@@ -2774,6 +2774,35 @@ class GroqServiceTest {
     }
 
     @Test
+    void basbilensEgenRadSlarVariantensMindreVolym() {
+        // Skarpt prov 09-05: chatten skrev "Skoda Enyaq 570" i tva av tre korningar. 570 ar
+        // Coupens volym - och den kom RAKT UR PROMPTEN, for golvraden tog minsta volymen bland
+        // alla matchande rader. Basbilens egen rad sager 585.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Škoda Enyaq Coupe RS", "cargoLiters", 570),
+                Map.of("carName", "Skoda Enyaq", "cargoLiters", 585),
+                Map.of("carName", "Škoda Enyaq 85", "cargoLiters", 585)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("Skoda Enyaq 585 l / golv 279 000 kr");
+        assertThat(kontext).doesNotContain("Skoda Enyaq 570 l");
+    }
+
+    @Test
+    void utanEgenRadGallerFORTFARANDEMinstaVolymen() {
+        // Reserven star kvar: saknas basbilens rad finns ingen battre uppgift, och for lagt ar
+        // fortfarande battre an for hogt.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Škoda Enyaq Coupe RS", "cargoLiters", 570),
+                Map.of("carName", "Škoda Enyaq 85", "cargoLiters", 585)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("Skoda Enyaq 570 l / golv 279 000 kr");
+    }
+
+    @Test
     void bilMedGolvMenUtanVolymPekasUtISTALLETForAttUtelamnas() {
         // Skarpt prov 2026-09-05: chatten svarade "Volkswagen e-Golf 441 l". Talet finns i
         // tabellen men pa Cupra Raval, IONIQ 3, Solterra och ID. Polo - e-Golf har golv men
