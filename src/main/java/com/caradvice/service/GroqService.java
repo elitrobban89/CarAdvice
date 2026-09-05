@@ -3304,9 +3304,9 @@ public class GroqService {
           // lyftes ur volymlistan. Regeln nämner därför BÅDA hoppen uttryckligen.
           .append("NAMNET ÄR EN DEL AV SIFFRAN: skriv modellnamnet exakt som det står i ")
           .append("volymlistan och korta aldrig bort ord — \"Enyaq Coupé\" är inte \"Enyaq\", och ")
-          .append("de har olika volym. Ett namn du har sett i pris- eller räckviddstabellerna men ")
-          .append("INTE i volymlistan har ingen uppmätt volym: låna aldrig ett litertal från en ")
-          .append("annan rad till den bilen.");
+          .append("de har olika volym. Står namnet INTE i volymlistan ovan har bilen ingen uppmätt ")
+          .append("volym: nämn den inte, och låna aldrig ett litertal från en annan rad till den. ")
+          .append("Svara bara på bagagefrågan — lägg inte till en priskolumn som inte efterfrågats.");
         return ut.toString();
     }
 

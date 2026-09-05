@@ -2790,7 +2790,7 @@ class GroqServiceTest {
         String ihop = kontext.substring(kontext.indexOf("VOLYM + BEGAGNATGOLV"),
                 kontext.indexOf("GOLV MEN INGEN UPPMÄTT VOLYM"));
         assertThat(ihop).doesNotContain("e-Golf");
-        assertThat(kontext).contains("Enyaq Coupé").contains("lana aldrig ett litertal".replace("lana", "låna"));
+        assertThat(kontext).contains("Enyaq Coupé").contains("låna aldrig ett litertal");
     }
 
     @Test
