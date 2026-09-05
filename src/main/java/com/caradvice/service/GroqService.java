@@ -3278,10 +3278,14 @@ public class GroqService {
         if (!rekommenderade.isBlank())
             ut.append("Uppmätt volym för modeller som mina egna kategoriregler pekar ut: ")
               .append(rekommenderade).append("\n");
-        String golvOchVolym = golvMedVolym(alla, troskel);
-        if (!golvOchVolym.isBlank())
+        GolvRader golvOchVolym = golvMedVolym(alla, troskel);
+        if (!golvOchVolym.medVolym().isBlank())
             ut.append("VOLYM + BEGAGNATGOLV ihopslaget (samma bilar som golvtabellen ovan, ")
-              .append("golvet är ett begagnatpris): ").append(golvOchVolym).append("\n");
+              .append("golvet är ett begagnatpris): ").append(golvOchVolym.medVolym()).append("\n");
+        if (!golvOchVolym.utanVolym().isBlank())
+            ut.append("GOLV MEN INGEN UPPMÄTT VOLYM — dessa står i prisstabellen men saknar rad i ")
+              .append("volymtabellen. Ge dem ALDRIG ett litertal och lista dem aldrig som svar på ")
+              .append("ett bagagekrav: ").append(golvOchVolym.utanVolym()).append("\n");
         ut.append("REGEL: påstå ALDRIG att en bil klarar ett bagagekrav utan att ha dess verifierade ")
           .append("siffra. Saknas bilen i listan ovan — säg att du inte har en verifierad volym för den, ")
           .append("gissa aldrig. Uppmätta tal går före ditt eget minne också när de skiljer sig.\n")
@@ -3292,7 +3296,17 @@ public class GroqService {
           .append("Listan säger BARA volym, aldrig pris. Har en bil verifierad volym men du saknar ")
           .append("prisuppgift: föreslå den ändå och skriv att priset behöver kollas — avfärda den ")
           .append("ALDRIG som för dyr på en gissning, och glöm inte att bilen användaren själv ")
-          .append("jämför med kan stå i listan.");
+          .append("jämför med kan stå i listan.\n")
+          // Skarpt prov 2026-09-05: 7 av 10 rader stämde, men tre bar ett VERKLIGT tal på fel
+          // bil — "Skoda Enyaq 570" (570 är Enyaq Coupé, basbilen har 585), "ID.3 Neo 630"
+          // (630 = Mercedes GLE och Smart #5) och "e-Golf 441" (441 = Cupra Raval m.fl.).
+          // Inget tal var påhittat; namnen kom ur pris- och räckviddstabellerna medan talen
+          // lyftes ur volymlistan. Regeln nämner därför BÅDA hoppen uttryckligen.
+          .append("NAMNET ÄR EN DEL AV SIFFRAN: skriv modellnamnet exakt som det står i ")
+          .append("volymlistan och korta aldrig bort ord — \"Enyaq Coupé\" är inte \"Enyaq\", och ")
+          .append("de har olika volym. Ett namn du har sett i pris- eller räckviddstabellerna men ")
+          .append("INTE i volymlistan har ingen uppmätt volym: låna aldrig ett litertal från en ")
+          .append("annan rad till den bilen.");
         return ut.toString();
     }
 
@@ -3313,9 +3327,10 @@ public class GroqService {
      * "Kia Niro" och "Hyundai IONIQ 5". Minsta volymen per modell används — hellre för lågt än
      * ett löfte bilen inte håller.
      */
-    private String golvMedVolym(List<Map<String, Object>> alla, int troskel) {
+    private GolvRader golvMedVolym(List<Map<String, Object>> alla, int troskel) {
         StringBuilder sb = new StringBuilder();
-        int antal = 0;
+        StringBuilder saknar = new StringBuilder();
+        int antal = 0, antalSaknar = 0;
         for (Map.Entry<String, Integer> golv : EV_PRICE_FLOOR_KR.entrySet()) {
             String[] ord = golv.getKey().trim().split("\\s+");
             String modell = ord.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length))
@@ -3331,15 +3346,26 @@ public class GroqService {
                         ExpertInsightService.flattenSpaces(namn.toString()), modell) < 0) continue;
                 if (minsta == null || n.intValue() < minsta) minsta = n.intValue();
             }
-            if (minsta == null) continue;
+            // En bil med golv men UTAN volym utelämnades tyst förut, och luckan fyllde modellen
+            // själv: skarpt prov 2026-09-05 gav "Volkswagen e-Golf 441 l", ett tal som finns i
+            // tabellen men på Cupra Raval, IONIQ 3, Solterra och ID. Polo. Gapet står nu i
+            // prompten i stället för att lämnas öppet.
+            if (minsta == null) {
+                if (antalSaknar++ > 0) saknar.append(", ");
+                saknar.append(golv.getKey());
+                continue;
+            }
             if (antal++ > 0) sb.append(", ");
             sb.append(golv.getKey()).append(" ").append(minsta).append(" l / golv ")
               .append(String.format(java.util.Locale.ROOT, "%,d", golv.getValue()).replace(',', ' '))
               .append(" kr");
             if (minsta < troskel) sb.append(" (klarar INTE)");
         }
-        return sb.toString();
+        return new GolvRader(sb.toString(), saknar.toString());
     }
+
+    /** Golvtabellens bilar med respektive utan uppmätt volym — räknade i SAMMA pass. */
+    private record GolvRader(String medVolym, String utanVolym) {}
 
     /** Hur många rekommenderade modeller som får sin volym med. */
     private static final int BAGAGELISTA_REKOMMENDERADE = 24;

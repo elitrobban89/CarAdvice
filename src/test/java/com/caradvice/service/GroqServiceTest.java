@@ -2774,6 +2774,26 @@ class GroqServiceTest {
     }
 
     @Test
+    void bilMedGolvMenUtanVolymPekasUtISTALLETForAttUtelamnas() {
+        // Skarpt prov 2026-09-05: chatten svarade "Volkswagen e-Golf 441 l". Talet finns i
+        // tabellen men pa Cupra Raval, IONIQ 3, Solterra och ID. Polo - e-Golf har golv men
+        // INGEN volymrad, och den tysta luckan fyllde modellen sjalv.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "MG5", "cargoLiters", 578)));
+
+        String kontext = service().bagagekontext(420);
+
+        assertThat(kontext).contains("GOLV MEN INGEN UPPMÄTT VOLYM");
+        assertThat(kontext).contains("Volkswagen e-Golf");
+        // ...och den far inte samtidigt sta i den ihopslagna raden med ett tal
+        String ihop = kontext.substring(kontext.indexOf("VOLYM + BEGAGNATGOLV"),
+                kontext.indexOf("GOLV MEN INGEN UPPMÄTT VOLYM"));
+        assertThat(ihop).doesNotContain("e-Golf");
+        assertThat(kontext).contains("Enyaq Coupé").contains("lana aldrig ett litertal".replace("lana", "låna"));
+    }
+
+    @Test
     void bagagekontextenTystnarUtanData() {
         when(cargoSpecService.allaMedVolym()).thenReturn(List.of());
         assertThat(service().bagagekontext(420)).isEmpty();
