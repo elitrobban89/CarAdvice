@@ -66,10 +66,23 @@ class CargoSpecServiceYearTest {
     @Test
     void utanArsmodellstabellSvararMatchningenSomForut() {
         // Tom map = ingen rad ar daterad. Ett DB-fel far gora volymerna odaterade, aldrig osynliga.
+        // Provas pa en modell UTAN kurerad markor, dar arsmodellen ar det enda som skiljer raderna.
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("Skoda Enyaq", 585, 1710),
+                new CargoSpec("Skoda Enyaq Coupe RS", 570, 1610)));
+        var dto = medArsmodeller(Map.of()).formatForTitle("Skoda Enyaq (2026)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(585);   // kortaste namnet vinner, som forut
+    }
+
+    @Test
+    void markorenGallerAvenNarArsmodellstabellenAerTom() {
+        // Markoren ar kod, inte data: den overlever ett tapp av cargo_spec_year. Provet star kvar
+        // som paminnelse om att svaret pa "MG4 (2026)" INTE langre beror pa sidotabellen.
         tabellen();
         var dto = medArsmodeller(Map.of()).formatForTitle("MG4 (2026)");
         assertThat(dto).isNotNull();
-        assertThat(dto.cargoLiters()).isEqualTo(363);   // kortaste namnet vinner, som forut
+        assertThat(dto.cargoLiters()).isEqualTo(577);
     }
 
     @Test
@@ -103,5 +116,79 @@ class CargoSpecServiceYearTest {
 
         assertThat(service.fillFromScrape("MG MG4 Urban Standard Range", 577, 1364, 2026)).isFalse();
         assertThat(skrivna).containsExactly("MG MG4 Urban Standard Range=2026");
+    }
+
+    // --- Generationsmarkoren: tva generationer med SAMMA arsmodell ---
+
+    /**
+     * HELA MG4-tabellen som den ser ut i drift, inte tva rader.
+     *
+     * <p>Tvaradsfixturen ovan gav gront pa "MG4 (2026)" -> 577 medan driften svarade 388: de tre
+     * XPOWER/Premium-raderna finns ocksa, bar OCKSA arsmodell 2026 (ev-database skriver "(MY26)"
+     * och "Available since February 2026" pa bada karosserna) och vann pa kortast namn.
+     * Uppmatt 2026-09-05: XPOWER 4 287 mm / 388 l, Urban 4 395 mm / 577 l.
+     */
+    private void helaMg4Tabellen() {
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("MG4", 363, 1177),
+                new CargoSpec("MG MG4 Premium Extended Range", 388, 1164),
+                new CargoSpec("MG MG4 Premium Long Range", 388, 1164),
+                new CargoSpec("MG MG4 XPOWER", 388, 1164),
+                new CargoSpec("MG MG4 Urban Comfort Long Range", 577, 1364),
+                new CargoSpec("MG MG4 Urban Standard Range", 577, 1364)));
+    }
+
+    private static final Map<String, Integer> MG4_ARSMODELLER = Map.of(
+            "mg mg4 premium extended range", 2026,
+            "mg mg4 premium long range", 2026,
+            "mg mg4 xpower", 2026,
+            "mg mg4 urban comfort long range", 2026,
+            "mg mg4 urban standard range", 2026);
+
+    @Test
+    void mg42026FarUrbanradenTrotsAttBadaGenerationernaAr2026() {
+        helaMg4Tabellen();
+        var dto = medArsmodeller(MG4_ARSMODELLER).formatForTitle("MG4 (2026)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(577);
+        assertThat(dto.cargoMaxLiters()).isEqualTo(1364);
+    }
+
+    @Test
+    void titelSomSjalvNamnerEnVariantPaverkasInte() {
+        // "MG4 XPOWER (2026)" har redan filtrerat bort Urban-raderna i pass 1. Markoren far
+        // inte kunna dra over ett kort till en annan bil an den titeln namnger.
+        helaMg4Tabellen();
+        var dto = medArsmodeller(MG4_ARSMODELLER).formatForTitle("MG4 XPOWER (2026)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(388);
+    }
+
+    @Test
+    void utanArtalGallerBasradenAvenMedMarkor() {
+        helaMg4Tabellen();
+        var dto = medArsmodeller(MG4_ARSMODELLER).formatForTitle("MG4");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(363);
+    }
+
+    @Test
+    void arForeMarkorensForstaArsmodellRorsInte() {
+        helaMg4Tabellen();
+        var dto = medArsmodeller(MG4_ARSMODELLER).formatForTitle("MG4 (2023)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(363);   // enda raden som inte ar daterad 2026
+    }
+
+    @Test
+    void modellUtanMarkorValjerSomForut() {
+        // Regeln far inte lacka till andra bilar: utan kurerad rad galler steg (4) kortast namn.
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("Skoda Enyaq", 585, 1710),
+                new CargoSpec("Skoda Enyaq Coupe RS", 570, 1610)));
+        var dto = medArsmodeller(Map.of(
+                "skoda enyaq", 2026, "skoda enyaq coupe rs", 2026)).formatForTitle("Skoda Enyaq (2026)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(585);
     }
 }

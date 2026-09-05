@@ -35,6 +35,34 @@ public class CargoSpecService {
     private volatile long arsmodellCacheTid = 0L;
     private static final long ARSMODELL_TTL_MS = 10 * 60 * 1000L;
 
+    /**
+     * Kurerad generationsmarkör: ordet i RADENS namn som pekar ut den generation en modell säljs
+     * som ny från ett visst år, för de fall där vår egen data inte kan skilja generationerna åt.
+     *
+     * <p><b>Varför MG4 inte går att härleda</b> (mätt 2026-09-05 mot ev-databases egna bilsidor):
+     * MG säljer 2026 två MG4 sida vid sida — {@code MG MG4 XPOWER} på 4 287 mm med 388 l och
+     * {@code MG MG4 Urban Standard Range} på 4 395 mm med 577 l, alltså två olika karosser. BÅDA
+     * sidorna har rubriken "(MY26)" och BÅDA säger "Available since February 2026", så varken
+     * årsmodellen i {@code cargo_spec_year} eller tillgänglighetsdatumet skiljer dem åt. Steg (4)
+     * i {@link #valjBastaRad}, kortast namn, gav därför "MG MG4 XPOWER" (tre ord) före
+     * "MG MG4 Urban Standard Range" (fem) — förra karossens volym på ett kort för den nya bilen.
+     *
+     * <p>Att den längre karossen är den nyare generationen är EXTERN kunskap; den står inte på
+     * sidorna. Den bor därför i en kurerad rad här i stället för i en härledd regel som "störst
+     * kaross vinner" — den regeln hade valt {@code Enyaq Coupé} framför {@code Enyaq} för varje
+     * generiskt Enyaq-kort, alltså bytt ett fel mot ett större.
+     *
+     * <p>Nyckeln är modellordet så som det står i KORTETS titel. Regeln kräver ett årtal i titeln
+     * (ett odaterat kort ska fortsatt få basraden) och lämnar kandidatlistan orörd när ingen
+     * användbar rad bär markören — en titel som själv namnger en variant ("MG4 XPOWER (2026)")
+     * har redan filtrerat bort de andra raderna och påverkas därför inte.
+     */
+    private static final Map<String, Generationsmarkor> NYA_GENERATIONEN = Map.of(
+            "mg4", new Generationsmarkor("urban", 2026));
+
+    /** Ordet som märker ut den nya generationens rader, och första årsmodell det gäller. */
+    private record Generationsmarkor(String markorord, int franAr) {}
+
     public CargoSpecService(CargoSpecRepository repo, org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.repo = repo;
         this.jdbc = jdbc;
@@ -282,7 +310,7 @@ public class CargoSpecService {
                     return true;
                 })
                 .toList();
-        CargoSpec match = valjBastaRad(kandidater, titelAr, ar);
+        CargoSpec match = valjBastaRad(kandidater, cleaned, titelAr, ar);
 
         // Pass 2: all stored-name words are exact words in title (longest match wins)
         if (match == null) {
@@ -310,14 +338,18 @@ public class CargoSpecService {
      * "MG4 (2026)" fick förra generationens 363 l, och vilken rad som vann var en slump i
      * radordningen snarare än ett val.
      *
-     * <p>Ordningen är: <b>(1)</b> en rad vars årsmodell ligger EFTER kortets år får aldrig
+     * <p>Ordningen är: <b>(0)</b> {@link #generationsfilter} när modellen har en kurerad
+     * generationsmarkör — två generationer kan bära SAMMA årsmodell och skiljs då inte av något
+     * annat steg; <b>(1)</b> en rad vars årsmodell ligger EFTER kortets år får aldrig
      * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> högsta årsmodell
      * som ryms i kortets år vinner; <b>(3)</b> odaterade rader vinner när titeln saknar år, så
      * "MG4" utan årtal fortsätter ge basraden; <b>(4)</b> kortast namn (närmast titeln); och
      * <b>(5)</b> vid kvarstående lika: MINSTA volymen. Sista steget är medvetet konservativt —
      * hellre lova för lite bagage än för mycket.
      */
-    private CargoSpec valjBastaRad(List<CargoSpec> kandidater, Integer titelAr, Map<String, Integer> ar) {
+    private CargoSpec valjBastaRad(List<CargoSpec> kandidater, String rentTitel,
+                                   Integer titelAr, Map<String, Integer> ar) {
+        kandidater = generationsfilter(kandidater, rentTitel, titelAr, ar);
         CargoSpec bast = null;
         int bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
         for (CargoSpec cs : kandidater) {
@@ -334,6 +366,39 @@ public class CargoSpecService {
             }
         }
         return bast;
+    }
+
+    /**
+     * Kandidaterna som hör till den nya generationen, när modellen har en kurerad markör i
+     * {@link #NYA_GENERATIONEN} och kortets år ligger på eller efter markörens första årsmodell.
+     *
+     * <p>Filtret är en INSKRÄNKNING och aldrig ett tillägg: hittar det ingen användbar rad med
+     * markörordet lämnas listan orörd, och de vanliga stegen avgör som förut. Därför påverkas
+     * varken "MG4 XPOWER (2026)" (som redan filtrerat bort Urban-raderna i pass 1) eller ett
+     * odaterat "MG4" (som saknar årtal och alltså aldrig når hit).
+     *
+     * <p>Raden måste vara <b>användbar</b> för titelns år för att räknas — annars kunde filtret
+     * lämna kvar bara rader som steg (1) sedan kastar, och matchningen hade tappat en volym den
+     * hade före regeln. Ett filter som gör en bil OSYNLIG är värre än ett som väljer fel rad.
+     */
+    private List<CargoSpec> generationsfilter(List<CargoSpec> kandidater, String rentTitel,
+                                              Integer titelAr, Map<String, Integer> ar) {
+        if (titelAr == null || rentTitel == null || rentTitel.isBlank() || kandidater.size() < 2)
+            return kandidater;
+        for (String titelord : rentTitel.split("\\s+")) {
+            Generationsmarkor markor = NYA_GENERATIONEN.get(titelord);
+            if (markor == null || titelAr < markor.franAr()) continue;
+            List<CargoSpec> traffar = kandidater.stream()
+                    .filter(cs -> {
+                        String namn = normalize(cs.getCarName());
+                        if (!Arrays.asList(namn.split("\\s+")).contains(markor.markorord())) return false;
+                        Integer radAr = ar.get(namn);
+                        return radAr == null || radAr <= titelAr;
+                    })
+                    .toList();
+            if (!traffar.isEmpty()) return traffar;
+        }
+        return kandidater;
     }
 
     // Updates existing entries that have null cargo_liters; inserts new entries
