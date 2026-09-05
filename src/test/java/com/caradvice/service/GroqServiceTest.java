@@ -2774,6 +2774,48 @@ class GroqServiceTest {
     }
 
     @Test
+    void golvradenSorterasStorstVolymForst() {
+        // Skarpt prov 09-05: modellen tog sju av tio dugliga bilar ur den prisordnade raden och
+        // tappade MG5 - 578 l till 180 000 kr, det basta svaret pa fragan.
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Kia EV6", "cargoLiters", 490),
+                Map.of("carName", "MG5", "cargoLiters", 578),
+                Map.of("carName", "Renault Zoe", "cargoLiters", 338)));
+
+        String kontext = service().bagagekontext(420);
+        int mg5 = kontext.indexOf("MG5 578 l / golv");
+        int ev6 = kontext.indexOf("Kia EV6 490 l / golv");
+        int zoe = kontext.indexOf("Renault Zoe 338 l / golv");
+
+        assertThat(mg5).isGreaterThan(-1);
+        assertThat(mg5).isLessThan(ev6);   // storst volym forst
+        assertThat(ev6).isLessThan(zoe);   // underkanda sist
+    }
+
+    @Test
+    void prisgolvenListasBilligastForstOchDeterministiskt() {
+        // Map.ofEntries ar OORDNAD: bade prisraden och volymraden fick en godtycklig ordning
+        // som kunde andras mellan byggen. MG4 och Kona Electric star bada pa 195 000 och
+        // sarskiljs pa namnet.
+        List<String> namn = new java.util.ArrayList<>(GroqService.EV_PRICE_FLOOR_KR.keySet());
+        List<Integer> priser = new java.util.ArrayList<>(GroqService.EV_PRICE_FLOOR_KR.values());
+        assertThat(priser).isSorted();
+        assertThat(namn.get(0)).isEqualTo("Renault Zoe");
+        assertThat(namn.get(namn.size() - 1)).isEqualTo("Kia EV6");
+        assertThat(namn.indexOf("Hyundai Kona Electric")).isLessThan(namn.indexOf("MG4"));
+    }
+
+    @Test
+    void ettLAGREGolvArAldrigEttSkalAttValjaBort() {
+        // Taket lastes som ett FONSTER: MG5 foll bort med motiveringen "begagnatgolv som ligger
+        // over 30 000 kr fran din budget", fast anvandaren aldrig angav nagon budget.
+        String prompt = serviceMedPristabeller().buildChatSystemPrompt(null, null);
+        assertThat(prompt).contains("ett lägre golv är aldrig ett skäl att välja bort en bil");
+        assertThat(prompt).contains("Regeln är ett TAK och aldrig ett spann");
+        assertThat(prompt).contains("Har ingen budget angetts");
+    }
+
+    @Test
     void basbilensEgenRadSlarVariantensMindreVolym() {
         // Skarpt prov 09-05: chatten skrev "Skoda Enyaq 570" i tva av tre korningar. 570 ar
         // Coupens volym - och den kom RAKT UR PROMPTEN, for golvraden tog minsta volymen bland

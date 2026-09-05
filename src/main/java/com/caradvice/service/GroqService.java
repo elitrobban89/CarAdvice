@@ -82,7 +82,16 @@ public class GroqService {
             Map.entry("Volkswagen ID.4",      229_500),
             Map.entry("Hyundai Ioniq 5",      269_000),
             Map.entry("Skoda Enyaq",          279_000),
-            Map.entry("Kia EV6",              317_000)));
+            Map.entry("Kia EV6",              317_000))
+            // SORTERAD på pris: Map.ofEntries är OORDNAD, så både prisraden och den ihopslagna
+            // volymraden fick en godtycklig ordning som dessutom kunde ändras mellan byggen.
+            // Billigast först gör listan läsbar och prompten reproducerbar.
+            .entrySet().stream()
+            // Namnet som tiebreak: MG4 och Kona Electric står båda på 195 000, och utan andra
+            // steget hade de två kunnat byta plats mellan byggen.
+            .sorted(Map.Entry.<String, Integer>comparingByValue().thenComparing(Map.Entry::getKey))
+            .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                    (a, b) -> a, LinkedHashMap::new)));
 
     /** Promptraden byggs UR tabellen — annars glider text och vakt isär vid nästa mätning. */
     private static final String EV_PRICE_FLOORS =
@@ -97,8 +106,16 @@ public class GroqService {
                             + String.format(java.util.Locale.ROOT, "%,d", e.getValue()).replace(',', ' '))
                     .collect(java.util.stream.Collectors.joining(", "))
             + ".\nEn modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en"
-            + " modell vars golv ligger nära budgeten. Golvet är billigaste exemplaret: ett välutrustat"
-            + " eller lågmilat exemplar kostar mer.";
+            + " modell vars golv ligger nära budgeten. Regeln gäller BARA när användaren angett en"
+            + " budget."
+            // Taket lästes som ett FÖNSTER i skarpt prov 2026-09-05: användaren nämnde bara att
+            // hen tittar på en EV6 (golv 317 000) och fick sju bilar, medan MG5 (578 l till
+            // 180 000 kr) föll bort med motiveringen "begagnatgolv som ligger över 30 000 kr
+            // från din budget". Ett LÄGRE pris är en fördel; regeln är ett tak, inte ett spann.
+            + " Regeln är ett TAK och aldrig ett spann: ett lägre golv är aldrig ett skäl att välja"
+            + " bort en bil, och att användaren nämner en dyrare bil gör den inte till en budget."
+            + " Har ingen budget angetts — hitta inte på en, och sålla då aldrig på pris."
+            + " Golvet är billigaste exemplaret: ett välutrustat eller lågmilat exemplar kostar mer.";
 
     /**
      * {@code budgetShortfallFromKr} är null i normalfallet. Är den satt gick ingen bil att
@@ -3340,9 +3357,10 @@ public class GroqService {
      * låg siffra är fortfarande bättre än en för hög.
      */
     private GolvRader golvMedVolym(List<Map<String, Object>> alla, int troskel) {
-        StringBuilder sb = new StringBuilder();
+        record Rad(int liter, String text) {}
+        List<Rad> rader = new ArrayList<>();
         StringBuilder saknar = new StringBuilder();
-        int antal = 0, antalSaknar = 0;
+        int antalSaknar = 0;
         for (Map.Entry<String, Integer> golv : EV_PRICE_FLOOR_KR.entrySet()) {
             String[] ord = golv.getKey().trim().split("\\s+");
             String modell = ord.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length))
@@ -3373,13 +3391,22 @@ public class GroqService {
                 saknar.append(golv.getKey());
                 continue;
             }
-            if (antal++ > 0) sb.append(", ");
-            sb.append(golv.getKey()).append(" ").append(minsta).append(" l / golv ")
-              .append(String.format(java.util.Locale.ROOT, "%,d", golv.getValue()).replace(',', ' '))
-              .append(" kr");
-            if (minsta < troskel) sb.append(" (klarar INTE)");
+            StringBuilder rad = new StringBuilder();
+            rad.append(golv.getKey()).append(" ").append(minsta).append(" l / golv ")
+               .append(String.format(java.util.Locale.ROOT, "%,d", golv.getValue()).replace(',', ' '))
+               .append(" kr");
+            if (minsta < troskel) rad.append(" (klarar INTE)");
+            rader.add(new Rad(minsta, rad.toString()));
         }
-        return new GolvRader(sb.toString(), saknar.toString());
+        // STÖRST VOLYM FÖRST: raden svarar på en bagagefråga, och i skarpt prov 2026-09-05 tog
+        // modellen sju av tio dugliga bilar ur en prisordnad lista och tappade MG5 — 578 l till
+        // 180 000 kr, det bästa svaret. Störst först sätter de rymligaste överst och lägger de
+        // underkända sist, där de hör hemma.
+        rader.sort(java.util.Comparator.comparingInt(Rad::liter).reversed()
+                .thenComparing(Rad::text));
+        return new GolvRader(
+                rader.stream().map(Rad::text).collect(java.util.stream.Collectors.joining(", ")),
+                saknar.toString());
     }
 
     /** Golvtabellens bilar med respektive utan uppmätt volym — räknade i SAMMA pass. */
