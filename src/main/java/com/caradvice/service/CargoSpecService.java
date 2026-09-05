@@ -344,39 +344,43 @@ public class CargoSpecService {
      * <p>Ordningen är: <b>(0)</b> {@link #generationsfilter} när modellen har en kurerad
      * generationsmarkör — två generationer kan bära SAMMA årsmodell och skiljs då inte av något
      * annat steg; <b>(1)</b> en rad vars årsmodell ligger EFTER kortets år får aldrig
-     * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> en rad MED volym
-     * slår alltid en rad utan; <b>(3)</b> högsta årsmodell som ryms i kortets år vinner;
-     * <b>(4)</b> odaterade rader vinner när titeln saknar år, så "MG4" utan årtal fortsätter ge
-     * basraden; <b>(5)</b> kortast namn (närmast titeln); och <b>(6)</b> vid kvarstående lika:
-     * MINSTA volymen. Sista steget är medvetet konservativt — hellre lova för lite bagage än för
-     * mycket.
+     * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> högsta årsmodell
+     * som ryms i kortets år vinner; <b>(3)</b> odaterade rader vinner när titeln saknar år, så
+     * "MG4" utan årtal fortsätter ge basraden; <b>(4)</b> kortast namn (närmast titeln); och
+     * <b>(5)</b> vid kvarstående lika: MINSTA volymen. Sista steget är medvetet konservativt —
+     * hellre lova för lite bagage än för mycket.
      *
-     * <p><b>Steg (2) lagar Enyaq-skuggningen</b> (uppmätt 2026-09-05): tabellen bär både en tom
-     * rad {@code Skoda Enyaq} och en ifylld {@code Škoda Enyaq iV} (585 l). Den tomma vann på
-     * steg (5) kortast namn, och {@link #formatForTitle} svarade {@code null} — alltså INGEN
-     * bagagevolym alls på ett Enyaq-kort, fast siffran låg i tabellen. En rad utan volym bär
-     * ingen upplysning och kan aldrig vara svaret; att låta den vinna är att välja tystnad
-     * framför data. Därför står steget FÖRE årsmodellen: en ifylld äldre rad säger mer än en
-     * tom rad med rätt årtal.
+     * <p><b>EN TOM RAD FÅR VINNA, och det är med flit.</b> Tabellen bär både en tom rad
+     * {@code Skoda Enyaq} och en ifylld {@code Škoda Enyaq iV} (585 l); den tomma vinner på steg
+     * (4) och {@link #formatForTitle} svarar {@code null}. Ett steg som lät ifyllda rader gå före
+     * tomma provades 2026-09-05 och <b>backades efter skarp mätning</b>: av tabellens 998 tomma
+     * rader kunde 123 nå en ifylld rad, men matchningen är substrängbaserad och raden bredvid är
+     * ofta EN ANNAN BIL. Uppmätt i drift innan backningen: {@code Audi TT} → e-tron GT quattro
+     * 405 l ("tt" är en substräng av "quattro"), {@code Ford Mustang} → Mustang Mach-E 402 l,
+     * {@code Fiat Panda} → Grande Panda 361 l, {@code Citroen C5} → C5 Aircross 580 l,
+     * {@code BMW X3 M} → iX3 510 l, {@code Audi e-tron} → A6 e-tron 502 l.
+     *
+     * <p>Namnen räcker alltså inte för att avgöra om grannraden är samma bil, och regeln bytte
+     * TYSTNAD mot FEL TAL på ett kort — precis det som bagagearbetet 09-04 handlade om att få
+     * bort. Skuggningen är därför ett DATAFEL (en dubblettrad utan siffra), inte ett fel i
+     * rangordningen, och lagas rad för rad med {@code POST /api/admin/upsert/cargospecs}.
      */
     private CargoSpec valjBastaRad(List<CargoSpec> kandidater, String rentTitel,
                                    Integer titelAr, Map<String, Integer> ar) {
         kandidater = generationsfilter(kandidater, rentTitel, titelAr, ar);
         CargoSpec bast = null;
-        int bastVolym = -1, bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
+        int bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
         for (CargoSpec cs : kandidater) {
             Integer radAr = ar.get(normalize(cs.getCarName()));
             if (titelAr != null && radAr != null && radAr > titelAr) continue;   // framtida generation
-            int harVolym = cs.getCargoLiters() != null && cs.getCargoLiters() > 0 ? 1 : 0;
             int arPoang = radAr == null ? (titelAr == null ? Integer.MAX_VALUE : -1) : radAr;
             int ord = normalize(cs.getCarName()).split("\\s+").length;
             int liter = cs.getCargoLiters() == null ? Integer.MAX_VALUE : cs.getCargoLiters();
             if (bast == null
-                    || harVolym > bastVolym
-                    || (harVolym == bastVolym && arPoang > bastAr)
-                    || (harVolym == bastVolym && arPoang == bastAr && ord < bastOrd)
-                    || (harVolym == bastVolym && arPoang == bastAr && ord == bastOrd && liter < bastLiter)) {
-                bast = cs; bastVolym = harVolym; bastAr = arPoang; bastOrd = ord; bastLiter = liter;
+                    || arPoang > bastAr
+                    || (arPoang == bastAr && ord < bastOrd)
+                    || (arPoang == bastAr && ord == bastOrd && liter < bastLiter)) {
+                bast = cs; bastAr = arPoang; bastOrd = ord; bastLiter = liter;
             }
         }
         return bast;

@@ -180,50 +180,27 @@ class CargoSpecServiceYearTest {
         assertThat(dto.cargoLiters()).isEqualTo(363);   // enda raden som inte ar daterad 2026
     }
 
-    // --- Tom rad far inte skugga en ifylld (Enyaq, uppmatt 2026-09-05) ---
+    // --- Tom rad far vinna: grannraden ar ofta en ANNAN BIL (uppmatt 2026-09-05) ---
 
     @Test
-    void tomRadSkuggarInteEnIfylldMedLangreNamn() {
-        // Driften: "Skoda Enyaq" utan volym vann pa kortast namn over "Skoda Enyaq iV" (585 l),
-        // och kortet fick INGEN volym alls fast siffran lag i tabellen.
+    void tomRadVinnerHellreAnAttGeEnANNANBilsVolym() {
+        // Ett steg "ifylld rad slar tom rad" provades och BACKADES. Matchningen ar
+        // substrangbaserad: "tt" finns i "quattro", sa ett Audi TT-kort fick 405 l ur
+        // e-tron GT quattro. Tystnad ar ratt svar nar tabellen inte kanner bilen.
         when(repo.findAll()).thenReturn(List.of(
-                new CargoSpec("Skoda Enyaq", null, null),
-                new CargoSpec("Skoda Enyaq iV", 585, 1710)));
-        var dto = medArsmodeller(Map.of()).formatForTitle("Skoda Enyaq (2026)");
-        assertThat(dto).isNotNull();
-        assertThat(dto.cargoLiters()).isEqualTo(585);
+                new CargoSpec("Audi TT", null, null),
+                new CargoSpec("Audi e-tron GT quattro", 405, null)));
+        assertThat(medArsmodeller(Map.of()).formatForTitle("Audi TT (2018)")).isNull();
     }
 
     @Test
-    void ifylldAldreRadSlarTomRadMedRattArsmodell() {
-        // Darfor star volymsteget FORE arsmodellen: en tom rad med ratt artal sager ingenting.
+    void grannradMedHELTORDFarInteHellerSvaraForEnAnnanModell() {
+        // Ordgrans raddar inte regeln: "Ford Mustang" star som hela ord i "Ford Mustang Mach-E",
+        // och det ar anda en annan bil (402 l ur en elbil pa en Mustang-kupe).
         when(repo.findAll()).thenReturn(List.of(
-                new CargoSpec("Skoda Enyaq", null, null),
-                new CargoSpec("Skoda Enyaq iV", 585, 1710)));
-        var dto = medArsmodeller(Map.of("skoda enyaq", 2026)).formatForTitle("Skoda Enyaq (2026)");
-        assertThat(dto).isNotNull();
-        assertThat(dto.cargoLiters()).isEqualTo(585);
-    }
-
-    @Test
-    void enSAMButanVolymFarFortfarandeMatcha() {
-        // Regeln ar en RANGORDNING, inte ett filter: ar den tomma raden enda traffen ska svaret
-        // vara null som forut - inte ett undantag och inte en annan bils volym.
-        when(repo.findAll()).thenReturn(List.of(
-                new CargoSpec("Skoda Enyaq", null, null),
-                new CargoSpec("Skoda Octavia", 600, 1700)));
-        assertThat(medArsmodeller(Map.of()).formatForTitle("Skoda Enyaq (2026)")).isNull();
-    }
-
-    @Test
-    void framtidaGenerationVinnerInteBaraForAttDenHarVolym() {
-        // Steg (1) star kvar over volymsteget: en rad daterad EFTER kortets ar ar utesluten,
-        // aven nar den ar den enda med en siffra.
-        when(repo.findAll()).thenReturn(List.of(
-                new CargoSpec("MG4", null, null),
-                new CargoSpec("MG MG4 Urban Standard Range", 577, 1364)));
-        assertThat(medArsmodeller(Map.of("mg mg4 urban standard range", 2026))
-                .formatForTitle("MG4 (2023)")).isNull();
+                new CargoSpec("Ford Mustang", null, null),
+                new CargoSpec("Ford Mustang Mach-E", 402, 1420)));
+        assertThat(medArsmodeller(Map.of()).formatForTitle("Ford Mustang (2021)")).isNull();
     }
 
     @Test
