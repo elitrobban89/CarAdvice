@@ -278,8 +278,11 @@ public class CargoSpecService {
         String cleaned = normalize(CarTitle.stripYear(title == null ? "" : title));
         String forstaOrdet = cleaned.isBlank() ? "" : cleaned.split("\\s+")[0];
         List<Map<String, Object>> kandidater = new ArrayList<>();
+        // Rader UTAN volym listas med (cargoLiters null) sedan 2026-09-05. De filtrerades bort
+        // förut, och just därför gick Enyaq-skuggningen inte att se: den tomma raden
+        // "Skoda Enyaq" VANN valet men syntes varken i kandidatlistan eller i tabellistningen.
+        // Ett instrument som döljer de rader som kan vinna svarar på fel fråga.
         for (CargoSpec cs : repo.findAll()) {
-            if (cs.getCargoLiters() == null || cs.getCargoLiters() <= 0) continue;
             if (forstaOrdet.isBlank() || !normalize(cs.getCarName()).contains(forstaOrdet)) continue;
             Map<String, Object> rad = new LinkedHashMap<>();
             rad.put("carName", cs.getCarName());
@@ -341,28 +344,39 @@ public class CargoSpecService {
      * <p>Ordningen är: <b>(0)</b> {@link #generationsfilter} när modellen har en kurerad
      * generationsmarkör — två generationer kan bära SAMMA årsmodell och skiljs då inte av något
      * annat steg; <b>(1)</b> en rad vars årsmodell ligger EFTER kortets år får aldrig
-     * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> högsta årsmodell
-     * som ryms i kortets år vinner; <b>(3)</b> odaterade rader vinner när titeln saknar år, så
-     * "MG4" utan årtal fortsätter ge basraden; <b>(4)</b> kortast namn (närmast titeln); och
-     * <b>(5)</b> vid kvarstående lika: MINSTA volymen. Sista steget är medvetet konservativt —
-     * hellre lova för lite bagage än för mycket.
+     * användas — en kommande generation beskriver inte en äldre bil; <b>(2)</b> en rad MED volym
+     * slår alltid en rad utan; <b>(3)</b> högsta årsmodell som ryms i kortets år vinner;
+     * <b>(4)</b> odaterade rader vinner när titeln saknar år, så "MG4" utan årtal fortsätter ge
+     * basraden; <b>(5)</b> kortast namn (närmast titeln); och <b>(6)</b> vid kvarstående lika:
+     * MINSTA volymen. Sista steget är medvetet konservativt — hellre lova för lite bagage än för
+     * mycket.
+     *
+     * <p><b>Steg (2) lagar Enyaq-skuggningen</b> (uppmätt 2026-09-05): tabellen bär både en tom
+     * rad {@code Skoda Enyaq} och en ifylld {@code Škoda Enyaq iV} (585 l). Den tomma vann på
+     * steg (5) kortast namn, och {@link #formatForTitle} svarade {@code null} — alltså INGEN
+     * bagagevolym alls på ett Enyaq-kort, fast siffran låg i tabellen. En rad utan volym bär
+     * ingen upplysning och kan aldrig vara svaret; att låta den vinna är att välja tystnad
+     * framför data. Därför står steget FÖRE årsmodellen: en ifylld äldre rad säger mer än en
+     * tom rad med rätt årtal.
      */
     private CargoSpec valjBastaRad(List<CargoSpec> kandidater, String rentTitel,
                                    Integer titelAr, Map<String, Integer> ar) {
         kandidater = generationsfilter(kandidater, rentTitel, titelAr, ar);
         CargoSpec bast = null;
-        int bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
+        int bastVolym = -1, bastAr = -1, bastOrd = Integer.MAX_VALUE, bastLiter = Integer.MAX_VALUE;
         for (CargoSpec cs : kandidater) {
             Integer radAr = ar.get(normalize(cs.getCarName()));
             if (titelAr != null && radAr != null && radAr > titelAr) continue;   // framtida generation
+            int harVolym = cs.getCargoLiters() != null && cs.getCargoLiters() > 0 ? 1 : 0;
             int arPoang = radAr == null ? (titelAr == null ? Integer.MAX_VALUE : -1) : radAr;
             int ord = normalize(cs.getCarName()).split("\\s+").length;
             int liter = cs.getCargoLiters() == null ? Integer.MAX_VALUE : cs.getCargoLiters();
             if (bast == null
-                    || arPoang > bastAr
-                    || (arPoang == bastAr && ord < bastOrd)
-                    || (arPoang == bastAr && ord == bastOrd && liter < bastLiter)) {
-                bast = cs; bastAr = arPoang; bastOrd = ord; bastLiter = liter;
+                    || harVolym > bastVolym
+                    || (harVolym == bastVolym && arPoang > bastAr)
+                    || (harVolym == bastVolym && arPoang == bastAr && ord < bastOrd)
+                    || (harVolym == bastVolym && arPoang == bastAr && ord == bastOrd && liter < bastLiter)) {
+                bast = cs; bastVolym = harVolym; bastAr = arPoang; bastOrd = ord; bastLiter = liter;
             }
         }
         return bast;

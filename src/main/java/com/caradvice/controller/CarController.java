@@ -926,14 +926,22 @@ public class CarController {
      * röra sig och larmar därför aldrig. Ett fel som sitter i VÄRDET syns bara om värdet går
      * att läsa.
      *
-     * <p>Bara rader med volym listas; namnen utan siffra är arbetslistan och räknas redan av
-     * {@code utanVolym} i {@link #cargoCoverage}.
+     * <p>Rader med volym listas som förut. {@code ?utanVolym=true} listar NAMNEN på raderna utan
+     * siffra — de räknas av {@code utanVolym} i {@link #cargoCoverage} men gick inte att läsa, och
+     * det dolde Enyaq-skuggningen 2026-09-05: en tom rad {@code Skoda Enyaq} vann valet över den
+     * ifyllda {@code Škoda Enyaq iV} och kortet fick ingen volym alls. En rad som kan vinna valet
+     * måste gå att se.
      */
     @GetMapping("/admin/cargo-specs")
     public ResponseEntity<?> listaCargoSpecs(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
-            @RequestParam(required = false) String car) {
+            @RequestParam(required = false) String car,
+            @RequestParam(required = false, defaultValue = "false") boolean utanVolym) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        if (utanVolym) {
+            var namn = cargoSpecService.namnUtanVolym();
+            return ResponseEntity.ok(Map.of("total", namn.size(), "utanVolym", namn));
+        }
         // Med ?car= svarar endpointen på VILKEN rad titeln landar på och vilka andra som fanns
         // att välja på. Tabellens värden gick att läsa sedan 2026-08-20, men inte VALET mellan
         // dem — och MG4 har tre volymer i tabellen (två generationer, två källor).
