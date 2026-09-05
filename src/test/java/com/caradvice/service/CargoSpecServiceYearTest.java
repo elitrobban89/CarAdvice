@@ -184,13 +184,56 @@ class CargoSpecServiceYearTest {
 
     @Test
     void tomRadVinnerHellreAnAttGeEnANNANBilsVolym() {
-        // Ett steg "ifylld rad slar tom rad" provades och BACKADES. Matchningen ar
-        // substrangbaserad: "tt" finns i "quattro", sa ett Audi TT-kort fick 405 l ur
-        // e-tron GT quattro. Tystnad ar ratt svar nar tabellen inte kanner bilen.
+        // Ett steg "ifylld rad slar tom rad" provades och BACKADES. Tystnad ar ratt svar nar
+        // tabellen inte kanner bilen; raden bredvid ar ofta en annan modell.
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("Ford Mustang", null, null),
+                new CargoSpec("Ford Mustang Mach-E", 402, 1420)));
+        assertThat(medArsmodeller(Map.of()).formatForTitle("Ford Mustang (2021)")).isNull();
+    }
+
+    // --- Pass 1 kraver ORD, inte substrang (uppmatt mot 1 837 bilnamn 2026-09-05) ---
+
+    @Test
+    void substrangIEttAnnatModellnamnGerIngenTraff() {
+        // "tt" finns i "quattro". I drift gav det Audi TT e-tron GT:s 405 l.
         when(repo.findAll()).thenReturn(List.of(
                 new CargoSpec("Audi TT", null, null),
                 new CargoSpec("Audi e-tron GT quattro", 405, null)));
         assertThat(medArsmodeller(Map.of()).formatForTitle("Audi TT (2018)")).isNull();
+    }
+
+    @Test
+    void elbilensRadFarInteSvaraForForbranningsbilen() {
+        // "x3" ar en substrang av "ix3": BMW X3 fick iX3:ans 510 l i drift.
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("BMW X3", 550, 1600),
+                new CargoSpec("BMW iX3", 510, 1560)));
+        var dto = medArsmodeller(Map.of()).formatForTitle("BMW X3 (2022)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(550);
+    }
+
+    @Test
+    void bokstavsklassFarSinEgenRad() {
+        // "a" ar en substrang av "a klass" OCH av "c klass": alla tre Mercedes-klasserna fick
+        // A-Klass 370 l i drift, aven nar deras egna rader fanns i tabellen.
+        when(repo.findAll()).thenReturn(List.of(
+                new CargoSpec("Mercedes A-Klass", 370, 1210),
+                new CargoSpec("Mercedes C-klass", 455, 1510)));
+        var dto = medArsmodeller(Map.of()).formatForTitle("Mercedes C-klass (2023)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(455);
+    }
+
+    @Test
+    void titelMedTrimordGarFortfarandeViaPass2() {
+        // Pass 2 ar OFORANDRAT och bar de verkliga korttitlarna: raden "Volvo XC60" nas av
+        // "Volvo XC60 B4 AWD (2023)" fast titeln har ord raden saknar.
+        when(repo.findAll()).thenReturn(List.of(new CargoSpec("Volvo XC60", 483, 1410)));
+        var dto = medArsmodeller(Map.of()).formatForTitle("Volvo XC60 B4 AWD (2023)");
+        assertThat(dto).isNotNull();
+        assertThat(dto.cargoLiters()).isEqualTo(483);
     }
 
     @Test

@@ -63,6 +63,7 @@ public class CargoSpecService {
     /** Ordet som märker ut den nya generationens rader, och första årsmodell det gäller. */
     private record Generationsmarkor(String markorord, int franAr) {}
 
+
     public CargoSpecService(CargoSpecRepository repo, org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.repo = repo;
         this.jdbc = jdbc;
@@ -305,11 +306,26 @@ public class CargoSpecService {
         Integer titelAr = CarTitle.year(title);
         Map<String, Integer> ar = arsmodeller();
 
-        // Pass 1: all title words appear as substrings in stored name
+        // Pass 1: varje ord i titeln måste vara ett ORD i radens namn.
+        //
+        // Var SUBSTRÄNG till 2026-09-05, och det gav fel bil åt både kort och chatt: "x3" finns i
+        // "ix3", "tt" i "quattro", "cross" i "across", "a" i "a klass". Uppmätt i drift innan
+        // bytet: Mercedes C-, E- och S-klass fick alla A-Klass 370 l, Tesla Model S fick Model 3:s
+        // 594, BMW X3 fick iX3:ans 510, Audi Q7 fick SQ7:ans 428, Volvo C70 fick XC70:ans 408,
+        // Suzuki S-Cross fick Suzuki Across 446 och Hyundai H-1 (skåpbil) fick i10:ans 252.
+        //
+        // Bytet mättes mot alla 1 837 bilnamn i /api/cars: 23 titlar bytte till RÄTT rad, 9 fick
+        // en volym de saknade, och 22 tappade sin — men 20 av de 22 var fel bil (silence är rätt
+        // svar där). De två äkta förlusterna var stavningsvarianter, "Fiat 500 X" mot "Fiat 500X"
+        // och "Kia Cee´d" mot "Kia Ceed", och lagades som data. De 52 verkligt renderade
+        // korttitlarna i car_video ändrades i ETT fall: Kia Niro EV fick sin egen 475 l i stället
+        // för Niro PHEV:s 349. Titlar med trimord ("Volvo XC60 B4 AWD") går via pass 2 och rörs
+        // inte av regeln.
         List<CargoSpec> kandidater = all.stream()
                 .filter(cs -> {
-                    String name = normalize(cs.getCarName());
-                    for (String w : titleWords) if (!name.contains(w)) return false;
+                    Set<String> namnOrd = new HashSet<>(
+                            Arrays.asList(normalize(cs.getCarName()).split("\\s+")));
+                    for (String w : titleWords) if (!namnOrd.contains(w)) return false;
                     return true;
                 })
                 .toList();
