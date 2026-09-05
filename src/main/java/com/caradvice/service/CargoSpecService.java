@@ -33,6 +33,8 @@ public class CargoSpecService {
     /** Cachead årsmodellkarta — tabellen är liten men läses en gång per bilkort. */
     private volatile Map<String, Integer> arsmodellCache = Map.of();
     private volatile long arsmodellCacheTid = 0L;
+    private volatile Map<String, String> drivmedelCache = Map.of();
+    private volatile long drivmedelCacheTid = 0L;
     private static final long ARSMODELL_TTL_MS = 10 * 60 * 1000L;
 
     /**
@@ -77,6 +79,110 @@ public class CargoSpecService {
                     + "car_name VARCHAR(200) PRIMARY KEY, from_year INT NOT NULL)");
         } catch (Exception e) {
             log.warn("cargo_spec_year kunde inte skapas: {}", e.getMessage());
+        }
+        try {
+            jdbc.execute("CREATE TABLE IF NOT EXISTS cargo_spec_fuel ("
+                    + "car_name VARCHAR(200) PRIMARY KEY, fuel VARCHAR(16) NOT NULL)");
+        } catch (Exception e) {
+            log.warn("cargo_spec_fuel kunde inte skapas: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Drivmedel per rad — {@code "el"} eller {@code "ice"}, saknas när ingen källa sagt något.
+     *
+     * <p><b>Varför en sidotabell och inte en kolumn:</b> {@code ddl-auto=validate} validerar
+     * entitetens fält när EntityManagerFactory startar, alltså INNAN någon {@code @PostConstruct}
+     * hinner köra sitt {@code ALTER TABLE}. Samma grepp som {@code cargo_spec_year}.
+     *
+     * <p><b>Varför den behövs.</b> Bagagelistan sållades på NAMN mot {@code ev_spec}, och namnet
+     * kan inte skilja en modell som säljs både som elbil och förbränningsbil: {@code Audi A6},
+     * {@code Volvo XC40}, {@code Porsche Macan}, {@code Toyota Hilux} och {@code Opel Astra} kom
+     * med i en elbilslista på sina EV-syskons namn (uppmätt 2026-09-05).
+     *
+     * <p><b>Värdet skrivs av den KÄLLA som fyllde raden</b>, inte av en gissning i efterhand:
+     * ev-database beskriver bara elbilar, och auto-data-ifyllningen arbetar från
+     * {@code ice_consumption} som per definition är bensin, diesel och hybrid. En rad som ingen
+     * källa har rört förblir okänd — och okänt är inte samma sak som "ej elbil".
+     */
+    public Map<String, String> drivmedel() {
+        if (jdbc == null) return Map.of();
+        long nu = System.currentTimeMillis();
+        if (nu - drivmedelCacheTid < ARSMODELL_TTL_MS) return drivmedelCache;
+        try {
+            Map<String, String> ny = new HashMap<>();
+            for (Map<String, Object> rad : jdbc.queryForList("SELECT car_name, fuel FROM cargo_spec_fuel")) {
+                Object namn = rad.get("car_name");
+                Object f = rad.get("fuel");
+                if (namn != null && f != null) ny.put(normalize(namn.toString()), f.toString());
+            }
+            drivmedelCache = ny;
+            drivmedelCacheTid = nu;
+        } catch (Exception e) {
+            log.warn("cargo_spec_fuel kunde inte läsas: {}", e.getMessage());
+        }
+        return drivmedelCache;
+    }
+
+    /**
+     * Sätter drivmedel för flera rader ur CSV ({@code namn,el} per rad).
+     *
+     * <p>Finns av två skäl. Dels är {@code sattDrivmedel} annars bara nåbar från nattens
+     * körningar, och dess {@code ON CONFLICT}-sats går inte att prova mot något annat än en
+     * riktig Postgres — den fail-softar i en {@code catch}, så ett SQL-fel hade visat sig som
+     * en tabell som helt enkelt aldrig fylldes. Dels behövs en handrättelse för rader som ingen
+     * källa rör.
+     *
+     * @return antal rader som skrevs
+     */
+    @Transactional
+    public int sattDrivmedelCsv(String csv) {
+        if (csv == null || csv.isBlank()) return 0;
+        int antal = 0;
+        for (String rad : csv.split("\\R")) {
+            String[] delar = rad.trim().split(",", 2);
+            if (delar.length < 2) continue;
+            String namn = delar[0].trim().replaceAll("^\"|\"$", "");
+            String fuel = delar[1].trim().toLowerCase();
+            if (namn.isBlank() || (!"el".equals(fuel) && !"ice".equals(fuel))) continue;
+            sattDrivmedel(namn, fuel);
+            antal++;
+        }
+        return antal;
+    }
+
+    /**
+     * Drivmedlet för ett bilnamn: {@code "el"}, {@code "ice"} eller {@code null} när det är okänt.
+     *
+     * <p>Slår upp på RADENS namn, inte på en titel — anroparen har redan en rad att fråga om.
+     */
+    public String drivmedelFor(String carName) {
+        if (carName == null || carName.isBlank()) return null;
+        return drivmedel().get(normalize(carName));
+    }
+
+    /**
+     * Skriver drivmedlet för EN rad. Idempotent.
+     *
+     * <p>Till skillnad från årsmodellen skrivs det ÄVEN på en rad som matchats under ett kortare
+     * namn: "Kia EV6" är en elbil oavsett vilken variantsida som fyllde raden. Årtalet varierar
+     * mellan generationer, drivmedlet gör det inte.
+     *
+     * <p><b>El vinner över ice.</b> Möts en rad av båda källorna är det för att namnet delas av en
+     * elbil och en förbränningsbil, och då är den elbilsuppgiften den som bär ny information —
+     * ett elbilssvar ska hellre innehålla en tveksam bil än missa en riktig.
+     */
+    void sattDrivmedel(String carName, String fuel) {
+        if (jdbc == null || carName == null || carName.isBlank()) return;
+        if (!"el".equals(fuel) && !"ice".equals(fuel)) return;
+        try {
+            jdbc.update("INSERT INTO cargo_spec_fuel (car_name, fuel) VALUES (?, ?) "
+                    + "ON CONFLICT (car_name) DO UPDATE SET fuel = "
+                    + "CASE WHEN cargo_spec_fuel.fuel = 'el' THEN 'el' ELSE EXCLUDED.fuel END",
+                    carName, fuel);
+            drivmedelCacheTid = 0L;
+        } catch (Exception e) {
+            log.warn("Drivmedel {} för {} kunde inte skrivas: {}", fuel, carName, e.getMessage());
         }
     }
 
@@ -218,6 +324,18 @@ public class CargoSpecService {
      */
     @Transactional
     public boolean fillFromScrape(String scrapedName, int liters, int maxLiters, int modelYear) {
+        return fillFromScrape(scrapedName, liters, maxLiters, modelYear, null);
+    }
+
+    /**
+     * Som ovan, men med kallans drivmedel ({@code "el"} eller {@code "ice"}).
+     *
+     * <p>Skrivs pa raden som fylldes ELLER matchades - aven under ett kortare namn, till skillnad
+     * fran arsmodellen. Drivmedlet varierar inte mellan generationer.
+     */
+    @Transactional
+    public boolean fillFromScrape(String scrapedName, int liters, int maxLiters, int modelYear,
+                                  String drivmedel) {
         if (scrapedName == null || scrapedName.isBlank() || liters <= 0) return false;
         Set<String> scrapedWords = new HashSet<>(Arrays.asList(normalize(scrapedName).split("\\s+")));
 
@@ -236,12 +354,17 @@ public class CargoSpecService {
         if (match == null) {
             repo.save(new CargoSpec(scrapedName, liters, maxLiters > 0 ? maxLiters : null));
             if (modelYear > 0) sattArsmodell(scrapedName, modelYear);
+            sattDrivmedel(scrapedName, drivmedel);
             return true;
         }
         // Årtalet skrivs FÖRE den tidiga returen nedan: en rad som redan bär volym ska ändå bli
         // daterad, annars hade backfyllningen krävt att tabellen tömdes först.
         if (modelYear > 0 && normalize(match.getCarName()).equals(normalize(scrapedName)))
             sattArsmodell(match.getCarName(), modelYear);
+        // Drivmedlet skrivs OCKSÅ på en rad som matchats under ett kortare namn, och även när
+        // raden redan bär volym: "Kia EV6" är en elbil oavsett vilken variantsida som fyllde den,
+        // och backfyllningen hade annars krävt en tom tabell.
+        sattDrivmedel(match.getCarName(), drivmedel);
         if (match.getCargoLiters() != null && match.getCargoLiters() > 0) return false;
 
         match.setCargoLiters(liters);

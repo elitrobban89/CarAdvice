@@ -118,7 +118,10 @@ public class AutoDataCargoFillService {
                 }
                 // Maxvolymen är frivillig hos källan; 0 betyder "vet inte" för fillFromScrape.
                 int max = vol.maxLiter() != null ? vol.maxLiter() : 0;
-                if (cargoSpecs.fillFromScrape(bilnamn, vol.minLiter(), max)) {
+                // "ice": arbetslistan byggs på ice_consumption, som per definition är bensin,
+                // diesel och hybrid. Källan vet alltså drivmedlet, och raden slipper gissas på
+                // sitt namn när bagagelistan sållas för en elbilsfråga.
+                if (cargoSpecs.fillFromScrape(bilnamn, vol.minLiter(), max, 0, "ice")) {
                     fyllda++;
                     log.info("auto-data bagage: {} → {} l (max {} l)", bilnamn, vol.minLiter(), max);
                 }

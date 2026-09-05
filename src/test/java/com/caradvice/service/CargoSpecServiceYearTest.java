@@ -118,6 +118,58 @@ class CargoSpecServiceYearTest {
         assertThat(skrivna).containsExactly("MG MG4 Urban Standard Range=2026");
     }
 
+    // --- cargo_spec_fuel: drivmedlet skrivs av den kalla som fyllde raden ---
+
+    @Test
+    void drivmedletSkrivsAvenNarRadenMatchadesUnderEttKORTARENamn() {
+        // Till skillnad fran arsmodellen: "Kia EV6" ar en elbil oavsett vilken variantsida som
+        // fyllde raden. Artalet varierar mellan generationer, drivmedlet gor det inte.
+        CargoSpec generalist = new CargoSpec("Kia EV6", null, null);
+        when(repo.findAll()).thenReturn(List.of(generalist));
+        List<String> skrivna = new ArrayList<>();
+        CargoSpecService service = new CargoSpecService(repo, null) {
+            @Override
+            void sattDrivmedel(String carName, String fuel) { skrivna.add(carName + "=" + fuel); }
+            @Override
+            void sattArsmodell(String carName, int year) { /* provas pa annat hall */ }
+        };
+
+        assertThat(service.fillFromScrape("Kia EV6 Long Range 2WD", 490, 1300, 2026, "el")).isTrue();
+        assertThat(skrivna).containsExactly("Kia EV6=el");
+    }
+
+    @Test
+    void drivmedletSkrivsAvenNarVolymenRedanFinns() {
+        // Backfyllningen: raderna bar volym sedan lange, och tabellen skulle annars behova tommas
+        // for att drivmedlet skulle komma in.
+        CargoSpec fylld = new CargoSpec("Kia EV6", 490, 1300);
+        when(repo.findAll()).thenReturn(List.of(fylld));
+        List<String> skrivna = new ArrayList<>();
+        CargoSpecService service = new CargoSpecService(repo, null) {
+            @Override
+            void sattDrivmedel(String carName, String fuel) { skrivna.add(carName + "=" + fuel); }
+        };
+
+        assertThat(service.fillFromScrape("Kia EV6 Long Range 2WD", 490, 1300, 0, "el")).isFalse();
+        assertThat(skrivna).containsExactly("Kia EV6=el");
+    }
+
+    @Test
+    void utanDrivmedelFranKallanSkrivsIngenting() {
+        CargoSpec rad = new CargoSpec("Volvo XC60", null, null);
+        when(repo.findAll()).thenReturn(List.of(rad));
+        List<String> skrivna = new ArrayList<>();
+        CargoSpecService service = new CargoSpecService(repo, null) {
+            @Override
+            void sattDrivmedel(String carName, String fuel) {
+                if (fuel != null) skrivna.add(carName + "=" + fuel);
+            }
+        };
+
+        assertThat(service.fillFromScrape("Volvo XC60 B4 AWD", 483, 1410)).isTrue();
+        assertThat(skrivna).isEmpty();
+    }
+
     // --- Generationsmarkoren: tva generationer med SAMMA arsmodell ---
 
     /**

@@ -167,9 +167,13 @@ public class EvDatabaseScraperService {
                 // EV-synken, som är sidans egentliga uppdrag.
                 try {
                     if (scraped.cargoLiters() > 0
+                            // "el": ev-database beskriver bara elbilar, så raden vi fyller är en
+                            // elbil — och det är den enda källa som kan säga det med säkerhet.
+                            // Namnet ensamt kan det inte: "Audi A6" och "Volvo XC40" finns som
+                            // både elbil och förbränningsbil (uppmätt 2026-09-05).
                             && cargoSpecService.fillFromScrape(scraped.name(),
                                     scraped.cargoLiters(), scraped.cargoMaxLiters(),
-                                    scraped.modelYear())) {
+                                    scraped.modelYear(), "el")) {
                         cargoFilled++;
                         log.info("Bagagevolym ifylld från {}: {} l ({} l nedfällt)",
                                 scraped.name(), scraped.cargoLiters(), scraped.cargoMaxLiters());

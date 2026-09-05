@@ -3275,14 +3275,14 @@ public class GroqService {
         Set<String> evNamn = baraElbilar ? elbilsnamn() : Set.of();
         if (!evNamn.isEmpty()) {
             List<Rad> el = over.stream()
-                    .filter(r -> arElbilsnamn(r.namn(), evNamn))
+                    .filter(r -> arElbil(r.namn(), evNamn))
                     .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
             // Blir sållningen tom faller vi tillbaka på hela listan: hellre några
             // förbränningsbilar i urvalet än ett svar utan bilar att stå på. Golvbilarna
             // garanteras plats längre ned och är alla elbilar, så listan blir aldrig tunn.
             if (!el.isEmpty()) over = el;
             under = under.stream()
-                    .filter(r -> arElbilsnamn(r.namn(), evNamn))
+                    .filter(r -> arElbil(r.namn(), evNamn))
                     .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         }
         over.sort(java.util.Comparator.comparingInt(Rad::liter));
@@ -3490,6 +3490,26 @@ public class GroqService {
      * annars hade {@code "BMW X3"} matchat {@code "BMW iX3"}, exakt den fällan som fälldes
      * i cargo-matchningen samma dag.
      */
+    /**
+     * Är {@code cargo_spec}-raden en elbil? Tabellen först, namnet bara som reserv.
+     *
+     * <p>{@code cargo_spec_fuel} bär drivmedlet som den KÄLLA som fyllde raden angav, och det är
+     * den enda uppgift som kan skilja {@code Audi A6} från {@code Audi A6 e-tron}: namnet kan det
+     * inte, och namnregeln nedan släppte därför igenom basraden för varje modell som säljs både
+     * som elbil och förbränningsbil (uppmätt 2026-09-05: A6, XC40, Macan, Hilux, Astra).
+     *
+     * <p><b>Okänt är inte "nej".</b> Tabellen fylls av nattens körningar, en rad i taget, och
+     * tills en källa har uttalat sig gäller namnregeln precis som förut. Annars hade den nya
+     * tabellen tömt bagagelistan den dag den var tom.
+     */
+    private boolean arElbil(String cargoNamn, Set<String> evNamn) {
+        String drivlina = null;
+        try { drivlina = cargoSpecService.drivmedelFor(cargoNamn); } catch (Exception ignored) { }
+        if ("el".equals(drivlina)) return true;
+        if (drivlina != null) return false;
+        return arElbilsnamn(cargoNamn, evNamn);
+    }
+
     private static boolean arElbilsnamn(String cargoNamn, Set<String> evNamn) {
         // Säger raden SJÄLV att den är laddhybrid eller hybrid är frågan besvarad — ev_spec bär
         // egna PHEV-rader ("Toyota RAV4 PHEV", "Kia Niro PHEV"), så en exakt namnträff hade
@@ -3588,7 +3608,7 @@ public class GroqService {
             String namn = namnO.toString();
             // Samma drivmedelssållning som huvudlistan: raden namngav "Volvo XC60 505" på en
             // elbilsfråga, eftersom kategorireglerna täcker alla drivlinor.
-            if (!evNamn.isEmpty() && !arElbilsnamn(namn, evNamn)) continue;
+            if (!evNamn.isEmpty() && !arElbil(namn, evNamn)) continue;
             String[] ord = namn.trim().split("\\s+");
             List<String> kandidater = ord.length > 1
                     ? List.of(String.join(" ", java.util.Arrays.copyOfRange(ord, 1, ord.length)), ord[1])

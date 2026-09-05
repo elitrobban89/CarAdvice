@@ -2774,6 +2774,26 @@ class GroqServiceTest {
     }
 
     @Test
+    void drivmedlet_PA_RADEN_slarNamnregeln() {
+        // Namnet kan inte skilja "Audi A6" fran "Audi A6 e-tron" - basraden kom med i en
+        // elbilslista pa sitt EV-syskons namn (uppmatt 09-05). cargo_spec_fuel vet battre.
+        when(cargoSpecService.drivmedelFor("Audi A6")).thenReturn("ice");
+        when(cargoSpecService.drivmedelFor("Volvo XC90")).thenReturn("el");
+        when(evSpecService.findAllCarNames()).thenReturn(List.of(
+                "Audi A6 e-tron", "Kia EV6 Long Range 2WD"));
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Audi A6", "cargoLiters", 530),
+                Map.of("carName", "Volvo XC90", "cargoLiters", 640),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490)));
+
+        String el = service().bagagekontext(420, true);
+
+        assertThat(el).doesNotContain("Audi A6");            // tabellen sager ice
+        assertThat(el).contains("Volvo XC90 640");           // tabellen sager el, namnet visste inget
+        assertThat(el).contains("Kia EV6 490");              // okand -> namnregeln som forut
+    }
+
+    @Test
     void tillverkarnasEgnaLaddhybridkoderSallasOcksaBort() {
         // ev_spec bar sjalv laddhybrider: BMW X5 45e, Volkswagen Passat GTE, Volvo V90 T8 och
         // Mercedes GLC 300e. Uppmatt 09-05 - drivetrainOf kanner inte trimkoderna, sa de kom in

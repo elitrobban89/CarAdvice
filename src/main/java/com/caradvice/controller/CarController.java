@@ -398,6 +398,24 @@ public class CarController {
         }
     }
 
+    /**
+     * Sätter drivmedel på cargo_spec-rader ur CSV ({@code namn,el} eller {@code namn,ice}).
+     *
+     * <p>Nattens körningar skriver värdet själva — det här är handrättelsen, och den enda vägen
+     * att prova {@code ON CONFLICT}-satsen mot en riktig Postgres innan 02:00-jobbet kör.
+     */
+    @PostMapping("/admin/cargo-specs/fuel")
+    public ResponseEntity<?> sattCargoDrivmedel(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                                @RequestBody String csv) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        try {
+            int n = cargoSpecService.sattDrivmedelCsv(csv);
+            return ResponseEntity.ok(Map.of("skrivna", n, "table", "cargo_spec_fuel"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/admin/upsert/cargospecs")
     public ResponseEntity<?> upsertCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                               @RequestBody String csv) {
@@ -936,11 +954,21 @@ public class CarController {
     public ResponseEntity<?> listaCargoSpecs(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
             @RequestParam(required = false) String car,
-            @RequestParam(required = false, defaultValue = "false") boolean utanVolym) {
+            @RequestParam(required = false, defaultValue = "false") boolean utanVolym,
+            @RequestParam(required = false, defaultValue = "false") boolean drivmedel) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         if (utanVolym) {
             var namn = cargoSpecService.namnUtanVolym();
             return ResponseEntity.ok(Map.of("total", namn.size(), "utanVolym", namn));
+        }
+        // Drivmedelstabellen fylls av nattens körningar, en rad i taget. Utan ett instrument går
+        // det inte att se HUR MÅNGA rader som fått ett värde — och en tabell som inte rör sig
+        // larmar aldrig, precis som cargo-täckningen på 602/602/0 en gång lät.
+        if (drivmedel) {
+            var karta = cargoSpecService.drivmedel();
+            long el = karta.values().stream().filter("el"::equals).count();
+            return ResponseEntity.ok(Map.of("total", karta.size(), "el", el,
+                    "ice", karta.size() - el, "drivmedel", new java.util.TreeMap<>(karta)));
         }
         // Med ?car= svarar endpointen på VILKEN rad titeln landar på och vilka andra som fanns
         // att välja på. Tabellens värden gick att läsa sedan 2026-08-20, men inte VALET mellan
