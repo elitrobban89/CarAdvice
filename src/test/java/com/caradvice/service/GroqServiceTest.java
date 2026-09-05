@@ -2774,6 +2774,41 @@ class GroqServiceTest {
     }
 
     @Test
+    void tillverkarnasEgnaLaddhybridkoderSallasOcksaBort() {
+        // ev_spec bar sjalv laddhybrider: BMW X5 45e, Volkswagen Passat GTE, Volvo V90 T8 och
+        // Mercedes GLC 300e. Uppmatt 09-05 - drivetrainOf kanner inte trimkoderna, sa de kom in
+        // pa en exakt namntraff.
+        when(evSpecService.findAllCarNames()).thenReturn(List.of(
+                "BMW X5 45e", "Volkswagen Passat GTE", "Kia EV6 Long Range 2WD"));
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "BMW X5 45e", "cargoLiters", 650),
+                Map.of("carName", "Volkswagen Passat GTE", "cargoLiters", 586),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490)));
+
+        String el = service().bagagekontext(420, true);
+
+        assertThat(el).contains("Kia EV6 490");
+        assertThat(el).doesNotContain("45e").doesNotContain("Passat GTE");
+    }
+
+    @Test
+    void laddhybridvittnetKannsIgenOAVSETT_STAVNING() {
+        // ev_spec skriver bade "Toyota Prius PHEV" och "Toyota Prius Plug-in". En egen ordlista
+        // med "plug in" (mellanslag) missade den andra, och forbranningsraden "Toyota Prius 502"
+        // slank in i elbilslistan pa sin egen laddhybrid. Ratt ord, fel tecken.
+        when(evSpecService.findAllCarNames()).thenReturn(List.of(
+                "Toyota Prius PHEV", "Toyota Prius Plug-in", "Kia EV6 Long Range 2WD"));
+        when(cargoSpecService.allaMedVolym()).thenReturn(List.of(
+                Map.of("carName", "Toyota Prius", "cargoLiters", 502),
+                Map.of("carName", "Kia EV6", "cargoLiters", 490)));
+
+        String el = service().bagagekontext(420, true);
+
+        assertThat(el).contains("Kia EV6 490");
+        assertThat(el).doesNotContain("Toyota Prius");
+    }
+
+    @Test
     void golvbilarnaGaranterasPlatsIHuvudlistan() {
         // Skarpt prov 09-05: MG5 (578 l / 180 000 kr) var fragans basta svar men foll bort i
         // det spridda urvalet, och stod bara pa den ihopslagna golvraden. Modellen byggde

@@ -3494,8 +3494,7 @@ public class GroqService {
         // Säger raden SJÄLV att den är laddhybrid eller hybrid är frågan besvarad — ev_spec bär
         // egna PHEV-rader ("Toyota RAV4 PHEV", "Kia Niro PHEV"), så en exakt namnträff hade
         // annars gjort dem till elbilar.
-        String drivlina = ExpertInsightService.drivetrainOf(cargoNamn);
-        if ("phev".equals(drivlina) || "hev".equals(drivlina)) return false;
+        if (arLaddhybridsnamn(cargoNamn)) return false;
         String n = ExpertInsightService.foldDiacritics(ExpertInsightService.flattenSpaces(cargoNamn));
         if (n.isBlank()) return false;
         if (evNamn.contains(n)) return true;
@@ -3506,12 +3505,38 @@ public class GroqService {
             // slank förbränningsraden "Toyota RAV4 580" in i en elbilslista på sitt basnamn.
             // Uppmätt 2026-09-05: RAV4, Prius, Outlander och Jeep Compass kom in den vägen.
             if (ev.startsWith(n + " ")) {
-                String suffix = ev.substring(n.length() + 1);
-                if (!suffix.contains("phev") && !suffix.contains("plug in")
-                        && !suffix.contains("hybrid")) return true;
+                // Vittnets drivlina läses med SAMMA regex som allt annat i projektet. Första
+                // versionen hade en egen ordlista med "plug in" — och ev_spec skriver
+                // "Toyota Prius Plug-in" med BINDESTRECK, så förbränningsraden "Toyota Prius
+                // 502" slank igenom på sin egen laddhybrid. Samma familj som U+2011- och
+                // U+202F-fällorna: rätt ord, fel tecken. PHEV_MARKER bär "plug[- ]?in".
+                if (!arLaddhybridsnamn(ev.substring(n.length() + 1))) return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Tillverkarnas egna laddhybridkoder, utöver de ord {@code drivetrainOf} redan känner.
+     *
+     * <p><b>Varför en lista här och inte i {@code PHEV_MARKER}:</b> den konstanten styr
+     * insikternas drivlinevakt, och ett nytt ord där ändrar vilka insikter som når vilka kort.
+     * Den här listan gäller bara bagagelistans drivmedelssållning.
+     *
+     * <p><b>Koderna är UPPMÄTTA</b> 2026-09-05, inte påhittade: {@code ev_spec} bär raderna
+     * {@code BMW X5 45e}, {@code Volkswagen Passat GTE}, {@code Volvo V90 T8},
+     * {@code Volvo S60 T8} och {@code Mercedes GLC 300e} — alltså laddhybrider i EV-tabellen.
+     * <b>Den riktiga fixen är datan</b> (samma BEV/PHEV-blandning som är känd sedan tidigare);
+     * listan är en spärr så att de inte hamnar i ett elbilssvar under tiden.
+     */
+    private static final java.util.regex.Pattern PHEV_TRIMKOD =
+            java.util.regex.Pattern.compile("\\b(gte|t8|45e|300e|330e|530e|recharge t[68])\\b");
+
+    /** Laddhybrid enligt projektets egen drivlineregex ELLER en tillverkares trimkod. */
+    private static boolean arLaddhybridsnamn(String namn) {
+        String d = ExpertInsightService.drivetrainOf(namn);
+        if ("phev".equals(d) || "hev".equals(d)) return true;
+        return PHEV_TRIMKOD.matcher(ExpertInsightService.flattenSpaces(namn)).find();
     }
 
     /**
