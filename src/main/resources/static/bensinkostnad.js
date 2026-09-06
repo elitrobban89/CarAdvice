@@ -944,6 +944,66 @@ function bcRenderBrandEmblem() {
   }
 }
 
+
+/**
+ * Emblemrutan ovanfor markeslistan - alla marken syns INNAN man valt nagot.
+ *
+ * Select:en ar kvar och ar fortfarande sanningen: rutan sätter dess varde och skickar ett
+ * change-event, sa all befintlig logik (modellista, drivmedelslage, sparade val) kors precis
+ * som nar man valjer i listan. Knapparna ar riktiga <button> och alltsa tabbbara.
+ *
+ * Rutan ar HOGDBEGRANSAD och scrollar. 51 marken i ett oppet rutnat blev 250 px hogt och tog
+ * over formularet; tre rader racker for att visa att den gar att blaadra i.
+ */
+function bcRenderBrandGrid() {
+  var sel = document.getElementById('bc-brand');
+  if (!sel || !sel.parentNode || !sel.parentNode.parentNode) return;
+  bcInjectEffectStyles();
+  var falt = sel.parentNode.parentNode;          // .bc-field runt .bc-input-wrap
+  var box = document.getElementById('bc-brandGrid');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'bc-brandGrid';
+    box.className = 'bc-brand-grid';
+    falt.insertBefore(box, sel.parentNode);      // ovanfor sjalva listan
+    box.addEventListener('click', function(e) {
+      var knapp = e.target.closest ? e.target.closest('.bc-brand-chip') : null;
+      if (!knapp) return;
+      sel.value = knapp.getAttribute('data-marke');
+      // Samma vag som ett vanligt listval: change-eventet driver resten av formularet.
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  // innerHTML och inte childNodes: rutnatet byggs en gang, och childNodes finns inte i
+  // alla varden (testets DOM-stubb saknar den).
+  if (!box.innerHTML) {
+    var html = '';
+    Object.keys(BC_CAR_DB).sort().forEach(function(m) {
+      var slug = BC_EMBLEM_SLUG[bcEmblemNyckel(m)];
+      var inre = slug
+        ? '<span class=\'bc-emblem bc-emblem-bild\'><img src=\'' + BC_EMBLEM_BAS + slug + '.svg\' alt=\'\' loading=\'lazy\'></span>'
+        : '<span class=\'bc-emblem\' style=\'--emblem:' + bcMarkesfarg(m) + '\'>' + bcEmblemText(m) + '</span>';
+      html += '<button type=\'button\' class=\'bc-brand-chip\' data-marke=\'' + m + '\' title=\'' + m + '\' aria-label=\'' + m + '\'>' + inre + '</button>';
+    });
+    box.innerHTML = html;
+  }
+  var valt = sel.value;
+  var knappar = box.querySelectorAll ? box.querySelectorAll('.bc-brand-chip') : [];
+  var valdKnapp = null;
+  for (var i = 0; i < knappar.length; i++) {
+    var ar = knappar[i].getAttribute('data-marke') === valt;
+    if (ar) valdKnapp = knappar[i];
+    if (knappar[i].classList) knappar[i].classList.toggle('vald', ar);
+    knappar[i].setAttribute('aria-pressed', ar ? 'true' : 'false');
+  }
+  // Rutan visar tre rader at gangen och ar alfabetisk, sa ett valt Volvo laag utanfor vyn
+  // och markeringen syntes inte alls. block:'nearest' rullar bara nar det behovs, och
+  // rullar INTE sidan - bara rutan.
+  if (valdKnapp && valdKnapp.scrollIntoView) {
+    try { valdKnapp.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+  }
+}
+
 // ── Dropdown: märken ──────────────────────────────────
 function bcInitBrands() {
   var sel = document.getElementById('bc-brand');
@@ -956,10 +1016,12 @@ function bcInitBrands() {
   });
   // Ett sparat val kan redan ligga i select:en nar listan fyllts.
   bcRenderBrandEmblem();
+  bcRenderBrandGrid();
 }
 
 function bcOnBrandChange() {
   bcRenderBrandEmblem();
+  bcRenderBrandGrid();
   var brand    = document.getElementById('bc-brand').value;
   var modelSel = document.getElementById('bc-model');
   modelSel.innerHTML = '<option value="">Välj modell...</option>';
@@ -1098,6 +1160,30 @@ function bcInjectEffectStyles() {
       '.bc-input-wrap.bc-has-emblem select:focus ~ #bc-brandEmblem{transform:translateY(-50%) scale(1.06);' +
       'box-shadow:0 0 12px rgba(99,102,241,0.25)}' +
     '@media (prefers-reduced-motion:reduce){#bc-brandEmblem{transition:none}}' +
+    // Emblemrutan: alla marken syns innan man valt. Hogdbegransad och scrollande - 51
+    // plattor i ett oppet rutnat blev 250 px och tog over formularet.
+    '.bc-brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));' +
+      'gap:6px;max-height:132px;overflow-y:auto;padding:8px;margin-bottom:8px;' +
+      'border:1.5px solid #e2e8f0;border-radius:12px;background:linear-gradient(180deg,#fff,#fcfcff);' +
+      'box-shadow:inset 0 -8px 10px -10px rgba(15,23,42,0.18)}' +
+    '.bc-brand-grid::-webkit-scrollbar{width:8px}' +
+    '.bc-brand-grid::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}' +
+    '.bc-brand-chip{border:0;background:none;padding:2px;cursor:pointer;border-radius:9px;' +
+      'display:flex;align-items:center;justify-content:center;font-family:inherit;' +
+      'transition:transform 0.16s cubic-bezier(.22,1,.36,1),box-shadow 0.16s,background 0.16s}' +
+    '.bc-brand-chip:hover{background:rgba(99,102,241,0.07);transform:translateY(-1px)}' +
+    '.bc-brand-chip:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(99,102,241,0.35)}' +
+    // Valt marke: indigo ring + glod, samma sprak som resten av formularet.
+    '.bc-brand-chip.vald{background:rgba(99,102,241,0.10);' +
+      'box-shadow:0 0 0 2px #6366f1,0 0 14px rgba(99,102,241,0.35)}' +
+    '.bc-brand-chip .bc-emblem{position:static;transform:none;width:30px;height:30px;' +
+      'border-radius:8px;display:flex;align-items:center;justify-content:center;' +
+      'font-size:0.62rem;font-weight:800;color:#334155;pointer-events:none;' +
+      'background:color-mix(in srgb,var(--emblem,#6366f1) 13%,#fff);' +
+      'border:1.5px solid color-mix(in srgb,var(--emblem,#6366f1) 34%,transparent)}' +
+    '.bc-brand-chip .bc-emblem-bild{background:#fff;border-color:#e2e8f0;padding:4px}' +
+    '.bc-brand-chip .bc-emblem img{width:100%;height:100%;object-fit:contain;display:block}' +
+    '@media (prefers-reduced-motion:reduce){.bc-brand-chip{transition:none}}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
       'border-radius:999px;padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;' +
