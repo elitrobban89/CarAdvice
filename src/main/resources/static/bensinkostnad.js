@@ -2142,6 +2142,14 @@ function bcShareCalculation() {
 // ── Bränslejämförelse: samma resa med genomsnittsbil ─────────────
 // Genomsnittsförbrukning för jämförelseraderna (svensk blandad körning)
 var BC_CMP_CONS = { petrol: 0.75, diesel: 0.60, electric: 1.70 };
+
+// Publika laddpriser, kr/kWh inkl moms (uppmätta 2026-09-06). Hemmaladdningen räknas
+// fram ur spotpriset i bcGetElHomePriceAsync — de här två är fasta listpriser och hör
+// därför hemma som konstanter, inte i den beräkningen.
+var BC_LADDPRIS = {
+  ac11:  { kr: 4.75, namn: 'Elbil (snabbladdning 11 kW)' },
+  dc400: { kr: 5.89, namn: 'Elbil (Circle K 400 kW)' }
+};
 var bcCmpToken = 0; // skyddar mot att en långsam hämtning skriver över en nyare beräkning
 
 // Priser utan UI-sidoeffekter — läser samma localStorage-cache som prisknapparna
@@ -2216,6 +2224,17 @@ function bcRenderComparison(mil, kostnad) {
       { key: 'electric', ico: '⚡', name: 'Elbil (hemmaladdning)',
         sub: 'snitt ' + bcFmt(BC_CMP_CONS.electric, 2) + ' kWh/mil × ' + bcFmt(elPris, 2) + ' kr/kWh',
         cost: mil * BC_CMP_CONS.electric * elPris,
+        co2: mil * BC_CMP_CONS.electric * BC_CO2.electric },
+      // De publika laddpriserna står kvar även för en elbilsförare: skillnaden mellan att
+      // ladda hemma och vid en stolpe är hela poängen med raderna, så de filtreras inte
+      // bort av 'current' (som bara tar hemmaladdningsraden).
+      { key: 'ac11', ico: '🔌', name: BC_LADDPRIS.ac11.namn,
+        sub: 'snitt ' + bcFmt(BC_CMP_CONS.electric, 2) + ' kWh/mil × ' + bcFmt(BC_LADDPRIS.ac11.kr, 2) + ' kr/kWh',
+        cost: mil * BC_CMP_CONS.electric * BC_LADDPRIS.ac11.kr,
+        co2: mil * BC_CMP_CONS.electric * BC_CO2.electric },
+      { key: 'dc400', ico: '⚡', name: BC_LADDPRIS.dc400.namn,
+        sub: 'snitt ' + bcFmt(BC_CMP_CONS.electric, 2) + ' kWh/mil × ' + bcFmt(BC_LADDPRIS.dc400.kr, 2) + ' kr/kWh',
+        cost: mil * BC_CMP_CONS.electric * BC_LADDPRIS.dc400.kr,
         co2: mil * BC_CMP_CONS.electric * BC_CO2.electric }
     ].filter(function(a) { return a.key !== current; });
 
