@@ -838,6 +838,112 @@ function bcApplyIceData(list) {
   if (added > 0) bcInitBrands();
 }
 
+
+// ── Märkesemblem i märkesväljaren ────────────────────────────
+// Emblemen och den kurerade kartan kommer från Elbilsladdnings ev-app.js, som ÄGER dem.
+// Filerna serveras av CarAdvice (samma värd som den här filen) - ingen hotlinkning till
+// Wikimedia, sidan ska inte få ett tredjepartsberoende i sidladdningen.
+//
+// KARTAN ÄR KURERAD, inte härledd ur namnet: 'Mercedes-Benz' pekar på filen 'mercedes',
+// och ett namnbaserat uppslag missar den. Fyra märken saknar emblem MED FLIT (XPENG och
+// Zeekr har ordmärken som blir mos i 24 px, Peugeots lejon är inte fritt, Hyundais
+// H-oval fanns bara som en grön triangel i Commons) - de får monogram i stället.
+// Av Bilresas 51 märken får 33 riktigt emblem och 18 monogram.
+var BC_MARKESEMBLEM = {
+  "Mercedes-Benz": "mercedes", "Volkswagen": "volkswagen", "BMW": "bmw", "Škoda": "skoda",
+  "Ford": "ford", "MG": "mg", "Audi": "audi", "Smart": "smart", "Tesla": "tesla",
+  "Citroën": "citroen", "Kia": "kia", "Volvo": "volvo", "Toyota": "toyota",
+  "Renault": "renault", "Opel": "opel", "BYD": "byd", "CUPRA": "cupra", "Mini": "mini",
+  "NIO": "nio", "Polestar": "polestar", "Subaru": "subaru", "Alpine": "alpine",
+  "Geely": "geely", "Jeep": "jeep", "KGM": "kgm", "VinFast": "vinfast", "Fiat": "fiat",
+  "Dacia": "dacia", "Honda": "honda", "JAC": "jac", "Mitsubishi": "mitsubishi",
+  "Rolls-Royce": "rollsroyce",  "Lexus": "lexus", 
+   "GWM": "gwm",  
+    "Nissan": "nissan", "Mazda": "mazda", "Suzuki": "suzuki",
+     
+  "Mercedes": "mercedes"
+};
+var BC_MARKESFARG = {
+  "Tesla": "#e11d48", "BMW": "#0ea5e9", "Mercedes-Benz": "#94a3b8", "Volkswagen": "#3b82f6",
+  "Audi": "#ef4444", "Volvo": "#60a5fa", "Polestar": "#e2e8f0", "Kia": "#f43f5e",
+  "Hyundai": "#38bdf8", "Škoda": "#22c55e", "Porsche": "#eab308", "Renault": "#facc15",
+  "Peugeot": "#3b82f6", "Citroën": "#ef4444", "Opel": "#f59e0b", "Ford": "#2563eb",
+  "Toyota": "#dc2626", "Nissan": "#f87171", "MG": "#f43f5e", "BYD": "#ef4444",
+  "Mini": "#fbbf24", "Fiat": "#a3e635", "CUPRA": "#f97316", "Smart": "#facc15",
+  "Lexus": "#cbd5e1", "Mazda": "#60a5fa", "Honda": "#f87171", "Subaru": "#818cf8",
+  "Dacia": "#4ade80", "Jeep": "#a3e635", "Alpine": "#38bdf8", "XPENG": "#22d3ee"
+};
+// Reservfärger för märken utan egen. Samma palett som Elbilsladdning.
+var BC_EMBLEM_RESERV = ['#3b82f6', '#22c55e', '#f59e0b', '#818cf8', '#ec4899',
+                        '#14b8a6', '#f97316', '#a78bfa', '#06b6d4', '#84cc16'];
+var BC_EMBLEM_BAS = 'https://caradvice.onrender.com/ev-emblem/';
+
+// Nyckeln normaliseras åt BÅDA håll: Bilresa skriver 'Skoda' och 'Cupra' där kartan har
+// 'Škoda' och 'CUPRA'. Utan det tappade sju märken sitt emblem.
+function bcEmblemNyckel(marke) {
+  var s = String(marke || '');
+  if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+var BC_EMBLEM_SLUG = {}, BC_EMBLEM_FARG = {};
+(function() {
+  for (var k in BC_MARKESEMBLEM) if (BC_MARKESEMBLEM.hasOwnProperty(k))
+    BC_EMBLEM_SLUG[bcEmblemNyckel(k)] = BC_MARKESEMBLEM[k];
+  for (var f in BC_MARKESFARG) if (BC_MARKESFARG.hasOwnProperty(f))
+    BC_EMBLEM_FARG[bcEmblemNyckel(f)] = BC_MARKESFARG[f];
+})();
+
+function bcMarkesfarg(marke) {
+  var n = bcEmblemNyckel(marke);
+  if (BC_EMBLEM_FARG[n]) return BC_EMBLEM_FARG[n];
+  var sum = 0;
+  for (var i = 0; i < marke.length; i++) sum += marke.charCodeAt(i);
+  return BC_EMBLEM_RESERV[sum % BC_EMBLEM_RESERV.length];
+}
+
+// Monogrammet: initialer, samma regel som Elbilsladdning.
+function bcEmblemText(marke) {
+  if (/^[A-ZÅÄÖ&]{2,4}$/.test(marke)) return marke.slice(0, 3);
+  var ord = marke.split(/[\s-]+/).filter(Boolean);
+  if (ord.length > 1) return (ord[0][0] + ord[1][0]).toUpperCase();
+  return marke.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Ritar emblemet för valt märke i märkesväljaren.
+ *
+ * Plattan läggs ABSOLUT i den befintliga .bc-input-wrap (som redan är position:relative),
+ * och select:en får extra vänsterpadding. Select:en flyttas alltså INTE och byts inte ut:
+ * tangentbord, mobilens egen väljare och skärmläsare fungerar precis som förut. Plattan är
+ * pointer-events:none, sa ett klick pa den oppnar listan som vanligt.
+ */
+function bcRenderBrandEmblem() {
+  var sel = document.getElementById('bc-brand');
+  if (!sel || !sel.parentNode) return;
+  bcInjectEffectStyles();
+  var wrap = sel.parentNode;
+  var box = document.getElementById('bc-brandEmblem');
+  if (!box) {
+    box = document.createElement('span');
+    box.id = 'bc-brandEmblem';
+    box.setAttribute('aria-hidden', 'true');
+    wrap.insertBefore(box, sel);
+  }
+  var marke = sel.value;
+  if (!marke) { wrap.classList.remove('bc-has-emblem'); box.innerHTML = ''; return; }
+  wrap.classList.add('bc-has-emblem');
+  var slug = BC_EMBLEM_SLUG[bcEmblemNyckel(marke)];
+  if (slug) {
+    box.className = 'bc-emblem bc-emblem-bild';
+    box.removeAttribute('style');
+    box.innerHTML = '<img src="' + BC_EMBLEM_BAS + slug + '.svg" alt="" loading="lazy">';
+  } else {
+    box.className = 'bc-emblem';
+    box.style.setProperty('--emblem', bcMarkesfarg(marke));
+    box.textContent = bcEmblemText(marke);
+  }
+}
+
 // ── Dropdown: märken ──────────────────────────────────
 function bcInitBrands() {
   var sel = document.getElementById('bc-brand');
@@ -848,9 +954,12 @@ function bcInitBrands() {
     o.value = o.textContent = b;
     sel.appendChild(o);
   });
+  // Ett sparat val kan redan ligga i select:en nar listan fyllts.
+  bcRenderBrandEmblem();
 }
 
 function bcOnBrandChange() {
+  bcRenderBrandEmblem();
   var brand    = document.getElementById('bc-brand').value;
   var modelSel = document.getElementById('bc-model');
   modelSel.innerHTML = '<option value="">Välj modell...</option>';
@@ -967,6 +1076,28 @@ function bcInjectEffectStyles() {
     '.bc-cmp-diff.same{color:#6b7280;background:#f3f4f6}' +
     '.bc-cmp-note{font-size:0.7rem;color:#9ca3af;margin:10px 0 0}' +
     '@media (prefers-reduced-motion:reduce){.bc-cmp-row{transition:none}.bc-cmp-row.el .bc-cmp-ico{animation:none}}' +
+    // Emblemplattan i markesvaljaren. Absolut i .bc-input-wrap (redan position:relative),
+    // pointer-events:none sa klicket gar igenom till select:en.
+    '.bc-input-wrap.bc-has-emblem select{padding-left:52px}' +
+    '#bc-brandEmblem{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:30px;' +
+      'height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;' +
+      'font-size:0.66rem;font-weight:800;letter-spacing:0.02em;pointer-events:none;z-index:1;' +
+      'color:#334155;background:color-mix(in srgb,var(--emblem,#6366f1) 13%,#fff);' +
+      'border:1.5px solid color-mix(in srgb,var(--emblem,#6366f1) 34%,transparent);' +
+      'transition:transform 0.18s cubic-bezier(.22,1,.36,1),box-shadow 0.18s}' +
+    // Monogramfargerna ar hamtade fran Elbilsladdning, dar plattan ar MORK. Har ar botten
+    // vit, sa texten far en fast morkt slate-ton - Polestars #e2e8f0 hade varit osynlig.
+    '@supports not (background:color-mix(in srgb,red 10%,transparent)){' +
+      '#bc-brandEmblem{background:#eef2ff;border-color:#c7d2fe}}' +
+    // Bildplattan ar VIT: emblemen ar gjorda for ljus botten (Fords ovala morkblaa, 
+    // VW-ringen). Samma slutsats som kontaktarket i Elbilsladdning kom fram till.
+    '#bc-brandEmblem.bc-emblem-bild{background:#fff;border-color:#e2e8f0;padding:4px;' +
+      'box-shadow:0 1px 2px rgba(15,23,42,0.06)}' +
+    '#bc-brandEmblem img{width:100%;height:100%;object-fit:contain;display:block}' +
+    '.bc-input-wrap.bc-has-emblem select:hover ~ #bc-brandEmblem,' +
+      '.bc-input-wrap.bc-has-emblem select:focus ~ #bc-brandEmblem{transform:translateY(-50%) scale(1.06);' +
+      'box-shadow:0 0 12px rgba(99,102,241,0.25)}' +
+    '@media (prefers-reduced-motion:reduce){#bc-brandEmblem{transition:none}}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
       'border-radius:999px;padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;' +
