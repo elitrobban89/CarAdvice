@@ -942,10 +942,21 @@ function bcInjectEffectStyles() {
     '.bc-cmp-row:hover{background:rgba(99,102,241,0.05)}' +
     // Billigaste raden far egen ram: gron kant till vanster, mjuk toning at hoger och ett
     // dovt glod. Klassen satts i bcRenderComparison, inte har.
-    '.bc-cmp-row.best{background:linear-gradient(90deg,rgba(16,185,129,0.11),rgba(16,185,129,0));' +
-      'box-shadow:inset 3px 0 0 #10b981,0 0 20px rgba(16,185,129,0.18)}' +
+    // GRON RADVALJARE pa billigaste raden - en rundad pelare i vansterkanten, inte en
+    // streckad linje. inset box-shadow foljer radiusen, sa den behover inget overlagg.
+    '.bc-cmp-row.best{background:linear-gradient(90deg,rgba(16,185,129,0.13),rgba(16,185,129,0) 60%);' +
+      'box-shadow:inset 4px 0 0 #10b981,0 0 22px rgba(16,185,129,0.20)}' +
     '.bc-cmp-row.best .bc-cmp-cost{color:#047857}' +
+    '.bc-cmp-row.best .bc-cmp-name{color:#065f46}' +
     '.bc-cmp-ico{font-size:1.15rem;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(15,23,42,0.12))}' +
+    // GUL BLIXT pa elraderna: bara ikonen glodgar, texten ror vi inte. Pulsen ar langsam
+    // och stangs av under prefers-reduced-motion langre ned.
+    '.bc-cmp-row.el .bc-cmp-ico{filter:drop-shadow(0 0 7px rgba(250,204,21,0.9))' +
+      ' drop-shadow(0 1px 2px rgba(15,23,42,0.15));animation:bcBlixt 3.2s ease-in-out infinite}' +
+    '@keyframes bcBlixt{0%,100%{filter:drop-shadow(0 0 6px rgba(250,204,21,0.65))' +
+      ' drop-shadow(0 1px 2px rgba(15,23,42,0.15))}' +
+      '50%{filter:drop-shadow(0 0 11px rgba(250,204,21,1)) drop-shadow(0 0 3px rgba(253,224,71,0.8))' +
+      ' drop-shadow(0 1px 2px rgba(15,23,42,0.15))}}' +
     '.bc-cmp-name{flex:1;min-width:140px;font-size:0.85rem;font-weight:600;color:#374151}' +
     '.bc-cmp-name small{display:block;font-weight:400;color:#9ca3af;font-size:0.72rem;margin-top:1px}' +
     '.bc-cmp-cost{font-weight:800;color:#1e2a3a;font-size:0.95rem;white-space:nowrap;' +
@@ -955,7 +966,7 @@ function bcInjectEffectStyles() {
     '.bc-cmp-diff.pricier{color:#dc2626;background:rgba(239,68,68,0.08);box-shadow:0 0 8px rgba(239,68,68,0.14)}' +
     '.bc-cmp-diff.same{color:#6b7280;background:#f3f4f6}' +
     '.bc-cmp-note{font-size:0.7rem;color:#9ca3af;margin:10px 0 0}' +
-    '@media (prefers-reduced-motion:reduce){.bc-cmp-row{transition:none}}' +
+    '@media (prefers-reduced-motion:reduce){.bc-cmp-row{transition:none}.bc-cmp-row.el .bc-cmp-ico{animation:none}}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
       'border-radius:999px;padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;' +
@@ -2275,7 +2286,9 @@ function bcRenderComparison(mil, kostnad) {
         : diff < 0
           ? '<span class="bc-cmp-diff cheaper">' + bcFmt(-diff, 0) + ' % billigare</span>'
           : '<span class="bc-cmp-diff pricier">+' + bcFmt(diff, 0) + ' % dyrare</span>';
-      html += '<div class="bc-cmp-row' + (a === billigast ? ' best' : '') + '">' +
+      // 'el' markerar de eldrivna raderna - blixten ar gul dar, aldrig pa bensin/diesel.
+      var elrad = (a.key === 'electric' || a.key === 'ac11' || a.key === 'dc400') ? ' el' : '';
+      html += '<div class="bc-cmp-row' + elrad + (a === billigast ? ' best' : '') + '">' +
         '<span class="bc-cmp-ico">' + a.ico + '</span>' +
         '<span class="bc-cmp-name">' + a.name +
           '<small>' + a.sub + ' · ~' + bcFmt(a.co2, a.co2 < 10 ? 1 : 0) + ' kg CO₂</small></span>' +
