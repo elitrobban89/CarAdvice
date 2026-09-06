@@ -170,6 +170,42 @@ class CargoSpecServiceYearTest {
         assertThat(skrivna).isEmpty();
     }
 
+    @Test
+    void handsattDrivmedelSkickasVidareMedKALLAN() {
+        // Regeln var forst "el vinner over ice" och raderade handrattelser natten efter: 09-06
+        // matchade ev-database vara rader "Porsche Macan" och "Opel Astra" under deras korta namn
+        // och skrev el, fast cargo-raden AR forbranningsbilen. Nu avgor kallan, inte vardet.
+        List<String> skrivna = new ArrayList<>();
+        CargoSpecService service = new CargoSpecService(repo, null) {
+            @Override
+            void sattDrivmedel(String carName, String fuel, String kalla) {
+                skrivna.add(carName + "=" + fuel + "/" + kalla);
+            }
+        };
+
+        String csv = String.join(System.lineSeparator(), "Porsche Macan,ice", "Kia EV6,el");
+        assertThat(service.sattDrivmedelCsv(csv)).isEqualTo(2);
+        assertThat(skrivna).containsExactly(
+                "Porsche Macan=ice/" + CargoSpecService.KALLA_MANUELL,
+                "Kia EV6=el/" + CargoSpecService.KALLA_MANUELL);
+    }
+
+    @Test
+    void skraparensSkrivningBarKALLAN_skrapad() {
+        CargoSpec rad = new CargoSpec("Kia EV6", null, null);
+        when(repo.findAll()).thenReturn(List.of(rad));
+        List<String> skrivna = new ArrayList<>();
+        CargoSpecService service = new CargoSpecService(repo, null) {
+            @Override
+            void sattDrivmedel(String carName, String fuel, String kalla) {
+                skrivna.add(carName + "=" + fuel + "/" + kalla);
+            }
+        };
+
+        service.fillFromScrape("Kia EV6 Long Range 2WD", 490, 1300, 0, "el");
+        assertThat(skrivna).containsExactly("Kia EV6=el/" + CargoSpecService.KALLA_SKRAPAD);
+    }
+
     // --- Generationsmarkoren: tva generationer med SAMMA arsmodell ---
 
     /**

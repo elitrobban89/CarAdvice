@@ -83,6 +83,12 @@ public class CargoSpecService {
         try {
             jdbc.execute("CREATE TABLE IF NOT EXISTS cargo_spec_fuel ("
                     + "car_name VARCHAR(200) PRIMARY KEY, fuel VARCHAR(16) NOT NULL)");
+            // Kolumnen kom till 2026-09-06, efter att tabellen redan stod i drift med 385 rader.
+            // CREATE TABLE IF NOT EXISTS ror inte en befintlig tabell, sa den maste ALTRAS - och
+            // det gar bra just har: cargo_spec_fuel ar ingen JPA-entitet, sa ddl-auto=validate
+            // har ingen asikt om den. Befintliga rader far 'skrapad', vilket ar sant om dem.
+            jdbc.execute("ALTER TABLE cargo_spec_fuel ADD COLUMN IF NOT EXISTS "
+                    + "source VARCHAR(16) NOT NULL DEFAULT 'skrapad'");
         } catch (Exception e) {
             log.warn("cargo_spec_fuel kunde inte skapas: {}", e.getMessage());
         }
@@ -125,6 +131,24 @@ public class CargoSpecService {
     }
 
     /**
+     * Namnen som satts FÖR HAND, normaliserade.
+     *
+     * <p>Instrumentet till provenienssregeln: utan den här listan gick det inte att se att
+     * nattjobbet hade skrivit över en handrättelse — räknaren visade bara total/el/ice, och
+     * 385/382/3 såg ut som ren framgång medan två kurerade rader tyst hade flippat.
+     */
+    public List<String> manuellaDrivmedel() {
+        if (jdbc == null) return List.of();
+        try {
+            return jdbc.queryForList("SELECT car_name FROM cargo_spec_fuel WHERE source = ?",
+                    String.class, KALLA_MANUELL);
+        } catch (Exception e) {
+            log.warn("manuella drivmedel kunde inte läsas: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
      * Sätter drivmedel för flera rader ur CSV ({@code namn,el} per rad).
      *
      * <p>Finns av två skäl. Dels är {@code sattDrivmedel} annars bara nåbar från nattens
@@ -145,7 +169,7 @@ public class CargoSpecService {
             String namn = delar[0].trim().replaceAll("^\"|\"$", "");
             String fuel = delar[1].trim().toLowerCase();
             if (namn.isBlank() || (!"el".equals(fuel) && !"ice".equals(fuel))) continue;
-            sattDrivmedel(namn, fuel);
+            sattDrivmedel(namn, fuel, KALLA_MANUELL);
             antal++;
         }
         return antal;
@@ -168,18 +192,36 @@ public class CargoSpecService {
      * namn: "Kia EV6" är en elbil oavsett vilken variantsida som fyllde raden. Årtalet varierar
      * mellan generationer, drivmedlet gör det inte.
      *
-     * <p><b>El vinner över ice.</b> Möts en rad av båda källorna är det för att namnet delas av en
-     * elbil och en förbränningsbil, och då är den elbilsuppgiften den som bär ny information —
-     * ett elbilssvar ska hellre innehålla en tveksam bil än missa en riktig.
+     * <p><b>PROVENIENS avgör, inte värdet.</b> Regeln var först "el vinner över ice", och den
+     * <b>raderade handrättelser natten efter att de gjorts</b> (uppmätt 2026-09-06): ev-database
+     * matchade våra rader {@code Porsche Macan} och {@code Opel Astra} under deras korta namn,
+     * skrev {@code el}, och företrädet gjorde att skrivningen stod sig — fast cargo-raden ÄR
+     * förbränningsbilen. Felet upprepades varje natt och syntes inte i räknaren, som bara visade
+     * 385/382/3 och såg ut som ren framgång.
+     *
+     * <p>En rad satt för hand ({@code source = manuell}) skrivs därför aldrig över av en skrapad.
+     * Motiveringen för det gamla företrädet ("hellre en tveksam bil än missa en riktig") höll inte:
+     * en människa som uttryckligen satt {@code ice} på raden bär mer information än en namnmatchning.
      */
+    /** Kallan som skrev en rad. En HANDSATT rad skrivs aldrig over av en skrapad. */
+    static final String KALLA_MANUELL = "manuell";
+    static final String KALLA_SKRAPAD = "skrapad";
+
     void sattDrivmedel(String carName, String fuel) {
+        sattDrivmedel(carName, fuel, KALLA_SKRAPAD);
+    }
+
+    void sattDrivmedel(String carName, String fuel, String kalla) {
         if (jdbc == null || carName == null || carName.isBlank()) return;
         if (!"el".equals(fuel) && !"ice".equals(fuel)) return;
+        boolean manuell = KALLA_MANUELL.equals(kalla);
         try {
-            jdbc.update("INSERT INTO cargo_spec_fuel (car_name, fuel) VALUES (?, ?) "
-                    + "ON CONFLICT (car_name) DO UPDATE SET fuel = "
-                    + "CASE WHEN cargo_spec_fuel.fuel = 'el' THEN 'el' ELSE EXCLUDED.fuel END",
-                    carName, fuel);
+            jdbc.update("INSERT INTO cargo_spec_fuel (car_name, fuel, source) VALUES (?, ?, ?) "
+                    + "ON CONFLICT (car_name) DO UPDATE SET fuel = EXCLUDED.fuel, "
+                    + "source = EXCLUDED.source "
+                    + "WHERE cargo_spec_fuel.source <> '" + KALLA_MANUELL + "' "
+                    + "OR EXCLUDED.source = '" + KALLA_MANUELL + "'",
+                    carName, fuel, manuell ? KALLA_MANUELL : KALLA_SKRAPAD);
             drivmedelCacheTid = 0L;
         } catch (Exception e) {
             log.warn("Drivmedel {} för {} kunde inte skrivas: {}", fuel, carName, e.getMessage());

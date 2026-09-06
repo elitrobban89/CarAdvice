@@ -967,8 +967,13 @@ public class CarController {
         if (drivmedel) {
             var karta = cargoSpecService.drivmedel();
             long el = karta.values().stream().filter("el"::equals).count();
+            // De HANDSATTA raderna listas separat: en handrattelse som tyst skrivits over av
+            // nattjobbet syns inte i total/el/ice - 385/382/3 sag ut som ren framgang 09-06
+            // medan tva kurerade rader hade flippat.
+            var manuella = cargoSpecService.manuellaDrivmedel();
             return ResponseEntity.ok(Map.of("total", karta.size(), "el", el,
-                    "ice", karta.size() - el, "drivmedel", new java.util.TreeMap<>(karta)));
+                    "ice", karta.size() - el, "manuella", manuella.size(),
+                    "manuellaRader", manuella, "drivmedel", new java.util.TreeMap<>(karta)));
         }
         // Med ?car= svarar endpointen på VILKEN rad titeln landar på och vilka andra som fanns
         // att välja på. Tabellens värden gick att läsa sedan 2026-08-20, men inte VALET mellan
