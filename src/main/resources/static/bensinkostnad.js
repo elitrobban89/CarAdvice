@@ -983,7 +983,8 @@ function bcRenderBrandGrid() {
       var inre = slug
         ? '<span class=\'bc-emblem bc-emblem-bild\'><img src=\'' + BC_EMBLEM_BAS + slug + '.svg\' alt=\'\' loading=\'lazy\'></span>'
         : '<span class=\'bc-emblem\' style=\'--emblem:' + bcMarkesfarg(m) + '\'>' + bcEmblemText(m) + '</span>';
-      html += '<button type=\'button\' class=\'bc-brand-chip\' data-marke=\'' + m + '\' title=\'' + m + '\' aria-label=\'' + m + '\'>' + inre + '</button>';
+      html += '<button type=\'button\' class=\'bc-brand-chip\' data-marke=\'' + m + '\' title=\'' + m + '\' aria-label=\'' + m + '\'>'
+        + inre + '<span class=\'bc-brand-namn\'>' + m + '</span></button>';
     });
     box.innerHTML = html;
   }
@@ -1162,14 +1163,16 @@ function bcInjectEffectStyles() {
     '@media (prefers-reduced-motion:reduce){#bc-brandEmblem{transition:none}}' +
     // Emblemrutan: alla marken syns innan man valt. Hogdbegransad och scrollande - 51
     // plattor i ett oppet rutnat blev 250 px och tog over formularet.
-    '.bc-brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));' +
-      'gap:6px;max-height:132px;overflow-y:auto;padding:8px;margin-bottom:8px;' +
+    '.bc-brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));' +
+      'gap:6px;max-height:201px;overflow-y:auto;padding:8px;margin-bottom:8px;' +
       'border:1.5px solid #e2e8f0;border-radius:12px;background:linear-gradient(180deg,#fff,#fcfcff);' +
       'box-shadow:inset 0 -8px 10px -10px rgba(15,23,42,0.18)}' +
     '.bc-brand-grid::-webkit-scrollbar{width:8px}' +
     '.bc-brand-grid::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}' +
-    '.bc-brand-chip{border:0;background:none;padding:2px;cursor:pointer;border-radius:9px;' +
-      'display:flex;align-items:center;justify-content:center;font-family:inherit;' +
+    // Kolumn: emblemet overst, markesnamnet under. Namnet klipps med ellips och hela
+    // namnet ligger kvar i title-attributet - 'Mercedes-Benz' far inte bredda rutnatet.
+    '.bc-brand-chip{border:0;background:none;padding:5px 3px 4px;cursor:pointer;border-radius:9px;' +
+      'display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;' +
       'transition:transform 0.16s cubic-bezier(.22,1,.36,1),box-shadow 0.16s,background 0.16s}' +
     '.bc-brand-chip:hover{background:rgba(99,102,241,0.07);transform:translateY(-1px)}' +
     '.bc-brand-chip:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(99,102,241,0.35)}' +
@@ -1183,6 +1186,10 @@ function bcInjectEffectStyles() {
       'border:1.5px solid color-mix(in srgb,var(--emblem,#6366f1) 34%,transparent)}' +
     '.bc-brand-chip .bc-emblem-bild{background:#fff;border-color:#e2e8f0;padding:4px}' +
     '.bc-brand-chip .bc-emblem img{width:100%;height:100%;object-fit:contain;display:block}' +
+    '.bc-brand-namn{font-size:0.56rem;font-weight:600;line-height:1.1;color:#64748b;' +
+      'max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+      'pointer-events:none;letter-spacing:0.01em}' +
+    '.bc-brand-chip.vald .bc-brand-namn{color:#4338ca}' +
     '@media (prefers-reduced-motion:reduce){.bc-brand-chip{transition:none}}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
