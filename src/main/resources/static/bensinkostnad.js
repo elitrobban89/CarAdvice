@@ -650,7 +650,7 @@ function bcSetFuelMode(mode) {
     if (consHint)    consHint.textContent    = 'En elbil drar i genomsnitt 1,5 till 2,0 kWh per mil. Ange din bils förbrukning i kWh/mil.';
     if (priceLabel)  priceLabel.textContent  = 'Pris per kWh';
     if (priceUnit)   priceUnit.textContent   = 'SEK/kWh';
-    if (priceHint)   priceHint.textContent   = 'Hemmaladdning ca 1–2 SEK/kWh · Snabbladdning ca 3–6 SEK/kWh';
+    if (priceHint)   priceHint.textContent   = 'Hemmaladdning ca 1–2 SEK/kWh · Snabbladdning ca 4–7 SEK/kWh';
     if (card3Header) card3Header.textContent = 'Laddningspris';
     if (fLabel1)     fLabel1.textContent     = 'kWh åtgång';
     if (fExpr1)      fExpr1.textContent      = 'mil × kWh/mil';
@@ -925,19 +925,37 @@ function bcInjectEffectStyles() {
     '.bc-charge-link{font-size:0.75rem;font-weight:600;color:#7c3aed;text-decoration:none;align-self:center;' +
       'padding:6px 2px;transition:opacity 0.2s}' +
     '.bc-charge-link:hover{opacity:0.75;text-decoration:underline;color:#7c3aed}' +
-    '.bc-compare{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px 18px;margin-bottom:14px}' +
-    '.bc-compare h4{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin:0 0 6px}' +
-    '.bc-cmp-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}' +
+    // Glodet ligger i BAKGRUNDSLAGRET (box-shadow + gradient), aldrig som ett absolut
+    // ::before-overlagg pa kortet - ett sadant lager tvattade ur den statiska texten
+    // senast det provades. Prickens ::before ar en FLEX-ITEM i rubriken, inget overlagg.
+    '.bc-compare{position:relative;background:linear-gradient(180deg,#fff 0%,#fcfcff 100%);' +
+      'border:1.5px solid #e2e8f0;border-radius:14px;padding:16px 18px;margin-bottom:14px;' +
+      'box-shadow:0 1px 2px rgba(15,23,42,0.04),0 0 30px rgba(99,102,241,0.13)}' +
+    '.bc-compare h4{display:flex;align-items:center;gap:7px;font-size:0.72rem;font-weight:700;' +
+      'text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin:0 0 8px}' +
+    '.bc-compare h4::before{content:"";width:6px;height:6px;border-radius:50%;flex-shrink:0;' +
+      'background:linear-gradient(135deg,#6366f1,#a855f7);box-shadow:0 0 9px rgba(129,140,248,0.95)}' +
+    '.bc-cmp-row{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:0 -10px;' +
+      'border-radius:10px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;' +
+      'transition:background 0.18s ease,box-shadow 0.18s ease}' +
     '.bc-cmp-row:last-of-type{border-bottom:none}' +
-    '.bc-cmp-ico{font-size:1.15rem;flex-shrink:0}' +
+    '.bc-cmp-row:hover{background:rgba(99,102,241,0.05)}' +
+    // Billigaste raden far egen ram: gron kant till vanster, mjuk toning at hoger och ett
+    // dovt glod. Klassen satts i bcRenderComparison, inte har.
+    '.bc-cmp-row.best{background:linear-gradient(90deg,rgba(16,185,129,0.11),rgba(16,185,129,0));' +
+      'box-shadow:inset 3px 0 0 #10b981,0 0 20px rgba(16,185,129,0.18)}' +
+    '.bc-cmp-row.best .bc-cmp-cost{color:#047857}' +
+    '.bc-cmp-ico{font-size:1.15rem;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(15,23,42,0.12))}' +
     '.bc-cmp-name{flex:1;min-width:140px;font-size:0.85rem;font-weight:600;color:#374151}' +
     '.bc-cmp-name small{display:block;font-weight:400;color:#9ca3af;font-size:0.72rem;margin-top:1px}' +
-    '.bc-cmp-cost{font-weight:800;color:#1e2a3a;font-size:0.95rem;white-space:nowrap}' +
+    '.bc-cmp-cost{font-weight:800;color:#1e2a3a;font-size:0.95rem;white-space:nowrap;' +
+      'font-variant-numeric:tabular-nums}' +
     '.bc-cmp-diff{font-size:0.72rem;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap}' +
     '.bc-cmp-diff.cheaper{color:#059669;background:rgba(16,185,129,0.10);box-shadow:0 0 8px rgba(16,185,129,0.25)}' +
-    '.bc-cmp-diff.pricier{color:#dc2626;background:rgba(239,68,68,0.08)}' +
+    '.bc-cmp-diff.pricier{color:#dc2626;background:rgba(239,68,68,0.08);box-shadow:0 0 8px rgba(239,68,68,0.14)}' +
     '.bc-cmp-diff.same{color:#6b7280;background:#f3f4f6}' +
-    '.bc-cmp-note{font-size:0.7rem;color:#9ca3af;margin:8px 0 0}' +
+    '.bc-cmp-note{font-size:0.7rem;color:#9ca3af;margin:10px 0 0}' +
+    '@media (prefers-reduced-motion:reduce){.bc-cmp-row{transition:none}}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
       'border-radius:999px;padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;' +
@@ -1065,10 +1083,21 @@ var BC_EL_CACHE_TTL = 60 * 60 * 1000; // 1 timme — spotpriset ändras varje ti
 var BC_EL_SURCHARGE = 1.25;
 var BC_EL_FALLBACK_TOTAL = 2.00; // används när backend inte svarar alls
 
-// Genomsnittligt snabbladdarpris (SEK/kWh inkl moms) — sista reserv när
-// Elbilsladdning-backendens /api/charging-price inte svarar; operatörerna
-// tar ca 4–7 kr/kWh
-var BC_EL_FAST_AVG = 4.75;
+// Publika laddpriser, kr/kWh inkl moms (uppmätta 2026-09-06). Hemmaladdningen räknas
+// fram ur spotpriset i bcGetElHomePriceAsync — de här två är fasta listpriser.
+//
+// EN KÄLLA FÖR ALLA LADDPRISER I FILEN. 4,75 låg tidigare i BC_EL_FAST_AVG under
+// etiketten "genomsnittligt SNABBLADDARpris", medan 11 kW är AC och inte snabbladdning
+// alls. Chippet sa alltså "⚡ Snabbladdare ~4,75" samtidigt som jämförelseraden sa att
+// 4,75 är publik 11 kW-laddning — två olika besked om samma tal på samma skärm.
+var BC_LADDPRIS = {
+  ac11:  { kr: 4.75, namn: 'Elbil (publik laddning 11 kW)' },
+  dc400: { kr: 5.89, namn: 'Elbil (snabbladdning Circle K 400 kW)' }
+};
+
+// Sista reserv när Elbilsladdning-backendens /api/charging-price inte svarar. Ett
+// SNABBLADDARpris hör hemma här, alltså DC-talet — operatörerna tar ca 4–7 kr/kWh.
+var BC_EL_FAST_AVG = BC_LADDPRIS.dc400.kr;
 
 // Snabbladdarpris från Elbilsladdning-backenden: närmaste DC-station med känd
 // operatör (kräver position), annars riksgenomsnitt av operatörstabellen
@@ -2142,14 +2171,6 @@ function bcShareCalculation() {
 // ── Bränslejämförelse: samma resa med genomsnittsbil ─────────────
 // Genomsnittsförbrukning för jämförelseraderna (svensk blandad körning)
 var BC_CMP_CONS = { petrol: 0.75, diesel: 0.60, electric: 1.70 };
-
-// Publika laddpriser, kr/kWh inkl moms (uppmätta 2026-09-06). Hemmaladdningen räknas
-// fram ur spotpriset i bcGetElHomePriceAsync — de här två är fasta listpriser och hör
-// därför hemma som konstanter, inte i den beräkningen.
-var BC_LADDPRIS = {
-  ac11:  { kr: 4.75, namn: 'Elbil (snabbladdning 11 kW)' },
-  dc400: { kr: 5.89, namn: 'Elbil (Circle K 400 kW)' }
-};
 var bcCmpToken = 0; // skyddar mot att en långsam hämtning skriver över en nyare beräkning
 
 // Priser utan UI-sidoeffekter — läser samma localStorage-cache som prisknapparna
@@ -2238,6 +2259,14 @@ function bcRenderComparison(mil, kostnad) {
         co2: mil * BC_CMP_CONS.electric * BC_CO2.electric }
     ].filter(function(a) { return a.key !== current; });
 
+    // Billigaste alternativet lyfts fram med klassen 'best'. Rakningen gors HAR och inte i
+    // CSS: :first-child hade markerat forsta raden, som inte alls behover vara billigast.
+    //
+    // MARKERINGEN KRAVER ATT DET FAKTISKT AR BILLIGARE AN BILEN DU KOR. Utan det villkoret
+    // fick en gron 'bast'-rad en rod '+86 % dyrare'-badge bredvid sig - tva motsatta besked
+    // i samma rad. Ar inget alternativ billigare finns det inget att lyfta fram.
+    var billigast = alts.reduce(function(b, a) { return (b === null || a.cost < b.cost) ? a : b; }, null);
+    if (billigast && billigast.cost >= kostnad) billigast = null;
     var html = '<h4>Samma resa med annat drivmedel</h4>';
     alts.forEach(function(a) {
       var diff = (a.cost - kostnad) / kostnad * 100;
@@ -2246,7 +2275,8 @@ function bcRenderComparison(mil, kostnad) {
         : diff < 0
           ? '<span class="bc-cmp-diff cheaper">' + bcFmt(-diff, 0) + ' % billigare</span>'
           : '<span class="bc-cmp-diff pricier">+' + bcFmt(diff, 0) + ' % dyrare</span>';
-      html += '<div class="bc-cmp-row"><span class="bc-cmp-ico">' + a.ico + '</span>' +
+      html += '<div class="bc-cmp-row' + (a === billigast ? ' best' : '') + '">' +
+        '<span class="bc-cmp-ico">' + a.ico + '</span>' +
         '<span class="bc-cmp-name">' + a.name +
           '<small>' + a.sub + ' · ~' + bcFmt(a.co2, a.co2 < 10 ? 1 : 0) + ' kg CO₂</small></span>' +
         '<span class="bc-cmp-cost">' + bcFmt(a.cost, 0) + ' kr</span>' + badge + '</div>';
