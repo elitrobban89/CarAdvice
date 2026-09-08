@@ -302,6 +302,11 @@ public class GroqService {
      * budget- och regelomförsök) räckte två-tre klick i rad för att tömma hela kedjan.
      * Klientens tak måste vara större än {@link #MAX_429_WAIT_SECONDS} plus rundturerna,
      * annars byter man bara ett ärligt "vänta" mot en timeout.
+     *
+     * <p>Sedan {@link #sendMedPaus} finns kan EN sökning i värsta fall sova två gånger: här och
+     * på reservmodellens omförsök. Taket är alltså 2 × {@link #MAX_429_WAIT_SECONDS} plus
+     * rundturerna ≈ 65 s, och det är den siffran klientens 75 s ska mätas mot — inte 25.
+     * Höjs {@link #MAX_429_WAIT_SECONDS} måste klientens tak följa med.
      */
     /**
      * Hur många sekunder pausen ska sova innan omförsöket — eller {@code -1} för "ge upp och
@@ -324,6 +329,48 @@ public class GroqService {
         int vanta = parseRetrySeconds(body);
         if (vanta > MAX_429_WAIT_SECONDS) return -1;
         return vanta <= 0 ? OKAND_429_WAIT_SECONDS : vanta;
+    }
+
+    /**
+     * Ett enskilt Groq-anrop utanför modellkedjan, med samma paus som {@link #callGroqWithFallback}.
+     *
+     * <p>Skarpt prov 2026-09-08, EFTER att pausen i modellkedjan lagats: /api/recommend svarade
+     * fortfarande 429 på 3,2 sekunder. Felmeddelandets svans ("Dina kriterier är inte problemet")
+     * pekade ut varifrån — inte kedjan, utan {@code parseWithRetry}. Modellkedjan hade alltså
+     * svarat 200, svaret föll på tolkningen eller en regelvakt, och reservmodellens omförsök var
+     * ETT ensamt anrop som kastade 429:an rakt ut. Den vägen såg pausen aldrig.
+     *
+     * <p>Det är den vanligaste vägen till felet, inte den ovanliga: att kedjan svarar men att
+     * innehållet faller är precis vad regelvakterna är byggda för att göra.
+     *
+     * <p>Mätningen låg länge BARA i {@link #callGroqWithFallback}, och det här anropet gick
+     * utanför den. Reservmodellens anrop var därmed osynliga i /api/admin/token-usage: qwen
+     * syntes aldrig i en enda mätning 2026-08-28 trots att den var konfigurerad och frisk, och
+     * varje siffra jag läste den dagen underskattade förbrukningen. En mätning som tyst
+     * utelämnar en av vägarna är värre än ingen — man felsöker i halvmörker och tror att man
+     * ser hela bilden. Därför bokförs BÅDA anropen nedan.
+     */
+    private HttpResponse<String> sendMedPaus(Object body) throws Exception {
+        HttpResponse<String> resp = httpClient.send(buildRequest(body), HttpResponse.BodyHandlers.ofString());
+        registreraTokenanvandning(body, resp);
+        if (resp.statusCode() != 429) return resp;
+
+        int vanta = pausInnanOmforsok(resp.body());
+        if (vanta < 0) {
+            log.warn("Reservmodellen gav 429 och vantetiden ({} s) ryms inte i pausen — lamnar felet vidare",
+                    parseRetrySeconds(resp.body()));
+            return resp;
+        }
+        log.info("Reservmodellen gav 429 — sover {} s och provar den igen", vanta);
+        try {
+            Thread.sleep(vanta * 1000L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return resp;
+        }
+        HttpResponse<String> omforsok = httpClient.send(buildRequest(body), HttpResponse.BodyHandlers.ofString());
+        registreraTokenanvandning(body, omforsok);
+        return omforsok;
     }
 
     private HttpResponse<String> callGroqWithFallback(Object... bodies) throws Exception {
@@ -454,14 +501,7 @@ public class GroqService {
             return parsed;
         } catch (RuntimeException first) {
             log.warn("{}: ofullständigt/tomt svar — omförsök med {}", label, reserveModel);
-            HttpResponse<String> retry = httpClient.send(buildRequest(reserveBody), HttpResponse.BodyHandlers.ofString());
-            // Mätningen låg BARA i callGroqWithFallback, och det här omförsöket går utanför den.
-            // Reservmodellens anrop var därmed osynliga i /api/admin/token-usage: qwen syntes
-            // aldrig i en enda mätning 2026-08-28 trots att den var konfigurerad och frisk, och
-            // varje siffra jag läste den dagen underskattade förbrukningen. En mätning som tyst
-            // utelämnar en av vägarna är värre än ingen — man felsöker i halvmörker och tror
-            // att man ser hela bilden.
-            registreraTokenanvandning(reserveBody, retry);
+            HttpResponse<String> retry = sendMedPaus(reserveBody);
             // Ett rate limit på omförsöket är INTE samma fel som det första: förr kastades det
             // ursprungliga trunkeringsfelet vidare, så användaren fick "AI-svaret blev
             // ofullständigt" plus rådet att lätta på sina kriterier — fast kriterierna var
