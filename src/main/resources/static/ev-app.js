@@ -1,6 +1,12 @@
 (function () {
   const API = window.EV_API_URL || "https://elbilsladdning.onrender.com";
 
+  // Elområdespriserna bor hos Bilresa. Egen värd med flit: det är den backenden som redan
+  // har hämtningen från elprisetjustnu.se och timcachen, och en andra kopia av samma
+  // integration hade glidit isär från den. Tjänsten ligger på gratisnivån och somnar —
+  // svarar den inte visas raden helt enkelt inte, och det är hela felhanteringen.
+  const BILRESA_API = window.EV_BILRESA_URL || "https://bilresa.onrender.com";
+
   // Var FILERNA ligger — härlett ur var den här filen själv laddades ifrån.
   //
   // Skilt från API med flit: DATAN bor hos Elbilsladdning, som ligger på Renders
@@ -67,7 +73,7 @@
   }
   window.evDataKlar = evDataKlar;
 
-  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "" };
+  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [] };
   // ===== PRISLOGIK BÖRJAR — ren, testas av backend/src/test/js/pris-prov.js =====
   //
   // Låg förut inline på TRE ställen (stationskorten, chattens stationskontext och
@@ -1012,6 +1018,21 @@
     // renderTipsOnly avstår själv om en sökning redan hunnit rendera.
     .finally(() => renderTipsOnly());
 
+  // Laddpriset ur vår EGEN operatörstabell. Hämtas utan position med flit: då svarar
+  // backenden med riksgenomsnittet plus tabellens ytterligheter, vilket är precis vad
+  // faktaraden jämför. Med position hade svaret handlat om närmaste stolpe i stället.
+  fetch(API + "/api/charging-price")
+    .then(r => r.json())
+    .then(d => { if (d && d.cheapest && d.priciest) state.laddpriser = d; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
+  fetch(BILRESA_API + "/api/electricity-price?zone=alla")
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => { if (d && Array.isArray(d.zones) && d.zones.length >= 2) state.elzoner = d.zones; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
   // Värdetappslistan: nypris ur Kvdbils artikel, medianpriset räknat på Blocket varje vecka.
   // Tom före första synken — då visas varken fyndtabellen eller faktaraden.
   fetch(API + "/api/value-retention")
@@ -1931,6 +1952,55 @@
           `Fyndläge på begagnad el: <strong>${v.model}</strong> har tappat <strong>${100 - v.retentionPct} %</strong> av nypriset på fem år. Ny kostade den ${v.newPriceKr.toLocaleString('sv-SE')} kr — idag ligger medianen på <strong>${v.medianPriceKr.toLocaleString('sv-SE')} kr</strong>${v.cheapestPriceKr ? `, billigaste exemplaret på ${v.cheapestPriceKr.toLocaleString('sv-SE')} kr` : ''}. Räknat på ${v.adCount} annonser av årsmodell 2021 under 15 000 mil (${state.valueRetentionKalla}; medianpriset är vår egen mätning på Blocket).` });
       }
 
+      /*
+       * Laddpriset. Spridningen mellan nätverken är större än spridningen mellan bilar, och
+       * det är den enda prissiffran vi själva äger och kan hålla aktuell — tabellen bor i
+       * OperatorPriceService. Kvoten skrivs bara ut när den faktiskt räknats fram; att
+       * påstå "mer än dubbelt" i löptext hade blivit fel dagen någon justerar en rad.
+       */
+      const dynamicPrisFacts = [];
+      if (state.laddpriser && state.laddpriser.cheapest && state.laddpriser.priciest) {
+        const p = state.laddpriser;
+        const kr = (n) => n.toFixed(2).replace(".", ",");
+        const per50 = Math.round((p.priciest.priceKr - p.cheapest.priceKr) * 50);
+        const kvot = (p.priciest.priceKr / p.cheapest.priceKr).toFixed(1).replace(".", ",");
+        dynamicPrisFacts.push({ icon: '💸', text:
+          `Var du laddar avgör priset mer än vilken bil du kör: billigast i vår operatörstabell är <strong>${p.cheapest.operator}</strong> på <strong>${kr(p.cheapest.priceKr)} kr/kWh</strong>, dyrast <strong>${p.priciest.operator}</strong> på <strong>${kr(p.priciest.priceKr)} kr/kWh</strong> — <strong>${kvot} gånger</strong> så mycket för exakt samma ström. På en påfyllning om 50 kWh skiljer det <strong>${per50} kr</strong>${p.avgNationalKr ? `, och snittet i tabellen ligger på ${kr(p.avgNationalKr)} kr/kWh` : ''}. (Våra egna riktpriser per nätverk.)` });
+      }
+
+      /*
+       * Elområdena. Spotpriset för DEN HÄR timmen, och brasklappen är inte valfri: priset är
+       * före energiskatt, nätavgift och moms, så den som jämför mot sin elräkning ser ett
+       * helt annat tal. Raden uteblir när skillnaden är under ett öre — då finns ingen
+       * historia att berätta, bara en siffra som avrundats fram.
+       */
+      const dynamicZonFacts = [];
+      if (state.elzoner && state.elzoner.length >= 2) {
+        const sorterade = state.elzoner.slice().sort((a, b) => a.spot - b.spot);
+        const lag = sorterade[0], hog = sorterade[sorterade.length - 1];
+        const ore = Math.round((hog.spot - lag.spot) * 100);
+        if (ore >= 1) dynamicZonFacts.push({ icon: '🗺️', text:
+          `Samma kilowattimme kostar olika mycket beroende på var i landet du står: just nu <strong>${Math.round(lag.spot * 100)} öre/kWh</strong> i <strong>${lag.zone}</strong> mot <strong>${Math.round(hog.spot * 100)} öre</strong> i <strong>${hog.zone}</strong> — <strong>${ore} öre</strong> i skillnad på spotpriset för den här timmen. Lägg på energiskatt, nätavgift och moms innan du jämför med din egen elräkning (elprisetjustnu.se).` });
+      }
+
+      /*
+       * Effekttaket, räknat på vår egen bildatabas. Den vanligaste missuppfattningen är att
+       * en kraftigare stolpe laddar fortare oavsett bil — kalkylatorn i appen räknar redan
+       * på det LÄGSTA av bilens och stolpens tak, och den här raden säger varför.
+       *
+       * Ingen siffra på hur mycket laddkurvan trappas ned: den mätningen har vi inte, och
+       * ett påhittat tal i en faktakarusell är värre än en rad som utelämnar det.
+       */
+      const dynamicEffektFacts = [];
+      const medDc = (state.cars || []).filter(c => c.maxDcKw > 0);
+      if (medDc.length >= 10) {
+        const snabba = medDc.filter(c => c.maxDcKw >= 150).length;
+        const langsamma = medDc.filter(c => c.maxDcKw < 100).length;
+        const topp = medDc.reduce((a, c) => (c.maxDcKw > a.maxDcKw ? c : a), medDc[0]);
+        dynamicEffektFacts.push({ icon: '🔌', text:
+          `Stolpens effekt är sällan taket — bilen är det: av <strong>${medDc.length}</strong> snabbladdande bilar i vår databas klarar <strong>${snabba}</strong> minst 150 kW, medan <strong>${langsamma}</strong> ligger under 100 kW. Högst upp: <strong>${topp.name}</strong> med <strong>${Math.round(topp.maxDcKw)} kW</strong>. Vid en 350 kW-laddare laddar en 100 kW-bil precis lika långsamt som vid en 100 kW-stolpe, och därför räknar laddtidskalkylatorn här på det lägsta av bilens och stolpens tak. Den börjar dessutom på 20→80 %: laddeffekten trappas ned mot fullt batteri, så de sista procenten är de dyraste i tid.` });
+      }
+
       const dynamicRankFacts = [];
       if (state.evSalesRank && state.evSalesRank.length > 0) {
         const top = state.evSalesRank[0];
@@ -1947,7 +2017,10 @@
         // Fyndraden tidigt: den är det mest köpvärda tipset i hela kortleken, och den är
         // dessutom färsk varje vecka till skillnad från de statiska.
         ...dynamicVardeFacts,
+        ...dynamicPrisFacts,
         ...dynamicRankFacts,
+        ...dynamicZonFacts,
+        ...dynamicEffektFacts,
         ...staticFacts
       ];
 
