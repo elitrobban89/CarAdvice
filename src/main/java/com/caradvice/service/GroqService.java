@@ -284,6 +284,10 @@ public class GroqService {
     private final TokenUsageStats tokenStatistik = new TokenUsageStats();
 
     public Map<String, Object> tokenAnvandning() { return tokenStatistik.rapport(); }
+
+    private final AiFailureStats aiFelStatistik = new AiFailureStats();
+
+    public Map<String, Object> aiMisslyckanden() { return aiFelStatistik.rapport(); }
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     /**
@@ -570,7 +574,25 @@ public class GroqService {
             log.warn("Groq empty content {} finish_reason={} body={}", label, finishReason, response.body());
             throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
         }
-        return parseRecommendations(content);
+        try {
+            return parseRecommendations(content);
+        } catch (RuleViolationException e) {
+            // Egen kanal för "giltig JSON men inga användbara bilar" — den loggar redan råsvaret
+            // och leder till rättelseförsöket, inte till ett fel. Ska inte larma här.
+            throw e;
+        } catch (RuntimeException e) {
+            // VILKEN modell som skrev det oläsbara svaret är hela frågan sedan kedjan fick en
+            // fjärde modell. parseRecommendations känner bara innehållet; modellnamnet står i
+            // Groqs svarskuvert och finns bara här.
+            String modell = json.at("/model").asText("okand");
+            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            log.warn("Otolkbart svar {} — modell={} finish_reason={} langd={}", label,
+                    modell, finishReason, content.length());
+            // Loggen hjälper bara den som kan läsa värdens logg. Bufferten gör samma fakta
+            // läsbara över /api/admin/ai-failures — annars kan felet bara gissas om utifrån.
+            aiFelStatistik.registrera(label, modell, finishReason, e.getMessage(), content);
+            throw e;
+        }
     }
 
     /** Tolkar svaret; vid tomt/trunkerat svar görs ETT omförsök med reservmodellen innan felet släpps ut. */
@@ -1918,7 +1940,15 @@ public class GroqService {
         try {
             root = mapper.readTree(jsonStr);
         } catch (Exception e) {
-            log.warn("AI returned truncated/invalid JSON (len={}): {}", content.length(), e.getMessage());
+            // LÄNGDEN var allt som loggades fram till 2026-09-08, och det räcker inte till
+            // någonting: "len=3200, Unexpected character" säger att svaret var trasigt men inte
+            // HUR. Grannfelet nedan ("no parseable recommendations") loggar råsvaret sedan
+            // länge, och det är just den raden som gjort de felen möjliga att lösa. Samma hål
+            // som 429-kroppen hade — felet man inte kan diagnostisera i efterhand är alltid det
+            // som inte loggar vad det såg.
+            log.warn("AI returned truncated/invalid JSON (len={}): {} — rasvar: {}",
+                    content.length(), e.getMessage(),
+                    content.length() > 2000 ? content.substring(0, 2000) + "…[kapad]" : content);
             throw new RuntimeException("AI-svaret blev ofullständigt. Försök igen.");
         }
         // Try standard key first, then common fallbacks AI sometimes uses

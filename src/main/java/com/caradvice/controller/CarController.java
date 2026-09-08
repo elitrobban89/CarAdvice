@@ -1156,6 +1156,13 @@ public class CarController {
      * <p>{@code anropSomRymsPerMinut} är svaret på "varför går det inte att söka flera gånger i
      * rad": är prompten 4 700 och 3 000 reserverade blir talet 1.
      */
+    /** Senaste otolkbara AI-svaren med råsvar och modellnamn — jakten på "AI-svaret blev ofullständigt". */
+    @GetMapping("/admin/ai-failures")
+    public ResponseEntity<?> aiFailures(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(groqService.aiMisslyckanden());
+    }
+
     /** Groqs hela modellkatalog för kontot — underlag när kedjan ska utökas med en modell. */
     @GetMapping("/admin/groq-models")
     public ResponseEntity<?> groqModels(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
