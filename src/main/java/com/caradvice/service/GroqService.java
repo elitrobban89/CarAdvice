@@ -861,6 +861,12 @@ public class GroqService {
                 else if (kravdDrivlina == null) engineOptions = IceConsumptionService.engineDescriptor(iceVariant);
             }
 
+            if (fuelSpec != null && arRenElbil(evSpec)) {
+                log.warn("Elbilen \"{}\" fick en fuelSpec av AI:n (växellåda: {}) — stryks",
+                        r.title(), fuelSpec.gearbox());
+                fuelSpec = null;
+            }
+
             result.add(new CarRecommendation(
                     r.title(), price, utanMarknadspastaende(r.whyRecommended(), r.title()),
                     utanDubblerandeSpec(r.pros(), cargo, evSpec, r.title()), r.con(),
@@ -2380,6 +2386,21 @@ public class GroqService {
      * att fela åt: kvar står alltid själva växellådan, och motorn visas ändå verifierad i
      * {@code engineOptions} och {@code horsepower}.
      */
+    /**
+     * Är bilen en REN elbil (alltså inte laddhybrid)?
+     *
+     * <p>Avgör om AI:ns fuelSpec ska strykas. En elbil har varken växellåda, motorvolym eller
+     * l/100 km, men prompten är bara en instruktion: en Kia EV6 kom tillbaka med
+     * "DSG-automatik" och fick den utskriven som spec. Laddhybriden behåller sin fuelSpec —
+     * den HAR en förbränningsmotor med växellåda.
+     *
+     * <p>Saknas evSpec vet vi ingenting om drivlinan och rör då ingenting: hellre AI:ns
+     * uppgift än en tom rad på en bensinbil vi inte har specar för.
+     */
+    static boolean arRenElbil(com.caradvice.model.EvSpecDto evSpec) {
+        return evSpec != null && !"PHEV".equalsIgnoreCase(evSpec.carType());
+    }
+
     static String rensaVaxellada(String gearbox) {
         if (gearbox == null) return null;
         String rensad = PARENTES.matcher(gearbox)

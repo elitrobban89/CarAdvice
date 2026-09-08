@@ -1231,6 +1231,22 @@ class GroqServiceTest {
     }
 
     @Test
+    void renElbilTapparAiNsPahittadeVaxellada() {
+        // Live 2026-09-08: kortet "Kia EV6" fick "DSG-automatik" som växellåda. Prompten säger
+        // redan "Elbil/laddhybrid: fuelSpec=null" — en instruktion är ingen vakt.
+        EvSpecDto elbil = new EvSpecDto(520, 470, 350, 7, "Var 7:e dag",
+                77.0, 135, 11, 289000, "Bra värde", "BEV", "NMC");
+        EvSpecDto laddhybrid = new EvSpecDto(75, 65, 45, 1, "Varje dag",
+                18.1, 0, 7, 379000, "Okej värde", "PHEV", "Li-ion");
+
+        assertThat(GroqService.arRenElbil(elbil)).isTrue();
+        // Laddhybriden HAR en förbränningsmotor — dess växellåda är sann och ska stå kvar
+        assertThat(GroqService.arRenElbil(laddhybrid)).isFalse();
+        // Utan evSpec vet vi ingenting om drivlinan och rör då ingenting
+        assertThat(GroqService.arRenElbil(null)).isFalse();
+    }
+
+    @Test
     void vaxelladefaltetStadasFranMotorbeteckningar() {
         // Live 2026-08-14: kortet "Volvo XC40 (2022)" fick växellådan "Automat 8-växlad
         // (TSI turbo)". TSI är VW-koncernens beteckning och bilen var en Volvo B4. Roten satt

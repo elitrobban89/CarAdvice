@@ -223,8 +223,199 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-card-3::after{background:conic-gradient(from var(--ca-rim-ang),#10b981,#34d399,#6ee7b7,#14b8a6,#10b981);animation-delay:-9.3s;}',
     // Kanten tänds tydligare när man hovrar kortet man läser
     '.ca-card:hover::after{opacity:.95;animation-duration:7s;}',
+    // ── Groq-badgen: skenet som sveper fram och tillbaka ─────────────────────
+    // Ljuset ligger i ::before med z-index:-1. Badgen har lös text ("Drivs av") som inte går
+    // att lyfta med z-index — ett positivt z-index på skenet hade lagt sig ÖVER texten.
+    // Negativt z-index målar ovanpå badgens bakgrund men under innehållet, och isolation
+    // håller lagret inne i badgen.
+    '@keyframes ca-groq-svep{0%{left:-32%}50%{left:96%}100%{left:-32%}}',
+    '@keyframes ca-groq-glod{0%,100%{box-shadow:0 0 15px -7px rgba(251,146,60,.85),inset 0 0 12px -9px rgba(251,191,36,.7)}50%{box-shadow:0 0 28px -4px rgba(251,146,60,1),0 0 52px -12px rgba(251,191,36,.8),inset 0 0 18px -7px rgba(251,191,36,.9)}}',
+    '@keyframes ca-groq-ikon{0%,100%{transform:scale(1);filter:drop-shadow(0 0 3px rgba(251,146,60,.7))}50%{transform:scale(1.16);filter:drop-shadow(0 0 10px rgba(251,191,36,1))}}',
+    '.ca-groq-badge{position:relative;overflow:hidden;isolation:isolate;color:rgba(255,238,214,.72);',
+      'border-color:rgba(251,146,60,.45);',
+      'background:linear-gradient(120deg,rgba(251,146,60,.12),rgba(251,191,36,.07) 60%,rgba(245,80,54,.1));',
+      'animation:ca-groq-glod 2.6s ease-in-out infinite;}',
+    '.ca-groq-badge::before{content:"";position:absolute;top:-30%;bottom:-30%;left:-32%;width:34%;z-index:-1;',
+      'pointer-events:none;border-radius:50%;',
+      'background:linear-gradient(90deg,transparent,rgba(251,146,60,.5),rgba(255,241,190,.9),rgba(251,191,36,.5),transparent);',
+      'filter:blur(4px);animation:ca-groq-svep 3s cubic-bezier(.45,.02,.55,.98) infinite;}',
+    '.ca-groq-name{color:#fcd34d;text-shadow:0 0 14px rgba(251,191,36,.9);}',
+    '.ca-groq-icon{fill:#fcd34d;animation:ca-groq-ikon 2.6s ease-in-out infinite;}',
     // Respektera reduced motion
-    '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-hero::after,#ca-btn,#ca-btn::after,.ca-card::after{animation:none!important;}}'
+    '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-hero::after,#ca-btn,#ca-btn::after,.ca-card::after,',
+      '.ca-groq-badge,.ca-groq-badge::before,.ca-groq-icon{animation:none!important;}',
+      '.ca-groq-badge::before{display:none;}}'
+  ].join('');
+  (document.body || document.documentElement).appendChild(s);
+})();
+
+// Jämförelsetabellens eget lager: glas, glöd och skiftande färg. Injiceras av samma skäl som
+// polish-lagret ovan — WP-sidan är en manuell kopia och ska slippa klistras om för en ren
+// stiländring. Klasser i stället för inline-stilar här: hover, sticky kolumn, animation och
+// ::before/::after går inte att sätta inline, och tabellen har fler celler än något annat på
+// sidan (rader × bilar) — inline hade blåst upp markupen i onödan.
+(function caCompareCss() {
+  if (document.getElementById('ca-compare-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-compare-css';
+  // Sticky etikettkolumn behöver en ogenomskinlig botten: rutan i sig är glas, och en
+  // etikett man kan läsa värdena igenom går inte att läsa alls när tabellen sidscrollar.
+  var LBL = 'linear-gradient(90deg,rgba(20,14,38,.97),rgba(20,14,38,.88))';
+  s.textContent = [
+    '@keyframes ca-cmp-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}',
+    '@keyframes ca-cmp-aurora{0%{transform:translate(0,0) scale(1);opacity:.7}50%{transform:translate(2.5%,-2%) scale(1.09);opacity:1}100%{transform:translate(0,0) scale(1);opacity:.7}}',
+    '@keyframes ca-cmp-shift{to{background-position:200% 50%}}',
+    // Stapeln fylls VÄNSTER→HÖGER med clip-path och inte med scaleX: en skalad stapel drar
+    // ihop segmenten och färgfälten glider på plats, medan clip-path avtäcker dem där de
+    // hör hemma. Glimten sveper förbi en gång efteråt, glöden andas sedan vidare.
+    '@keyframes ca-cmp-fyll{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}',
+    '@keyframes ca-cmp-glimt{from{transform:translateX(-130%)}to{transform:translateX(360%)}}',
+    '@keyframes ca-cmp-glod{0%,100%{box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05),0 0 16px -7px rgba(167,139,250,.85)}' +
+      '50%{box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.09),0 0 28px -4px rgba(167,139,250,.95)}}',
+    '@keyframes ca-cmp-puls{0%,100%{opacity:.55}50%{opacity:1}}',
+    // ── Rutan ────────────────────────────────────────────────────────────────
+    // isolation:isolate håller aurorans och ringens z-index inne i rutan — utan den
+    // kryper de över det som ligger ovanför i det fria jämförelseflödet.
+    '.ca-cmp{position:relative;margin-top:40px;border-radius:20px;overflow:hidden;isolation:isolate;' +
+      'background-color:rgba(255,255,255,.025);' +
+      'background-image:linear-gradient(155deg,rgba(139,92,246,.13),rgba(56,189,248,.06) 48%,rgba(236,72,153,.07));' +
+      'backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);' +
+      'border:1px solid rgba(167,139,250,.2);' +
+      'box-shadow:0 26px 64px -22px rgba(0,0,0,.6),0 0 80px -34px rgba(139,92,246,.55),inset 0 1px 0 rgba(255,255,255,.07);}',
+    // Aurora bakom allt: tre färgfält som driver långsamt. Färgerna är OLIKA (lila/cyan/rosa)
+    // så rörelsen läses som färg och inte bara som ljusstyrka — samma lärdom som heron gav.
+    '.ca-cmp::before{content:"";position:absolute;inset:-25%;z-index:0;pointer-events:none;' +
+      'background:radial-gradient(ellipse at 22% 0%,rgba(139,92,246,.3),transparent 55%),' +
+      'radial-gradient(ellipse at 86% 12%,rgba(56,189,248,.22),transparent 52%),' +
+      'radial-gradient(ellipse at 62% 100%,rgba(236,72,153,.16),transparent 55%);' +
+      'animation:ca-cmp-aurora 17s ease-in-out infinite;}',
+    // Vandrande färgkant, samma grepp (och samma registrerade vinkel) som heron och korten.
+    '.ca-cmp::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;' +
+      'border-radius:inherit;padding:1.5px;' +
+      'background:conic-gradient(from var(--ca-rim-ang),#a78bfa,#38bdf8,#22d3ee,#f472b6,#fbbf24,#a78bfa);' +
+      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+      '-webkit-mask-composite:xor;mask-composite:exclude;' +
+      'opacity:.6;filter:saturate(140%);animation:ca-rim 11s linear infinite;}',
+    '.ca-cmp>*{position:relative;z-index:1;}',
+    // ── Rubrikraden ──────────────────────────────────────────────────────────
+    '.ca-cmp-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:16px 18px 13px;border-bottom:1px solid rgba(255,255,255,.07);}',
+    '.ca-cmp-titel{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;' +
+      'background:linear-gradient(90deg,#c4b5fd,#7dd3fc,#f9a8d4,#c4b5fd);background-size:200% 100%;' +
+      '-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;' +
+      'animation:ca-cmp-shift 9s linear infinite;}',
+    // Utan background-clip:text blir texten OSYNLIG i stället för ofärgad — fallbacken är
+    // alltså inte kosmetisk, den är skillnaden mellan en rubrik och ingen rubrik.
+    '@supports not ((background-clip:text) or (-webkit-background-clip:text)){' +
+      '.ca-cmp-titel{color:#c4b5fd;-webkit-text-fill-color:#c4b5fd;background:none;animation:none;}}',
+    '.ca-cmp-ev{display:inline-flex;align-items:center;gap:5px;font-size:.66rem;font-weight:700;' +
+      'letter-spacing:.05em;text-transform:uppercase;color:#7dd3fc;padding:3px 10px;border-radius:999px;' +
+      'background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.32);' +
+      'box-shadow:0 0 18px -5px rgba(56,189,248,.85),inset 0 1px 0 rgba(255,255,255,.08);}',
+    '.ca-cmp-ev i{font-style:normal;animation:ca-cmp-puls 2.4s ease-in-out infinite;}',
+    '.ca-cmp-legend{margin-left:auto;font-size:.67rem;color:rgba(226,232,240,.42);white-space:nowrap;}',
+    '.ca-cmp-legend b{color:#fbbf24;font-weight:700;text-shadow:0 0 10px rgba(251,191,36,.8);}',
+    '@media(max-width:640px){.ca-cmp-legend{margin-left:0;}}',
+    // ── Tabellen ─────────────────────────────────────────────────────────────
+    '.ca-cmp-scroll{overflow-x:auto;}',
+    '.ca-cmp-tab{width:100%;border-collapse:separate;border-spacing:0;min-width:430px;}',
+    '.ca-cmp-h{padding:13px 14px 11px;text-align:left;vertical-align:bottom;border-bottom:1px solid rgba(255,255,255,.09);transition:background-color .18s;}',
+    '.ca-cmp-hbox{display:flex;align-items:center;gap:9px;}',
+    '.ca-cmp-hnum{display:block;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--ca-acc,#a78bfa);}',
+    '.ca-cmp-hnamn{display:block;font-weight:700;color:#eef2ff;font-size:.84rem;line-height:1.25;}',
+    // Glödande underkant i kolumnens färg: den bär numreringen 1/2/3 nedåt genom tabellen
+    // utan att varje cell behöver upprepa färgen.
+    '.ca-cmp-h::after{content:"";display:block;height:2px;margin-top:10px;border-radius:2px;' +
+      'background:linear-gradient(90deg,var(--ca-acc,#a78bfa),transparent);' +
+      'box-shadow:0 0 12px var(--ca-acc,#a78bfa);opacity:.8;}',
+    // Emblemplattan i huvudet är mindre än kortets, och monogrammet är reservvägen för de
+    // märken som saknar fil — hellre två bokstäver i kolumnens färg än en tom lucka.
+    '.ca-cmp-hbox .ca-emblem{width:32px;height:32px;padding:4px;border-radius:9px;}',
+    '.ca-cmp-mono{width:32px;height:32px;flex-shrink:0;border-radius:9px;display:flex;align-items:center;' +
+      'justify-content:center;font-size:.66rem;font-weight:800;letter-spacing:.02em;color:var(--ca-acc,#a78bfa);' +
+      'background:rgba(255,255,255,.06);border:1.5px solid var(--ca-acc,#a78bfa);' +
+      'box-shadow:0 0 14px -4px var(--ca-acc,#a78bfa),inset 0 1px 0 rgba(255,255,255,.08);}',
+    '.ca-cmp-hoek{position:sticky;left:0;z-index:4;width:124px;padding:10px 14px;background:' + LBL + ';border-bottom:1px solid rgba(255,255,255,.09);}',
+    // Etikettkolumnen fastnar vid vänsterkanten: utan den vet man inte VAD man läser så fort
+    // tabellen sidscrollat ett steg, och på mobil scrollar den alltid.
+    '.ca-cmp-lbl{position:sticky;left:0;z-index:3;padding:11px 13px;text-align:left;font-size:.73rem;' +
+      'font-weight:700;color:rgba(226,232,240,.58);white-space:nowrap;vertical-align:middle;' +
+      'letter-spacing:.01em;border-bottom:1px solid rgba(255,255,255,.05);background:' + LBL + ';' +
+      'transition:color .18s,box-shadow .18s;}',
+    '.ca-cmp-c{padding:11px 14px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.045);transition:background-color .18s,box-shadow .18s;}',
+    // Raderna vecklar in sig i tur och ordning när tabellen ritas
+    '.ca-cmp-rad{animation:ca-cmp-in .5s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0)*42ms);}',
+    '.ca-cmp-rad:hover .ca-cmp-c{background-color:rgba(255,255,255,.045);}',
+    '.ca-cmp-rad:hover .ca-cmp-lbl{color:#fff;box-shadow:inset 3px 0 0 rgba(167,139,250,.9);}',
+    // Kolumnmarkering. En ren CSS-lösning kräver :has() på tabellen; data-attributet sätts
+    // i stället av ETT mouseover på rutan och funkar överallt.
+    '.ca-cmp[data-hov="0"] .ca-cmp-k0,.ca-cmp[data-hov="1"] .ca-cmp-k1,.ca-cmp[data-hov="2"] .ca-cmp-k2{background-color:rgba(255,255,255,.05);}',
+    '.ca-cmp[data-hov="0"] th.ca-cmp-k0,.ca-cmp[data-hov="1"] th.ca-cmp-k1,.ca-cmp[data-hov="2"] th.ca-cmp-k2{background-color:rgba(255,255,255,.06);}',
+    // Bäst i raden: guldton + stjärna. Markeringen sätts bara när det finns EN vinnare.
+    '.ca-cmp-vinst{background-image:linear-gradient(90deg,rgba(251,191,36,.14),transparent 72%);' +
+      'box-shadow:inset 0 0 0 1px rgba(251,191,36,.15);}',
+    '.ca-cmp-vinst .ca-cmp-chip{border-color:rgba(251,191,36,.5);box-shadow:0 0 20px -5px rgba(251,191,36,.95),inset 0 1px 0 rgba(255,255,255,.1);}',
+    '.ca-cmp-stjarna{float:right;margin:0 0 2px 7px;font-size:.68rem;color:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.85));}',
+    // ── Värdena ──────────────────────────────────────────────────────────────
+    '.ca-cmp-chip{display:inline-block;font-size:.76rem;font-weight:700;padding:3px 10px;border-radius:999px;' +
+      'white-space:nowrap;color:#f1f5f9;border:1px solid rgba(255,255,255,.1);' +
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.08);transition:transform .16s,box-shadow .16s;}',
+    '.ca-cmp-c:hover .ca-cmp-chip{transform:translateY(-1px);}',
+    '.ca-cmp-tom{color:rgba(255,255,255,.22);}',
+    '.ca-cmp-pris{color:#a5f3fc;font-weight:700;font-size:.85rem;text-shadow:0 0 14px rgba(165,243,252,.4);}',
+    '.ca-cmp-lank{color:#7dd3fc;font-size:.82rem;font-weight:700;text-decoration:none;' +
+      'border-bottom:1px solid rgba(125,211,252,.3);transition:color .16s,text-shadow .16s,border-color .16s;}',
+    '.ca-cmp-lank:hover{color:#bae6fd;text-shadow:0 0 14px rgba(125,211,252,.85);border-color:rgba(125,211,252,.75);}',
+    '.ca-cmp-lista{margin:0;padding-left:15px;}',
+    '.ca-cmp-lista li{font-size:.78rem;line-height:1.45;color:rgba(226,232,240,.78);margin-bottom:3px;}',
+    '.ca-cmp-lista li::marker{color:rgba(167,139,250,.75);}',
+    '.ca-cmp-minus{color:#fca5a5;font-size:.8rem;line-height:1.45;}',
+    '.ca-cmp-cit{font-size:.79rem;line-height:1.5;color:rgba(226,232,240,.78);font-style:italic;}',
+    '.ca-cmp-txt{font-size:.79rem;color:rgba(226,232,240,.78);}',
+    '.ca-cmp-sub{display:block;font-size:.7rem;color:rgba(226,232,240,.45);margin-top:2px;}',
+    '.ca-cmp-stjarnor{font-size:.98rem;letter-spacing:.06em;color:#fcd34d;text-shadow:0 0 14px rgba(252,211,77,.55);}',
+    '.ca-cmp-opt{display:inline-block;font-size:.72rem;color:rgba(226,232,240,.7);background:rgba(255,255,255,.06);' +
+      'border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:2px 9px;margin:2px 3px 2px 0;}',
+    '.ca-cmp-hjalp{border-bottom:1px dotted rgba(255,255,255,.35);cursor:help;}',
+    // ── TCO-stapeln ──────────────────────────────────────────────────────────
+    '.ca-cmp-tco{padding:15px 18px 17px;border-top:1px solid rgba(255,255,255,.07);}',
+    '.ca-cmp-tco-rub{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;' +
+      'color:rgba(167,139,250,.8);margin-bottom:11px;text-shadow:0 0 16px rgba(167,139,250,.45);}',
+    '.ca-cmp-bar-rad{margin-bottom:11px;}',
+    '.ca-cmp-bar-topp{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-bottom:5px;}',
+    '.ca-cmp-bar-namn{display:flex;align-items:center;gap:7px;min-width:0;font-size:.76rem;color:rgba(226,232,240,.72);}',
+    '.ca-cmp-bar-namn .ca-emblem{width:22px;height:22px;padding:3px;border-radius:6px;box-shadow:none;}',
+    '.ca-cmp-bar-namn .ca-cmp-mono{width:22px;height:22px;border-radius:6px;font-size:.55rem;}',
+    '.ca-cmp-lag{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbbf24;' +
+      'background:rgba(251,191,36,.13);border:1px solid rgba(251,191,36,.4);border-radius:999px;padding:1px 8px;' +
+      'white-space:nowrap;box-shadow:0 0 16px -5px rgba(251,191,36,.95);}',
+    '.ca-cmp-bar-sum{font-size:.78rem;font-weight:800;color:#a5f3fc;white-space:nowrap;text-shadow:0 0 14px rgba(165,243,252,.45);}',
+    // Två animationer på samma element: fyllningen körs en gång, glöden pulsar vidare och
+    // startar först när stapeln är helt framme (fördröjningarna nedan följer varandra).
+    '.ca-cmp-bar{position:relative;display:flex;height:18px;border-radius:7px;overflow:hidden;' +
+      'background:rgba(255,255,255,.055);' +
+      'animation:ca-cmp-fyll 1.05s cubic-bezier(.22,1,.36,1) both,ca-cmp-glod 4.6s ease-in-out infinite;' +
+      'animation-delay:calc(var(--i,0)*150ms),calc(var(--i,0)*150ms + 1.05s);}',
+    // Glimten: en ljusstrimma som sveper igenom precis när fyllningen når fram
+    '.ca-cmp-bar::after{content:"";position:absolute;top:0;left:0;width:26%;height:100%;pointer-events:none;' +
+      'background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);' +
+      'transform:translateX(-130%);animation:ca-cmp-glimt 1.4s ease-out both;' +
+      'animation-delay:calc(var(--i,0)*150ms + .5s);}',
+    '.ca-cmp-seg{height:100%;flex-shrink:0;transition:filter .2s;' +
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -7px 11px -7px rgba(0,0,0,.5);}',
+    '.ca-cmp-bar:hover{animation-play-state:paused;box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.12),0 0 32px -3px rgba(167,139,250,1);}',
+    '.ca-cmp-bar:hover .ca-cmp-seg{filter:saturate(145%) brightness(1.2);}',
+    '.ca-cmp-legend-rad{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;}',
+    '.ca-cmp-leg{display:inline-flex;align-items:center;gap:5px;font-size:.65rem;color:rgba(226,232,240,.5);}',
+    '.ca-cmp-prick{width:9px;height:9px;border-radius:3px;flex-shrink:0;box-shadow:0 0 9px -1px currentColor;}',
+    '@media(max-width:520px){.ca-cmp{margin-top:28px;border-radius:16px;}' +
+      '.ca-cmp-c,.ca-cmp-lbl{padding:9px 10px;}.ca-cmp-hoek{width:104px;padding:9px 10px;}' +
+      '.ca-cmp-h{padding:11px 10px 9px;}.ca-cmp-tab{min-width:390px;}}',
+    // animation:none tar bort clip-path-fyllningen också, och då står stapeln helt framme
+    // direkt — den slocknar alltså inte, den slutar bara röra sig.
+    '@media(prefers-reduced-motion:reduce){.ca-cmp::before,.ca-cmp::after,.ca-cmp-titel,.ca-cmp-ev i,' +
+      '.ca-cmp-rad,.ca-cmp-bar,.ca-cmp-bar::after{animation:none!important;}' +
+      '.ca-cmp-bar::after{display:none;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
@@ -1817,6 +2008,24 @@ function caValueLabelCombustion(fuel, price) {
   return '';
 }
 
+/**
+ * Förbränningsspecen för en bil, eller null när bilen är en REN elbil.
+ *
+ * <p>Prompten säger redan "Elbil/laddhybrid: fuelSpec=null", men en instruktion är ingen vakt:
+ * en Kia EV6 kom tillbaka med "DSG-automatik" och fick den utskriven som spec. En elbil har
+ * varken växellåda, motorvolym eller l/100 km.
+ *
+ * <p>Vakten sitter i VISNINGEN och inte bara i backenden med flit: svar som redan ligger
+ * cachade i databasen rättas då utan omkörning.
+ *
+ * <p>Laddhybrider behåller sin fuelSpec — de HAR en förbränningsmotor med växellåda.
+ */
+function caIceSpec(r) {
+  if (!r || !r.fuelSpec) return null;
+  if (r.evSpec && r.evSpec.carType !== 'PHEV') return null;
+  return r.fuelSpec;
+}
+
 function caFuelChips(fuel, price) {
   if (!fuel) return '';
   var chips = '';
@@ -2138,7 +2347,7 @@ function caRenderCards(recommendations) {
           (r.safetyRating ? '<div class="ca-safety"><span class="ca-safety-badge">Euro NCAP</span><span class="ca-safety-text">'+caEsc(r.safetyRating)+'</span></div>' : '') +
           '<div id="ca-insights-'+i+'"></div>' +
           (r.evSpec ? caEvChips(r.evSpec, r.horsepower) : '') +
-          (r.fuelSpec ? caFuelChips(r.fuelSpec, caParsePrice(r.price)) : '') +
+          (caIceSpec(r) ? caFuelChips(caIceSpec(r), caParsePrice(r.price)) : '') +
           (r.cargoSpec ? caCargoChip(r.cargoSpec) : '') +
           caTcoHtml(r, caCurrentKm) +
           '<button class="ca-ask-btn" data-idx="' + i + '" data-title="' + caEsc(r.title) + '">&#x1F4AC; Fr\xe5ga om Bil ' + (i + 1) + ' &mdash; ' + caEsc(r.title.replace(/\s*\(\d{4}\)\s*$/, '')) + '</button>' +
@@ -2308,132 +2517,234 @@ function caWireFeedback(container) {
   });
 }
 
+/**
+ * Emblemet för jämförelsetabellen, med monogram som reservväg.
+ *
+ * <p>caEmblemHtml ger tom sträng för de märken som saknar SVG-fil, och en tom lucka mitt i
+ * en kolumnrubrik ser ut som ett fel. Två bokstäver i kolumnens färg gör samma jobb: de
+ * ankrar kolumnen visuellt så man hittar tillbaka till rätt bil när tabellen sidscrollar.
+ */
+function caCmpEmblem(title, accent) {
+  var e = caEmblemHtml(title);
+  if (e) return e;
+  var ord = String(title || '').trim().split(/\s+/);
+  var bok = (ord[0] || '?').replace(/[^\wåäöÅÄÖ]/g, '').slice(0, 2).toUpperCase();
+  return '<span class="ca-cmp-mono" style="--ca-acc:' + accent + '">' + caEsc(bok || '?') + '</span>';
+}
+
+/**
+ * Index för bilen som vinner raden, eller -1.
+ *
+ * <p>Två spärrar med flit: färre än två mätbara värden är ingen jämförelse, och delad
+ * förstaplats markeras inte alls. En stjärna på två av tre celler säger ingenting — och en
+ * stjärna på båda bilarna i den fria jämförelsen (som alltid är två) hade varit rent brus.
+ */
+function caCmpVinnare(recs, tal, rikt) {
+  var v = recs.map(function(r) {
+    var n = 0;
+    try { n = tal(r); } catch (e) { n = 0; }
+    return (typeof n === 'number' && isFinite(n) && n > 0) ? n : null;
+  });
+  var giltiga = v.filter(function(n) { return n !== null; });
+  if (giltiga.length < 2) return -1;
+  var bast = rikt === 'lag' ? Math.min.apply(null, giltiga) : Math.max.apply(null, giltiga);
+  var antal = giltiga.filter(function(n) { return n === bast; }).length;
+  if (antal !== 1) return -1;
+  for (var i = 0; i < v.length; i++) if (v[i] === bast) return i;
+  return -1;
+}
+
 function caRenderCompare(recs, targetEl) {
   var cmp = targetEl || document.getElementById('ca-compare');
   if (!cmp || !recs || recs.length < 2) return;
   var hasEv   = recs.some(function(r){ return r.evSpec; });
-  var hasFuel = recs.some(function(r){ return r.fuelSpec; });
-  var S = 'style="';
-  var th = S+'padding:11px 14px;text-align:left;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.08)"';
-  var td = S+'padding:10px 14px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.04)"';
-  var tl = S+'padding:10px 14px;font-size:.72rem;font-weight:700;color:rgba(255,255,255,.3);white-space:nowrap;vertical-align:middle;letter-spacing:.03em;border-bottom:1px solid rgba(255,255,255,.04)"';
-  function cell(r, fn) { return '<td '+td+'>'+fn(r)+'</td>'; }
-  function evCell(r, fn) {
-    if (!r.evSpec) return '<td '+td+'><span style="color:rgba(255,255,255,.2)">&#x2013;</span></td>';
-    return '<td '+td+'>'+fn(r.evSpec)+'</td>';
-  }
-  function chip(text, color) { return '<span style="display:inline-block;font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:20px;background:'+color+';white-space:nowrap">'+text+'</span>'; }
-  var accentColors = ['#a78bfa','#38bdf8','#34d399'];
-  var headerCells = recs.map(function(r, i) {
-    var short = r.title.replace(/\s*\(\d{4}\)\s*$/, '').split(' ').slice(0, 4).join(' ');
-    var col = accentColors[i] || '#a78bfa';
-    return '<th '+th+'><span style="font-size:.65rem;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.08em">Bil '+(i+1)+'</span><br><span style="font-weight:700;color:#e2e8f0;font-size:.82rem">'+caEsc(short)+'</span></th>';
-  }).join('');
+  var hasFuel = recs.some(function(r){ return caIceSpec(r); });
+  // Kolumnfärgerna är desamma som bilkortens 1/2/3 — samma bil ska bära samma färg hela vägen
+  var accent = ['#a78bfa', '#38bdf8', '#34d399'];
+  var TOM = '<span class="ca-cmp-tom">&#x2013;</span>';
+
+  function chip(text, color) { return '<span class="ca-cmp-chip" style="background:' + color + '">' + text + '</span>'; }
+  function ev(r, fn) { return r.evSpec ? fn(r.evSpec) : TOM; }
+  function hk(r) { var f = caIceSpec(r); return r.horsepower || (f && f.horsepower) || 0; }
+  function stjarnor(r) { return r.safetyRating ? (r.safetyRating.match(/★/g) || []).length : 0; }
+
+  // Varje rad kan bära en dom: tal() ger det jämförbara värdet och rikt säger åt vilket håll
+  // som är bättre. Rader utan tal() (fördelar, expertomdöme, motoralternativ) döms inte —
+  // där finns ingen ordning som går att mäta.
   var rows = [
     // Prisraden (AI:ns kalkyl) borttagen — Blocket nu är sanningen; AI-priset visas bara som fallback
-    { label: '&#x1F535; Blocket nu', fn: function(r){
-      if (!r.blocketPrice) return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">'+caEsc(r.price)+'</span>';
-      return '<a href="'+caBlocketUrl(r.title)+'" target="_blank" rel="noopener" style="color:#60a5fa;font-size:.8rem;font-weight:600;text-decoration:none">'+caEsc(r.blocketPrice)+'&#x2192;</a>';
-    }},
+    { label: '&#x1F535; Blocket nu', rikt: 'lag',
+      tal: function(r){ return caParsePrice(r.blocketPrice || r.price); },
+      fn: function(r){
+        if (!r.blocketPrice) return '<span class="ca-cmp-pris">' + caEsc(r.price) + '</span>';
+        return '<a class="ca-cmp-lank" href="' + caBlocketUrl(r.title) + '" target="_blank" rel="noopener">'
+          + caEsc(r.blocketPrice) + '&#xA0;&#x2192;</a>';
+      }},
     { label: '&#x2714; F\xf6rdelar', fn: function(r){
-      return '<ul style="margin:0;padding-left:14px">'+(r.pros||[]).map(function(p){
-        return '<li style="font-size:.77rem;color:rgba(255,255,255,.7);margin-bottom:3px">'+caEsc(p)+'</li>';
-      }).join('')+'</ul>';
+      return '<ul class="ca-cmp-lista">' + (r.pros || []).map(function(p){
+        return '<li>' + caEsc(p) + '</li>';
+      }).join('') + '</ul>';
     }},
-    { label: '&#x26A0; Nackdel', fn: function(r){ return '<span style="color:#fca5a5;font-size:.8rem">'+caEsc(r.con)+'</span>'; } },
+    { label: '&#x26A0; Nackdel', fn: function(r){ return '<span class="ca-cmp-minus">' + caEsc(r.con) + '</span>'; } },
     { label: '&#x1F3AF; Expertrecension', fn: function(r){
-      if (!r.expertOpinion) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return '<span style="font-size:.78rem;color:rgba(255,255,255,.75);font-style:italic">'+caEsc(r.expertOpinion)+'</span>';
+      if (!r.expertOpinion) return TOM;
+      return '<span class="ca-cmp-cit">' + caEsc(r.expertOpinion) + '</span>';
     }},
-    { label: '&#x1F6E1;&#xFE0F; Euro NCAP', fn: function(r){
-      if (!r.safetyRating) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      var parts = r.safetyRating.split(' \u00b7 ');
+    { label: '&#x1F6E1;&#xFE0F; Euro NCAP', rikt: 'hog', tal: stjarnor, fn: function(r){
+      if (!r.safetyRating) return TOM;
+      var parts = r.safetyRating.split(' · ');
       var stars = parts[0] || '';
-      var details = parts.slice(1).join(' \u00b7 ');
-      return '<span style="font-size:.95rem;letter-spacing:.05em;color:#fcd34d">' + caEsc(stars) + '</span>' +
-        (details ? '<br><span style="font-size:.7rem;color:rgba(255,255,255,.45)">' + caEsc(details) + '</span>' : '');
+      var details = parts.slice(1).join(' · ');
+      return '<span class="ca-cmp-stjarnor">' + caEsc(stars) + '</span>' +
+        (details ? '<span class="ca-cmp-sub">' + caEsc(details) + '</span>' : '');
     }},
-    { label: '&#x1F9F3; Bagageutrymme', fn: function(r){
-      if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      var txt = chip(r.cargoSpec.cargoLiters+' L', 'rgba(251,191,36,.12)');
-      if (r.cargoSpec.cargoMaxLiters > 0) txt += ' <span style="font-size:.72rem;color:rgba(255,255,255,.4)">/ '+r.cargoSpec.cargoMaxLiters+' L</span>';
-      return txt;
-    }},
+    { label: '&#x1F9F3; Bagageutrymme', rikt: 'hog',
+      tal: function(r){ return r.cargoSpec ? r.cargoSpec.cargoLiters : 0; },
+      fn: function(r){
+        if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return TOM;
+        var txt = chip(r.cargoSpec.cargoLiters + ' L', 'rgba(251,191,36,.16)');
+        if (r.cargoSpec.cargoMaxLiters > 0) txt += ' <span class="ca-cmp-sub" style="display:inline">/ ' + r.cargoSpec.cargoMaxLiters + ' L</span>';
+        return txt;
+      }},
     { label: '&#x1F527; Motor &amp; batterialternativ', fn: function(r){
-      if (!r.engineOptions) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
+      if (!r.engineOptions) return TOM;
       return r.engineOptions.split(',').map(function(opt) {
-        return '<span style="display:inline-block;font-size:.72rem;color:rgba(255,255,255,.65);background:rgba(255,255,255,.06);border-radius:12px;padding:2px 8px;margin:2px 2px 2px 0">' + caEsc(opt.trim()) + '</span>';
+        return '<span class="ca-cmp-opt">' + caEsc(opt.trim()) + '</span>';
       }).join('');
     }}
   ];
   if (hasFuel) {
-    rows.push({ label: '&#x26FD; F\xf6rbrukning', fn: function(r){
-      if (!r.fuelSpec || r.fuelSpec.consumptionLiterPerMil <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return chip((r.fuelSpec.consumptionLiterPerMil / 10).toFixed(2)+' l/mil','rgba(251,146,60,.15)');
-    }});
+    rows.push({ label: '&#x26FD; F\xf6rbrukning', rikt: 'lag',
+      tal: function(r){ var f = caIceSpec(r); return f ? f.consumptionLiterPerMil : 0; },
+      fn: function(r){
+        var f = caIceSpec(r);
+        if (!f || f.consumptionLiterPerMil <= 0) return TOM;
+        return chip((f.consumptionLiterPerMil / 10).toFixed(2) + ' l/mil', 'rgba(251,146,60,.18)');
+      }});
     rows.push({ label: '&#x2699;&#xFE0F; V\xe4xell\xe5da', fn: function(r){
-      if (!r.fuelSpec || !r.fuelSpec.gearbox) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return '<span style="font-size:.78rem;color:rgba(255,255,255,.75)">'+caEsc(r.fuelSpec.gearbox)+'</span>';
+      var f = caIceSpec(r);
+      if (!f || !f.gearbox) return TOM;
+      return '<span class="ca-cmp-txt">' + caEsc(f.gearbox) + '</span>';
     }});
-    rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r){
-      if (!r.fuelSpec || r.fuelSpec.horsepower <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return chip(r.fuelSpec.horsepower+' hk','rgba(139,92,246,.18)');
-    }});
-    rows.push({ label: '&#x1F527; Motorvolym', fn: function(r){
-      if (!r.fuelSpec || r.fuelSpec.engineVolumeLiters <= 0) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return chip(r.fuelSpec.engineVolumeLiters.toFixed(1)+' L','rgba(56,189,248,.1)');
-    }});
+    rows.push({ label: '&#x1F527; Motorvolym', rikt: 'hog',
+      tal: function(r){ var f = caIceSpec(r); return f ? f.engineVolumeLiters : 0; },
+      fn: function(r){
+        var f = caIceSpec(r);
+        if (!f || f.engineVolumeLiters <= 0) return TOM;
+        return chip(f.engineVolumeLiters.toFixed(1) + ' L', 'rgba(56,189,248,.14)');
+      }});
   }
   if (hasEv) {
-    rows.push({ label: '&#x1F4CF; WLTP', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.wltpKm > 0 ? chip(ev.wltpKm+' km','rgba(56,189,248,.15)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x2600;&#xFE0F; Sommar', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.summerKm > 0 ? chip('~'+ev.summerKm+' km','rgba(59,130,246,.18)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x2744;&#xFE0F; Vinter', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.winterKm > 0 ? chip('~'+ev.winterKm+' km','rgba(148,163,184,.15)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F50B; Laddning', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.daysLabel ? '<span style="font-size:.8rem;color:#fcd34d;font-weight:600">'+caEsc(ev.daysLabel)+'</span>' : '&#x2013;'; }); } });
-    rows.push({ label: '<span title="Toppeffekt vid publik snabbladdare. Avg\xf6r hur korta pauserna blir p\xe5 l\xe5ngresa - h\xf6gre \xe4r b\xe4ttre, f\xf6rutsatt att stolpen klarar lika mycket." style="border-bottom:1px dotted rgba(255,255,255,.3);cursor:help">&#x26A1; DC max</span>', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxDcKw > 0 ? chip(ev.maxDcKw+' kW','rgba(34,197,94,.12)') : '<span style="color:rgba(255,255,255,.25)">ingen DC</span>'; }); } });
-    rows.push({ label: '<span title="Toppeffekt fr\xe5n laddbox, satt av bilens ombordladdare. S\xe4llan avg\xf6rande: 11 kW fyller batteriet \xf6ver natten \xe4nd\xe5, och de flesta hemmainstallationer ger inte mer." style="border-bottom:1px dotted rgba(255,255,255,.3);cursor:help">&#x1F50C; AC max</span>', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.maxAcKw > 0 ? chip(ev.maxAcKw+' kW','rgba(139,92,246,.14)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F50B; Batteri', evOnly: true, fn: function(r){ return evCell(r, function(ev){ return ev.batteryKwh > 0 ? chip(ev.batteryKwh+' kWh'+(ev.chemistry ? ' &middot; '+ev.chemistry : ''),'rgba(56,189,248,.1)') : '&#x2013;'; }); } });
-    rows.push({ label: '&#x1F4AA; H\xe4stkrafter', fn: function(r) {
-    var hp = r.horsepower || (r.fuelSpec && r.fuelSpec.horsepower) || 0;
-    return hp > 0 ? chip(hp + ' hk', 'rgba(251,191,36,.13)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-  } });
-rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', fn: function(r) {
-    if (r.evSpec && r.evSpec.valueLabel) return chip(caEsc(r.evSpec.valueLabel), 'rgba(52,211,153,.14)');
-    var cl = caValueLabelCombustion(r.fuelSpec, caParsePrice(r.price));
-    return cl ? chip(caEsc(cl), 'rgba(52,211,153,.14)') : '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-  } });
+    rows.push({ label: '&#x1F4CF; WLTP', rikt: 'hog',
+      tal: function(r){ return r.evSpec ? r.evSpec.wltpKm : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.wltpKm > 0 ? chip(e.wltpKm + ' km', 'rgba(56,189,248,.18)') : TOM; }); }});
+    rows.push({ label: '&#x2600;&#xFE0F; Sommar', rikt: 'hog',
+      tal: function(r){ return r.evSpec ? r.evSpec.summerKm : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.summerKm > 0 ? chip('~' + e.summerKm + ' km', 'rgba(59,130,246,.2)') : TOM; }); }});
+    rows.push({ label: '&#x2744;&#xFE0F; Vinter', rikt: 'hog',
+      tal: function(r){ return r.evSpec ? r.evSpec.winterKm : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.winterKm > 0 ? chip('~' + e.winterKm + ' km', 'rgba(148,163,184,.18)') : TOM; }); }});
+    rows.push({ label: '&#x1F50B; Laddning',
+      fn: function(r){ return ev(r, function(e){ return e.daysLabel ? '<span class="ca-cmp-txt" style="color:#fcd34d;font-weight:600">' + caEsc(e.daysLabel) + '</span>' : TOM; }); }});
+    rows.push({ label: '<span class="ca-cmp-hjalp" title="Toppeffekt vid publik snabbladdare. Avg\xf6r hur korta pauserna blir p\xe5 l\xe5ngresa - h\xf6gre \xe4r b\xe4ttre, f\xf6rutsatt att stolpen klarar lika mycket.">&#x26A1; DC max</span>',
+      rikt: 'hog', tal: function(r){ return r.evSpec ? r.evSpec.maxDcKw : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.maxDcKw > 0 ? chip(e.maxDcKw + ' kW', 'rgba(34,197,94,.16)') : '<span class="ca-cmp-tom">ingen DC</span>'; }); }});
+    rows.push({ label: '<span class="ca-cmp-hjalp" title="Toppeffekt fr\xe5n laddbox, satt av bilens ombordladdare. S\xe4llan avg\xf6rande: 11 kW fyller batteriet \xf6ver natten \xe4nd\xe5, och de flesta hemmainstallationer ger inte mer.">&#x1F50C; AC max</span>',
+      rikt: 'hog', tal: function(r){ return r.evSpec ? r.evSpec.maxAcKw : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.maxAcKw > 0 ? chip(e.maxAcKw + ' kW', 'rgba(139,92,246,.18)') : TOM; }); }});
+    rows.push({ label: '&#x1F50B; Batteri', rikt: 'hog',
+      tal: function(r){ return r.evSpec ? r.evSpec.batteryKwh : 0; },
+      fn: function(r){ return ev(r, function(e){ return e.batteryKwh > 0 ? chip(e.batteryKwh + ' kWh' + (e.chemistry ? ' &middot; ' + e.chemistry : ''), 'rgba(56,189,248,.14)') : TOM; }); }});
   }
-  rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', fn: function(r) {
-    if (caIsLeasing) {
-      var tcoL = caTcoLeasingCalc(r, caCurrentKm, parseInt(document.getElementById('ca-budget-slider').value) || 0);
-      if (!tcoL) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-      return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tcoL.total.toLocaleString('sv-SE') + ' kr</span>' +
-        '<br><span style="font-size:.65rem;color:rgba(255,255,255,.35)">' + tcoL.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
-    }
-    var tco = caTcoCalc(r, caCurrentKm);
-    if (!tco) return '<span style="color:rgba(255,255,255,.25)">&#x2013;</span>';
-    return '<span style="color:#a5f3fc;font-weight:700;font-size:.85rem">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
-      '<br><span style="font-size:.65rem;color:rgba(255,255,255,.35)">' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
+  // Hästkrafter och prisvärdhet gäller ALLA drivlinor och ligger därför utanför båda
+  // grindarna. Tidigare låg hästkrafterna i bensin- OCH elgrenen, vilket gav TVÅ rader med
+  // samma etikett så fort en blandad lista jämfördes, och prisvärdheten låg i elgrenen och
+  // föll bort helt för en ren bensinjämförelse — trots att caValueLabelCombustion räknar den.
+  rows.push({ label: '&#x1F4AA; H\xe4stkrafter', rikt: 'hog', tal: hk, fn: function(r) {
+    var v = hk(r);
+    return v > 0 ? chip(v + ' hk', 'rgba(251,191,36,.16)') : TOM;
   }});
-  var rowsHtml = rows.map(function(row) {
-    var cells = row.evOnly
-      ? recs.map(function(r){ return row.fn(r); }).join('')
-      : recs.map(function(r){ return cell(r, row.fn); }).join('');
-    return '<tr><td '+tl+'>'+row.label+'</td>'+cells+'</tr>';
+  rows.push({ label: '&#x1F4CA; Prisv\xe4rdhet', fn: function(r) {
+    if (r.evSpec && r.evSpec.valueLabel) return chip(caEsc(r.evSpec.valueLabel), 'rgba(52,211,153,.16)');
+    var cl = caValueLabelCombustion(caIceSpec(r), caParsePrice(r.price));
+    return cl ? chip(caEsc(cl), 'rgba(52,211,153,.16)') : TOM;
+  }});
+  rows.push({ label: '&#x1F4B0; 5-\xe5rs TCO', rikt: 'lag',
+    tal: function(r) {
+      var t = caIsLeasing
+        ? caTcoLeasingCalc(r, caCurrentKm, parseInt(document.getElementById('ca-budget-slider').value) || 0)
+        : caTcoCalc(r, caCurrentKm);
+      return t ? t.total : 0;
+    },
+    fn: function(r) {
+      var tco = caIsLeasing
+        ? caTcoLeasingCalc(r, caCurrentKm, parseInt(document.getElementById('ca-budget-slider').value) || 0)
+        : caTcoCalc(r, caCurrentKm);
+      if (!tco) return TOM;
+      return '<span class="ca-cmp-pris">~' + tco.total.toLocaleString('sv-SE') + ' kr</span>' +
+        '<span class="ca-cmp-sub">' + tco.perMonth.toLocaleString('sv-SE') + ' kr/m\xe5n</span>';
+    }});
+
+  var nagonVinnare = false;
+  var rowsHtml = rows.map(function(row, ri) {
+    var vinnare = row.tal ? caCmpVinnare(recs, row.tal, row.rikt) : -1;
+    if (vinnare >= 0) nagonVinnare = true;
+    var cells = recs.map(function(r, i) {
+      var vann = i === vinnare;
+      return '<td class="ca-cmp-c ca-cmp-k' + i + (vann ? ' ca-cmp-vinst' : '') + '" data-kol="' + i + '">' +
+        // Stjärnan FÖRE innehållet: den flyter höger, och en float placeras vid den rad där
+        // den står. Sist i cellen hamnade den under TCO-radens kr/mån-rad i stället för bredvid.
+        (vann ? '<span class="ca-cmp-stjarna" title="B\xe4st i raden">&#x2605;</span>' : '') +
+        row.fn(r) +
+      '</td>';
+    }).join('');
+    return '<tr class="ca-cmp-rad" style="--i:' + ri + '">' +
+      '<th scope="row" class="ca-cmp-lbl">' + row.label + '</th>' + cells + '</tr>';
   }).join('');
+
+  var headerCells = recs.map(function(r, i) {
+    var short = r.title.replace(/\s*\(\d{4}\)\s*$/, '').split(' ').slice(0, 4).join(' ');
+    var col = accent[i] || '#a78bfa';
+    return '<th class="ca-cmp-h ca-cmp-k' + i + '" data-kol="' + i + '" style="--ca-acc:' + col + '">' +
+        '<span class="ca-cmp-hbox">' + caCmpEmblem(r.title, col) + '<span>' +
+          '<span class="ca-cmp-hnum">Bil ' + (i + 1) + '</span>' +
+          '<span class="ca-cmp-hnamn">' + caEsc(short) + '</span>' +
+        '</span></span>' +
+      '</th>';
+  }).join('');
+
   cmp.innerHTML =
-    '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(139,92,246,.18);border-radius:18px;overflow:hidden;margin-top:40px">'+
-      '<div style="padding:16px 18px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.06)">'+
-        '<span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.7)">J\xe4mf\xf6r bilar</span>'+
-        (hasEv ? '<span style="font-size:.7rem;color:rgba(255,255,255,.28)">inkl. elbilsdata</span>' : '')+
-      '</div>'+
-      '<div style="overflow-x:auto">'+
-        '<table style="width:100%;border-collapse:collapse;min-width:420px">'+
-          '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.08)"><th style="padding:10px 14px;width:110px"></th>'+headerCells+'</tr></thead>'+
-          '<tbody>'+rowsHtml+'</tbody>'+
-        '</table>'+
-      '</div>'+
+    '<div class="ca-cmp">' +
+      '<div class="ca-cmp-head">' +
+        '<span class="ca-cmp-titel">J\xe4mf\xf6r bilar</span>' +
+        (hasEv ? '<span class="ca-cmp-ev"><i>&#x26A1;</i>inkl. elbilsdata</span>' : '') +
+        (nagonVinnare ? '<span class="ca-cmp-legend"><b>&#x2605;</b> b\xe4st i raden</span>' : '') +
+      '</div>' +
+      '<div class="ca-cmp-scroll">' +
+        '<table class="ca-cmp-tab">' +
+          '<thead><tr><th class="ca-cmp-hoek"></th>' + headerCells + '</tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+      '</div>' +
       caTcoBarChart(recs) +
     '</div>';
+
+  // Kolumnen man pekar på tänds hela vägen ner. Ett mouseover på rutan i stället för en
+  // lyssnare per cell: tabellen har rader × bilar celler, och alla bär redan data-kol.
+  var ruta = cmp.querySelector('.ca-cmp');
+  if (ruta) {
+    ruta.addEventListener('mouseover', function(e) {
+      var t = e.target;
+      var kol = null;
+      while (t && t !== ruta) {
+        if (t.getAttribute && t.getAttribute('data-kol') !== null) { kol = t.getAttribute('data-kol'); break; }
+        t = t.parentNode;
+      }
+      if (kol !== null) ruta.setAttribute('data-hov', kol);
+      else ruta.removeAttribute('data-hov');
+    });
+    ruta.addEventListener('mouseleave', function() { ruta.removeAttribute('data-hov'); });
+  }
 }
 
 function caTcoBarChart(recs) {
@@ -2442,6 +2753,9 @@ function caTcoBarChart(recs) {
   var valid = tcos.filter(Boolean);
   if (valid.length < 2) return '';
   var maxTotal = Math.max.apply(null, valid.map(function(t) { return t.total; }));
+  var minTotal = Math.min.apply(null, valid.map(function(t) { return t.total; }));
+  var billigast = valid.filter(function(t) { return t.total === minTotal; }).length === 1 ? minTotal : null;
+  var accent = ['#a78bfa', '#38bdf8', '#34d399'];
   var segments = [
     { key: 'depreciation', label: 'V\xe4rdeminskning', color: '#8b5cf6' },
     { key: 'fuel',         label: 'Drivmedel',           color: '#f97316' },
@@ -2455,25 +2769,28 @@ function caTcoBarChart(recs) {
     var name = r.title.replace(/\s*\(\d{4}\)\s*$/, '');
     var segs = segments.map(function(s) {
       var w = (tco[s.key] / maxTotal * 100).toFixed(1);
-      return '<span title="' + s.label + ': ' + Math.round(tco[s.key]/1000) + 'k\xa0kr" ' +
-        'style="display:inline-block;height:100%;width:' + w + '%;background:' + s.color + ';flex-shrink:0"></span>';
+      return '<span class="ca-cmp-seg" title="' + s.label + ': ' + Math.round(tco[s.key]/1000) + 'k\xa0kr" ' +
+        'style="width:' + w + '%;background:' + s.color + '"></span>';
     }).join('');
-    return '<div style="margin-bottom:10px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">' +
-        '<span style="font-size:.72rem;color:rgba(255,255,255,.6)">' + caEsc(name) + '</span>' +
-        '<span style="font-size:.72rem;font-weight:700;color:#a5f3fc">' + tco.total.toLocaleString('sv-SE') + '\xa0kr</span>' +
+    return '<div class="ca-cmp-bar-rad">' +
+      '<div class="ca-cmp-bar-topp">' +
+        '<span class="ca-cmp-bar-namn">' + caCmpEmblem(r.title, accent[i] || '#a78bfa') +
+          '<span>' + caEsc(name) + '</span>' +
+          (billigast !== null && tco.total === billigast ? '<span class="ca-cmp-lag">L\xe4gst</span>' : '') +
+        '</span>' +
+        '<span class="ca-cmp-bar-sum">' + tco.total.toLocaleString('sv-SE') + '\xa0kr</span>' +
       '</div>' +
-      '<div style="display:flex;height:16px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06)">' + segs + '</div>' +
+      '<div class="ca-cmp-bar" style="--i:' + i + '">' + segs + '</div>' +
     '</div>';
   }).join('');
   var legend = segments.map(function(s) {
-    return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:.63rem;color:rgba(255,255,255,.45)">' +
-      '<span style="width:9px;height:9px;border-radius:2px;background:' + s.color + ';flex-shrink:0"></span>' + s.label + '</span>';
+    return '<span class="ca-cmp-leg">' +
+      '<span class="ca-cmp-prick" style="background:' + s.color + ';color:' + s.color + '"></span>' + s.label + '</span>';
   }).join('');
-  return '<div style="padding:14px 18px 16px;border-top:1px solid rgba(255,255,255,.06)">' +
-    '<div style="font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(167,139,250,.7);margin-bottom:10px">TCO-f\xf6rdelning (5\xa0\xe5r)</div>' +
+  return '<div class="ca-cmp-tco">' +
+    '<div class="ca-cmp-tco-rub">TCO-f\xf6rdelning (5\xa0\xe5r)</div>' +
     bars +
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' + legend + '</div>' +
+    '<div class="ca-cmp-legend-rad">' + legend + '</div>' +
   '</div>';
 }
 
