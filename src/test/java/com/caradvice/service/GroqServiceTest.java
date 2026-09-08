@@ -379,10 +379,29 @@ class GroqServiceTest {
                 "{\"error\":{\"message\":\"Rate limit reached ... Please try again in 24.51s\"}}")).isEqualTo(25);
         assertThat(GroqService.parseRetrySeconds(
                 "{\"error\":{\"message\":\"limit 1000 per day, try again in 2m59.56s\"}}")).isEqualTo(180);
-        // Inget att läsa ur = 0, aldrig en gissning: 0 betyder "vänta inte", och då lämnas
-        // felet vidare i stället för att servern sover en påhittad tid.
+        // Inget att läsa ur = 0, aldrig en gissning. Nollan betyder "svaret säger inget" och
+        // ingenting mer — vad servern GÖR med den avgörs av pausInnanOmforsok nedan.
         assertThat(GroqService.parseRetrySeconds("{\"error\":{\"message\":\"nope\"}}")).isZero();
         assertThat(GroqService.parseRetrySeconds("")).isZero();
+    }
+
+    @Test
+    void pausenSoverAvenNarGroqInteAngerNagonVantetid() {
+        // Skarpt prov 2026-09-08: /api/recommend svarade 429 med aiBusy och
+        // retryAfterSeconds 0 efter 3,0 sekunder, och nästa anrop några sekunder senare gick
+        // igenom. Servern hade alltså aldrig sovit — nollan lästes som "ryms inte i pausen"
+        // och kortslöt hela omförsöket, så användaren fick klicka tre gånger.
+        assertThat(GroqService.pausInnanOmforsok("{\"error\":{\"message\":\"nope\"}}")).isPositive();
+        assertThat(GroqService.pausInnanOmforsok("")).isPositive();
+
+        // En tid som ryms används ordagrant — pausen får varken förlänga eller förkorta den.
+        assertThat(GroqService.pausInnanOmforsok(
+                "{\"error\":{\"message\":\"Rate limit reached ... Please try again in 24.51s\"}}")).isEqualTo(25);
+
+        // Och en tid som INTE ryms ger upp: att sova tre minuter vore att byta ett ärligt
+        // "vänta" mot klientens timeout.
+        assertThat(GroqService.pausInnanOmforsok(
+                "{\"error\":{\"message\":\"limit 1000 per day, try again in 2m59.56s\"}}")).isNegative();
     }
 
     @Test

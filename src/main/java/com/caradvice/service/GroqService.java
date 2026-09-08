@@ -281,6 +281,18 @@ public class GroqService {
     private static final int MAX_429_WAIT_SECONDS = 25;
 
     /**
+     * Paus när Groq svarar 429 utan att säga hur länge taket varar.
+     *
+     * <p>{@link #parseRetrySeconds} ger 0 i TVÅ helt olika lägen: taket har redan släppt, och
+     * svaret säger ingenting alls om väntetid. Fram till 2026-09-08 lästes bägge som "ge upp",
+     * och det gjorde att hela pausen nedan kopplades bort just i det fall användaren faktiskt
+     * möter — ett skarpt prov gav 429 på 3,0 s med {@code retryAfterSeconds: 0}, och nästa
+     * anrop några sekunder senare gick igenom. Vet vi inget är en kort väntan alltså ett
+     * sannare svar än ett felmeddelande.
+     */
+    private static final int OKAND_429_WAIT_SECONDS = 5;
+
+    /**
      * Provar modellerna i tur och ordning och byter vid 429 — taket är per modell, så nästa
      * modell har en egen budget. Är ALLA fulla sover den en gång i den tid Groq själv anger
      * och provar första modellen på nytt.
@@ -291,6 +303,29 @@ public class GroqService {
      * Klientens tak måste vara större än {@link #MAX_429_WAIT_SECONDS} plus rundturerna,
      * annars byter man bara ett ärligt "vänta" mot en timeout.
      */
+    /**
+     * Hur många sekunder pausen ska sova innan omförsöket — eller {@code -1} för "ge upp och
+     * lämna 429:an vidare".
+     *
+     * <p>Egen metod för att den avgör HELA skillnaden mellan "väggen blir en väntan" och ett
+     * felmeddelande, och för att {@link #callGroqWithFallback} runt den bara går att prova med
+     * riktiga HTTP-anrop. Regeln har tre utfall, inte två:
+     * <ul>
+     *   <li>Groq anger en tid som ryms i pausen → sov exakt den tiden.</li>
+     *   <li>Groq anger en tid som INTE ryms → ge upp; att sova längre än klientens tak byter
+     *       bara ett ärligt "vänta" mot en timeout.</li>
+     *   <li>Groq anger ingen tid alls → sov {@link #OKAND_429_WAIT_SECONDS}. Det här utfallet
+     *       saknades: {@code vanta <= 0} lästes som "ryms inte", och eftersom
+     *       {@link #parseRetrySeconds} ger 0 även för ett svar utan väntetid kopplades pausen
+     *       bort just i det fall som nådde användaren.</li>
+     * </ul>
+     */
+    static int pausInnanOmforsok(String body) {
+        int vanta = parseRetrySeconds(body);
+        if (vanta > MAX_429_WAIT_SECONDS) return -1;
+        return vanta <= 0 ? OKAND_429_WAIT_SECONDS : vanta;
+    }
+
     private HttpResponse<String> callGroqWithFallback(Object... bodies) throws Exception {
         HttpResponse<String> resp = null;
         for (Object body : bodies) {
@@ -300,10 +335,10 @@ public class GroqService {
         }
         if (resp == null || bodies.length == 0) return resp;
 
-        int vanta = parseRetrySeconds(resp.body());
-        if (vanta <= 0 || vanta > MAX_429_WAIT_SECONDS) {
+        int vanta = pausInnanOmforsok(resp.body());
+        if (vanta < 0) {
             log.warn("Alla {} modeller gav 429 och vantetiden ({} s) ryms inte i pausen — lamnar felet vidare",
-                    bodies.length, vanta);
+                    bodies.length, parseRetrySeconds(resp.body()));
             return resp;
         }
         log.info("Alla {} modeller gav 429 — sover {} s och provar forsta modellen igen", bodies.length, vanta);
