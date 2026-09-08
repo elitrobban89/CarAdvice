@@ -258,10 +258,37 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   if (document.getElementById('ca-compare-css')) return;
   var s = document.createElement('style');
   s.id = 'ca-compare-css';
-  // Sticky etikettkolumn behöver en ogenomskinlig botten: rutan i sig är glas, och en
-  // etikett man kan läsa värdena igenom går inte att läsa alls när tabellen sidscrollar.
-  var LBL = 'linear-gradient(90deg,rgba(20,14,38,.97),rgba(20,14,38,.88))';
+  // Sticky etikettkolumn: ett LJUST glaslager, inte en mörk platta. Första försöket var
+  // rgba(20,14,38,.97) — nästan svart — och det smälte in mot min harness mörka botten men
+  // läste som ett hål mitt i rutan på den riktiga sidan, där panelen är upplyst lila.
+  // backdrop-filter gör jobbet som ogenomskinligheten gjorde: det som scrollar under suddas
+  // bort så etiketten går att läsa. Fallbacken nedan täcker webbläsare utan stöd — utan den
+  // syns värdena rakt igenom kolumnen så fort tabellen sidscrollar.
+  var LBL = 'linear-gradient(90deg,rgba(255,255,255,.075),rgba(255,255,255,.03))';
+  var LBL_FALLBACK = 'linear-gradient(90deg,rgba(49,34,94,.97),rgba(46,32,88,.93))';
   s.textContent = [
+    // Tre färglager som vandrar var för sig. inherits:true krävs för att ::before ska ärva
+    // dem — animationen sitter på .ca-cmp, gradienterna på pseudon.
+    '@property --ca-cmp-f1{syntax:"<color>";initial-value:rgba(139,92,246,.30);inherits:true;}',
+    '@property --ca-cmp-f2{syntax:"<color>";initial-value:rgba(56,189,248,.22);inherits:true;}',
+    '@property --ca-cmp-f3{syntax:"<color>";initial-value:rgba(236,72,153,.16);inherits:true;}',
+    // Åtta stopp = hela färgcirkeln. Alfat hålls lågt och jämnt: det är en TON rutan bär,
+    // inte en färgplatta, och texten ska vara lika läsbar i korall som i lila.
+    '@keyframes ca-cmp-f1{',
+      '0%,100%{--ca-cmp-f1:rgba(139,92,246,.30)}12.5%{--ca-cmp-f1:rgba(217,70,239,.28)}',
+      '25%{--ca-cmp-f1:rgba(244,63,94,.26)}37.5%{--ca-cmp-f1:rgba(251,113,90,.26)}',
+      '50%{--ca-cmp-f1:rgba(251,191,36,.22)}62.5%{--ca-cmp-f1:rgba(52,211,153,.24)}',
+      '75%{--ca-cmp-f1:rgba(45,212,191,.26)}87.5%{--ca-cmp-f1:rgba(59,130,246,.30)}}',
+    '@keyframes ca-cmp-f2{',
+      '0%,100%{--ca-cmp-f2:rgba(56,189,248,.22)}12.5%{--ca-cmp-f2:rgba(45,212,191,.20)}',
+      '25%{--ca-cmp-f2:rgba(132,204,22,.18)}37.5%{--ca-cmp-f2:rgba(251,191,36,.18)}',
+      '50%{--ca-cmp-f2:rgba(251,146,60,.20)}62.5%{--ca-cmp-f2:rgba(244,114,182,.20)}',
+      '75%{--ca-cmp-f2:rgba(167,139,250,.24)}87.5%{--ca-cmp-f2:rgba(99,102,241,.24)}}',
+    '@keyframes ca-cmp-f3{',
+      '0%,100%{--ca-cmp-f3:rgba(236,72,153,.16)}12.5%{--ca-cmp-f3:rgba(251,113,90,.16)}',
+      '25%{--ca-cmp-f3:rgba(250,204,21,.14)}37.5%{--ca-cmp-f3:rgba(34,197,94,.15)}',
+      '50%{--ca-cmp-f3:rgba(20,184,166,.16)}62.5%{--ca-cmp-f3:rgba(56,189,248,.16)}',
+      '75%{--ca-cmp-f3:rgba(129,140,248,.18)}87.5%{--ca-cmp-f3:rgba(192,132,252,.17)}}',
     '@keyframes ca-cmp-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}',
     '@keyframes ca-cmp-aurora{0%{transform:translate(0,0) scale(1);opacity:.7}50%{transform:translate(2.5%,-2%) scale(1.09);opacity:1}100%{transform:translate(0,0) scale(1);opacity:.7}}',
     '@keyframes ca-cmp-shift{to{background-position:200% 50%}}',
@@ -278,16 +305,18 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // kryper de över det som ligger ovanför i det fria jämförelseflödet.
     '.ca-cmp{position:relative;margin-top:40px;border-radius:20px;overflow:hidden;isolation:isolate;' +
       'background-color:rgba(255,255,255,.025);' +
-      'background-image:linear-gradient(155deg,rgba(139,92,246,.13),rgba(56,189,248,.06) 48%,rgba(236,72,153,.07));' +
+      'background-image:linear-gradient(155deg,var(--ca-cmp-f1,rgba(139,92,246,.30)),' +
+        'var(--ca-cmp-f2,rgba(56,189,248,.22)) 48%,var(--ca-cmp-f3,rgba(236,72,153,.16)));' +
+      'animation:ca-cmp-f1 37s linear infinite,ca-cmp-f2 53s linear infinite,ca-cmp-f3 71s linear infinite;' +
       'backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);' +
       'border:1px solid rgba(167,139,250,.2);' +
       'box-shadow:0 26px 64px -22px rgba(0,0,0,.6),0 0 80px -34px rgba(139,92,246,.55),inset 0 1px 0 rgba(255,255,255,.07);}',
     // Aurora bakom allt: tre färgfält som driver långsamt. Färgerna är OLIKA (lila/cyan/rosa)
     // så rörelsen läses som färg och inte bara som ljusstyrka — samma lärdom som heron gav.
     '.ca-cmp::before{content:"";position:absolute;inset:-25%;z-index:0;pointer-events:none;' +
-      'background:radial-gradient(ellipse at 22% 0%,rgba(139,92,246,.3),transparent 55%),' +
-      'radial-gradient(ellipse at 86% 12%,rgba(56,189,248,.22),transparent 52%),' +
-      'radial-gradient(ellipse at 62% 100%,rgba(236,72,153,.16),transparent 55%);' +
+      'background:radial-gradient(ellipse at 22% 0%,var(--ca-cmp-f1,rgba(139,92,246,.3)),transparent 55%),' +
+      'radial-gradient(ellipse at 86% 12%,var(--ca-cmp-f2,rgba(56,189,248,.22)),transparent 52%),' +
+      'radial-gradient(ellipse at 62% 100%,var(--ca-cmp-f3,rgba(236,72,153,.16)),transparent 55%);' +
       'animation:ca-cmp-aurora 17s ease-in-out infinite;}',
     // Vandrande färgkant, samma grepp (och samma registrerade vinkel) som heron och korten.
     '.ca-cmp::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;' +
@@ -335,13 +364,20 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
       'justify-content:center;font-size:.66rem;font-weight:800;letter-spacing:.02em;color:var(--ca-acc,#a78bfa);' +
       'background:rgba(255,255,255,.06);border:1.5px solid var(--ca-acc,#a78bfa);' +
       'box-shadow:0 0 14px -4px var(--ca-acc,#a78bfa),inset 0 1px 0 rgba(255,255,255,.08);}',
-    '.ca-cmp-hoek{position:sticky;left:0;z-index:4;width:124px;padding:10px 14px;background:' + LBL + ';border-bottom:1px solid rgba(255,255,255,.09);}',
+    '.ca-cmp-hoek{position:sticky;left:0;z-index:4;width:152px;padding:10px 14px;background:' + LBL + ';' +
+      'backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);' +
+      'border-bottom:1px solid rgba(255,255,255,.09);border-right:1px solid rgba(255,255,255,.07);}',
     // Etikettkolumnen fastnar vid vänsterkanten: utan den vet man inte VAD man läser så fort
     // tabellen sidscrollat ett steg, och på mobil scrollar den alltid.
-    '.ca-cmp-lbl{position:sticky;left:0;z-index:3;padding:11px 13px;text-align:left;font-size:.73rem;' +
-      'font-weight:700;color:rgba(226,232,240,.58);white-space:nowrap;vertical-align:middle;' +
+    // Etiketterna radbryter. Med nowrap sköt "Motor & batterialternativ" ut ur kolumnen och
+    // lade sig över Bil 1 — bredden sätts av hörncellen och etiketten brydde sig inte om den.
+    '.ca-cmp-lbl{position:sticky;left:0;z-index:3;padding:11px 13px;text-align:left;font-size:.72rem;' +
+      'font-weight:700;color:rgba(226,232,240,.66);line-height:1.35;vertical-align:middle;' +
       'letter-spacing:.01em;border-bottom:1px solid rgba(255,255,255,.05);background:' + LBL + ';' +
-      'transition:color .18s,box-shadow .18s;}',
+      'backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);' +
+      'border-right:1px solid rgba(255,255,255,.07);transition:color .18s,box-shadow .18s;}',
+    '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){' +
+      '.ca-cmp-lbl,.ca-cmp-hoek{background:' + LBL_FALLBACK + ';}}',
     '.ca-cmp-c{padding:11px 14px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.045);transition:background-color .18s,box-shadow .18s;}',
     // Raderna vecklar in sig i tur och ordning när tabellen ritas
     '.ca-cmp-rad{animation:ca-cmp-in .5s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0)*42ms);}',
@@ -409,11 +445,11 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-cmp-leg{display:inline-flex;align-items:center;gap:5px;font-size:.65rem;color:rgba(226,232,240,.5);}',
     '.ca-cmp-prick{width:9px;height:9px;border-radius:3px;flex-shrink:0;box-shadow:0 0 9px -1px currentColor;}',
     '@media(max-width:520px){.ca-cmp{margin-top:28px;border-radius:16px;}' +
-      '.ca-cmp-c,.ca-cmp-lbl{padding:9px 10px;}.ca-cmp-hoek{width:104px;padding:9px 10px;}' +
-      '.ca-cmp-h{padding:11px 10px 9px;}.ca-cmp-tab{min-width:390px;}}',
+      '.ca-cmp-c,.ca-cmp-lbl{padding:9px 10px;}.ca-cmp-hoek{width:118px;padding:9px 10px;}' +
+      '.ca-cmp-lbl{font-size:.68rem;}.ca-cmp-h{padding:11px 10px 9px;}.ca-cmp-tab{min-width:390px;}}',
     // animation:none tar bort clip-path-fyllningen också, och då står stapeln helt framme
     // direkt — den slocknar alltså inte, den slutar bara röra sig.
-    '@media(prefers-reduced-motion:reduce){.ca-cmp::before,.ca-cmp::after,.ca-cmp-titel,.ca-cmp-ev i,' +
+    '@media(prefers-reduced-motion:reduce){.ca-cmp,.ca-cmp::before,.ca-cmp::after,.ca-cmp-titel,.ca-cmp-ev i,' +
       '.ca-cmp-rad,.ca-cmp-bar,.ca-cmp-bar::after{animation:none!important;}' +
       '.ca-cmp-bar::after{display:none;}}'
   ].join('');
@@ -4099,6 +4135,187 @@ function caFcRenderResult(recs) {
   setTimeout(function() { result.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
 }
 
+// ── Vägen vid rubriken ───────────────────────────────────────────────────────
+// En bil som kör på en väg som aldrig tar slut, till höger om "Hitta din drömbil".
+//
+// Byggs från JS av samma skäl som allt annat i den här filen: WP-sidan är en manuell kopia
+// och ska slippa klistras om för en ren utsmyckning. Rubriken flyttas in i en flexrad
+// tillsammans med vägen — h2:an behåller sin identitet och därmed sina stilar.
+//
+// Bilen står stilla och VÄGEN rullar. Att i stället köra bilen över ytan hade krävt att den
+// försvinner ut i kanten och dyker upp igen, och just den hoppen är vad "aldrig tar slut"
+// inte får se ut som. Mittlinjen förskjuts exakt en periodlängd (32 px) per varv, så
+// slingan går ihop utan synligt skarvsteg.
+//
+// Bilen är en inline-SVG och inte 🚗: emojin pekar åt VÄNSTER i de flesta teckensnitt, och en
+// bil som kör baklänges längs en väg som rullar åt höger var det första jag såg.
+(function caVagCss() {
+  if (document.getElementById('ca-vag-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-vag-css';
+  s.textContent = [
+    // Rubrikraden: h2:an tar sin plats, vägen resten
+    '.ca-rubrikrad{display:flex;align-items:center;gap:16px;}',
+    '.ca-rubrikrad h2{margin-bottom:0!important;flex:0 0 auto;}',
+    // Masken åt båda håll är hela poängen: utan den slutar vägen tvärt i två kanter, och
+    // en väg med synliga ändar tar per definition slut.
+    '.ca-vag{position:relative;flex:1 1 auto;min-width:70px;height:42px;overflow:hidden;',
+      '-webkit-mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);',
+      'mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
+    // Asfalten
+    '.ca-vag-yta{position:absolute;left:0;right:0;bottom:9px;height:15px;border-radius:2px;',
+      'background:linear-gradient(180deg,#2b2247,#171126);',
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.45);}',
+    // Mittlinjen. Bredare än ytan och förskjuten en hel period per varv.
+    '.ca-vag-linje{position:absolute;top:50%;left:0;width:calc(100% + 40px);height:2px;',
+      'transform:translateY(-50%);border-radius:2px;',
+      'background:repeating-linear-gradient(90deg,rgba(251,191,36,.9) 0 14px,transparent 14px 32px);',
+      'animation:ca-vag-rull 1.15s linear infinite;}',
+    '@keyframes ca-vag-rull{from{transform:translate(0,-50%)}to{transform:translate(-32px,-50%)}}',
+    // Kantlinjen längst ner ger vägen djup utan att konkurrera med mittlinjen
+    '.ca-vag-kant{position:absolute;left:0;bottom:9px;width:calc(100% + 24px);height:1px;',
+      'background:repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 8px,transparent 8px 24px);',
+      'animation:ca-vag-kant 0.85s linear infinite;}',
+    '@keyframes ca-vag-kant{from{transform:translateX(0)}to{transform:translateX(-24px)}}',
+    // Lyktstolparna passerar långsammare än vägbanan — parallaxen gör att vägen får djup
+    '.ca-vag-stolpar{position:absolute;left:0;bottom:24px;width:calc(100% + 90px);height:16px;',
+      'background:repeating-linear-gradient(90deg,rgba(167,139,250,.4) 0 2px,transparent 2px 90px);',
+      'animation:ca-vag-stolp 2.6s linear infinite;}',
+    '@keyframes ca-vag-stolp{from{transform:translateX(0)}to{transform:translateX(-90px)}}',
+    // Bilen: står still i sidled, guppar lite. Skuggan följer med guppet.
+    '.ca-vag-bil{position:absolute;left:44%;bottom:13px;width:46px;height:21px;',
+      'animation:ca-vag-gupp .42s ease-in-out infinite alternate;',
+      'filter:drop-shadow(0 4px 5px rgba(0,0,0,.55));}',
+    '@keyframes ca-vag-gupp{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}',
+    '.ca-vag-hjul{transform-box:fill-box;transform-origin:center;animation:ca-vag-snurr .34s linear infinite;}',
+    '@keyframes ca-vag-snurr{to{transform:rotate(360deg)}}',
+    // Fartstrecken bakom bilen: tre streck som skjuts bakåt i olika takt
+    '.ca-vag-fart{position:absolute;bottom:19px;height:1.5px;border-radius:2px;',
+      'background:linear-gradient(90deg,transparent,rgba(186,230,253,.75));',
+      'animation:ca-vag-fartlinje 1s linear infinite;}',
+    '@keyframes ca-vag-fartlinje{0%{opacity:0;transform:translateX(6px) scaleX(.4)}',
+      '25%{opacity:.9}100%{opacity:0;transform:translateX(-26px) scaleX(1)}}',
+    // Strålkastarkäglan framåt
+    '.ca-vag-ljus{position:absolute;left:calc(44% + 42px);bottom:15px;width:34px;height:12px;',
+      'background:linear-gradient(90deg,rgba(253,230,138,.5),transparent);',
+      'clip-path:polygon(0 38%,100% 0,100% 100%,0 62%);pointer-events:none;',
+      'animation:ca-vag-ljuspuls 2.4s ease-in-out infinite;}',
+    '@keyframes ca-vag-ljuspuls{0%,100%{opacity:.55}50%{opacity:.9}}',
+    // Under 560 px konkurrerar vägen med rubriken om bredden och rubriken vinner.
+    '@media(max-width:560px){.ca-vag{display:none;}.ca-rubrikrad{gap:0;}}',
+    '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
+      '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus{animation:none!important;}',
+      '.ca-vag-fart{opacity:.5;}}'
+  ].join('');
+  (document.body || document.documentElement).appendChild(s);
+})();
+
+/**
+ * Sätter vägen bredvid rubriken.
+ *
+ * <p>Idempotent: körs om utan att dubblera, eftersom WP-sidan kan ladda skriptet en gång till
+ * vid mjuka sidbyten. Saknas rubriken händer ingenting — hellre ingen väg än ett undantag som
+ * stoppar resten av initieringen.
+ */
+function caByggVag() {
+  try {
+    if (document.querySelector('.ca-vag')) return;
+    var hero = document.getElementById('ca-hero');
+    var h2 = hero && hero.querySelector('h2');
+    if (!h2) return;
+
+    var rad = document.createElement('div');
+    rad.className = 'ca-rubrikrad';
+    h2.parentNode.insertBefore(rad, h2);
+    rad.appendChild(h2);
+
+    var vag = document.createElement('div');
+    vag.className = 'ca-vag';
+    vag.setAttribute('aria-hidden', 'true');
+    vag.innerHTML =
+      '<div class="ca-vag-stolpar"></div>' +
+      '<div class="ca-vag-yta"></div>' +
+      '<div class="ca-vag-linje"></div>' +
+      '<div class="ca-vag-kant"></div>' +
+      '<span class="ca-vag-fart" style="left:calc(44% - 6px);width:16px;animation-delay:0s"></span>' +
+      '<span class="ca-vag-fart" style="left:calc(44% - 2px);width:11px;bottom:24px;animation-delay:.35s"></span>' +
+      '<span class="ca-vag-fart" style="left:calc(44% - 9px);width:14px;bottom:15px;animation-delay:.62s"></span>' +
+      '<div class="ca-vag-ljus"></div>' +
+      '<svg class="ca-vag-bil" viewBox="0 0 46 21" xmlns="http://www.w3.org/2000/svg">' +
+        '<defs>' +
+          '<linearGradient id="ca-vag-lack" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#8b5cf6"/>' +
+            '<stop offset="100%" stop-color="#5b21b6"/></linearGradient>' +
+        '</defs>' +
+        // Kaross: nos åt höger, kupé i mitten, bakparti något högre
+        '<path d="M2.5 15.5 L3.6 10.6 Q4 8.9 6 8.6 L13.5 7.6 L18.5 3.9 Q19.8 3 21.8 3 L28.5 3 ' +
+              'Q30.8 3 32 4.4 L35.6 8.4 L40.8 9.4 Q43.5 9.9 43.5 12.6 L43.5 15.5 Z" ' +
+              'fill="url(#ca-vag-lack)"/>' +
+        // Rutor
+        '<path d="M15.8 7.8 L19.8 4.9 Q20.6 4.4 21.8 4.4 L24.2 4.4 L24.2 8.1 Z" fill="#bae6fd" opacity=".9"/>' +
+        '<path d="M25.6 4.4 L28.4 4.4 Q29.9 4.4 30.7 5.3 L33.2 8.1 L25.6 8.1 Z" fill="#bae6fd" opacity=".9"/>' +
+        // Strålkastare
+        '<rect x="41.4" y="10.6" width="2.2" height="2.4" rx="1" fill="#fde68a"/>' +
+        // Hjulhus + hjul med eker så rotationen syns
+        '<g class="ca-vag-hjul"><circle cx="12.5" cy="15.4" r="4.1" fill="#1f1830"/>' +
+          '<circle cx="12.5" cy="15.4" r="1.7" fill="#cbd5e1"/>' +
+          '<rect x="12.1" y="11.9" width=".8" height="7" fill="#94a3b8" opacity=".85"/></g>' +
+        '<g class="ca-vag-hjul"><circle cx="33.5" cy="15.4" r="4.1" fill="#1f1830"/>' +
+          '<circle cx="33.5" cy="15.4" r="1.7" fill="#cbd5e1"/>' +
+          '<rect x="33.1" y="11.9" width=".8" height="7" fill="#94a3b8" opacity=".85"/></g>' +
+      '</svg>';
+    rad.appendChild(vag);
+  } catch (e) {
+    try { console.warn('CarAdvice: vägen vid rubriken kunde inte byggas', e); } catch (x) {}
+  }
+}
+
+// ── Litet liv i knapparna ────────────────────────────────────────────────────
+// Kategorichipsen och snabbstartsknapparna stod helt still tills man förde muspekaren över
+// dem. Nu andas ikonerna, den valda kategorin glöder långsamt och ett sken sveper förbi
+// snabbstartsknapparna i tur och ordning.
+//
+// Förskjutna starter (nth-child) med flit: rör sig alla i takt läses det som ett fel i
+// renderingen snarare än som liv. Samma skäl som de tre kortens färgkanter fick olika
+// startlägen.
+//
+// Bara transform, opacity och box-shadow — de kostar ingen omritning av layouten. Ytorna är
+// dessutom små, till skillnad från heron där en animerad filter:hue-rotate mätte 31,4 mot
+// 43,9 fps och därför togs bort.
+(function caRorelseCss() {
+  if (document.getElementById('ca-rorelse-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-rorelse-css';
+  var d = '';
+  // Ikonerna: fem kategorier och fyra snabbstartsknappar, var och en en bit in i cykeln
+  for (var i = 1; i <= 6; i++) {
+    d += '.ca-chips .ca-chip:nth-child(' + i + ') .ca-chip-ikon{animation-delay:-' + (i * 0.62).toFixed(2) + 's;}';
+    d += '.ca-snabb-rad .ca-snabb-btn:nth-child(' + i + ') .ca-snabb-ikon{animation-delay:-' + (i * 0.83).toFixed(2) + 's;}';
+    d += '.ca-snabb-rad .ca-snabb-btn:nth-child(' + i + ')::after{animation-delay:' + (i * 1.15).toFixed(2) + 's;}';
+  }
+  s.textContent = [
+    '@keyframes ca-ikon-liv{0%,100%{transform:translateY(0) rotate(0deg)}',
+      '50%{transform:translateY(-1.6px) rotate(-4deg)}}',
+    '@keyframes ca-chip-glod{0%,100%{box-shadow:0 0 0 1px rgba(167,139,250,.3),0 4px 16px -4px rgba(139,92,246,.55)}',
+      '50%{box-shadow:0 0 0 1px rgba(167,139,250,.6),0 7px 26px -3px rgba(139,92,246,.95)}}',
+    '@keyframes ca-snabb-sken{0%,72%{left:-42%}92%,100%{left:120%}}',
+    '.ca-chip-ikon,.ca-snabb-ikon{animation:ca-ikon-liv 3.4s ease-in-out infinite;}',
+    // animation:none och inte play-state:paused — en pausad animation fortsätter skriva sitt
+    // värde och vinner då över hover-transformen, som därmed aldrig syntes.
+    '.ca-chip:hover .ca-chip-ikon{animation:none;transform:scale(1.12);}',
+    '.ca-snabb-btn:hover .ca-snabb-ikon{animation:none;transform:scale(1.12);}',
+    '.ca-chip-aktiv{animation:ca-chip-glod 2.8s ease-in-out infinite;}',
+    '.ca-snabb-btn{position:relative;overflow:hidden;}',
+    '.ca-snabb-btn::after{content:"";position:absolute;top:0;left:-42%;width:32%;height:100%;',
+      'background:linear-gradient(100deg,transparent,rgba(255,255,255,.2),transparent);',
+      'transform:skewX(-18deg);pointer-events:none;animation:ca-snabb-sken 7s ease-in-out infinite;}',
+    d,
+    '@media(prefers-reduced-motion:reduce){.ca-chip-ikon,.ca-snabb-ikon,.ca-chip-aktiv,',
+      '.ca-snabb-btn::after{animation:none!important;}.ca-snabb-btn::after{display:none;}}'
+  ].join('');
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 function caInit() {
   window._caFns = {
     recommend: caGetRecommendation,
@@ -4109,6 +4326,7 @@ function caInit() {
     delHistory: caDeleteHistory
   };
 
+  caByggVag();
   caUpdateSliderFill();
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
   caEnsureCargoField();
