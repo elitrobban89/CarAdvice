@@ -93,19 +93,23 @@ public class GroqService {
             .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
                     (a, b) -> a, LinkedHashMap::new)));
 
-    /** Promptraden byggs UR tabellen — annars glider text och vakt isär vid nästa mätning. */
-    private static final String EV_PRICE_FLOORS =
+    private static final String EV_PRICE_FLOORS_INTRO =
             "ELBIL (kategori \"elbil\") — UPPMÄTTA BEGAGNATGOLV på svenska marknaden (billigaste annons"
             + " med högst 10 000 mil, augusti 2026). Använd dem som prisankare i stället för att räkna"
-            + " fram priset ur nypriset:\n"
+            + " fram priset ur nypriset";
+
+    /** Promptraden byggs UR tabellen — annars glider text och vakt isär vid nästa mätning. */
+    private static final String EV_PRICE_FLOORS_TABELL =
             // Locale.ROOT med flit: svensk locale ger HÅRT mellanslag (U+00A0) som
             // grupperingstecken, och då matchar varken testet eller en sökning i prompten det
             // som står där. Samma familj av fälla som U+202F i AI-titlarna 2026-08-10.
-            + EV_PRICE_FLOOR_KR.entrySet().stream()
+            EV_PRICE_FLOOR_KR.entrySet().stream()
                     .map(e -> e.getKey() + " fr. ca "
                             + String.format(java.util.Locale.ROOT, "%,d", e.getValue()).replace(',', ' '))
-                    .collect(java.util.stream.Collectors.joining(", "))
-            + ".\nEn modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en"
+                    .collect(java.util.stream.Collectors.joining(", "));
+
+    private static final String EV_PRICE_FLOORS_REGLER =
+            "\nEn modell vars golv ligger över budgeten + 30 000 kr är fel förslag — välj i stället en"
             + " modell vars golv ligger nära budgeten. Regeln gäller BARA när användaren angett en"
             + " budget."
             // Taket lästes som ett FÖNSTER i skarpt prov 2026-09-05: användaren nämnde bara att
@@ -116,6 +120,36 @@ public class GroqService {
             + " bort en bil, och att användaren nämner en dyrare bil gör den inte till en budget."
             + " Har ingen budget angetts — hitta inte på en, och sålla då aldrig på pris."
             + " Golvet är billigaste exemplaret: ett välutrustat eller lågmilat exemplar kostar mer.";
+
+    /** Hela blocket — chatten och testernas {@code prefs == null}-väg får alltid det här. */
+    private static final String EV_PRICE_FLOORS =
+            EV_PRICE_FLOORS_INTRO + ":\n" + EV_PRICE_FLOORS_TABELL + "." + EV_PRICE_FLOORS_REGLER;
+
+    /**
+     * Samma regler, utan modellraderna — för sökningar där användarprompten redan bär golven.
+     *
+     * <p>Uppmätt 2026-09-08: {@code affordableModelsLine} skriver ut exakt samma modeller med
+     * exakt samma golv i användarprompten ("MODELLER SOM RYMS I BUDGETEN"), budgetfiltrerade,
+     * OCH namnger dem som ligger över taket. Tabellen här var alltså samma 423 tecken en gång
+     * till i samma anrop. Reglerna är däremot inte dubblerade och måste stanna.
+     */
+    private static final String EV_PRICE_FLOORS_UTAN_TABELL =
+            EV_PRICE_FLOORS_INTRO + ". De golv som är aktuella för budgeten står i användarens"
+            + " fråga." + EV_PRICE_FLOORS_REGLER;
+
+    /**
+     * Sant när användarprompten redan skriver ut golven med priser.
+     *
+     * <p>Frågar {@link #affordableModelsLine} i stället för att upprepa dess fyra villkor —
+     * villkoren har flyttat sig två gånger (golvvakt, nybil/leasing, "ryms hela tabellen"), och
+     * en kopia av dem här hade glidit isär vid nästa ändring precis som text och vakt gjorde.
+     */
+    static boolean golvenStarIAnvandarprompten(CarPreferences prefs) {
+        return prefs != null && affordableModelsLine(prefs).contains(GOLVLISTA_MARKOR);
+    }
+
+    /** Rubriken som gör golvlistan igenkännlig — delas av raden som skriver den och vakten ovan. */
+    static final String GOLVLISTA_MARKOR = "MODELLER SOM RYMS I BUDGETEN";
 
     /**
      * {@code budgetShortfallFromKr} är null i normalfallet. Är den satt gick ingen bil att
@@ -140,6 +174,22 @@ public class GroqService {
     // Bevakas av hälsokollen så en avveckling larmar via UptimeRobot.
     @Value("${groq.reserve.model:qwen/qwen3.6-27b}")
     private String reserveModel;
+
+    /**
+     * Fjärde modellen i 429-kedjan — ren kapacitet, ingen ny nyckel.
+     *
+     * <p>Taket är 8 000 tokens per minut <b>och modell</b>, inte per konto: ett fjärde
+     * modellnamn på samma {@code GROQ_API_KEY} ger alltså en egen pott. Uppmätt 2026-09-08 tar
+     * en sökning 7 334 av 8 000 på en modell, så varje extra modell är ungefär en sökning till
+     * i en skur — och det är den enda spak som flyttar antalet sökningar per minut. Att korta
+     * prompten gör det inte: två anrop kräver ≤ 4 000 per anrop och prompten ensam är ~4 200.
+     *
+     * <p>TOM som default med flit. En modell som inte finns hos kontot ligger sist i kedjan,
+     * nås först när de tre andra gett 429, och byter då en ärlig 429:a mot ett hårt fel. Sätts
+     * bara till ett namn som setts i {@code GET /api/admin/groq-models}.
+     */
+    @Value("${groq.fourth.model:}")
+    private String fourthModel;
 
     // Extra modeller som hälsokollen bevakar utöver de egna — Tag/VaderKlader kör gpt-oss-120b
     // men saknar egen /health/groq, så avveckling larmas härifrån
@@ -350,6 +400,24 @@ public class GroqService {
      * utelämnar en av vägarna är värre än ingen — man felsöker i halvmörker och tror att man
      * ser hela bilden. Därför bokförs BÅDA anropen nedan.
      */
+    /**
+     * Den fjärde modellens body, kopierad ur den första — eller {@code null} när ingen är satt.
+     *
+     * <p>Kopian i stället för ett eget {@code jsonCallBody}-anrop är med flit: kedjans anropare
+     * bygger sina bodies med olika temperatur, prompt och {@code max_tokens} på sex olika
+     * ställen, och ett sjunde bygge här hade behövt hållas i takt med alla sex. Byts bara
+     * modellnamnet är den fjärde modellen per definition samma anrop som det första.
+     */
+    private Object fjardeModellBody(Object forstaBody) {
+        if (fourthModel == null || fourthModel.isBlank()) return null;
+        if (!(forstaBody instanceof Map<?, ?> forsta)) return null;
+        Map<String, Object> kopia = new LinkedHashMap<>();
+        forsta.forEach((k, v) -> kopia.put(String.valueOf(k), v));
+        kopia.put("model", fourthModel);
+        kopia.put("reasoning_effort", reasoningEffortFor(fourthModel));
+        return kopia;
+    }
+
     private HttpResponse<String> sendMedPaus(Object body) throws Exception {
         HttpResponse<String> resp = httpClient.send(buildRequest(body), HttpResponse.BodyHandlers.ofString());
         registreraTokenanvandning(body, resp);
@@ -381,6 +449,17 @@ public class GroqService {
             if (resp.statusCode() != 429) return resp;
         }
         if (resp == null || bodies.length == 0) return resp;
+
+        // Fjärde modellen provas FÖRST när alla konfigurerade gett 429 — den är extra kapacitet,
+        // inte ett bättre svar. Bodyn kopieras från den första så prompt, max_tokens och
+        // response_format är identiska; bara modellnamnet och reasoning_effort byts.
+        Object fjarde = fjardeModellBody(bodies[0]);
+        if (fjarde != null) {
+            HttpResponse<String> fjardeSvar = httpClient.send(buildRequest(fjarde), HttpResponse.BodyHandlers.ofString());
+            registreraTokenanvandning(fjarde, fjardeSvar);
+            if (fjardeSvar.statusCode() != 429) return fjardeSvar;
+            resp = fjardeSvar;
+        }
 
         int vanta = pausInnanOmforsok(resp.body());
         if (vanta < 0) {
@@ -2783,7 +2862,7 @@ public class GroqService {
         String ovreDel = ovreDelenAvBudgeten(prefs.budget());
         if (over.isEmpty()) return ovreDel;
 
-        return " MODELLER SOM RYMS I BUDGETEN (uppmätta begagnatgolv, billigaste exemplar): "
+        return " " + GOLVLISTA_MARKOR + " (uppmätta begagnatgolv, billigaste exemplar): "
                 + String.join(", ", ryms) + ". Utgå från dessa. Följande ligger ÖVER taket "
                 + tak + " kr och kastas av kontrollen även om de passar profilen i övrigt: "
                 + String.join(", ", over) + "." + ovreDel;
@@ -3031,6 +3110,9 @@ public class GroqService {
         models.add(model);
         models.add(chatModel);
         if (reserveModel != null && !reserveModel.isBlank()) models.add(reserveModel);
+        // Den fjärde modellen måste bevakas som de andra: avvecklas den tyst blir den ett hårt
+        // fel sist i kedjan, precis i det läge (alla andra fulla) där felet är som dyrast.
+        if (fourthModel != null && !fourthModel.isBlank()) models.add(fourthModel);
         if (watchedModels != null) {
             for (String m : watchedModels.split(",")) {
                 if (!m.isBlank()) models.add(m.trim());
@@ -3066,6 +3148,28 @@ public class GroqService {
     }
 
     /** Vilka av de konfigurerade modellerna som saknas i ett /models-svar ({"data":[{"id":...},...]}). */
+    /**
+     * Hela modellkatalogen kontot har hos Groq — underlag för att VÄLJA modell, inte för att larma.
+     *
+     * <p>{@link #checkModels} svarar bara på "saknas någon av våra?". Ska kedjan utökas med en
+     * fjärde modell (egen TPM-pott) måste man i stället veta vad som FINNS: en felgissad modell
+     * ligger sist i kedjan, nås först när de tre andra gett 429, och förvandlar då en ärlig
+     * 429:a till ett hårt fel. Katalogen är svaret på den frågan, och den frågan går inte att
+     * besvara ur repot.
+     */
+    public List<String> tillgangligaModeller() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(GROQ_MODELS_URL))
+                .header("Authorization", "Bearer " + apiKey)
+                .GET().build();
+        HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) throw new RuntimeException("Groq /models svarade " + resp.statusCode());
+        JsonNode data = mapper.readTree(resp.body()).get("data");
+        List<String> ids = new ArrayList<>();
+        if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asText()));
+        return ids.stream().sorted().toList();
+    }
+
     List<String> missingModels(String modelsResponseBody) throws Exception {
         JsonNode data = mapper.readTree(modelsResponseBody).get("data");
         Set<String> available = new HashSet<>();
@@ -4018,6 +4122,24 @@ public class GroqService {
         return buildSystemPrompt(expertContext, prefs.fuelType(), prefs.carCategory(), prefs);
     }
 
+    /**
+     * Vilken form av elbilsgolven sökningen ska få — hela blocket, reglerna utan tabell, eller
+     * ingenting.
+     *
+     * <p>Blocket skickades i VARJE sökning, även rena bensin- och dieselsök. Golven är
+     * BEV-modeller och intron säger ordagrant {@code ELBIL (kategori "elbil")} — i ett bensinsök
+     * kan alltså ingen rad bli relevant, och hela blocket är brus som kostar tokens. Uppmätt
+     * 2026-09-08: ~1 200 tecken (~540 tokens) av en prompt på 4 334.
+     *
+     * <p>{@code allt} (prefs == null) tar med hela blocket med flit — det är testernas väg, och
+     * tyst bortfiltrering där hade dolt regressioner i regeltexten. Samma skäl som
+     * kategoriblocken ovan.
+     */
+    private static String evGolvBlock(boolean wantsEv, boolean allt, CarPreferences prefs) {
+        if (!allt && !wantsEv) return "";
+        return golvenStarIAnvandarprompten(prefs) ? EV_PRICE_FLOORS_UTAN_TABELL : EV_PRICE_FLOORS;
+    }
+
     String buildSystemPrompt(String expertContext, String fuelType, String carCategory,
                              CarPreferences prefs) {
         FuelIntent intent = fuelIntent(fuelType, carCategory);
@@ -4053,7 +4175,7 @@ public class GroqService {
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
                 Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN — "Manuell 6-växlad", "Automat 8-växlad", "Automat CVT", "Automat DSG 7-växlad". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. Elbil/laddhybrid: fuelSpec=null.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
-                """ + kategoriRegler + EV_PRICE_FLOORS + """
+                """ + kategoriRegler + evGolvBlock(wantsEv, allt, prefs) + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
                 BUDGETTAK: en bil får ALDRIG kosta mer än budgeten + 30 000 kr på begagnatmarknaden, räknat på den BILLIGASTE annonsen. Går modellens billigaste exemplar inte under taket är bilen fel förslag hur väl den än passar — byt till äldre årsmodell, enklare utrustning eller billigare märke i samma storleksklass. Taket kontrolleras mot riktiga Blocket-annonser efteråt; en bil som bryter mot det kastas.
                 SIKTA MOT SPANNET: minst två av tre förslag ska ligga inom ±30 000 kr från budgeten. Det tredje får vara billigare om det är ett genuint prisvärt alternativ.
