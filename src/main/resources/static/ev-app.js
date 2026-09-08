@@ -411,6 +411,20 @@
     ".ev-picker-back:hover{color:#93c5fd;}" +
     ".ev-picker-brand-head{font-size:.86rem;font-weight:800;color:#f0f4ff;}" +
     ".ev-picker-model-list{display:flex;flex-direction:column;gap:5px;padding:1px;}" +
+    // Gruppen: en rubrikrad och därunder versionerna, indragna bakom en lodrät linje som
+    // visar att de hör ihop. Linjen ersätter en ram — en ram runt varje grupp hade gett
+    // fyra ramar i en lista med fyra modeller.
+    ".ev-picker-model-group{margin-bottom:11px;}" +
+    ".ev-picker-model-group:last-child{margin-bottom:0;}" +
+    ".ev-picker-group-head{display:flex;align-items:baseline;gap:8px;padding:0 2px 5px;}" +
+    ".ev-picker-group-namn{font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#93c5fd;}" +
+    ".ev-picker-group-antal{font-size:.62rem;color:rgba(191,219,254,.5);}" +
+    // "Äldst först" står bara på grupper som FAKTISKT har flera generationer
+    ".ev-picker-group-gen{margin-left:auto;font-size:.6rem;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.05em;color:#fbbf24;background:rgba(251,191,36,.12);" +
+      "border:1px solid rgba(251,191,36,.3);border-radius:999px;padding:1px 7px;}" +
+    ".ev-picker-model-group .ev-picker-model-list{padding-left:9px;border-left:2px solid rgba(59,130,246,.22);}" +
+
     ".ev-picker-model{display:flex;flex-direction:column;gap:2px;padding:9px 11px;background:rgba(59,130,246,.04);border:1.5px solid rgba(59,130,246,.13);border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,background .16s;}" +
     // Modellraden får samma språk men dämpat: man har redan valt märke, och en lika stark
     // glöd på varje rad i en lista med fjorton hade blivit ett ljusspel.
@@ -623,6 +637,10 @@
     const n = (namn || "").trim();
     if (/^Alfa\s+Romeo/i.test(n)) return "Alfa Romeo";
     const forsta = n.split(/\s+/)[0] || "";
+    // "DS Automobiles" är hela märkesnamnet. Med bara första ordet blev märket "DS" och
+    // modellerna hette "Automobiles N°7 FWD" — grupperingen slog ihop N°4, N°7 och N°8 till
+    // en enda linje som hette "Automobiles", och då syntes felet.
+    if (/^DS\s+Automobiles\b/i.test(n)) return "DS Automobiles";
     if (/^MG\d/i.test(forsta)) return "MG";
     if (forsta.toLowerCase() === "firefly") return "Firefly";
     return forsta;
@@ -665,6 +683,125 @@
         return { notis: "heter " + b.ny + " på nyare årsmodeller", ocksa: b.ny };
     }
     return null;
+  }
+
+  // ── Modellinjer: samma bilmodell i en grupp, äldst först ────────────────────
+  //
+  // Regeln är enkel: modellnamnet är FÖRSTA ordet, allt därefter är en variant. "EX30 Cross
+  // Country" och "EX30 Single Motor" är samma bil i olika utföranden, inte två modeller, och
+  // samma sak gäller "Enyaq Coupe" mot "Enyaq" och "EV4 Fastback" mot "EV4 Hatchback".
+  //
+  // TVAORDSFAMILJER är undantagen: familjer där ANDRA ordet bär modellen. "Model 3" och
+  // "Model Y" är olika bilar, liksom "IONIQ 5" och "IONIQ 9". Listan är inte gissad utan
+  // avläst ur databasens 535 namn — jämför Cadillac "LYRIQ 600" och Lotus "Eletre 900", där
+  // talet efter modellen är en utrustningsnivå och alltså INTE hör till namnet.
+  const TVAORDSFAMILJER = [
+    /^Model$/i,     // Tesla Model 3 / S / Y
+    /^IONIQ$/i,     // Hyundai IONIQ 3 / 5 / 6 / 9
+    /^ATTO$/i,      // BYD ATTO 2 / Atto 3
+    /^SEALION$/i,   // BYD SEALION 7
+    /^ORA$/i,       // GWM ORA 03 / 07
+    /^VF$/i,        // VinFast VF 6 / 8
+    /^MIFA$/i,      // Maxus MIFA 9
+    /^ID\.$/i,      // "ID. Buzz" och "ID.Buzz" är samma bil — mellanslaget varierar i datan
+    // Nedan hittade i samma svep: andra ordet är ett ORD och inte ett tal, men bär ändå
+    // modellen. En e-Tourneo Courier är inte en e-Tourneo Custom med annan utrustning.
+    /^e-Tourneo$/i, // Ford e-Tourneo Courier / Custom
+    /^Proace$/i,    // Toyota Proace Verso / Proace City Verso
+    /^AION$/i,      // GAC AION UT / AION V
+    /^DS$/i         // DS 3 — märkets övriga modeller heter N°4, N°7 och N°8
+  ];
+
+  // Generationsmarkörer, KURERADE. Talen jämförs bara inom en grupp, så det är ordningen
+  // mellan dem som betyder något — inte de absoluta värdena.
+  //
+  // Läst ur NAMNET och inte ur specarna med flit: ett större batteri betyder inte nyare bil.
+  // Leaf 40 kWh och Leaf e+ 62 kWh är samma generation, så en sortering på kWh hade påstått
+  // en generationsordning som datan inte bär.
+  const GENERATIONER = [
+    { re: /\bRecharge\b/i,  rank: 1, etikett: "Recharge" },  // Volvos gamla namn på el-XC40/C40
+    { re: /\biV\b/i,        rank: 1, etikett: "iV" },        // Škoda tog bort iV vid lyftet 2024
+    { re: /\bZE\s?40\b/i,   rank: 3, etikett: "ZE40" },      // Renault Zoe gen 2
+    { re: /\bZE\s?50\b/i,   rank: 4, etikett: "ZE50" },      // Renault Zoe gen 3
+    { re: /\bHighland\b/i,  rank: 3, etikett: "Highland" },  // Tesla Model 3 2023–
+    { re: /\bJuniper\b/i,   rank: 3, etikett: "Juniper" },   // Tesla Model Y 2025–
+    { re: /\bNeo\b/i,       rank: 3, etikett: "Neo" },       // Volkswagen ID.3 2026–
+    { re: /\bTU20\d{2}\b/i, rank: 3, etikett: "TU2025" }     // Renaults typgodkännandeår
+  ];
+  const STANDARDRANK = 2;
+
+  // Namnbytena bygger sina egna modellinjer — HÄRLETT ur NAMNBYTEN ovan och inte en andra
+  // tabell med samma kunskap. Två tabeller som vet samma sak glider isär vid nästa ändring.
+  const LINJENAMN = NAMNBYTEN.map(function (b) {
+    return {
+      linje: b.gammaltOrd + " / " + b.ny,
+      ord: [{ re: new RegExp("\\b" + b.gammaltOrd + "\\b", "i"), rank: 1, namn: b.gammaltOrd },
+            { re: new RegExp("\\b" + b.ny + "\\b", "i"),         rank: 3, namn: b.ny }]
+    };
+  });
+
+  function generationAv(modell) {
+    for (const g of GENERATIONER) if (g.re.test(modell)) return { rank: g.rank, etikett: g.etikett };
+    return { rank: STANDARDRANK, etikett: "" };
+  }
+
+  function linjeAv(modell) {
+    for (const l of LINJENAMN) if (l.ord.some(function (o) { return o.re.test(modell); })) return l.linje;
+    // (linjenamnet putsas i grupperaModeller: en rubrik "XC40 / EX40" över en lista som
+    // bara innehåller XC40 lovar en bil som inte står där.)
+    const ord = (modell || "").trim().split(/\s+/);
+    const forsta = ord[0] || modell;
+    if (ord.length > 1 && TVAORDSFAMILJER.some(function (re) { return re.test(forsta); })) {
+      return (forsta + " " + ord[1]).replace(/^ID\.\s+/i, "ID.");
+    }
+    return forsta;
+  }
+
+  function rankAv(modell, linje) {
+    const l = LINJENAMN.find(function (x) { return x.linje === linje; });
+    if (l) for (const o of l.ord) if (o.re.test(modell)) return o.rank;
+    return generationAv(modell).rank;
+  }
+
+  /**
+   * Grupperar ett märkes bilar i modellinjer, äldst först inom varje grupp.
+   *
+   * <p>`flera` säger om gruppen är värd en rubrik — en rubrik över en enda rad är brus.
+   * `generationer` säger om gruppen rymmer olika generationer, alltså om ordningen har
+   * något att berätta. Bara då sätts "äldst först" ut; på en grupp där alla bilar är lika
+   * gamla hade den texten varit ett påstående vi inte kan backa upp.
+   */
+  function grupperaModeller(bilar) {
+    const kartan = new Map();
+    bilar.forEach(function (b) {
+      const linje = linjeAv(b.modell);
+      const nyckel = linje.toLowerCase();
+      if (!kartan.has(nyckel)) kartan.set(nyckel, { linje: linje, bilar: [] });
+      const g = generationAv(b.modell);
+      const kopia = Object.assign({}, b, { rank: rankAv(b.modell, linje), gen: g.etikett });
+      kartan.get(nyckel).bilar.push(kopia);
+    });
+    const grupper = Array.from(kartan.values());
+    grupper.forEach(function (g) {
+      // Äldst först. Inom samma generation: batteriet stigande, sedan namnet — en ordning
+      // som går att förklara, till skillnad från den hämtade ordningen som är godtycklig.
+      g.bilar.sort(function (a, b) {
+        return a.rank - b.rank || (a.kwh || 0) - (b.kwh || 0) || a.modell.localeCompare(b.modell, "sv");
+      });
+      g.flera = g.bilar.length > 1;
+      g.generationer = new Set(g.bilar.map(function (x) { return x.rank; })).size > 1;
+      // Rubriken namnger bara de namn som faktiskt förekommer. Volvo har i skrivande stund
+      // C40-rader men inga EC40 — rubriken "C40 / EC40" hade utlovat en bil som inte står i
+      // listan, och en rubrik som beskriver något annat än sitt innehåll är ett fel.
+      const l = LINJENAMN.find(function (x) { return x.linje === g.linje; });
+      if (l) {
+        const finns = l.ord.filter(function (o) {
+          return g.bilar.some(function (b) { return o.re.test(b.modell); });
+        });
+        if (finns.length) g.linje = finns.map(function (o) { return o.namn; }).join(" / ");
+      }
+    });
+    return grupper.sort(function (a, b) { return a.linje.localeCompare(b.linje, "sv"); });
   }
 
   // Emblemet är märkets initialer. Riktiga bilmärkesloggor är varumärkesskyddade och finns
@@ -856,19 +993,39 @@
           '<span class="ev-picker-brand-head">' + esc(marke) + '</span>' +
         '</div>' +
         '<div class="ev-picker-model-legend">Räckvidden är <b>verklig</b> — WLTP minus 15 %, samma avdrag som resten av appen.</div>' +
-        '<div class="ev-picker-model-list">' + lista.map(function (b) {
+        grupperaModeller(lista).map(function (g) {
+          // Rubrik bara när gruppen rymmer mer än en bil — en rubrik över en enda rad säger
+          // ingenting som raden inte redan säger.
+          const rubrik = g.flera
+            ? '<div class="ev-picker-group-head">' +
+                '<span class="ev-picker-group-namn">' + esc(g.linje) + '</span>' +
+                '<span class="ev-picker-group-antal">' + g.bilar.length + ' versioner</span>' +
+                (g.generationer ? '<span class="ev-picker-group-gen">äldst först</span>' : '') +
+              '</div>'
+            : '';
+          return '<div class="ev-picker-model-group">' + rubrik + byggRader(g) + '</div>';
+        }).join("") +
+      '</div>';
+
+      function byggRader(g) {
+        return '<div class="ev-picker-model-list">' + g.bilar.map(function (b) {
           // Saknas talet sägs det rakt ut. En rad som bara tappar milen ser identisk ut med
           // en bil som inte finns i datan, och då låter felet som ett designval.
           const mil = b.mil
             ? '<b class="ev-picker-model-mil">~' + b.mil + ' mil</b> verklig'
             : '<span class="ev-picker-model-saknas">räckvidd saknas</span>';
           return '<button type="button" class="ev-picker-model" data-index="' + b.index + '">' +
+            // Inget generationsmärke på raden. Etiketten hämtas ur NAMNET ("Recharge",
+            // "iV", "Highland"), så ett märke bredvid hade upprepat ord för ord vad raden
+            // redan säger — "XC40 Recharge" följt av chippet "Recharge". Ordningen och
+            // gruppens "äldst först" bär informationen i stället.
             '<span class="ev-picker-model-name">' + esc(b.modell) + '</span>' +
             '<span class="ev-picker-model-specs">' + mil + (b.batteri ? ' · ' + esc(b.batteri) : '') + '</span>' +
             '<span class="ev-picker-model-ladd">' + esc(b.ladd) + '</span>' +
             (b.notis ? '<span class="ev-picker-model-alias">' + esc(b.notis) + '</span>' : '') +
           '</button>';
         }).join("") + '</div>';
+      }
     }
 
     // Klicken tas emot på panelen i stället för på varje knapp: rutnätet ritas om vid varje
@@ -953,6 +1110,9 @@
           karta.get(nyckel).push({
             index: i, namn: c.name, modell: modellAv(c.name, marke),
             mil: mil, batteri: bat,
+            // Talet och inte strängen: sorteringen inom en grupp jämför kWh, och "77 kWh"
+            // sorterar som text före "8 kWh".
+            kwh: c.batteryKwh || 0,
             // Tre bilar (Zoe 22, Zoe ZE40, R5 40 kWh 95 hk) har maxDcKw 0. "DC 0 kW" läste
             // som en mätning som gått fel; de kan helt enkelt inte snabbladdas, och det är
             // en sak man vill veta INNAN man väljer bilen.
