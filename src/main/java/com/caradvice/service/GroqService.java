@@ -457,8 +457,15 @@ public class GroqService {
         if (fjarde != null) {
             HttpResponse<String> fjardeSvar = httpClient.send(buildRequest(fjarde), HttpResponse.BodyHandlers.ofString());
             registreraTokenanvandning(fjarde, fjardeSvar);
-            if (fjardeSvar.statusCode() != 429) return fjardeSvar;
-            resp = fjardeSvar;
+            if (fjardeSvar.statusCode() == 200) return fjardeSvar;
+            // Allt ANNAT än 200 och 429 kastas medvetet bort. Den fjärde modellen är extra
+            // kapacitet, aldrig en ny felkälla: svarar den 400 (kroppen den inte stöder), 404
+            // (avvecklad) eller 5xx vore det att byta de andras ärliga "vänta" mot ett hårt fel
+            // — och det i exakt det läge där felet är som dyrast, när allt annat redan är fullt.
+            // Sämsta utfall ska vara "precis som utan fjärde modell", aldrig "sämre".
+            if (fjardeSvar.statusCode() == 429) resp = fjardeSvar;
+            else log.warn("Fjarde modellen {} svarade {} — behaller ovriga modellers 429 i stallet",
+                    fourthModel, fjardeSvar.statusCode());
         }
 
         int vanta = pausInnanOmforsok(resp.body());
