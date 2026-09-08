@@ -2129,14 +2129,40 @@ function bcRenderCo2(co2kg) {
 var BC_MILERSATTNING = 25;  // kr/mil — Skatteverkets skattefria schablon för egen bil
 var BC_WORKDAYS = 220;      // arbetsdagar/år i pendlingskalkylen
 var bcPersons = 1, bcCommute = false, bcLastMil = 0, bcLastCost = 0;
+// Öppet/stängt läge lever kvar över en ny beräkning: har man fällt upp lådan för att titta på
+// pendlingskostnaden ska den inte slå igen bara för att man ändrade sträckan.
+var bcExtrasOppen = false;
+
+function bcSyncExtrasOppet() {
+  var knapp = document.getElementById('bc-extrasToggle');
+  var kropp = document.getElementById('bc-extrasBody');
+  if (!knapp || !kropp) return;
+  knapp.setAttribute('aria-expanded', bcExtrasOppen ? 'true' : 'false');
+  kropp.hidden = !bcExtrasOppen;
+}
 
 function bcInjectExtrasStyles() {
   if (document.getElementById('bc-extras-styles')) return;
   var s = document.createElement('style');
   s.id = 'bc-extras-styles';
   s.textContent =
-    '.bc-extras{margin-top:14px;padding:12px 16px;background:rgba(99,102,241,.06);' +
+    '.bc-extras{margin-top:14px;padding:0;background:rgba(99,102,241,.06);' +
       'border:1px solid rgba(99,102,241,.18);border-radius:12px;font-size:.88rem;line-height:1.7}' +
+    // Rubrikraden är hela ytan man klickar på — en liten pil hade varit ett för litet mål på mobil
+    '.bc-extras-toggle{display:flex;align-items:center;gap:8px;width:100%;padding:11px 16px;' +
+      'background:none;border:0;border-radius:12px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
+    '.bc-extras-toggle:hover{background:rgba(99,102,241,.07)}' +
+    '.bc-extras-toggle:focus-visible{outline:2px solid rgba(99,102,241,.7);outline-offset:-2px}' +
+    '.bc-extras-titel{font-weight:600}' +
+    // Nyckeltalet står kvar i rubriken: en hopfälld ruta som inte säger något är bara en rad
+    // man scrollar förbi, och marginalen mot milersättningen är hela poängen med lådan.
+    '.bc-extras-hint{margin-left:auto;font-size:.82rem}' +
+    '.bc-extras-pil{transition:transform .2s;opacity:.6;font-size:.8rem}' +
+    '.bc-extras-toggle[aria-expanded="true"] .bc-extras-pil{transform:rotate(180deg)}' +
+    '.bc-extras-body{padding:0 16px 12px}' +
+    // hidden-ATTRIBUTET ensamt räcker inte om någon senare ger .bc-extras-body en display-regel
+    '.bc-extras-body[hidden]{display:none}' +
+    '@media(max-width:520px){.bc-extras-hint{display:none}}' +
     '.bc-extra-row{padding:3px 0}' +
     '.bc-extra-good{color:#059669;font-weight:600}' +
     '.bc-extra-bad{color:#d97706;font-weight:600}' +
@@ -2166,11 +2192,23 @@ function bcRenderExtras(mil, kostnad) {
     box.id = 'bc-extras';
     box.className = 'bc-extras';
     box.innerHTML =
-      '<div class="bc-extra-row" id="bc-milersRow"></div>' +
-      '<div class="bc-extra-row">👥 Dela kostnaden: <span id="bc-persChips"></span> <span id="bc-perPerson"></span></div>' +
-      '<div class="bc-extra-row"><label style="cursor:pointer"><input type="checkbox" id="bc-commuteChk"> ' +
-        '🔁 Pendlingsresa — visa årskostnad</label> <span id="bc-annualCost"></span></div>';
+      '<button type="button" class="bc-extras-toggle" id="bc-extrasToggle" aria-expanded="false" ' +
+          'aria-controls="bc-extrasBody">' +
+        '<span class="bc-extras-titel">🧾 Milersättning, dela kostnaden & pendling</span>' +
+        '<span class="bc-extras-hint" id="bc-extrasHint"></span>' +
+        '<span class="bc-extras-pil" aria-hidden="true">▾</span>' +
+      '</button>' +
+      '<div class="bc-extras-body" id="bc-extrasBody" hidden>' +
+        '<div class="bc-extra-row" id="bc-milersRow"></div>' +
+        '<div class="bc-extra-row">👥 Dela kostnaden: <span id="bc-persChips"></span> <span id="bc-perPerson"></span></div>' +
+        '<div class="bc-extra-row"><label style="cursor:pointer"><input type="checkbox" id="bc-commuteChk"> ' +
+          '🔁 Pendlingsresa — visa årskostnad</label> <span id="bc-annualCost"></span></div>' +
+      '</div>';
     anchor.insertAdjacentElement('afterend', box);
+    document.getElementById('bc-extrasToggle').addEventListener('click', function() {
+      bcExtrasOppen = !bcExtrasOppen;
+      bcSyncExtrasOppet();
+    });
     var chips = document.getElementById('bc-persChips');
     for (var i = 1; i <= 5; i++) {
       (function(n) {
@@ -2191,6 +2229,7 @@ function bcRenderExtras(mil, kostnad) {
   // Synka state (t.ex. från delad länk) till kontrollerna
   var chk = document.getElementById('bc-commuteChk');
   if (chk) chk.checked = bcCommute;
+  bcSyncExtrasOppet();
   bcUpdateExtras();
 }
 
@@ -2204,6 +2243,15 @@ function bcUpdateExtras() {
       (diff >= 0
         ? '<span class="bc-extra-good">täcker bränslekostnaden med ' + bcFmt(diff, 0) + ' kr marginal</span>'
         : '<span class="bc-extra-bad">täcker inte bränslekostnaden, ' + bcFmt(-diff, 0) + ' kr saknas</span>');
+  }
+  var hint = document.getElementById('bc-extrasHint');
+  if (hint) {
+    var d = bcLastMil * BC_MILERSATTNING - bcLastCost;
+    hint.innerHTML = bcLastMil > 0
+      ? (d >= 0
+          ? '<span class="bc-extra-good">+' + bcFmt(d, 0) + ' kr</span>'
+          : '<span class="bc-extra-bad">−' + bcFmt(-d, 0) + ' kr</span>')
+      : '';
   }
   for (var i = 1; i <= 5; i++) {
     var c = document.getElementById('bc-pers' + i);
