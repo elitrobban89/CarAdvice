@@ -2985,10 +2985,15 @@ public class GroqService {
     }
 
     String buildRateLimitError(String body) {
+        // Loggraden låg FÖRR inne i try:t, efter readTree — så ett 429-svar som inte är JSON
+        // (proxy-/kapacitetssvar, HTML-sida) loggade ingenting alls. Just det fallet är det
+        // enda man inte kan diagnostisera i efterhand, och 2026-09-08 var det precis där vi
+        // stod: driften svarade 429 utan "try again in" och utan "per day", och det fanns inte
+        // en rad att läsa om vad Groq faktiskt sa. Råkroppen först, tolkningen sen.
+        log.warn("Groq 429 rakropp: {}", body == null ? "(null)" : body.substring(0, Math.min(body.length(), 600)));
         try {
             JsonNode err = mapper.readTree(body);
             String msg = err.at("/error/message").asText("");
-            log.warn("Groq 429: {}", msg);
             if (msg.contains("per day") || msg.contains("RPD") || msg.contains("TPD")) {
                 return "Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(body) + ".";
             }
