@@ -12,7 +12,15 @@
 <body>
 
   <style>
-  #ca-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Samma reset som WP-sidan kor med. `#ca-wrap *` med margin/padding:0 har
+     ID-specificitet (1,0,0) och slog snippetens EGNA klassregler (0,1,0) — den togs
+     bort ur wordpress-snippet.html men blev kvar HAR, sa test.html visade chips utan
+     padding och matte fel pa allt som ratades i produktion. Rokprovet maste likna sidan
+     det ska prova. */
+  #ca-wrap * { box-sizing: border-box; }
+  #ca-wrap p, #ca-wrap ul, #ca-wrap ol, #ca-wrap li,
+  #ca-wrap h1, #ca-wrap h2, #ca-wrap h3, #ca-wrap h4,
+  #ca-wrap blockquote, #ca-wrap figure, #ca-wrap table { margin: 0; padding: 0; }
 
   #ca-wrap {
     font-family: 'Segoe UI', system-ui, sans-serif;

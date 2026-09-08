@@ -43,6 +43,49 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.body || document.documentElement).appendChild(s);
 })();
 
+// Mobilens fingermål och läsbarhet. Mätt på riktiga sidan (elitrobban.se/bilradgivning) i
+// både 360 och 390 px: Köp/Leasing var 25 px höga, Jämför-knappen 33, tummarna 33 och
+// prenumerationsknappen 38 — alla under de 44 px som är minsta träffsäkra fingermål.
+// Kategorichipsen la sig 4+2 med dubbelbreda knappar på andra raden, och elbils-promons
+// rubrik hade white-space:nowrap och klipptes 36 px utanför skärmkanten.
+//
+// Selektorerna är #ca-wrap-prefixade med flit: en del av reglerna de rättar bor i
+// WP-sidans egen <style> och en del injiceras SENARE av kortkoden — id-specificitet
+// vinner över båda oavsett ordning, medan en ren klassregel hade förlorat mot den ena
+// eller den andra beroende på när den hamnade i dokumentet.
+(function caMobilTouchCss() {
+  if (document.getElementById('ca-mobil-touch-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-mobil-touch-css';
+  s.textContent = '@media(max-width:520px){' +
+    // Fingermålen. min-height i stället för fast höjd: texten får fortfarande växa.
+    '#ca-wrap .ca-mode-btn{min-height:40px;padding:9px 16px;font-size:.8rem;}' +
+    // Köp/Leasing satt som float:right INUTI budgetetiketten. Med 40 px höjd föll floaten
+    // nedanför etikettraden och skalstrecken (50k…1M) la sig BREDVID den i stället för under:
+    // hela skalan pressades ihop till 123 av 264 px. På mobil får växeln därför en egen rad i
+    // full bredd — två lika breda hälfter är också lättare att träffa än två små piller.
+    '#ca-wrap #ca-budget-mode{float:none;display:flex;width:100%;margin:9px 0 0;gap:8px;}' +
+    '#ca-wrap #ca-budget-mode .ca-mode-btn{flex:1 1 0;}' +
+    '#ca-wrap .ca-slider-ticks{clear:both;}' +
+    '#ca-wrap #ca-fc-btn{min-height:44px;padding:12px 20px;font-size:.82rem;}' +
+    '#ca-wrap #ca-prenumerera-btn{min-height:44px;padding:12px 22px;font-size:.85rem;}' +
+    '#ca-wrap .ca-snabb-btn{min-height:44px;padding:10px 13px;font-size:.78rem;}' +
+    '#ca-wrap .ca-fb-btn{min-width:56px;min-height:44px;}' +
+    '#ca-wrap .ca-blocket-btn,#ca-wrap .ca-bytbil-btn{min-height:44px;}' +
+    '#ca-wrap .ca-fc-input{min-height:44px;font-size:.85rem;}' +
+    // Länken i jämförelsetabellen var 18 px hög — en radhöjd utan egen yta att träffa.
+    '#ca-wrap .ca-cmp-lank{display:inline-block;padding:7px 0;}' +
+    // Rutnät i stället för flex-wrap: auto-fit ger tre jämnbreda chips även på en 360 px-skärm
+    // och två jämnbreda när gruppen bara har två (laddare hemma), i stället för att sista
+    // raden sträcks ut till dubbel bredd.
+    '#ca-wrap .ca-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px;}' +
+    '#ca-wrap .ca-chip{min-width:0;padding:11px 6px;font-size:.74rem;}' +
+    // Promorutans rubrik: nowrap på en 228 px bred rad klipper alltid på mobil.
+    '#ca-wrap .ca-ev-promo-title{display:block;white-space:normal;overflow-wrap:anywhere;margin-bottom:3px;}' +
+  '}';
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 // Emblemet på bilkortet. Egen injektion av samma skäl som mobil-CSS:en ovan: WP-sidan är
 // en manuell kopia och ska slippa klistras om för en ren stiländring.
 //
