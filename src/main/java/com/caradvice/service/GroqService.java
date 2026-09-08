@@ -3021,9 +3021,26 @@ public class GroqService {
                 r.fuelSpec(), r.blocketPrice(), r.horsepower(), r.engineOptions());
     }
 //Ettikettskaparen pipe sammanslagen sträng
+    /**
+     * Körsträckan avrundad till närmaste 1 000 km — bara för cachenyckeln, aldrig för prompten.
+     *
+     * <p>Fältet {@code ca-km} är ett sifferfält i MIL med {@code step="1"}, och backenden
+     * multiplicerar med 10. Två sökningar som skiljer sig på tio kilometer om året fick alltså
+     * olika nyckel och kostade var sitt Groq-anrop — 1 243 mil och 1 244 mil är samma bil-behov
+     * och samma svar, men var två helt separata anrop mot minuttaket.
+     *
+     * <p>Motsatsen till bagagefällan i nyckeln nedan, inte samma sak: bagagekravet var en
+     * ändring användaren gör FÖR att se en annan lista, medan tio kilometer om året inte kan
+     * ändra vilken bil som passar. Budgeten bucketas INTE — reglaget har redan {@code
+     * step="25000"} och är grovkornigt av sig självt.
+     */
+    static int kmBucket(int kmPerYear) {
+        return Math.round(kmPerYear / 1000f) * 1000;
+    }
+
     String buildCacheKey(CarPreferences prefs) {
         return prefs.budget() + "|" + prefs.carCategory() + "|" + prefs.hasCharger() + "|" +
-               prefs.kmPerYear() + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
+               kmBucket(prefs.kmPerYear()) + "|" + prefs.usage() + "|" + prefs.passengers() + "|" + prefs.newCar() + "|" +
                (prefs.fuelType() != null ? prefs.fuelType() : "") + "|" +
                (prefs.transmission() != null ? prefs.transmission() : "") + "|" +
                (prefs.budgetType() != null ? prefs.budgetType() : "köp") + "|" +

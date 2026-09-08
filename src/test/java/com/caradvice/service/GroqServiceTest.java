@@ -2416,6 +2416,30 @@ class GroqServiceTest {
     // --- buildCacheKey ---
 
     @Test
+    void naraLiggandeKorstrackorDelarCachepost() {
+        GroqService s = service();
+        // ca-km är ett MIL-fält med step="1" och backenden gångrar med 10 — 1 243 och 1 244 mil
+        // är alltså 12 430 och 12 440 km/år. Samma behov, samma svar, men fick två separata
+        // Groq-anrop mot minuttaket ända till 2026-09-08.
+        String a = s.buildCacheKey(prefs(300_000, "suv", true, 12_430, false, "el", "automat", "köp", 5));
+        String b = s.buildCacheKey(prefs(300_000, "suv", true, 12_440, false, "el", "automat", "köp", 5));
+        assertThat(a).isEqualTo(b);
+
+        // Men en RIKTIG skillnad i körsträcka måste fortfarande ge ett eget svar — annars är
+        // det bagagefällan igen: cachen svarar med förra sökningens bilar på just den ändring
+        // användaren gjorde för att se en annan lista.
+        String lang = s.buildCacheKey(prefs(300_000, "suv", true, 30_000, false, "el", "automat", "köp", 5));
+        assertThat(lang).isNotEqualTo(a);
+    }
+
+    @Test
+    void kmBucketAvrundarTillNarmasteTusen() {
+        assertThat(GroqService.kmBucket(12_430)).isEqualTo(12_000);
+        assertThat(GroqService.kmBucket(12_500)).isEqualTo(13_000);
+        assertThat(GroqService.kmBucket(0)).isZero();
+    }
+
+    @Test
     void olikaMaxAlderGerOlikaCachenycklar() {
         GroqService s = service();
         String utan = s.buildCacheKey(prefs(300_000, "suv", true, 15_000, false, "el", "automat", "köp", null));
