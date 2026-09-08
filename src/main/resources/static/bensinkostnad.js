@@ -945,6 +945,88 @@ function bcRenderBrandEmblem() {
 }
 
 
+// ── Drivmedelsfilter: bara det valda branslets bilar syns ─────
+// Drivmedlet star i modellnamnet ("(el)" / "(diesel)", annars bensin) - samma suffix som
+// bcOnModelChange redan laser. Filtret galler BADE markeslistan och modellistan: valjer man
+// El finns Abarth inte kvar att valja fel pa, och valjer man Diesel kortas Volkswagens 72
+// modeller till de nio som faktiskt gar pa diesel.
+function bcModellensBransle(namn) {
+  var s = String(namn || '');
+  if (s.indexOf('(el)') !== -1) return 'electric';
+  if (s.indexOf('(diesel)') !== -1) return 'diesel';
+  return 'petrol';
+}
+
+function bcValtBransle() {
+  return bcIsElectric ? 'electric' : bcIsDiesel ? 'diesel' : 'petrol';
+}
+
+// "A4" fore "A10", "3-serie" fore "20-serie": sifferdelar jamfors som tal, inte tecken.
+function bcJamforNamn(a, b) {
+  try { return String(a).localeCompare(String(b), 'sv', { numeric: true }); }
+  catch (e) { return a < b ? -1 : a > b ? 1 : 0; }
+}
+
+function bcModellerForBransle(marke, bransle) {
+  var rader = BC_CAR_DB[marke];
+  if (!rader) return [];
+  return Object.keys(rader)
+    .filter(function(m) { return bcModellensBransle(m) === bransle; })
+    .sort(bcJamforNamn);
+}
+
+function bcMarkenForBransle(bransle) {
+  return Object.keys(BC_CAR_DB)
+    .filter(function(m) { return bcModellerForBransle(m, bransle).length > 0; })
+    .sort(bcJamforNamn);
+}
+
+// Modellfamiljen = rubriken modellistan grupperas under ("Golf", "3-serie", "Model 3").
+// Forsta ordet racker nastan alltid. Tre undantag finns med FLIT:
+//   BMW         - 320i/118d/M135i ar samma serie; utan regeln blir 108 modeller 61 grupper
+//   Range Rover - tre ord, annars hamnar Evoque, Sport och basmodellen i samma hog
+//   Model/Mazda/DS - forsta ordet ar ett markesord, siffran efter ar sjalva modellen
+var BC_FAMILJ_TVAORD = { 'model': 1, 'mazda': 1, 'ds': 1, 'grand': 1 };
+
+function bcModellfamilj(marke, namn) {
+  var bas = String(namn || '').replace(/\s*\((el|diesel|hybrid)\)\s*$/i, '').trim();
+  var delar = bas.split(/\s+/);
+  var forsta = delar[0] || bas;
+  if (marke === 'BMW') {
+    var serie = forsta.match(/^M?(\d)\d{2}[a-zA-Z]*$/) || forsta.match(/^M(\d)$/);
+    if (serie) return serie[1] + '-serie';
+  }
+  if (forsta === 'Range' && delar[1] === 'Rover') {
+    return /^[A-Za-zÅÄÖåäö-]{3,}$/.test(delar[2] || '') ? 'Range Rover ' + delar[2] : 'Range Rover';
+  }
+  if (delar.length > 1 && BC_FAMILJ_TVAORD[forsta.toLowerCase()]
+      && /^[0-9A-Za-zÅÄÖ]{1,2}$/.test(delar[1])) {
+    return forsta + ' ' + delar[1];
+  }
+  return forsta;
+}
+
+// Suffixet "(el)"/"(diesel)" ar redan sagt av bransleknapparna - visa det inte igen i listan.
+// VARDET behaller suffixet: bcOnModelChange laser drivmedlet ur det.
+function bcModellEtikett(namn) {
+  return String(namn || '').replace(/\s*\((el|diesel)\)\s*$/i, '');
+}
+
+// Knapparna Bensin/Diesel/El sag ut som en statusskylt sa lange de bara speglade valet.
+// Nu STYR de listorna, och da behover de en rad som sager det. Raden skrivs harifran och
+// inte i HTML-blocket: WordPress-sidan ar en manuell kopia, JS-filen uppdaterar sig sjalv.
+function bcRenderFuelHint() {
+  var rad = document.querySelector ? document.querySelector('.bc-fuel-badges') : null;
+  if (!rad || document.getElementById('bc-fuelHint')) return;
+  bcInjectEffectStyles();
+  var p = document.createElement('p');
+  p.id = 'bc-fuelHint';
+  p.className = 'bc-fuel-hint';
+  p.textContent = 'Välj drivmedel — märkes- och modellistan visar bara bilar som går på det.';
+  if (rad.insertAdjacentElement) rad.insertAdjacentElement('afterend', p);
+}
+
+
 /**
  * Emblemrutan ovanfor markeslistan - alla marken syns INNAN man valt nagot.
  *
@@ -954,7 +1036,13 @@ function bcRenderBrandEmblem() {
  *
  * Rutan ar HOGDBEGRANSAD och scrollar. 51 marken i ett oppet rutnat blev 250 px hogt och tog
  * over formularet; tre rader racker for att visa att den gar att blaadra i.
+ *
+ * NAR ETT MARKE ar valt falls rutan ihop: select:en direkt under sager redan "Volvo" med
+ * emblem, sa rutnatet skulle bara upprepa svaret och skjuta ner resten av formularet.
+ * Knappen "Byt marke" fallar ut den igen.
  */
+var bcMarkesrutanOppen = false;
+
 function bcRenderBrandGrid() {
   var sel = document.getElementById('bc-brand');
   if (!sel || !sel.parentNode || !sel.parentNode.parentNode) return;
@@ -970,15 +1058,20 @@ function bcRenderBrandGrid() {
       var knapp = e.target.closest ? e.target.closest('.bc-brand-chip') : null;
       if (!knapp) return;
       sel.value = knapp.getAttribute('data-marke');
+      bcMarkesrutanOppen = false;                // valt marke = ihopfalld ruta
       // Samma vag som ett vanligt listval: change-eventet driver resten av formularet.
       sel.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
-  // innerHTML och inte childNodes: rutnatet byggs en gang, och childNodes finns inte i
-  // alla varden (testets DOM-stubb saknar den).
-  if (!box.innerHTML) {
+  // innerHTML och inte childNodes: rutnatet byggs om i ett svep, och childNodes finns inte
+  // i alla varden (testets DOM-stubb saknar den). Nyckeln gor att det byggs om nar det
+  // FAKTISKT andrats - vid branslebyte, och nar API-data lagt till nya marken.
+  var marken = bcMarkenForBransle(bcValtBransle());
+  var nyckel = bcValtBransle() + '|' + marken.join(',');
+  if (box._bcNyckel !== nyckel) {
+    box._bcNyckel = nyckel;
     var html = '';
-    Object.keys(BC_CAR_DB).sort().forEach(function(m) {
+    marken.forEach(function(m) {
       var slug = BC_EMBLEM_SLUG[bcEmblemNyckel(m)];
       var inre = slug
         ? '<span class=\'bc-emblem bc-emblem-bild\'><img src=\'' + BC_EMBLEM_BAS + slug + '.svg\' alt=\'\' loading=\'lazy\'></span>'
@@ -997,44 +1090,135 @@ function bcRenderBrandGrid() {
     if (knappar[i].classList) knappar[i].classList.toggle('vald', ar);
     knappar[i].setAttribute('aria-pressed', ar ? 'true' : 'false');
   }
+  var visa = !valt || bcMarkesrutanOppen;
+  box.style.display = visa ? '' : 'none';
+  bcRenderBrandToggle(box, valt, visa);
   // Rutan visar tre rader at gangen och ar alfabetisk, sa ett valt Volvo laag utanfor vyn
   // och markeringen syntes inte alls. block:'nearest' rullar bara nar det behovs, och
   // rullar INTE sidan - bara rutan.
-  if (valdKnapp && valdKnapp.scrollIntoView) {
+  if (visa && valdKnapp && valdKnapp.scrollIntoView) {
     try { valdKnapp.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
   }
 }
 
+// "Byt marke"-knappen: enda vagen tillbaka till rutnatet nar det fallts ihop.
+// Den ligger mellan rutnatet och select:en och syns bara nar ett marke ar valt.
+function bcRenderBrandToggle(box, valt, visa) {
+  var knapp = document.getElementById('bc-brandToggle');
+  if (!knapp) {
+    knapp = document.createElement('button');
+    knapp.id = 'bc-brandToggle';
+    knapp.type = 'button';
+    knapp.className = 'bc-brand-toggle';
+    knapp.addEventListener('click', function() {
+      bcMarkesrutanOppen = !bcMarkesrutanOppen;
+      bcRenderBrandGrid();
+    });
+    if (box.insertAdjacentElement) box.insertAdjacentElement('afterend', knapp);
+  }
+  knapp.style.display = valt ? '' : 'none';
+  knapp.textContent = visa ? 'Dölj märkeslistan' : 'Byt märke';
+}
+
 // ── Dropdown: märken ──────────────────────────────────
+// Listan visar bara marken som har en bil av det valda branslet. Ett redan valt marke
+// behalls om det overlever filtret - select.value nollstalls nar optionerna tas bort,
+// sa det maste sattas tillbaka explicit.
 function bcInitBrands() {
   var sel = document.getElementById('bc-brand');
   if (!sel) return;
+  var forra = sel.value;
+  var marken = bcMarkenForBransle(bcValtBransle());
   while (sel.options.length > 1) sel.remove(1);
-  Object.keys(BC_CAR_DB).sort().forEach(function(b) {
+  marken.forEach(function(b) {
     var o = document.createElement('option');
     o.value = o.textContent = b;
     sel.appendChild(o);
   });
   // Ett sparat val kan redan ligga i select:en nar listan fyllts.
+  sel.value = marken.indexOf(forra) !== -1 ? forra : '';
   bcRenderBrandEmblem();
   bcRenderBrandGrid();
 }
 
+// Modellistan for ett marke, delad i optgroups per modellfamilj.
+// Gruppering ar en vinst forst nar listan ar lang OCH har mer an en familj - Teslas fem
+// bensinmodeller finns inte, och Abarths fem skulle bara fa en rubrik att lasa forbi.
+function bcFyllModeller(brand, behall) {
+  var modelSel = document.getElementById('bc-model');
+  if (!modelSel) return;
+  modelSel.innerHTML = '<option value="">Välj modell...</option>';
+  var modeller = brand ? bcModellerForBransle(brand, bcValtBransle()) : [];
+  var familjer = {}, ordning = [];
+  modeller.forEach(function(m) {
+    var f = bcModellfamilj(brand, m);
+    if (!familjer[f]) { familjer[f] = []; ordning.push(f); }
+    familjer[f].push(m);
+  });
+  ordning.sort(bcJamforNamn);
+  var gruppera = modeller.length > 8 && ordning.length > 1;
+  ordning.forEach(function(f) {
+    var mal = modelSel;
+    if (gruppera) {
+      var grupp = document.createElement('optgroup');
+      grupp.label = f;
+      modelSel.appendChild(grupp);
+      mal = grupp;
+    }
+    familjer[f].forEach(function(m) {
+      var o = document.createElement('option');
+      o.value = m;
+      o.textContent = bcModellEtikett(m);
+      mal.appendChild(o);
+    });
+  });
+  modelSel.disabled = modeller.length === 0;
+  modelSel.value = (behall && modeller.indexOf(behall) !== -1) ? behall : '';
+}
+
 function bcOnBrandChange() {
+  bcMarkesrutanOppen = false;                    // valt marke = ihopfalld markesruta
   bcRenderBrandEmblem();
   bcRenderBrandGrid();
   var brand    = document.getElementById('bc-brand').value;
   var modelSel = document.getElementById('bc-model');
-  modelSel.innerHTML = '<option value="">Välj modell...</option>';
   document.getElementById('bc-cons').value = '';
-  bcSetFuelMode('petrol');
-  if (!brand) { modelSel.disabled = true; return; }
-  Object.keys(BC_CAR_DB[brand]).sort().forEach(function(m) {
-    var o = document.createElement('option');
-    o.value = o.textContent = m;
-    modelSel.appendChild(o);
-  });
-  modelSel.disabled = false;
+  // Ingen bcSetFuelMode('petrol') har langre: bransleknapparna AGER lage och filter, och
+  // ett markesbyte inom "El" ska inte kasta tillbaka hela formularet till bensin.
+  if (!brand) {
+    modelSel.innerHTML = '<option value="">Välj modell...</option>';
+    modelSel.disabled = true;
+    modelSel.value = '';
+    return;
+  }
+  bcFyllModeller(brand, '');
+}
+
+// Bransleknapparna byter BADE lage och urval. Ett marke eller en modell som inte finns i
+// det nya branslet faller bort - och da maste forbrukningen tomas, annars star en
+// dieselsiffra kvar under en elbil.
+function bcApplyFuelFilter() {
+  var sel      = document.getElementById('bc-brand');
+  var modelSel = document.getElementById('bc-model');
+  if (!sel || !modelSel) return;
+  var forraMarke = sel.value, forraModell = modelSel.value;
+  bcInitBrands();
+  var brand = sel.value;
+  if (!brand) {
+    modelSel.innerHTML = '<option value="">Välj modell...</option>';
+    modelSel.disabled = true;
+    modelSel.value = '';
+    if (forraMarke) bcTomForbrukning();
+    return;
+  }
+  var behall = bcModellensBransle(forraModell) === bcValtBransle() ? forraModell : '';
+  bcFyllModeller(brand, behall);
+  if (forraModell && !modelSel.value) bcTomForbrukning();
+}
+
+function bcTomForbrukning() {
+  var cons = document.getElementById('bc-cons');
+  if (cons) cons.value = '';
 }
 
 function bcOnModelChange() {
@@ -1191,6 +1375,14 @@ function bcInjectEffectStyles() {
       'pointer-events:none;letter-spacing:0.01em}' +
     '.bc-brand-chip.vald .bc-brand-namn{color:#4338ca}' +
     '@media (prefers-reduced-motion:reduce){.bc-brand-chip{transition:none}}' +
+    // Hogerstalld: till vanster hamnade knappen tatt under etiketten "Marke" och lastes
+    // som en andra etikett i stallet for nagot klickbart.
+    '.bc-brand-toggle{display:block;width:-moz-fit-content;width:fit-content;' +
+      'margin:-2px 0 6px auto;padding:2px 0;border:0;background:none;' +
+      'font-family:inherit;font-size:0.72rem;font-weight:700;color:#4f46e5;cursor:pointer;' +
+      'text-decoration:underline;text-underline-offset:2px}' +
+    '.bc-brand-toggle:hover{color:#4338ca}' +
+    '.bc-fuel-hint{margin:-10px 0 14px;font-size:0.72rem;font-weight:600;color:#64748b}' +
     '.bc-share-row{display:flex;justify-content:center;margin-bottom:14px}' +
     '.bc-share-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #c7d2fe;background:#fff;color:#4f46e5;' +
       'border-radius:999px;padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;' +
@@ -2388,6 +2580,7 @@ function bcApplySharedLink() {
   bcSharedApplying = true;
   var modeMap = { el: 'electric', diesel: 'diesel', bensin: 'petrol' };
   bcSetFuelMode(modeMap[p.get('mode')] || 'petrol');
+  bcApplyFuelFilter();   // markes- och modellistan ska folja lankens bransle
   function setVal(id, v) { var el = document.getElementById(id); if (el && v) el.value = v; }
   setVal('bc-start', p.get('start'));
   setVal('bc-dest',  p.get('dest'));
@@ -2614,6 +2807,7 @@ function bcInjectDemoUI() {
 // ── Event wiring ──────────────────────────────────────
 function bcWireEvents() {
   bcInitBrands();
+  bcRenderFuelHint();
   bcLoadEvConsumption();
   bcLoadIceConsumption();
   bcInjectDemoUI();
@@ -2679,6 +2873,7 @@ function bcWireEvents() {
           if (consEl) consEl.value = '';
         }
         bcSetFuelMode(newMode);
+        bcApplyFuelFilter();   // knapparna ar ocksa filter: bara det branslets bilar syns
         break;
       }
       el = el.parentNode;
