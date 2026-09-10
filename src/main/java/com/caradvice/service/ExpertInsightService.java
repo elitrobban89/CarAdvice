@@ -114,8 +114,19 @@ public class ExpertInsightService {
         return formatInsights(selected, "Bilexpertinsikter (referera BARA till dessa om de direkt gäller den bil användaren frågar om just nu — inkludera dem INTE om de handlar om en annan bil):\n");
     }
 
-    /** Max insikter som visas publikt per bilkort */
-    static final int MAX_CARD_INSIGHTS = 3;
+    /**
+     * Max insikter som visas publikt per bilkort.
+     *
+     * <p>Höjt från 3 till 4 den 2026-09-10, när kommande-kön tömdes på Volkswagen ID. California
+     * Cruise: bilen har fyra rader, och med tre platser roterade urvalet — {@code shuffle} nedan
+     * körs före kapningen, så kortet visade tre av fyra och <b>olika</b> tre vid varje anrop
+     * (uppmätt: hjulbas/säljstart-raden kom med i sex av åtta anrop). Ingen rad var förlorad, men
+     * ingen läsare såg hela bilden heller.
+     *
+     * <p>Skilj den här från {@link #MAX_CHAT_INSIGHTS} och {@link #MAX_RECOMMEND_INSIGHTS} — de
+     * matar en språkmodell och kostar tokens, det här taket kostar bara lodrätt utrymme på kortet.
+     */
+    static final int MAX_CARD_INSIGHTS = 4;
 
     // Drivlinemarkörer — mest specifika först: "PHEV" innehåller "HEV" som innehåller "EV",
     // därav helordsmatchning och prövningsordningen phev → hev → ev → ice.

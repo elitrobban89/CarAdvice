@@ -63,19 +63,40 @@ class ExpertInsightServiceCarLookupTest {
     }
 
     @Test
-    void modellspecifikaPrioriterasForeMarkesgenerellaOchMax3() {
+    void modellspecifikaPrioriterasForeMarkesgenerellaOchMax4() {
         when(repo.findAll()).thenReturn(List.of(
                 insight("M Sverige", "Tesla", null, "Generellt om märket 1.", null),
                 insight("M Sverige", "Tesla", null, "Generellt om märket 2.", null),
                 insight("Teknikens Värld", "Tesla", "Model 3", "Modellspecifik 1.", 8),
                 insight("Vi Bilägare", "Tesla", "Model 3", "Modellspecifik 2.", 7),
-                insight("car.info", "Tesla", "Model 3", "Modellspecifik 3.", 9)));
+                insight("car.info", "Tesla", "Model 3", "Modellspecifik 3.", 9),
+                insight("Vi Bilägare", "Tesla", "Model 3", "Modellspecifik 4.", 8)));
 
         List<Map<String, Object>> result = service.findForCarTitle("Tesla Model 3 (2021)");
-        assertThat(result).hasSize(3);
-        // Alla tre platser tas av modellspecifika — de generella trängs ut
+        assertThat(result).hasSize(4);
+        // Alla fyra platser tas av modellspecifika — de generella trängs ut
         assertThat(result).allSatisfy(m ->
                 assertThat((String) m.get("insight")).startsWith("Modellspecifik"));
+    }
+
+    @Test
+    void fjardePlatsenGarTillMarkesradNarModellraderInteRacker() {
+        // Att alla platser fylls av modellrader i provet ovan visar inte att taket är 4 — det
+        // hade sett likadant ut med tre modellrader och ett tak på 3. Här räcker modellraderna
+        // inte, och då syns både den fjärde platsen och prioritetsordningen.
+        when(repo.findAll()).thenReturn(List.of(
+                insight("M Sverige", "Tesla", null, "Generellt om märket 1.", null),
+                insight("M Sverige", "Tesla", null, "Generellt om märket 2.", null),
+                insight("M Sverige", "Tesla", null, "Generellt om märket 3.", null),
+                insight("Teknikens Värld", "Tesla", "Model 3", "Modellspecifik 1.", 8),
+                insight("Vi Bilägare", "Tesla", "Model 3", "Modellspecifik 2.", 7)));
+
+        List<Map<String, Object>> result = service.findForCarTitle("Tesla Model 3 (2021)");
+        assertThat(result).hasSize(4);
+        assertThat((String) result.get(0).get("insight")).startsWith("Modellspecifik");
+        assertThat((String) result.get(1).get("insight")).startsWith("Modellspecifik");
+        assertThat((String) result.get(2).get("insight")).startsWith("Generellt");
+        assertThat((String) result.get(3).get("insight")).startsWith("Generellt");
     }
 
     @Test
