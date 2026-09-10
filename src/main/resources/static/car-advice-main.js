@@ -292,6 +292,116 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.body || document.documentElement).appendChild(s);
 })();
 
+/**
+ * Formulärets ÖVRE del: samma vandrande färg som bilkorten, och en tydligare läsordning.
+ *
+ * Heron hade redan en färgring och en aurora, men allt INUTI den var grålila — Demo-raden,
+ * elbilspromon, sammanfattningarna och chipsen delade en och samma ton. Bilkorten längre ned
+ * skiljer sig däremot åt på färgen (violett, blått, grönt), och det är den skillnaden som
+ * saknades uppe i formuläret.
+ *
+ * Två regler håller det från att bli rörigt:
+ *
+ * 1. FÄRGEN VANDRAR BARA DÄR MAN KAN GÖRA NÅGOT. Demo-raden, elbilspromon och det valda
+ *    chipset lever; notisraderna (Blocket-villkoren, drivmedelssammanfattningen) står stilla
+ *    med en tyst färgkant i vänsterkanten. Rör sig allting blir ingenting viktigt.
+ * 2. RINGARNA GÅR I OTAKT. Samma grepp som korten: förskjutna negativa delays, annars pulserar
+ *    de i lockstep och läser som ett enda blinkande objekt.
+ *
+ * Ringen återanvänder {@code --ca-rim-ang} och {@code ca-rim} från polishlagret ovan — utan
+ * @property står vinkeln stilla och kanten degraderar till en statisk färgring, vilket är ett
+ * fullgott utseende i sig.
+ *
+ * <b>Paint order.</b> Ringen ligger i ::after med z-index 0 och innehållet lyfts till z-index 1.
+ * Utan lyftet målas pseudon över texten — samma fälla som en gång tvättade ur bilkortens
+ * statiska text när glöden låg i ett absolut ::before.
+ *
+ * Injiceras i stället för att skrivas i snippeten: WP-sidan är en manuell kopia, och en ren
+ * stiländring ska aldrig kräva att den klistras om.
+ */
+(function caToppCss() {
+  if (document.getElementById('ca-topp-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-topp-css';
+  // Ringen: en regel, tre värdar. padding = ringens tjocklek, masken skär ur mitten.
+  var ring = 'content:"";position:absolute;inset:0;z-index:0;pointer-events:none;'
+    + 'border-radius:inherit;padding:1.5px;'
+    + '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);'
+    + 'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);'
+    + '-webkit-mask-composite:xor;mask-composite:exclude;';
+  s.textContent = [
+    // ── Demo-raden: violett, kortens första familj ──────────────────────────
+    '#ca-sub-bar{position:relative;isolation:isolate;}',
+    '#ca-sub-bar>*{position:relative;z-index:1;}',
+    '#ca-sub-bar::after{' + ring + 'opacity:.5;',
+      'background:conic-gradient(from var(--ca-rim-ang),#8b5cf6,#a78bfa,#c4b5fd,#6366f1,#8b5cf6);',
+      'animation:ca-rim 18s linear infinite;}',
+    // Kvotraden byter till bärnsten när sökningarna tar slut (ca-sub-bar-limited). Ringen
+    // måste följa med, annars säger kanten fortfarande "allt är som vanligt".
+    '#ca-sub-bar.ca-sub-bar-limited::after{',
+      'background:conic-gradient(from var(--ca-rim-ang),#f59e0b,#fbbf24,#fcd34d,#f97316,#f59e0b);}',
+    // ── Elbilspromon: grön, samma familj som kort 3 och som rutans egen text ─
+    '#ca-ev-promo{position:relative;isolation:isolate;}',
+    '#ca-ev-promo>*{position:relative;z-index:1;}',
+    '#ca-ev-promo::after{' + ring + 'opacity:.45;',
+      'background:conic-gradient(from var(--ca-rim-ang),#10b981,#34d399,#6ee7b7,#14b8a6,#10b981);',
+      'animation:ca-rim 18s linear infinite;animation-delay:-6s;}',
+    // ── Det valda chipset: blått, kortens andra familj ───────────────────────
+    // Bara det AKTIVA chipset ringas. Ringar på alla fem hade gjort valet omöjligt att se —
+    // det är skillnaden mot grannarna som bär informationen, inte glansen i sig.
+    '.ca-chip{position:relative;}',
+    '.ca-chip-aktiv{isolation:isolate;}',
+    '.ca-chip-aktiv>*{position:relative;z-index:1;}',
+    '.ca-chip-aktiv::after{' + ring + 'opacity:.85;padding:1.5px;',
+      'background:conic-gradient(from var(--ca-rim-ang),#38bdf8,#a78bfa,#c4b5fd,#22d3ee,#38bdf8);',
+      'animation:ca-rim 12s linear infinite;animation-delay:-3s;}',
+    // ── Notisraderna: ingen låda alls, bara en färgkant ──────────────────────
+    // De två raderna låg i varsin grå platta i exakt samma bredd och ton som fälten ovanför,
+    // fast de inte går att ändra i — formuläret läste som nio likadana slabbar i rad. Utan
+    // bakgrund faller de tillbaka dit de hör hemma: en anteckning intill det de förklarar.
+    '#ca-fuel-sum{background:none;border:none;border-left:2px solid rgba(56,189,248,.55);',
+      'border-radius:0;padding:2px 0 2px 11px;}',
+    '.ca-blocket-note{font-size:.76rem;line-height:1.45;color:#8b93a7;',
+      'padding:2px 0 2px 11px;border-left:2px solid rgba(167,139,250,.45);}',
+    '.ca-blocket-note b{color:rgba(226,232,240,.85);font-weight:700;}',
+    // ── Rubrikerna i samma ton ───────────────────────────────────────────────
+    // "SNABBSTART" satt på .45 och .7rem medan "BILKATEGORI" satt på .65 och .78rem — samma
+    // sorts rubrik i två olika styrkor, vilket läser som två olika nivåer utan att vara det.
+    '.ca-snabb-rubrik{font-size:.74rem;letter-spacing:.09em;color:rgba(255,255,255,.62);margin-bottom:9px;}',
+    // Ett litet färgstreck före varje rubrik: sektionerna går att räkna i förbifarten, och
+    // strecket knyter ihop rubrikerna med ringarnas palett. Inline-element i flödet, inte en
+    // absolut pseudo — en sådan hade lagt sig över etiketten i stället för bredvid den.
+    '#ca-hero .ca-field>label::before,.ca-snabb-rubrik::before{content:"";display:inline-block;',
+      'width:3px;height:.72em;margin-right:8px;vertical-align:-1px;border-radius:2px;',
+      'background:linear-gradient(180deg,#a78bfa,#38bdf8);}',
+    // ── Lodrät rytm: avstånd som grupperar i stället för att radas upp ───────
+    // Allt utom rubriken låg på 16 px, vilket gör att ögat inte ser var ett stycke slutar och
+    // nästa börjar. Nu är det tätt INOM en grupp och luftigt MELLAN dem. Marginaler mellan
+    // syskon kollapsar, så talen nedan är avstånd och inte summor.
+    '#ca-hero .ca-sub{margin-bottom:26px;}',
+    '#ca-hero #ca-sub-bar{margin-bottom:11px;}',   // hör ihop med promon under
+    '#ca-hero #ca-ev-promo{margin-bottom:26px;}',  // slut på "om tjänsten", början på formuläret
+    '#ca-hero #ca-snabbstart{margin-bottom:22px;}',
+    '#ca-hero .ca-grid{margin-bottom:18px;}',
+    // Tomma rutnät bär fortfarande sin marginal och lämnar luft mitt i formuläret
+    '#ca-hero .ca-grid:empty{margin-bottom:0;}',
+    // Notisen sitter ihop med fältet den förklarar, inte mitt emellan två
+    '#ca-hero #ca-usedcar-note{margin-top:-6px;}',
+    '#ca-hero #ca-fuel-sum{margin:0 0 18px;}',
+    '#ca-hero #ca-fler-btn{margin-bottom:20px;}',
+    // ── Chipsen på mobil: tre per rad, som mobillagret redan syftade till ───
+    // minmax(78px,1fr) skulle ge "tre jämnbreda chips även på en 360 px-skärm", men på 390 px
+    // ryms fyra — och med fem kategorier blir raderna 4+1 med en ensam Småbil under. 95 px
+    // tvingar fram tre kolumner och därmed 3+2, medan laddare-gruppens två chips fortfarande
+    // får en halva var (auto-fit skapar aldrig fler kolumner än det finns barn).
+    '@media(max-width:520px){#ca-wrap .ca-chips{grid-template-columns:repeat(auto-fit,minmax(95px,1fr));}}',
+    // Reduced motion: ringarna står kvar som statiska färgkanter, bara rörelsen tas bort.
+    '@media(prefers-reduced-motion:reduce){#ca-sub-bar::after,#ca-ev-promo::after,',
+      '.ca-chip-aktiv::after{animation:none!important;}}'
+  ].join('');
+  (document.body || document.documentElement).appendChild(s);
+})();
+
 // Jämförelsetabellens eget lager: glas, glöd och skiftande färg. Injiceras av samma skäl som
 // polish-lagret ovan — WP-sidan är en manuell kopia och ska slippa klistras om för en ren
 // stiländring. Klasser i stället för inline-stilar här: hover, sticky kolumn, animation och
@@ -1536,9 +1646,10 @@ function caKompaktNotis(falt) {
   falt.style.gridColumn = '1 / -1';
   falt.innerHTML =
     // Neutral vit genomskinlighet i stället för en blå ram: sidans tema är violett, och en
-    // blåtonad ruta läste som ett främmande element mitt i formuläret.
-    '<div style="font-size:0.76rem;line-height:1.4;color:#8b93a7;background:rgba(255,255,255,0.035);' +
-    'border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:8px 12px;">' +
+    // blåtonad ruta läste som ett främmande element mitt i formuläret. Utseendet flyttat till
+    // klassen i caToppCss — inline vinner alltid över en stilregel, så notisen gick inte att
+    // ge en vänsterkant så länge ramen stod här.
+    '<div class="ca-blocket-note">' +
     'Begagnat ur <b>Blockets annonser</b>, <b>högst 5 år gamla</b> — priserna mäts mot riktiga annonser.' +
     '</div>';
 }
