@@ -120,11 +120,11 @@ public class CarVideoService {
 
         String videoId = null, title = null, channel = null;
         if (canLookUp()) {
-            JsonNode hit = pickBest(search(car, true));
+            JsonNode hit = pickBest(sprakfiltrera(search(car, true)));
             // Ingen svensk träff alls — då är en engelsk recension bättre än ingen rad.
             // Kostar ytterligare 100 enheter, men bara för bilar utan svensk bevakning,
             // och svaret cachas som alla andra.
-            if (hit == null && canLookUp()) hit = pickBest(search(car, false));
+            if (hit == null && canLookUp()) hit = pickBest(sprakfiltrera(search(car, false)));
             if (hit != null) {
                 videoId = hit.path("id").path("videoId").asText("");
                 title = hit.path("snippet").path("title").asText("");
@@ -266,6 +266,73 @@ public class CarVideoService {
      * <p>{@link #SEARCH_RESULTS} träffar hämtas fast bara en används: en sökning kostar
      * 100 kvotenheter oavsett hur många resultat den returnerar, så urvalet är gratis.
      */
+    private static final String VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos";
+
+    /**
+     * Fragar YouTube vilket sprak klippen FAKTISKT ar pa, och slanger det som varken ar
+     * svenska eller engelska.
+     *
+     * <p><b>Varfor detta utover teckenfiltret.</b> Ett slovenskt klipp i cachen hette
+     * "2022 skoda fabia 1.0 TSI style - test" - marke, trimniva och ett ord som betyder samma
+     * sak pa halva Europas sprak. Det finns ingenting i den titeln att falla den pa. Sokresultatet
+     * bar inte spraket, men {@code videos.list} gor det.
+     *
+     * <p><b>Kostnaden ar forsumbar.</b> En sokning kostar 100 kvotenheter, det har anropet kostar
+     * 1 - och det ar ETT anrop for alla fem traffarna, inte ett per klipp.
+     *
+     * <p><b>Saknat sprak fals inte.</b> Faltet ar frivilligt hos YouTube och manga aldre klipp
+     * saknar det. Ett tomt falt betyder inte fel sprak, och da far teckenfiltret i
+     * {@link #tillatetSprak} avgora ensamt - hellre en osaker traff an ingen rad alls.
+     */
+    JsonNode sprakfiltrera(JsonNode items) {
+        if (items == null || !items.isArray() || items.isEmpty()) return items;
+        Map<String, String> sprak = sprakFor(items);
+        if (sprak.isEmpty()) return items;   // uppslaget gick inte igenom: doma inte
+        var kvar = mapper.createArrayNode();
+        for (JsonNode item : items) {
+            String id = item.path("id").path("videoId").asText("");
+            if (sprakOk(sprak.get(id))) kvar.add(item);
+        }
+        return kvar.isEmpty() ? null : kvar;
+    }
+
+    /** Tomt eller okant sprak godkanns; allt annat maste borja pa sv eller en. */
+    static boolean sprakOk(String kod) {
+        if (kod == null || kod.isBlank()) return true;
+        String k = kod.toLowerCase(Locale.ROOT);
+        return k.startsWith("sv") || k.startsWith("en");
+    }
+
+    /** videoId -> sprakkod. Tom map nar anropet inte gick igenom. */
+    private Map<String, String> sprakFor(JsonNode items) {
+        StringBuilder ids = new StringBuilder();
+        for (JsonNode item : items) {
+            String id = item.path("id").path("videoId").asText("");
+            if (!id.isBlank()) ids.append(ids.length() == 0 ? "" : ",").append(id);
+        }
+        if (ids.length() == 0) return Map.of();
+        try {
+            URI uri = URI.create(VIDEOS_URL + "?part=snippet&id=" + ids + "&key=" + apiKey);
+            HttpRequest req = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(6)).GET().build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) return Map.of();
+            Map<String, String> ut = new LinkedHashMap<>();
+            for (JsonNode v : mapper.readTree(resp.body()).path("items")) {
+                JsonNode sn = v.path("snippet");
+                String kod = sn.path("defaultAudioLanguage").asText("");
+                if (kod.isBlank()) kod = sn.path("defaultLanguage").asText("");
+                ut.put(v.path("id").asText(""), kod);
+            }
+            return ut;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Map.of();
+        } catch (Exception e) {
+            log.warn("car_video: sprakuppslag misslyckades: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
     private JsonNode search(String car, boolean swedish) {
         try {
             String q = URLEncoder.encode(swedish

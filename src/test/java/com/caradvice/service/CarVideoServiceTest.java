@@ -158,6 +158,27 @@ class CarVideoServiceTest {
                 "Faceliftovaná Škoda Karoq v strednej výbave! Test jej najpopulárnejšej verzie!"))).isFalse();
     }
 
+    @Test
+    void sprakkoden_avgor_men_bara_nar_den_finns() {
+        // Faltet defaultAudioLanguage ar frivilligt hos YouTube. Ett tomt falt betyder INTE fel
+        // sprak, sa det far inte falla klippet - da hade halva cachen tomts pa aldre klipp.
+        assertThat(CarVideoService.sprakOk(null)).isTrue();
+        assertThat(CarVideoService.sprakOk("")).isTrue();
+        assertThat(CarVideoService.sprakOk("  ")).isTrue();
+        // Svenska och engelska i alla varianter YouTube skickar
+        assertThat(CarVideoService.sprakOk("sv")).isTrue();
+        assertThat(CarVideoService.sprakOk("sv-SE")).isTrue();
+        assertThat(CarVideoService.sprakOk("en")).isTrue();
+        assertThat(CarVideoService.sprakOk("en-US")).isTrue();
+        assertThat(CarVideoService.sprakOk("en-GB")).isTrue();
+        // Det som fick anropet att byggas: ett slovenskt klipp vars TITEL var ren ASCII
+        assertThat(CarVideoService.sprakOk("sl")).isFalse();
+        assertThat(CarVideoService.sprakOk("sk")).isFalse();
+        assertThat(CarVideoService.sprakOk("pl")).isFalse();
+        assertThat(CarVideoService.sprakOk("de")).isFalse();
+        assertThat(CarVideoService.sprakOk("nb-NO")).isFalse();
+    }
+
     /** Ett enda item, for de prov som mater spraket och inte rankningen. */
     private static com.fasterxml.jackson.databind.JsonNode en(String kanal, String titel) throws Exception {
         return items(kanal, titel).get(0);
