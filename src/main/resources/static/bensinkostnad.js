@@ -1332,6 +1332,12 @@ function bcInjectEffectStyles() {
     // Emblemplattan i markesvaljaren. Absolut i .bc-input-wrap (redan position:relative),
     // pointer-events:none sa klicket gar igenom till select:en.
     '.bc-input-wrap.bc-has-emblem select{padding-left:52px}' +
+    // Utan valt marke ska plattan inte finnas. #bc-brandEmblem styls pa ID och ritades darfor
+    // ALLTID - en tom 30x30-ruta ovanpa en select som samtidigt saknar sitt 52px-indrag,
+    // eftersom indraget hanger pa .bc-has-emblem. Resultatet var att rutan tackte ordet
+    // "Valj" i platshallaren, sa det stod bara "marke...". Tva klasser plus ett ID slar
+    // ID-regeln, sa den har raden racker.
+    '.bc-input-wrap:not(.bc-has-emblem) #bc-brandEmblem{display:none}' +
     '#bc-brandEmblem{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:30px;' +
       'height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;' +
       'font-size:0.66rem;font-weight:800;letter-spacing:0.02em;pointer-events:none;z-index:1;' +
