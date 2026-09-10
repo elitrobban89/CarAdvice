@@ -69,7 +69,6 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-wrap .ca-slider-ticks{clear:both;}' +
     '#ca-wrap #ca-fc-btn{min-height:44px;padding:12px 20px;font-size:.82rem;}' +
     '#ca-wrap #ca-prenumerera-btn{min-height:44px;padding:12px 22px;font-size:.85rem;}' +
-    '#ca-wrap .ca-snabb-btn{min-height:44px;padding:10px 13px;font-size:.78rem;}' +
     '#ca-wrap .ca-fb-btn{min-width:56px;min-height:44px;}' +
     '#ca-wrap .ca-blocket-btn,#ca-wrap .ca-bytbil-btn{min-height:44px;}' +
     '#ca-wrap .ca-fc-input{min-height:44px;font-size:.85rem;}' +
@@ -144,6 +143,12 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     + 'transition:background .16s,border-color .16s,color .16s,transform .16s,box-shadow .16s;}' +
     '.ca-chip-ikon{font-size:1.15rem;line-height:1;filter:grayscale(.55) opacity(.75);transition:filter .16s,transform .16s;}' +
     '.ca-chip-txt{text-align:center;line-height:1.2;}' +
+    // Prislappen: mindre och tystare an namnet, men inte sa tyst att den blir dekoration -
+    // det ar den som talar om vad knappen faktiskt staller in.
+    '.ca-chip-hint{font-size:.62rem;font-weight:600;letter-spacing:.01em;color:rgba(226,232,240,.5);'
+    + 'white-space:nowrap;'
+    + 'text-align:center;line-height:1.15;}' +
+    '.ca-chip-aktiv .ca-chip-hint{color:rgba(226,232,240,.78);}' +
     '.ca-chip:hover{background:rgba(139,92,246,.12);border-color:rgba(167,139,250,.45);color:#fff;transform:translateY(-1px);}' +
     '.ca-chip:hover .ca-chip-ikon{filter:none;transform:scale(1.08);}' +
     // Det valda alternativet bär husets lila och en glöd, så det syns utan att man läser.
@@ -389,11 +394,10 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // ── Rubrikerna i samma ton ───────────────────────────────────────────────
     // "SNABBSTART" satt på .45 och .7rem medan "BILKATEGORI" satt på .65 och .78rem — samma
     // sorts rubrik i två olika styrkor, vilket läser som två olika nivåer utan att vara det.
-    '.ca-snabb-rubrik{font-size:.74rem;letter-spacing:.09em;color:rgba(255,255,255,.62);margin-bottom:9px;}',
     // Ett litet färgstreck före varje rubrik: sektionerna går att räkna i förbifarten, och
     // strecket knyter ihop rubrikerna med ringarnas palett. Inline-element i flödet, inte en
     // absolut pseudo — en sådan hade lagt sig över etiketten i stället för bredvid den.
-    '#ca-hero .ca-field>label::before,.ca-snabb-rubrik::before{content:"";display:inline-block;',
+    '#ca-hero .ca-field>label::before{content:"";display:inline-block;',
       'width:3px;height:.72em;margin-right:8px;vertical-align:-1px;border-radius:2px;',
       'background:linear-gradient(180deg,#a78bfa,#38bdf8);}',
     // ── Lodrät rytm: avstånd som grupperar i stället för att radas upp ───────
@@ -403,7 +407,6 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-hero .ca-sub{margin-bottom:26px;}',
     '#ca-hero #ca-sub-bar{margin-bottom:11px;}',   // hör ihop med promon under
     '#ca-hero #ca-ev-promo{margin-bottom:26px;}',  // slut på "om tjänsten", början på formuläret
-    '#ca-hero #ca-snabbstart{margin-bottom:22px;}',
     '#ca-hero .ca-grid{margin-bottom:18px;}',
     // Tomma rutnät bär fortfarande sin marginal och lämnar luft mitt i formuläret
     '#ca-hero .ca-grid:empty{margin-bottom:0;}',
@@ -433,38 +436,12 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-sub-bar.ca-svept,#ca-ev-promo.ca-svept{animation:ca-svep-lyft .5s cubic-bezier(.22,1,.36,1) both;}',
     '#ca-ev-promo.ca-svept{animation-delay:.16s;}',
     '@keyframes ca-svep-lyft{from{transform:translateY(7px);opacity:.35}to{transform:none;opacity:1}}',
-    // ── Snabbstarten: fyra eller två per rad, aldrig tre ────────────────────
-    // Raden var en flexbox som bröt på knapparnas egna bredder, och eftersom de fyra knapparna
-    // är olika breda blev radindelningen ojämn på nästan varje bredd. Uppmätt på den skarpa
-    // WP-sidan, där spalten är 818 px som mest: 4 vid ≥1024 px fönster, 3+1 vid 900 och 820,
-    // 2+2 vid 700 och 1+2+1 vid 600 — en ensam knapp under tre andra, eller värre.
-    //
-    // Rutnät med lika breda kolumner tar bort raggigheten, och antalet kolumner är antingen
-    // fyra eller två: med fyra element ger tre kolumner alltid 3+1. Frågan ställs till
-    // BEHÅLLAREN och inte till fönstret — det var just den skillnaden som gjorde att raden såg
-    // hel ut i test.html (900 px brett fönster, 818 px spalt) men bröt på WP-sidan vid samma
-    // fönsterbredd, där temat lämnar 722 px. En @media hade mätt fel storhet.
-    //
-    // Utan stöd för @container faller den tillbaka på två kolumner, vilket är jämnt i sig.
-    '#ca-snabbstart{container-type:inline-size;}',
-    '.ca-snabb-rad{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}',
-    '.ca-snabb-btn{justify-content:center;}',
-    // Fyra på en rad ritas som flex och inte som fyra 1fr-kolumner: lika breda kolumner blir
-    // 199 px i en 818 px spalt, och då bryter "Pendlare bensin · 150 000 kr" till två rader så
-    // hela raden växer från 36 till 52 px. Med flex behåller knapparna sina egna bredder och
-    // delar bara på överskottet — mätt 764 px innehåll i 818 px spalt, alltså gott om luft.
-    '@container (min-width:770px){.ca-snabb-rad{display:flex;flex-wrap:nowrap;}',
-      '.ca-snabb-btn{flex:1 1 auto;}}',
-    // Prislapparna ("el · 300 000 kr") göms redan under 520 px FÖNSTER, men det är spalten som
-    // avgör om de får plats: i ett 600 px fönster lämnar WP-temat 422 px, hintarna stod kvar och
-    // en knapp bröt till två rader medan grannen förblev enradig — 52 px bredvid 36 px.
-    '@container (max-width:480px){.ca-snabb-hint{display:none;}}',
     // ── Chipsen på mobil: tre per rad, som mobillagret redan syftade till ───
     // minmax(78px,1fr) skulle ge "tre jämnbreda chips även på en 360 px-skärm", men på 390 px
     // ryms fyra — och med fem kategorier blir raderna 4+1 med en ensam Småbil under. 95 px
     // tvingar fram tre kolumner och därmed 3+2, medan laddare-gruppens två chips fortfarande
     // får en halva var (auto-fit skapar aldrig fler kolumner än det finns barn).
-    '@media(max-width:520px){#ca-wrap .ca-chips{grid-template-columns:repeat(auto-fit,minmax(95px,1fr));}}',
+    '@media(max-width:520px){#ca-wrap .ca-chips{grid-template-columns:repeat(auto-fit,minmax(82px,1fr));}}',
     // Reduced motion: ringarna står kvar som statiska färgkanter, bara rörelsen tas bort.
     '@media(prefers-reduced-motion:reduce){#ca-sub-bar::after,#ca-ev-promo::after,',
       '.ca-chip-aktiv::after,#ca-sub-bar.ca-svept,#ca-ev-promo.ca-svept,',
@@ -1373,8 +1350,12 @@ function caChips(id) {
     b.type = 'button';
     b.className = 'ca-chip';
     b.dataset.varde = o.value;
+    // Prislappen st\u00e5r bara p\u00e5 kategoriknapparna: det \u00e4r de som b\u00e4r ett f\u00f6rval, och en
+    // rad under "Ja"/"Nej" i laddboxfr\u00e5gan hade varit brus.
+    var forval = id === 'ca-category' ? CA_KAT_FORVAL[caCanonCat(o.value)] : null;
     b.innerHTML = '<span class="ca-chip-ikon">' + (ikoner[o.value] || '\u2022') + '</span>'
-      + '<span class="ca-chip-txt">' + caEsc(o.textContent) + '</span>';
+      + '<span class="ca-chip-txt">' + caEsc(o.textContent) + '</span>'
+      + (forval ? '<span class="ca-chip-hint">' + caEsc(forval.hint) + '</span>' : '');
     rad.appendChild(b);
   });
   sel.parentNode.insertBefore(rad, sel.nextSibling);
@@ -1440,6 +1421,63 @@ function caSynkaChips() { caChipsRader.forEach(function (f) { f(); }); }
 var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '5', suv: '5', smaabil: '10' };
 
 /**
+ * Prislappen på kategoriknappen — och förvalet den sätter.
+ *
+ * <p>Ersätter snabbstartsraden, som var fyra knappar ovanför fem kategoriknappar där båda
+ * raderna gjorde nästan samma sak. Nu bär kategorin sitt eget förval, och formuläret blev en
+ * rad kortare utan att något val försvann.
+ *
+ * <p><b>Beloppen är hämtade ur {@link CA_BUDGET_LEVELS}, inte påhittade.</b> Varje kategori
+ * får den nivå där segmentets normala bilar faktiskt börjar: familjebil 300 000 (Enyaq från
+ * 279 000 som elbil), SUV 350 000 (XC60 från 308 000), elbil 300 000, laddhybrid 250 000
+ * (Passat GTE 199 000, V60 T8 209 000) och småbil 125 000 (Picanto 84 000, Yaris 125 000).
+ * Alla ligger dessutom på reglagets steg om 25 000 från 50 000 — ett förval som inte går att
+ * ställa in för hand hade sett ut som ett fel.
+ *
+ * <p>Kortformen "300k" är inte kosmetik. Fem lika breda knappar i heroens spalt ger 49 px
+ * innanför kanterna, och "el · 300 000 kr" mätte 65 px — den spillde ut ur knappen medan de
+ * andra låg på 48 av 49. Utskrivet belopp fick alltså plats bara så länge inget drivmedel stod
+ * före det.
+ *
+ * <p>Bara familjebil bär ett drivmedel, och det är arvet från snabbstartens "Barnfamilj":
+ * el förutsätter laddbox och är ett verkligt val, medan "bensin" på småbil hade varit en
+ * gissning om en köpare vi inte vet något om.
+ */
+var CA_KAT_FORVAL = {
+  familjebil: { budget: 300000, drivmedel: 'el', hint: 'el · 300k' },
+  suv:        { budget: 350000,                  hint: '350k' },
+  elbil:      { budget: 300000,                  hint: '300k' },
+  laddhybrid: { budget: 250000,                  hint: '250k' },
+  smaabil:    { budget: 125000,                  hint: '125k' }
+};
+
+/**
+ * Sätter kategorins förval — men aldrig över något användaren själv bestämt.
+ *
+ * <p>Samma regel som växellådan, åldern och drivmedlet: {@code dataset.rord} betyder att
+ * människan valt själv, och då rör vi ingenting. Reglaget får sin flagga när man drar i det,
+ * och {@code caForvalPaus} stänger av hela mekanismen medan en sparad sökning, en
+ * delningslänk eller en historikpost återställs — de ÄR egna val, de sattes bara
+ * programmatiskt.
+ */
+function caKategoriForval() {
+  if (caForvalPaus) return;
+  var kat = caCanonCat(document.getElementById('ca-category').value);
+  var f = CA_KAT_FORVAL[kat];
+  if (!f) return;
+  var slider = document.getElementById('ca-budget-slider');
+  if (slider && !slider.dataset.rord && String(slider.value) !== String(f.budget)) {
+    slider.value = f.budget;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  var fuel = document.getElementById('ca-fuel');
+  if (f.drivmedel && fuel && !fuel.dataset.rord && fuel.value !== f.drivmedel) {
+    fuel.value = f.drivmedel;
+    fuel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+/**
  * Kör en återställning UTAN att de smarta förvalen får säga sitt.
  *
  * <p>De tre förvalen (drivmedel, växellåda, ålder) backar för ett eget val via dataset.rord.
@@ -1463,7 +1501,7 @@ function caUtanForval(fn) {
 
 /** Nollställ ska ge ett JUNGFRULIGT formulär — annars sitter förra sökningens egna val kvar för alltid. */
 function caSlappEgnaVal() {
-  ['ca-fuel', 'ca-transmission', 'ca-maxage'].forEach(function (id) {
+  ['ca-fuel', 'ca-transmission', 'ca-maxage', 'ca-budget-slider'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) delete el.dataset.rord;
   });
@@ -1504,108 +1542,6 @@ function caVaxelladeForval() {
  * <p>Rutorna FLYTTAS in i behållaren i stället för att döljas, så rutnätet inte får hål.
  * Körs efter caEnsureCargoField, eftersom bagagefältet injiceras därifrån.
  */
-/**
- * Snabbstart: fyller formuläret och söker i ETT klick.
- *
- * <p>Formuläret är redan nedbantat till fyra fält framme, men den som kommer in första gången
- * ska ändå välja kategori, dra ett reglage, svara på laddbox och drivmedel innan något händer.
- * Knapparna här är de vanligaste kombinationerna, och de gör hela vägen på en tryckning.
- *
- * <p><b>Budgetarna ligger på reglagets egen rutnät.</b> Steget är 25 000 kr från 50 000, så
- * 80 000 kr GÅR INTE att sätta — reglaget hade snäppt till 75 000 och knappens text hade ljugit.
- * Alla fyra tal är därför multiplar av 25 000 räknat från 50 000.
- *
- * <p><b>Värdena sätts inuti caUtanForval</b>, annars hinner de smarta förvalen skriva över dem
- * medan raden fylls (laddbox=Ja tvingar drivmedlet till El). Drivmedlet markeras sedan som ett
- * EGET val med dataset.rord där knappen uttryckligen säger ett — knappen ÄR ett användarval, och
- * ska inte kunna slås ut av kategorins förval. Där knappen inte säger något släpps flaggan så
- * förvalen får gälla som vanligt.
- *
- * <p>Byggs i JS och inte i markupen med flit: WordPress-sidan är en manuell kopia av snippeten,
- * och allt som bara finns i HTML kräver omklistring för att synas. Samma skäl som "Fler val".
- */
-var CA_SNABBSTART = [
-  { ikon: '\uD83D\uDC6A', namn: 'Barnfamilj',   hint: 'el \u00b7 300 000 kr',
-    kategori: 'familjebil', budget: 300000, laddare: 'true',  drivmedel: 'el' },
-  { ikon: '\uD83D\uDE97', namn: 'Pendlare',     hint: 'bensin \u00b7 150 000 kr',
-    kategori: 'smaabil',    budget: 150000, laddare: 'false', drivmedel: 'bensin', anvandning: 'pendling' },
-  { ikon: '\uD83D\uDE99', namn: 'SUV',          hint: '350 000 kr',
-    kategori: 'suv',        budget: 350000 },
-  { ikon: '\uD83D\uDD30', namn: 'F\u00f6rsta bilen', hint: '75 000 kr',
-    kategori: 'smaabil',    budget: 75000 }
-];
-
-function caSnabbstartCss() {
-  if (document.getElementById('ca-snabb-css')) return;
-  var st = document.createElement('style');
-  st.id = 'ca-snabb-css';
-  st.textContent =
-    '#ca-snabbstart{margin:0 0 16px;}' +
-    '.ca-snabb-rubrik{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;' +
-      'color:rgba(226,232,240,.45);margin-bottom:7px;}' +
-    '.ca-snabb-rad{display:flex;flex-wrap:wrap;gap:7px;}' +
-    '.ca-snabb-btn{display:flex;align-items:center;gap:8px;padding:9px 13px;cursor:pointer;' +
-      'background:rgba(139,92,246,.10);border:1px solid rgba(167,139,250,.35);border-radius:999px;' +
-      'color:rgba(226,232,240,.9);font-family:inherit;font-size:.78rem;font-weight:700;' +
-      'transition:all .16s;}' +
-    '.ca-snabb-btn:hover{background:rgba(139,92,246,.22);border-color:rgba(167,139,250,.7);color:#fff;}' +
-    '.ca-snabb-ikon{font-size:1rem;line-height:1;}' +
-    '.ca-snabb-hint{font-weight:400;color:rgba(226,232,240,.5);}' +
-    // Under 520 px far raden radbrytas fritt och hintarna tas bort: fyra knappar med
-    // undertext blev tre rader hoga pa en telefon, alltsa hogre an formularet de skulle spara.
-    '@media(max-width:520px){.ca-snabb-hint{display:none;}.ca-snabb-btn{padding:8px 11px;}}';
-  document.head.appendChild(st);
-}
-
-function caSnabbstart() {
-  if (document.getElementById('ca-snabbstart')) return;
-  var forstaGrid = document.querySelector('#ca-wrap .ca-grid');
-  if (!forstaGrid) return;
-  caSnabbstartCss();
-
-  var box = document.createElement('div');
-  box.id = 'ca-snabbstart';
-  var html = '<div class="ca-snabb-rubrik">Snabbstart</div><div class="ca-snabb-rad">';
-  CA_SNABBSTART.forEach(function (p, i) {
-    html += '<button type="button" class="ca-snabb-btn" data-i="' + i + '"'
-      + ' title="Fyller formul\u00e4ret och s\u00f6ker direkt">'
-      + '<span class="ca-snabb-ikon">' + p.ikon + '</span>'
-      + '<span>' + caEsc(p.namn) + '</span>'
-      + '<span class="ca-snabb-hint">' + caEsc(p.hint) + '</span></button>';
-  });
-  box.innerHTML = html + '</div>';
-  forstaGrid.parentNode.insertBefore(box, forstaGrid);
-
-  box.addEventListener('click', function (e) {
-    var b = e.target.closest ? e.target.closest('.ca-snabb-btn') : null;
-    if (!b) return;
-    caKorSnabbstart(CA_SNABBSTART[parseInt(b.dataset.i, 10)]);
-  });
-}
-
-/** Fyller formuläret ur ett förval och startar sökningen. */
-function caKorSnabbstart(p) {
-  if (!p) return;
-  caUtanForval(function () {
-    // Släpp först: knappen ska ge ett jungfruligt formulär utom där den själv säger något,
-    // annars sitter förra sökningens egna val kvar och motsäger etiketten på knappen.
-    caSlappEgnaVal();
-    document.getElementById('ca-category').value = p.kategori;
-    document.getElementById('ca-charger').value  = p.laddare || 'false';
-    if (p.anvandning) document.getElementById('ca-usage').value = p.anvandning;
-    if (p.drivmedel) {
-      var f = document.getElementById('ca-fuel');
-      f.value = p.drivmedel;
-      f.dataset.rord = '1';
-    }
-  });
-  caSetBudgetMode('k\u00f6p', p.budget);   // satter min/max/steg, varde, fyllnad och varning
-  caUpdateFuelVisibility();                 // drar hela beroendekedjan + caSynkaChips
-  caCheckMismatch();
-  var btn = document.getElementById('ca-btn');
-  if (btn) btn.click();
-}
-
 function caFlerVal() {
   if (document.getElementById('ca-fler')) return;
 
@@ -1998,6 +1934,8 @@ function caBindChangeListeners() {
     // Har användaren rört åldern själv slutar den följa kategorin — samma regel som
     // växellådan, och samma flagga.
     if (id === 'ca-maxage') el.addEventListener('change', function () { el.dataset.rord = '1'; });
+    // Ett draget reglage ar ett eget val: kategoriforvalet ska inte kasta om det efterat.
+    if (id === 'ca-budget-slider') el.addEventListener('input', function () { el.dataset.rord = '1'; });
     el.addEventListener('change', caCheckChanges);
     el.addEventListener('input', caCheckChanges);
   });
@@ -2011,6 +1949,8 @@ function caBindChangeListeners() {
   var bud = document.getElementById('ca-budget-slider');
   var nc  = document.getElementById('ca-newcar');
   var chg = document.getElementById('ca-charger');
+  // Forst forvalet, sedan de som laser vad forvalet satte.
+  if (cat) cat.addEventListener('change', caKategoriForval);
   if (cat) cat.addEventListener('change', caUpdateFuelVisibility);
   if (cat) cat.addEventListener('change', caRenderEvBudgetHint);
   // Bagagestegen byter ankarbilar med drivmedlet (se caCargoLevels). Kategorin måste vara med
@@ -4867,9 +4807,8 @@ function caByggVag() {
 }
 
 // ── Litet liv i knapparna ────────────────────────────────────────────────────
-// Kategorichipsen och snabbstartsknapparna stod helt still tills man förde muspekaren över
-// dem. Nu andas ikonerna, den valda kategorin glöder långsamt och ett sken sveper förbi
-// snabbstartsknapparna i tur och ordning.
+// Kategorichipsen stod helt still tills man förde muspekaren över dem. Nu andas ikonerna
+// och den valda kategorin glöder långsamt.
 //
 // Förskjutna starter (nth-child) med flit: rör sig alla i takt läses det som ett fel i
 // renderingen snarare än som liv. Samma skäl som de tre kortens färgkanter fick olika
@@ -4883,31 +4822,22 @@ function caByggVag() {
   var s = document.createElement('style');
   s.id = 'ca-rorelse-css';
   var d = '';
-  // Ikonerna: fem kategorier och fyra snabbstartsknappar, var och en en bit in i cykeln
+  // Ikonerna: en kategori i taget, var och en en bit in i cykeln
   for (var i = 1; i <= 6; i++) {
     d += '.ca-chips .ca-chip:nth-child(' + i + ') .ca-chip-ikon{animation-delay:-' + (i * 0.62).toFixed(2) + 's;}';
-    d += '.ca-snabb-rad .ca-snabb-btn:nth-child(' + i + ') .ca-snabb-ikon{animation-delay:-' + (i * 0.83).toFixed(2) + 's;}';
-    d += '.ca-snabb-rad .ca-snabb-btn:nth-child(' + i + ')::after{animation-delay:' + (i * 1.15).toFixed(2) + 's;}';
   }
   s.textContent = [
     '@keyframes ca-ikon-liv{0%,100%{transform:translateY(0) rotate(0deg)}',
       '50%{transform:translateY(-1.6px) rotate(-4deg)}}',
     '@keyframes ca-chip-glod{0%,100%{box-shadow:0 0 0 1px rgba(167,139,250,.3),0 4px 16px -4px rgba(139,92,246,.55)}',
       '50%{box-shadow:0 0 0 1px rgba(167,139,250,.6),0 7px 26px -3px rgba(139,92,246,.95)}}',
-    '@keyframes ca-snabb-sken{0%,72%{left:-42%}92%,100%{left:120%}}',
-    '.ca-chip-ikon,.ca-snabb-ikon{animation:ca-ikon-liv 3.4s ease-in-out infinite;}',
+    '.ca-chip-ikon{animation:ca-ikon-liv 3.4s ease-in-out infinite;}',
     // animation:none och inte play-state:paused — en pausad animation fortsätter skriva sitt
     // värde och vinner då över hover-transformen, som därmed aldrig syntes.
     '.ca-chip:hover .ca-chip-ikon{animation:none;transform:scale(1.12);}',
-    '.ca-snabb-btn:hover .ca-snabb-ikon{animation:none;transform:scale(1.12);}',
     '.ca-chip-aktiv{animation:ca-chip-glod 2.8s ease-in-out infinite;}',
-    '.ca-snabb-btn{position:relative;overflow:hidden;}',
-    '.ca-snabb-btn::after{content:"";position:absolute;top:0;left:-42%;width:32%;height:100%;',
-      'background:linear-gradient(100deg,transparent,rgba(255,255,255,.2),transparent);',
-      'transform:skewX(-18deg);pointer-events:none;animation:ca-snabb-sken 7s ease-in-out infinite;}',
     d,
-    '@media(prefers-reduced-motion:reduce){.ca-chip-ikon,.ca-snabb-ikon,.ca-chip-aktiv,',
-      '.ca-snabb-btn::after{animation:none!important;}.ca-snabb-btn::after{display:none;}}'
+    '@media(prefers-reduced-motion:reduce){.ca-chip-ikon,.ca-chip-aktiv{animation:none!important;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
@@ -4940,7 +4870,6 @@ function caInit() {
   caFlerVal();
   // Efter caFlerVal: raden ska ligga överst i formuläret, och caFlerVal flyttar fält mellan
   // rutnäten. Egen klass och inget .ca-grid, så den aldrig plockas in i "Fler val"-lådan.
-  caSnabbstart();
   caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
