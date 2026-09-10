@@ -4485,7 +4485,7 @@ function caFcRenderResult(recs) {
     '.ca-rubrikrad h2{margin-bottom:0!important;flex:0 0 auto;}',
     // Masken åt båda håll är hela poängen: utan den slutar vägen tvärt i två kanter, och
     // en väg med synliga ändar tar per definition slut.
-    '.ca-vag{position:relative;flex:1 1 auto;min-width:70px;height:56px;overflow:hidden;',
+    '.ca-vag{position:relative;flex:1 1 auto;min-width:70px;height:72px;overflow:hidden;',
       '-webkit-mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);',
       'mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
     // ── Soluppgången framför bilen ──────────────────────────────────────────
@@ -4505,7 +4505,7 @@ function caFcRenderResult(recs) {
     // enda bildfil: hojden sitter i background-size och husen i en repeating-gradient, sa var
     // lager blir en husrad. Rundade kullar provades forst och blev bubblor i den har skalan -
     // atta pixlar hoga hus laser som stad, atta pixlar hoga kullar laser som ingenting.
-    '.ca-vag-stad{position:absolute;left:0;bottom:35px;width:calc(100% + 160px);height:11px;',
+    '.ca-vag-stad{position:absolute;left:0;bottom:51px;width:calc(100% + 160px);height:11px;',
       'pointer-events:none;',
       'background-image:repeating-linear-gradient(90deg,rgba(58,44,98,.95) 0 6px,transparent 6px 26px),',
         'repeating-linear-gradient(90deg,rgba(70,54,118,.9) 0 4px,transparent 4px 17px),',
@@ -4514,12 +4514,12 @@ function caFcRenderResult(recs) {
       'background-position:0 100%,26px 100%,52px 100%;background-repeat:repeat-x;',
       'animation:ca-vag-kulle 60s linear infinite;}',
     // Ljusdiset over staden: det som skiljer en svart siluett fran en stad man tror ar bebodd.
-    '.ca-vag-stadsljus{position:absolute;left:0;right:0;bottom:35px;height:9px;pointer-events:none;',
+    '.ca-vag-stadsljus{position:absolute;left:0;right:0;bottom:51px;height:9px;pointer-events:none;',
       'background:linear-gradient(180deg,transparent,rgba(196,181,253,.16));',
       '-webkit-mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent);',
       'mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent);}',
     '@keyframes ca-vag-kulle{from{transform:translateX(0)}to{transform:translateX(-80px)}}',
-    '.ca-vag-kullar-bort{position:absolute;left:0;bottom:37px;width:calc(100% + 200px);height:8px;',
+    '.ca-vag-kullar-bort{position:absolute;left:0;bottom:53px;width:calc(100% + 200px);height:8px;',
       'pointer-events:none;opacity:.65;',
       'background-image:radial-gradient(ellipse 52px 8px at 50% 100%,rgba(109,88,168,.7) 0 98%,transparent 100%);',
       'background-size:104px 8px;background-repeat:repeat-x;background-position:0 100%;',
@@ -4542,7 +4542,7 @@ function caFcRenderResult(recs) {
     '@keyframes ca-vag-fagelfard{0%{left:-14%;transform:translateY(0)}',
       '25%{transform:translateY(2.5px)}50%{transform:translateY(-1.5px)}75%{transform:translateY(2px)}',
       '62%{left:118%}100%{left:118%;transform:translateY(0)}}',
-    '.ca-vag-himmel{position:absolute;left:0;right:0;top:0;bottom:35px;pointer-events:none;',
+    '.ca-vag-himmel{position:absolute;left:0;right:0;top:0;bottom:51px;pointer-events:none;',
       'background:radial-gradient(ellipse 60% 150% at 72% 100%,rgba(251,191,36,.34),rgba(244,63,94,.16) 45%,transparent 72%),',
       'linear-gradient(180deg,transparent 45%,rgba(251,113,133,.1) 78%,rgba(251,146,60,.16));}',
     // Solen går en långsam båge över himlen i stället för att stå still och andas. Sol och
@@ -4557,7 +4557,7 @@ function caFcRenderResult(recs) {
     // aldrig når stripens överkant — 42 px hög remsa, horisonten 24 px upp, och en 19 px sol
     // som toppar 9 px över horisonten slutar 1,5 px innanför kanten. Toppar den högre klipps
     // den av ramen och ser trasig ut i stället för hög.
-    '.ca-vag-solvagn{position:absolute;left:72%;bottom:35px;width:0;height:0;pointer-events:none;',
+    '.ca-vag-solvagn{position:absolute;left:72%;bottom:51px;width:0;height:0;pointer-events:none;',
       'animation:ca-vag-bana 96s ease-in-out infinite alternate;}',
     '@keyframes ca-vag-bana{0%{transform:translate(-52px,5px)}50%{transform:translate(0,-9px)}',
       '100%{transform:translate(52px,5px)}}',
@@ -4600,7 +4600,7 @@ function caFcRenderResult(recs) {
     '@keyframes ca-vag-snurr-bak{to{transform:rotate(-360deg)}}',
     // Ljusstrimman på asfalten följer solen i sidled — utan den ligger solen bakom vägen i
     // stället för att lysa på den, och står den still avslöjar den att solen rört sig.
-    '.ca-vag-glans{position:absolute;left:72%;bottom:20px;width:74px;height:15px;margin-left:-37px;',
+    '.ca-vag-glans{position:absolute;left:72%;bottom:36px;width:74px;height:15px;margin-left:-37px;',
       'pointer-events:none;border-radius:2px;',
       'background:radial-gradient(ellipse 50% 120% at 50% 0%,rgba(253,224,71,.3),transparent 70%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
@@ -4613,50 +4613,74 @@ function caFcRenderResult(recs) {
     // tjugo pixlar och en ljusare skala — turkos vid horisonten, korallblått i mitten, djupare
     // blått längst ned. Att den ljusaste tonen ligger ÖVERST är det som gör ytan till vatten:
     // himlen speglas där, och botten är alltid mörkast.
-    '.ca-vag-hav{position:absolute;left:0;right:0;bottom:0;height:20px;pointer-events:none;',
+    '.ca-vag-hav{position:absolute;left:0;right:0;bottom:0;height:28px;pointer-events:none;',
       'background:linear-gradient(180deg,#4bb6d6 0,#2f8fc4 22%,#1f66a8 52%,#173f7d 78%,#12245c 100%);',
       'box-shadow:inset 0 1px 0 rgba(186,240,255,.5);}',
     // Vågkammarna: tre rader ljusa streck i olika täthet och takt. Den översta raden är tätast
     // och ljusast — nära horisonten står vågorna tätt ihop sett i perspektiv, längre ned glesnar
     // de. Utan den skillnaden ser ytan platt ut oavsett hur mycket den rör sig.
-    '.ca-vag-vagor{position:absolute;left:0;bottom:0;width:calc(100% + 120px);height:20px;',
+    '.ca-vag-vagor{position:absolute;left:0;bottom:0;width:calc(100% + 120px);height:28px;',
       'pointer-events:none;opacity:.85;',
       'background-image:repeating-linear-gradient(90deg,rgba(224,252,255,.75) 0 5px,transparent 5px 13px),',
         'repeating-linear-gradient(90deg,rgba(186,240,255,.5) 0 7px,transparent 7px 22px),',
         'repeating-linear-gradient(90deg,rgba(147,213,240,.42) 0 9px,transparent 9px 31px);',
       'background-size:60px 1px,72px 1.5px,88px 1.5px;background-repeat:repeat-x;',
-      'background-position:0 3px,26px 9px,54px 15px;',
+      'background-position:0 4px,26px 12px,54px 21px;',
       'animation:ca-vag-vagskvalp 7s linear infinite;}',
     '@keyframes ca-vag-vagskvalp{from{transform:translateX(0)}to{transform:translateX(-60px)}}',
     // Solvägen på vattnet följer solen i sidled, precis som glansen på asfalten. Utan den lyser
     // solen på vägen men inte på havet, och då ligger de i två olika världar. Den går hela vägen
     // ned genom vattnet och smalnar av — en solväg är bred vid betraktaren och spetsig vid solen.
-    '.ca-vag-solvag{position:absolute;left:72%;bottom:0;width:54px;height:20px;margin-left:-27px;',
+    '.ca-vag-solvag{position:absolute;left:72%;bottom:0;width:54px;height:28px;margin-left:-27px;',
       'pointer-events:none;',
       'background:radial-gradient(ellipse 26% 108% at 50% 0%,rgba(255,247,214,.85),rgba(253,224,71,.5) 34%,',
         'rgba(103,232,249,.34) 62%,transparent 84%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
     // Glittret: enstaka gnistor i solvägen som tänds och slocknar. Tre punkter räcker — det är
     // oregelbundenheten som läser som glitter, inte antalet.
-    '.ca-vag-glitter{position:absolute;left:72%;bottom:0;width:64px;height:20px;margin-left:-32px;',
+    '.ca-vag-glitter{position:absolute;left:72%;bottom:0;width:64px;height:28px;margin-left:-32px;',
       'pointer-events:none;',
       'background-image:radial-gradient(circle,rgba(255,255,255,.95) 0 .7px,transparent 1.2px),',
         'radial-gradient(circle,rgba(224,252,255,.85) 0 .6px,transparent 1.1px),',
         'radial-gradient(circle,rgba(255,247,214,.9) 0 .5px,transparent 1px);',
-      'background-size:17px 7px,23px 9px,13px 11px;',
-      'background-position:3px 4px,9px 11px,1px 16px;background-repeat:repeat-x;',
+      'background-size:17px 9px,23px 12px,13px 15px;',
+      'background-position:3px 5px,9px 14px,1px 22px;background-repeat:repeat-x;',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate,ca-vag-glitter 2.6s ease-in-out infinite alternate;}',
     '@keyframes ca-vag-glitter{from{opacity:.35}to{opacity:1}}',
     // Solskenet som lagger sig OVER allt: vagbana, hav och bada bilarna. mix-blend-mode:screen
     // gor att det ADDERAR ljus i stallet for att lagga en gul hinna over motivet - en vanlig
     // genomskinlig ruta hade grumlat den roda lacken i stallet for att fa den att glodga.
     // Ritas sist i markupen sa det hamnar ovanpa bilarna, och foljer solen i sidled.
-    '.ca-vag-solsken{position:absolute;left:72%;bottom:0;width:170px;height:42px;margin-left:-85px;',
+    '.ca-vag-solsken{position:absolute;left:72%;bottom:0;width:170px;height:58px;margin-left:-85px;',
       'pointer-events:none;z-index:3;mix-blend-mode:screen;',
       'background:radial-gradient(ellipse 46% 64% at 50% 74%,rgba(253,224,71,.34),rgba(251,146,60,.18) 42%,transparent 74%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
+    // ── Stranden mellan vagen och vattnet ──────────────────────────────────
+    // Atta pixlar sand under vagbanken. Kornigheten ar en punktgradient och inte en bild:
+    // helt slat sand laser som en brun list, och det ar prickarna som gor den till strand.
+    '.ca-vag-strand{position:absolute;left:0;right:0;bottom:28px;height:8px;pointer-events:none;',
+      'background-image:radial-gradient(circle,rgba(120,90,58,.5) 0 .5px,transparent .9px),',
+        'linear-gradient(180deg,#b99a72,#9d7c55 55%,#7d6041);',
+      'background-size:5px 4px,100% 100%;}',
+    // Skummet i vattenbrynet: en skurad kant som skjuts UPP pa sanden och drar sig tillbaka.
+    // Tva vagor med olika takt och fas - en ensam skulle andas som en maskin, tva laser som hav.
+    // Kanten ar radialgradienter som upprepas, sa vagbagarna far en bage i stallet for en rak
+    // linje, och hela remsan driver dessutom i sidled sa monstret aldrig star still.
+    '.ca-vag-skum{position:absolute;left:0;bottom:26px;width:calc(100% + 90px);height:6px;',
+      'pointer-events:none;opacity:.72;',
+      'background-image:radial-gradient(ellipse 9px 4px at 50% 100%,rgba(255,255,255,.85) 0 58%,rgba(224,252,255,.4) 58%,transparent 100%),',
+      'radial-gradient(ellipse 6px 3px at 50% 100%,rgba(255,255,255,.6) 0 55%,transparent 100%);',
+      'background-size:27px 6px,41px 5px;background-repeat:repeat-x;background-position:0 100%,13px 100%;',
+      'animation:ca-vag-skvalp 5.5s ease-in-out infinite alternate,ca-vag-skumdrift 23s linear infinite;}',
+    '@keyframes ca-vag-skvalp{from{transform:translateY(2.5px);opacity:.65}to{transform:translateY(-1.5px);opacity:1}}',
+    '@keyframes ca-vag-skumdrift{from{background-position-x:0,13px}to{background-position-x:-27px,-28px}}',
+    '.ca-vag-skum-bak{position:absolute;left:0;bottom:23px;width:calc(100% + 90px);height:5px;',
+      'pointer-events:none;opacity:.55;',
+      'background-image:radial-gradient(ellipse 11px 4px at 50% 100%,rgba(224,252,255,.8) 0 58%,transparent 100%);',
+      'background-size:29px 5px;background-repeat:repeat-x;background-position:0 100%;',
+      'animation:ca-vag-skvalp 7.8s ease-in-out infinite alternate -2.6s,ca-vag-skumdrift 31s linear infinite;}',
     // Asfalten
-    '.ca-vag-yta{position:absolute;left:0;right:0;bottom:20px;height:15px;border-radius:2px;',
+    '.ca-vag-yta{position:absolute;left:0;right:0;bottom:36px;height:15px;border-radius:2px;',
       'background:linear-gradient(180deg,#2b2247,#171126);',
       'box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.45);}',
     // Mittlinjen. Bredare än ytan och förskjuten en hel period per varv.
@@ -4666,17 +4690,17 @@ function caFcRenderResult(recs) {
       'animation:ca-vag-rull 1.15s linear infinite;}',
     '@keyframes ca-vag-rull{from{transform:translate(0,-50%)}to{transform:translate(-32px,-50%)}}',
     // Kantlinjen längst ner ger vägen djup utan att konkurrera med mittlinjen
-    '.ca-vag-kant{position:absolute;left:0;bottom:20px;width:calc(100% + 24px);height:1px;',
+    '.ca-vag-kant{position:absolute;left:0;bottom:36px;width:calc(100% + 24px);height:1px;',
       'background:repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 8px,transparent 8px 24px);',
       'animation:ca-vag-kant 0.85s linear infinite;}',
     '@keyframes ca-vag-kant{from{transform:translateX(0)}to{transform:translateX(-24px)}}',
     // Lyktstolparna passerar långsammare än vägbanan — parallaxen gör att vägen får djup
-    '.ca-vag-stolpar{position:absolute;left:0;bottom:35px;width:calc(100% + 90px);height:16px;',
+    '.ca-vag-stolpar{position:absolute;left:0;bottom:51px;width:calc(100% + 90px);height:16px;',
       'background:repeating-linear-gradient(90deg,rgba(167,139,250,.4) 0 2px,transparent 2px 90px);',
       'animation:ca-vag-stolp 2.6s linear infinite;}',
     '@keyframes ca-vag-stolp{from{transform:translateX(0)}to{transform:translateX(-90px)}}',
     // Bilen: står still i sidled, guppar lite. Skuggan följer med guppet.
-    '.ca-vag-bil{position:absolute;left:44%;bottom:24px;width:46px;height:21px;',
+    '.ca-vag-bil{position:absolute;left:44%;bottom:40px;width:46px;height:21px;',
       'animation:ca-vag-gupp .42s ease-in-out infinite alternate;',
       'filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)) drop-shadow(3px 0 4px rgba(251,191,36,.45));}',
     '@keyframes ca-vag-gupp{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}',
@@ -4691,26 +4715,26 @@ function caFcRenderResult(recs) {
     // Cykeln är 13 s men själva passagen bara 4,3 s av dem: bilen ska komma, dra förbi och
     // försvinna, och sedan ska vägen få vara i fred en stund. En sportbil som varvar i loop
     // utan paus blir en karusell, inte en omkörning.
-    '.ca-vag-sport{position:absolute;bottom:21px;width:53px;height:19px;left:-20%;',
+    '.ca-vag-sport{position:absolute;bottom:37px;width:53px;height:19px;left:-20%;',
       'pointer-events:none;z-index:2;',
       'filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)) drop-shadow(-6px 0 7px rgba(239,68,68,.35));',
       'animation:ca-vag-omkorning 13s linear infinite;}',
     '@keyframes ca-vag-omkorning{0%{left:-20%}33%{left:118%}100%{left:118%}}',
     // Fartstrimman ligger BAKOM bilen och töjs ut i färdriktningens motsats.
-    '.ca-vag-sport-strimma{position:absolute;bottom:25px;height:2px;width:34px;left:-20%;',
+    '.ca-vag-sport-strimma{position:absolute;bottom:41px;height:2px;width:34px;left:-20%;',
       'margin-left:-30px;border-radius:2px;pointer-events:none;z-index:1;',
       'background:linear-gradient(90deg,transparent,rgba(248,113,113,.75),rgba(254,202,202,.9));',
       'animation:ca-vag-omkorning 13s linear infinite;}',
     '.ca-vag-hjul{transform-box:fill-box;transform-origin:center;animation:ca-vag-snurr .34s linear infinite;}',
     '@keyframes ca-vag-snurr{to{transform:rotate(360deg)}}',
     // Fartstrecken bakom bilen: tre streck som skjuts bakåt i olika takt
-    '.ca-vag-fart{position:absolute;bottom:30px;height:1.5px;border-radius:2px;',
+    '.ca-vag-fart{position:absolute;bottom:46px;height:1.5px;border-radius:2px;',
       'background:linear-gradient(90deg,transparent,rgba(186,230,253,.75));',
       'animation:ca-vag-fartlinje 1s linear infinite;}',
     '@keyframes ca-vag-fartlinje{0%{opacity:0;transform:translateX(6px) scaleX(.4)}',
       '25%{opacity:.9}100%{opacity:0;transform:translateX(-26px) scaleX(1)}}',
     // Strålkastarkäglan framåt
-    '.ca-vag-ljus{position:absolute;left:calc(44% + 42px);bottom:26px;width:34px;height:12px;',
+    '.ca-vag-ljus{position:absolute;left:calc(44% + 42px);bottom:42px;width:34px;height:12px;',
       'background:linear-gradient(90deg,rgba(253,230,138,.5),transparent);',
       'clip-path:polygon(0 38%,100% 0,100% 100%,0 62%);pointer-events:none;',
       'animation:ca-vag-ljuspuls 2.4s ease-in-out infinite;}',
@@ -4726,14 +4750,15 @@ function caFcRenderResult(recs) {
     // till 1/0,74 så att den skalade bredden landar på exakt 100 %, och den negativa
     // marginalen tar bort luften som den outnyttjade höjden annars lämnar.
     '@media(max-width:560px){.ca-rubrikrad{flex-wrap:wrap;gap:0;}',
-      '.ca-vag{display:block;flex:0 0 135.1%;min-width:0;height:56px;',
+      '.ca-vag{display:block;flex:0 0 135.1%;min-width:0;height:72px;',
         'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
       '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
       '.ca-vag-sport,.ca-vag-sport-strimma,.ca-vag-faglar{display:none;}',
       '.ca-vag-stad,.ca-vag-kullar-bort,.ca-vag-moln,.ca-vag-vagor,',
-      '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken{animation:none!important;}',
+      '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken,.ca-vag-skum,',
+      '.ca-vag-skum-bak{animation:none!important;}',
       '.ca-vag-fart{opacity:.5;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
@@ -4782,13 +4807,16 @@ function caByggVag() {
       '<div class="ca-vag-vagor"></div>' +
       '<div class="ca-vag-solvag"></div>' +
       '<div class="ca-vag-glitter"></div>' +
+      '<div class="ca-vag-skum-bak"></div>' +
+      '<div class="ca-vag-strand"></div>' +
+      '<div class="ca-vag-skum"></div>' +
       '<div class="ca-vag-yta"></div>' +
       '<div class="ca-vag-glans"></div>' +
       '<div class="ca-vag-linje"></div>' +
       '<div class="ca-vag-kant"></div>' +
       '<span class="ca-vag-fart" style="left:calc(44% - 6px);width:16px;animation-delay:0s"></span>' +
-      '<span class="ca-vag-fart" style="left:calc(44% - 2px);width:11px;bottom:35px;animation-delay:.35s"></span>' +
-      '<span class="ca-vag-fart" style="left:calc(44% - 9px);width:14px;bottom:26px;animation-delay:.62s"></span>' +
+      '<span class="ca-vag-fart" style="left:calc(44% - 2px);width:11px;bottom:51px;animation-delay:.35s"></span>' +
+      '<span class="ca-vag-fart" style="left:calc(44% - 9px);width:14px;bottom:42px;animation-delay:.62s"></span>' +
       '<div class="ca-vag-ljus"></div>' +
       // Sportbilen ritas EFTER den lila bilen sa den passerar framfor den.
       '<span class="ca-vag-sport-strimma"></span>' +
