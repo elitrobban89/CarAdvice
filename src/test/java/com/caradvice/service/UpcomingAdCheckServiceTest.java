@@ -229,6 +229,58 @@ class UpcomingAdCheckServiceTest {
     }
 
     @Test
+    void leasingavgiftMarksMedManad() {
+        // Skarpa raderna 2026-09-10. Blocket lägger leasingerbjudanden i köpträfflistan med
+        // price_unit "kr", så 3 794 kr stod bredvid 264 800 kr som vore de samma sorts tal.
+        // Den saknade mätarställningen (sista fältet null) är också leasing — mätningen hittade
+        // ingen annons med lågt pris och tomt mileage som var något annat.
+        Rapport r = tjanst().granska(
+                List.of(rad(1412, "Hyundai", "Santa Fe", "Hyundai Santa Fe kommer som laddhybrid"),
+                        rad(1414, "Hyundai", "Tucson", "Nya Tucson lanseras med EREV-drivlina")),
+                annonserMedFakta(Map.of(
+                        "Hyundai Santa Fe", List.<String[]>of(
+                                new String[] {"Hyundai Santa Fe", "Advanced 7-sits Business Lease",
+                                              "2025", "3794", "0"}),
+                        "Hyundai Tucson", List.<String[]>of(
+                                new String[] {"Hyundai Tucson", "PHEV Advanced Business lease",
+                                              "2026", "2885", null}))));
+
+        assertThat(dom(r, "Santa Fe").exempel()).containsExactly(
+                "Hyundai Santa Fe Advanced 7-sits Business Lease (2025, 3794 kr/mån, 0 mil)");
+        assertThat(dom(r, "Tucson").exempel()).containsExactly(
+                "Hyundai Tucson PHEV Advanced Business lease (2026, 2885 kr/mån)");
+    }
+
+    @Test
+    void slitenBilUnderTiotusenBehallerKopprismarkningen() {
+        // Motexemplet som gör att gränsen inte kan vara priset ensamt: en RAV4 från 2002 med
+        // 30 000 mil kostar verkligen 7 500 kr, och "7500 kr/mån" hade varit ren felinformation.
+        Rapport r = tjanst().granska(
+                List.of(rad(1490, "Toyota", "RAV4", "Toyota RAV4 kommer i en ny generation")),
+                annonserMedFakta(Map.of("Toyota RAV4", List.<String[]>of(
+                        new String[] {"Toyota RAV4", "5-dörrar 2.0 VVT-i 4x4 Manuell",
+                                      "2002", "7500", "30000"}))));
+
+        assertThat(dom(r, "RAV4").exempel()).containsExactly(
+                "Toyota RAV4 5-dörrar 2.0 VVT-i 4x4 Manuell (2002, 7500 kr, 30000 mil)");
+    }
+
+    @Test
+    void lagMatarstallningPaAldreBilArOcksaLeasing() {
+        // De tre äldre lågprisannonserna i mätningen som INTE var slitna bilar var alla leasing:
+        // en Leaf från 2021 med 5 335 mil och 3 850 kr i månaden. Aldersgränsen ensam hade
+        // alltså skrivit ut dem som köppriser.
+        Rapport r = tjanst().granska(
+                List.of(rad(1495, "Nissan", "Leaf", "Nissan Leaf kommer med 75 kWh-batteri")),
+                annonserMedFakta(Map.of("Nissan Leaf", List.<String[]>of(
+                        new String[] {"Nissan Leaf", "[Leasing 3850kr/mån] NISSAN LEAF 62KWH",
+                                      "2021", "3850", "5335"}))));
+
+        assertThat(dom(r, "Leaf").exempel()).containsExactly(
+                "Nissan Leaf [Leasing 3850kr/mån] NISSAN LEAF 62KWH (2021, 3850 kr/mån, 5335 mil)");
+    }
+
+    @Test
     void misslyckatUppslagArAldrigEttGodkannande() {
         // Tom lista och nätfel får inte hamna i samma hink: ett trasigt uppslag som räknades som
         // "inga annonser" hade tyst friskförklarat hela kön.

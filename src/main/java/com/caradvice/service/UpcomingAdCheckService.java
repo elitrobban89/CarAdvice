@@ -64,6 +64,14 @@ public class UpcomingAdCheckService {
     private static final int MAX_EXEMPEL = 3;
 
     /**
+     * Mätarställningen (i skandinaviska mil) där en bil är sliten nog att faktiskt kunna kosta
+     * under tiotusen kronor. Skiljer riktiga billiga bilar från leasingavgifter i
+     * {@link #arManadsavgift} — samma gräns som {@link BlocketPriceService#RELAXED_MILEAGE_MIL}
+     * använder för prisgolvet, men av ett eget skäl och därför en egen konstant.
+     */
+    static final int SLITEN_BIL_MIL = 15_000;
+
+    /**
      * Orden som skiljer "raden handlar om nästa generation" från "raden är ren fakta om bilen
      * som står hos handlaren i dag".
      *
@@ -215,16 +223,48 @@ public class UpcomingAdCheckService {
      * <i>noll mil</i> är själva beskedet att annonsen gäller en ny bil, medan ett saknat pris
      * eller årtal bara utelämnas. Matchningen i {@link #annonsenNamnerModellen} rör inte den
      * här strängen — den läser {@link #annonsnamn} som förut.
+     *
+     * <p>Priset märks {@code kr/mån} när det är en leasingavgift — se {@link #arManadsavgift}
+     * för varför det inte går att läsa ur annonsens egna fält.
      */
     static String exempeltext(JsonNode doc, String namn) {
         List<String> delar = new ArrayList<>();
         int ar = doc.path("year").asInt(0);
         if (ar > 0) delar.add(String.valueOf(ar));
         long pris = doc.path("price").path("amount").asLong(0);
-        if (pris > 0) delar.add(pris + " kr");
         JsonNode matare = doc.path("mileage");
+        if (pris > 0) delar.add(pris + (arManadsavgift(pris, matare) ? " kr/mån" : " kr"));
         if (matare.isNumber()) delar.add(matare.asLong() + " mil");
         return delar.isEmpty() ? namn : namn + " (" + String.join(", ", delar) + ")";
+    }
+
+    /**
+     * Är beloppet en månadsavgift i stället för ett köppris?
+     *
+     * <p><b>Annonsen säger det inte själv.</b> Leasingerbjudanden ligger i köpträfflistan med
+     * {@code sales_form} 1 och 2 — samma värden som en vanlig bil till salu — och bär
+     * {@code price.amount} 3 794 med {@code price_unit} "kr", precis som en bil för 3 794 kr
+     * hade gjort. Rapporten skrev därför ut "Hyundai Santa Fe … Business Lease (2025, 3794 kr,
+     * 0 mil)", en rad som vid en snabb blick ser ut som en bil för under 4 000 kr.
+     *
+     * <p><b>Namnet duger inte som signal.</b> Mätt 2026-09-10 över tio sökningar (478 annonser,
+     * 105 under {@link BlocketPriceService#LOWEST_PLAUSIBLE_CAR_PRICE_KR}): bara 48 av de 105
+     * hade ett leasingord i namnet, och en ordlista som fångar "/mån" tar samtidigt med
+     * "M-värmare" och "/Moms" i namn på bilar som kostar 119 900 och 469 500 kr.
+     *
+     * <p><b>Beloppet plus mätarställningen skiljer dem rent.</b> Samma mätning: av de 105
+     * låga annonserna var 73 årsmodell 2024 eller senare — samtliga månadsavgifter — och av de
+     * 32 äldre hade 29 gått {@value #SLITEN_BIL_MIL} mil eller mer, alltså riktiga slitna bilar
+     * ("Toyota RAV4 2002, 30 000 mil, 7 500 kr"). De tre äldre med låg mätarställning var alla
+     * leasing ("Nissan Leaf 2021, 5 335 mil, [Leasing 3850kr/mån]"). Ett saknat {@code mileage}
+     * räknas som låg — i mätningen var varenda sådan annons en leasingrad.
+     *
+     * <p>En bil som gått långt <b>och</b> kostar under tiotusen är alltså den enda kombination
+     * som får behålla den nakna "kr"-märkningen.
+     */
+    static boolean arManadsavgift(long pris, JsonNode matare) {
+        if (pris >= BlocketPriceService.LOWEST_PLAUSIBLE_CAR_PRICE_KR) return false;
+        return !matare.isNumber() || matare.asLong() < SLITEN_BIL_MIL;
     }
 
     static boolean sagerAttBilenArKommande(String text) {

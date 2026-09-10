@@ -38,8 +38,11 @@ public class BlocketPriceService {
     private static final String SALES_FORM_KOP = "&sales_form=1&sales_form=2";
     private static final String SALES_FORM_LEASING = "&sales_form=5";
 
-    /** Under detta är beloppet en månadsavgift, inte ett köppris. */
-    private static final int LOWEST_PLAUSIBLE_CAR_PRICE_KR = 10_000;
+    /**
+     * Under detta är beloppet en månadsavgift, inte ett köppris. Delas med
+     * {@link UpcomingAdCheckService#arManadsavgift} så att de två ställena aldrig glider isär.
+     */
+    static final int LOWEST_PLAUSIBLE_CAR_PRICE_KR = 10_000;
 
     /**
      * Milgräns på köpsökningen, i skandinaviska mil ({@code mileage_unit} är alltid
