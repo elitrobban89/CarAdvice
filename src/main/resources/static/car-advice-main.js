@@ -4615,8 +4615,19 @@ function caFcRenderResult(recs) {
       'clip-path:polygon(0 38%,100% 0,100% 100%,0 62%);pointer-events:none;',
       'animation:ca-vag-ljuspuls 2.4s ease-in-out infinite;}',
     '@keyframes ca-vag-ljuspuls{0%,100%{opacity:.55}50%{opacity:.9}}',
-    // Under 560 px konkurrerar vägen med rubriken om bredden och rubriken vinner.
-    '@media(max-width:560px){.ca-vag{display:none;}.ca-rubrikrad{gap:0;}}',
+    // ── Vägen på mobil: egen rad under rubriken, nedskalad ──────────────────
+    // Under 560 px konkurrerar vägen med rubriken om bredden, och rubriken vinner — därför låg
+    // scenen dold här förut. Lösningen är inte att klämma in den bredvid rubriken utan att
+    // flytta ned den: hela raden bryts, och vägen får en egen rad i full bredd.
+    //
+    // Nedskalningen görs med transform och inte genom att skriva om varje mått. Scenen består
+    // av ett tjugotal pixelvärden — asfalt, sol, strålar, två bilar, stolpar — och en mobil
+    // kopia av alla hade blivit två sanningar som glider isär vid nästa ändring. Bredden sätts
+    // till 1/0,74 så att den skalade bredden landar på exakt 100 %, och den negativa
+    // marginalen tar bort luften som den outnyttjade höjden annars lämnar.
+    '@media(max-width:560px){.ca-rubrikrad{flex-wrap:wrap;gap:0;}',
+      '.ca-vag{display:block;flex:0 0 135.1%;min-width:0;height:42px;',
+        'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
       '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
