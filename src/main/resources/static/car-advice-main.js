@@ -112,15 +112,22 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-emblem img{width:100%;height:100%;object-fit:contain;display:block;}' +
     '@media(max-width:520px){.ca-emblem{width:32px;height:32px;padding:4px;}}' +
     // "Fler val": en rad som ser ut som en rad, inte som en knapp bland formulärets fält.
-    '#ca-fler-btn{display:flex;align-items:center;gap:9px;width:100%;margin:2px 0 14px;'
+    '#ca-fler-btn,.ca-hopfall-btn{display:flex;align-items:center;gap:9px;width:100%;margin:2px 0 14px;'
     + 'padding:11px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(167,139,250,.35);'
     + 'border-radius:10px;color:rgba(226,232,240,.82);font-family:inherit;font-size:.8rem;'
     + 'font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .16s;text-align:left;}' +
-    '#ca-fler-btn:hover{background:rgba(139,92,246,.12);border-color:rgba(167,139,250,.6);color:#fff;}' +
+    '#ca-fler-btn:hover,.ca-hopfall-btn:hover{background:rgba(139,92,246,.12);border-color:rgba(167,139,250,.6);color:#fff;}' +
     // Innehållsförteckningen på knappen: utan den vet man inte om det är värt att fälla ut.
     '.ca-fler-hint{font-weight:400;font-size:.72rem;color:rgba(226,232,240,.45);}' +
     '.ca-fler-pil{margin-left:auto;color:#a78bfa;transition:transform .2s;}' +
-    '#ca-fler-btn.ca-fler-oppen .ca-fler-pil{transform:rotate(180deg);}' +
+    '#ca-fler-btn.ca-fler-oppen .ca-fler-pil,.ca-hopfall-btn.ca-fler-oppen .ca-fler-pil{transform:rotate(180deg);}' +
+    // Hopfallda lador: samma [hidden]-fälla som #ca-fler. Har ar det inte .ca-grid utan
+    // rutornas egna display-regler som slar webblasarens [hidden], sa den maste sagas explicit.
+    '#ca-freecompare[hidden],.ca-history-chips[hidden]{display:none!important;}' +
+    // Fritt-jamfor-lådan har sin egen rubrik inuti; nar den ligger bakom en knapp med samma
+    // text blir den en upprepning. Underrubriken far vara kvar - den forklarar.
+    '#ca-freecompare .ca-fc-header{display:none;}' +
+    '#ca-freecompare{margin-top:0;}' +
     '@media(max-width:520px){.ca-fler-hint{display:none;}}' +
     // hidden-ATTRIBUTET räcker inte: webbläsarens egen regel för [hidden] är display:none,
     // men .ca-grid sätter display:grid med högre specificitet och vinner. Lådan har därför
@@ -2053,10 +2060,51 @@ function caTimeAgo(ts) {
   return days === 1 ? 'ig\xe5r' : days + ' dagar sedan';
 }
 
+/**
+ * Fäller ihop en låda bakom en klickbar rad — samma rad som "Fler val".
+ *
+ * <p>Under sökknappen låg två fullstora block som ingen bad om: den fria jämförelsen och
+ * tidigare sökningar. De är bra att ha och dåliga att alltid se, vilket är precis vad en
+ * hopfällbar rad är till för.
+ *
+ * <p><b>Öppet läge minns per flik</b> (sessionStorage, inte localStorage): den som fällt ut
+ * jämförelsen för att använda den vill inte fälla ut den igen efter varje sökning, men nästa
+ * besök ska börja lugnt igen.
+ *
+ * <p>Lådan göms med {@code hidden}-attributet OCH en explicit display-regel. Webbläsarens egen
+ * {@code [hidden]}-regel förlorar mot vilken display-regel som helst med högre specificitet —
+ * exakt samma fälla som gjorde att #ca-fler aldrig var ihopfälld i drift.
+ */
+function caHopfallbar(box, titel, hint, nyckel) {
+  if (!box || box.dataset.hopfalld) return null;
+  box.dataset.hopfalld = '1';
+  var knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.className = 'ca-hopfall-btn';
+  knapp.innerHTML = '<span>' + caEsc(titel) + '</span>'
+    + (hint ? '<span class="ca-fler-hint">' + caEsc(hint) + '</span>' : '')
+    + '<span class="ca-fler-pil">▾</span>';
+  box.parentNode.insertBefore(knapp, box);
+
+  var oppet = false;
+  try { oppet = sessionStorage.getItem('ca_oppen_' + nyckel) === '1'; } catch (_) {}
+  function stall(nyOppet) {
+    oppet = nyOppet;
+    box.hidden = !oppet;
+    knapp.classList.toggle('ca-fler-oppen', oppet);
+    knapp.setAttribute('aria-expanded', oppet ? 'true' : 'false');
+    try { sessionStorage.setItem('ca_oppen_' + nyckel, oppet ? '1' : '0'); } catch (_) {}
+  }
+  stall(oppet);
+  knapp.addEventListener('click', function () { stall(box.hidden); });
+  return knapp;
+}
+
 function caRenderHistory() {
   var area = document.getElementById('ca-history-area');
   if (!area) return;
   var history = caGetHistory();
+  // Tom historik ska inte lämna en knapp som fäller ut ingenting.
   if (history.length === 0) { area.innerHTML = ''; return; }
   var chips = history.map(function(entry, i) {
     return '<button class="ca-history-chip" onclick="window._ca(\'history\',' + i + ')">' +
@@ -2065,7 +2113,13 @@ function caRenderHistory() {
       '<span class="ca-history-chip-del" onclick="event.stopPropagation();window._ca(\'delHistory\',' + i + ')" title="Ta bort">\xd7</span>' +
       '</button>';
   }).join('');
-  area.innerHTML = '<div class="ca-history-label">Tidigare s\xf6kningar</div><div class="ca-history-chips">' + chips + '</div>';
+  // Rubriken ar sjalv knappen som faller ihop listan. Antalet star i hinten, sa man ser om
+  // det ar vart att oppna utan att oppna.
+  area.innerHTML = '<div class="ca-history-chips">' + chips + '</div>';
+  var lada = area.querySelector('.ca-history-chips');
+  delete lada.dataset.hopfalld;
+  caHopfallbar(lada, 'Tidigare s\xf6kningar',
+    history.length + (history.length === 1 ? ' sparad' : ' sparade'), 'historik');
 }
 
 function caDeleteHistory(index) {
@@ -4862,6 +4916,8 @@ function caInit() {
 
   caByggVag();
   caGroqBadge();
+  caHopfallbar(document.getElementById('ca-freecompare'),
+    'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
   caUpdateSliderFill();
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
