@@ -4491,6 +4491,55 @@ function caFcRenderResult(recs) {
     // Horisonten är asfaltens överkant (24 px från nederkant), och eftersom vägbanan ritas
     // efter solen i DOM:en skär den av nedre halvan — det är den avskurna cirkeln som gör att
     // en gul prick läser som en soluppgång i stället för som en lampa.
+    // ── Landskapet bakom vägen ───────────────────────────────────────────────
+    // Tre lager som alla rör sig LÅNGSAMMARE än vägbanan. Det är hela poängen: parallaxen är
+    // det som gör en 18 px hög himmel till ett djup i stället för en tapet. Vägbanan rullar på
+    // 1,15 s, stolparna på 2,6 s, kullarna på 60 s och molnen på 90 s.
+    //
+    // Kullarna är radialgradienter som upprepas i sidled, inte en bild: två lager med olika
+    // storlek, ton och tempo ger en fjärran ås bakom en närmare, och en fil att hålla synkad
+    // mindre. Den bortre är ljusare — luftperspektiv, avstånd bleker.
+    // Staden pa horisonten. Tre lager rektangler i olika hojd och takt ger en skyline utan en
+    // enda bildfil: hojden sitter i background-size och husen i en repeating-gradient, sa var
+    // lager blir en husrad. Rundade kullar provades forst och blev bubblor i den har skalan -
+    // atta pixlar hoga hus laser som stad, atta pixlar hoga kullar laser som ingenting.
+    '.ca-vag-stad{position:absolute;left:0;bottom:24px;width:calc(100% + 160px);height:11px;',
+      'pointer-events:none;',
+      'background-image:repeating-linear-gradient(90deg,rgba(58,44,98,.95) 0 6px,transparent 6px 26px),',
+        'repeating-linear-gradient(90deg,rgba(70,54,118,.9) 0 4px,transparent 4px 17px),',
+        'repeating-linear-gradient(90deg,rgba(48,36,84,.95) 0 8px,transparent 8px 43px);',
+      'background-size:80px 8px,80px 5px,80px 11px;',
+      'background-position:0 100%,26px 100%,52px 100%;background-repeat:repeat-x;',
+      'animation:ca-vag-kulle 60s linear infinite;}',
+    // Ljusdiset over staden: det som skiljer en svart siluett fran en stad man tror ar bebodd.
+    '.ca-vag-stadsljus{position:absolute;left:0;right:0;bottom:24px;height:9px;pointer-events:none;',
+      'background:linear-gradient(180deg,transparent,rgba(196,181,253,.16));',
+      '-webkit-mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent);',
+      'mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent);}',
+    '@keyframes ca-vag-kulle{from{transform:translateX(0)}to{transform:translateX(-80px)}}',
+    '.ca-vag-kullar-bort{position:absolute;left:0;bottom:26px;width:calc(100% + 200px);height:8px;',
+      'pointer-events:none;opacity:.65;',
+      'background-image:radial-gradient(ellipse 52px 8px at 50% 100%,rgba(109,88,168,.7) 0 98%,transparent 100%);',
+      'background-size:104px 8px;background-repeat:repeat-x;background-position:0 100%;',
+      'animation:ca-vag-kulle-bort 96s linear infinite;}',
+    '@keyframes ca-vag-kulle-bort{from{transform:translateX(0)}to{transform:translateX(-104px)}}',
+    // Molnen: tunna streck som färgas av soluppgången. Låg opacitet — de ska antydas, inte
+    // läsas, annars konkurrerar de med solen om en himmel som är arton pixlar hög.
+    '.ca-vag-moln{position:absolute;left:0;top:2px;width:calc(100% + 260px);height:9px;',
+      'pointer-events:none;opacity:.5;',
+      'background-image:radial-gradient(ellipse 26px 3px at 30% 50%,rgba(253,186,116,.5) 0 70%,transparent 100%),',
+        'radial-gradient(ellipse 17px 2px at 78% 80%,rgba(251,207,232,.45) 0 70%,transparent 100%);',
+      'background-size:130px 9px;background-repeat:repeat-x;',
+      'animation:ca-vag-molndrift 90s linear infinite;}',
+    '@keyframes ca-vag-molndrift{from{transform:translateX(0)}to{transform:translateX(-130px)}}',
+    // Fåglarna: tre streck som glider förbi högt uppe, med en mjuk våg i banan så de seglar i
+    // stället för att åka på en skena. De passerar var 22:a sekund — sällan nog att det känns
+    // som en händelse när man ser dem.
+    '.ca-vag-faglar{position:absolute;left:-14%;top:1px;width:34px;height:9px;pointer-events:none;',
+      'opacity:.75;animation:ca-vag-fagelfard 22s linear infinite;}',
+    '@keyframes ca-vag-fagelfard{0%{left:-14%;transform:translateY(0)}',
+      '25%{transform:translateY(2.5px)}50%{transform:translateY(-1.5px)}75%{transform:translateY(2px)}',
+      '62%{left:118%}100%{left:118%;transform:translateY(0)}}',
     '.ca-vag-himmel{position:absolute;left:0;right:0;top:0;bottom:24px;pointer-events:none;',
       'background:radial-gradient(ellipse 60% 150% at 72% 100%,rgba(251,191,36,.34),rgba(244,63,94,.16) 45%,transparent 72%),',
       'linear-gradient(180deg,transparent 45%,rgba(251,113,133,.1) 78%,rgba(251,146,60,.16));}',
@@ -4555,6 +4604,28 @@ function caFcRenderResult(recs) {
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
     '@keyframes ca-vag-glans{0%{transform:translateX(-52px);opacity:.5}',
       '50%{transform:translateX(0);opacity:1}100%{transform:translateX(52px);opacity:.5}}',
+    // ── Havet under vagbanan ────────────────────────────────────────────────
+    // Vagen gar pa en bank med vatten nedanfor. De nio pixlarna under asfalten stod tomma och
+    // visade heron bakgrund; nu ligger havet dar, med solens vag i sig.
+    '.ca-vag-hav{position:absolute;left:0;right:0;bottom:0;height:9px;pointer-events:none;',
+      'background:linear-gradient(180deg,#1e2a5e,#101a3a 60%,#0a1128);',
+      'box-shadow:inset 0 1px 0 rgba(148,163,255,.22);}',
+    // Vagkammarna: tva rader ljusa streck som driver at motsatt hall, sa ytan lever i stallet
+    // for att rulla som ett band.
+    '.ca-vag-vagor{position:absolute;left:0;bottom:0;width:calc(100% + 120px);height:9px;',
+      'pointer-events:none;opacity:.5;',
+      'background-image:repeating-linear-gradient(90deg,rgba(199,210,254,.4) 0 6px,transparent 6px 21px),',
+        'repeating-linear-gradient(90deg,rgba(148,163,255,.28) 0 4px,transparent 4px 15px);',
+      'background-size:60px 1px,60px 1px;background-repeat:repeat-x;',
+      'background-position:0 3px,30px 7px;',
+      'animation:ca-vag-vagskvalp 7s linear infinite;}',
+    '@keyframes ca-vag-vagskvalp{from{transform:translateX(0)}to{transform:translateX(-60px)}}',
+    // Solvagen pa vattnet foljer solen i sidled, precis som glansen pa asfalten. Utan den
+    // lyser solen pa vagen men inte pa havet, och da ligger de i tva olika varldar.
+    '.ca-vag-solvag{position:absolute;left:72%;bottom:0;width:26px;height:9px;margin-left:-13px;',
+      'pointer-events:none;',
+      'background:radial-gradient(ellipse 45% 130% at 50% 0%,rgba(253,224,71,.55),rgba(251,146,60,.25) 55%,transparent 78%);',
+      'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
     // Asfalten
     '.ca-vag-yta{position:absolute;left:0;right:0;bottom:9px;height:15px;border-radius:2px;',
       'background:linear-gradient(180deg,#2b2247,#171126);',
@@ -4631,7 +4702,9 @@ function caFcRenderResult(recs) {
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
       '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
-      '.ca-vag-sport,.ca-vag-sport-strimma{display:none;}',
+      '.ca-vag-sport,.ca-vag-sport-strimma,.ca-vag-faglar{display:none;}',
+      '.ca-vag-stad,.ca-vag-kullar-bort,.ca-vag-moln,.ca-vag-vagor,',
+      '.ca-vag-solvag{animation:none!important;}',
       '.ca-vag-fart{opacity:.5;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
@@ -4662,12 +4735,23 @@ function caByggVag() {
     vag.innerHTML =
       // Solen först: allt som ritas efter den skär av den vid horisonten.
       '<div class="ca-vag-himmel"></div>' +
+      '<div class="ca-vag-moln"></div>' +
+      '<svg class="ca-vag-faglar" viewBox="0 0 34 9" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="rgba(226,232,240,.8)" stroke-width=".9" stroke-linecap="round">' +
+        '<path d="M1 4 Q3 2 5 4 Q7 2 9 4"/><path d="M13 7 Q14.6 5.6 16.2 7 Q17.8 5.6 19.4 7"/>' +
+        '<path d="M24 3 Q25.8 1.4 27.6 3 Q29.4 1.4 31.2 3"/>' +
+      '</svg>' +
+      '<div class="ca-vag-kullar-bort"></div>' +
+      '<div class="ca-vag-stadsljus"></div>' +
+      '<div class="ca-vag-stad"></div>' +
       '<div class="ca-vag-solvagn">' +
         '<div class="ca-vag-stralar"></div>' +
         '<div class="ca-vag-krans"></div>' +
         '<div class="ca-vag-sol"></div>' +
       '</div>' +
       '<div class="ca-vag-stolpar"></div>' +
+      '<div class="ca-vag-hav"></div>' +
+      '<div class="ca-vag-vagor"></div>' +
+      '<div class="ca-vag-solvag"></div>' +
       '<div class="ca-vag-yta"></div>' +
       '<div class="ca-vag-glans"></div>' +
       '<div class="ca-vag-linje"></div>' +
