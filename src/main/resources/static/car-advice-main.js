@@ -411,6 +411,28 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-hero #ca-usedcar-note{margin-top:-6px;}',
     '#ca-hero #ca-fuel-sum{margin:0 0 18px;}',
     '#ca-hero #ca-fler-btn{margin-bottom:20px;}',
+    // ── De två raderna sveps igenom när de kommer i bild ────────────────────
+    // Ljuset ligger i ::before (ringen har ::after) och går EN gång per sidladdning, inte i
+    // loop: en slinga i ögonvrån blir en flimrande skylt, medan ett svep som passerar när
+    // raden dyker upp läser som att den slås på. Raderna får sitt svep 0,16 s isär så det
+    // känns som en enda rörelse nedför sidan och inte som två samtidiga blixtar.
+    //
+    // Rutan lutar 14 grader, är suddad och bredare än sin bana, så kanterna aldrig går att
+    // urskilja som en rektangel. Innehållet ligger på z-index 1, så ljuset passerar BAKOM
+    // texten — samma paint order som ringen.
+    '@keyframes ca-svep{from{transform:translateX(-130%) skewX(-14deg)}to{transform:translateX(340%) skewX(-14deg)}}',
+    '#ca-sub-bar::before,#ca-ev-promo::before{content:"";position:absolute;top:-25%;bottom:-25%;',
+      'left:0;width:40%;z-index:0;pointer-events:none;opacity:0;border-radius:44%;filter:blur(6px);',
+      'background:linear-gradient(90deg,transparent,rgba(255,255,255,.44),rgba(196,181,253,.34),transparent);}',
+    '#ca-sub-bar.ca-svept::before{opacity:1;animation:ca-svep 1.05s cubic-bezier(.36,0,.2,1) both;}',
+    // Promons svep bär dess egen gröna ton, samma logik som ringarnas familjer.
+    '#ca-ev-promo.ca-svept::before{opacity:1;animation:ca-svep 1.05s cubic-bezier(.36,0,.2,1) .16s both;',
+      'background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),rgba(110,231,183,.36),transparent);}',
+    // Raden lyfter sig samtidigt en aning — svepet ensamt läser som en reflex, svepet plus
+    // lyftet läser som att raden landar.
+    '#ca-sub-bar.ca-svept,#ca-ev-promo.ca-svept{animation:ca-svep-lyft .5s cubic-bezier(.22,1,.36,1) both;}',
+    '#ca-ev-promo.ca-svept{animation-delay:.16s;}',
+    '@keyframes ca-svep-lyft{from{transform:translateY(7px);opacity:.35}to{transform:none;opacity:1}}',
     // ── Snabbstarten: fyra eller två per rad, aldrig tre ────────────────────
     // Raden var en flexbox som bröt på knapparnas egna bredder, och eftersom de fyra knapparna
     // är olika breda blev radindelningen ojämn på nästan varje bredd. Uppmätt på den skarpa
@@ -445,7 +467,9 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '@media(max-width:520px){#ca-wrap .ca-chips{grid-template-columns:repeat(auto-fit,minmax(95px,1fr));}}',
     // Reduced motion: ringarna står kvar som statiska färgkanter, bara rörelsen tas bort.
     '@media(prefers-reduced-motion:reduce){#ca-sub-bar::after,#ca-ev-promo::after,',
-      '.ca-chip-aktiv::after{animation:none!important;}}'
+      '.ca-chip-aktiv::after,#ca-sub-bar.ca-svept,#ca-ev-promo.ca-svept,',
+      '#ca-sub-bar.ca-svept::before,#ca-ev-promo.ca-svept::before{animation:none!important;}',
+      '#ca-sub-bar::before,#ca-ev-promo::before{display:none;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
@@ -3688,6 +3712,42 @@ function caKnappNedrakning(btn, sekunder, etikett) {
 }
 
 /**
+ * Låter ljuset svepa genom Demo-raden och elbilspromon när de kommer i bild.
+ *
+ * <p>Svepet går EN gång per sidladdning. En slinga i ögonvrån blir en flimrande skylt; ett
+ * svep som passerar precis när raden dyker upp läser i stället som att raden slås på.
+ *
+ * <p><b>Varför en observatör och inte bara vid start.</b> På en telefon ligger promon ofta
+ * redan under vikningen när sidan laddas, och ett svep man aldrig ser är samma sak som inget
+ * svep. Tröskeln 0,35 gör att raden måste vara påtagligt i bild — annars fyrar den av när
+ * bara överkanten skymtar, och rörelsen är över innan man hunnit titta.
+ *
+ * <p>Faller tillbaka på att bara sätta klassen direkt om {@code IntersectionObserver} saknas,
+ * och hoppar över hela effekten vid reduced motion.
+ */
+function caSvepVidSyn() {
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var mal = ['ca-sub-bar', 'ca-ev-promo']
+      .map(function (id) { return document.getElementById(id); })
+      .filter(function (el) { return el && !el.classList.contains('ca-svept'); });
+    if (!mal.length) return;
+    if (!('IntersectionObserver' in window)) {
+      mal.forEach(function (el) { el.classList.add('ca-svept'); });
+      return;
+    }
+    var obs = new IntersectionObserver(function (poster) {
+      poster.forEach(function (p) {
+        if (!p.isIntersecting) return;
+        p.target.classList.add('ca-svept');
+        obs.unobserve(p.target); // en gång räcker
+      });
+    }, { threshold: 0.35 });
+    mal.forEach(function (el) { obs.observe(el); });
+  } catch (_) { /* utan svep ser raderna ut precis som förut */ }
+}
+
+/**
  * Byter ut den hemmagjorda Groq-plaketten mot Groqs egen.
  *
  * Den gamla var en {@code <span>} med en generisk blixt och texten "Drivs av Groq AI" — inte
@@ -4631,6 +4691,7 @@ function caInit() {
 
   caByggVag();
   caGroqBadge();
+  caSvepVidSyn();
   caUpdateSliderFill();
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
   caEnsureCargoField();
