@@ -48,6 +48,23 @@ class UpcomingAdCheckServiceTest {
         };
     }
 
+    /** Samma söm, men med annonsens årsmodell, pris och mätarställning: rad = {rubrik, trim, år, pris, mil}. */
+    private Function<String, JsonNode> annonserMedFakta(Map<String, List<String[]>> svar) {
+        return q -> {
+            sokningar.add(q);
+            List<String[]> rader = svar.get(q);
+            if (rader == null) return null;
+            ArrayNode docs = MAPPER.createArrayNode();
+            for (String[] rad : rader) {
+                var doc = docs.addObject().put("heading", rad[0]).put("model_specification", rad[1]);
+                if (rad[2] != null) doc.put("year", Integer.parseInt(rad[2]));
+                if (rad[3] != null) doc.putObject("price").put("amount", Long.parseLong(rad[3]));
+                if (rad[4] != null) doc.put("mileage", Long.parseLong(rad[4]));
+            }
+            return docs;
+        };
+    }
+
     private Map<String, Object> rad(long id, String make, String model, String insight) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("insight_id", id);
@@ -179,6 +196,36 @@ class UpcomingAdCheckServiceTest {
 
         assertThat(dom(r, "Striker").status()).isEqualTo(Status.INGA_ANNONSER);
         assertThat(dom(r, "Striker").annonser()).isZero();
+    }
+
+    @Test
+    void exemplenBarArsmodellPrisOchMatarstallning() {
+        // Skarpa Blocket-svaret 2026-09-10. Namnen ensamma läser som en ombyggd A2 från 2003 —
+        // det är 2027, 0 mil och priset som avgör att raderna var korrekt fällda.
+        Rapport r = tjanst().granska(
+                List.of(rad(1449, "Audi", "A2 e-tron",
+                            "Audi A2 e-tron klarar upp till 646 kilometer på en laddning")),
+                annonserMedFakta(Map.of("Audi A2 e-tron", List.of(
+                        new String[] {"Audi A2", "e-tron 125,00 kW Proline", "2027", "454800", "0"},
+                        new String[] {"Audi A2", "e-tron 240,00 kW S line", "2027", "822300", "0"}))));
+
+        Dom d = dom(r, "A2 e-tron");
+        assertThat(d.status()).isEqualTo(Status.LARM);
+        assertThat(d.exempel()).containsExactly(
+                "Audi A2 e-tron 125,00 kW Proline (2027, 454800 kr, 0 mil)",
+                "Audi A2 e-tron 240,00 kW S line (2027, 822300 kr, 0 mil)");
+    }
+
+    @Test
+    void annonsUtanArsmodellOchPrisGerBaraNamnet() {
+        // Saknade fält utelämnas i stället för att skrivas ut som nollor — en "0 kr"-annons
+        // hade läst som en gratis bil i stället för som ett tomt fält.
+        Rapport r = tjanst().granska(
+                List.of(rad(1471, "Kia", "EV3", "Kia EV3 har 204 hk och ett 81,4 kWh-batteri")),
+                annonser(Map.of("Kia EV3", List.<String[]>of(
+                        new String[] {"Kia EV3", "Long Range"}))));
+
+        assertThat(dom(r, "EV3").exempel()).containsExactly("Kia EV3 Long Range");
     }
 
     @Test

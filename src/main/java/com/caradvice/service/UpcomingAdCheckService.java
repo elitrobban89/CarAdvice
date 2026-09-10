@@ -57,7 +57,10 @@ public class UpcomingAdCheckService {
      */
     static final int MAX_ANROP = 40;
 
-    /** Så många annonsnamn som följer med per bil, nog för att avgöra om träffen är rätt bil. */
+    /**
+     * Så många annonser som följer med per bil, nog för att avgöra om träffen är rätt bil.
+     * Se {@link #exempeltext} för varför namnet ensamt inte räcker till det.
+     */
     private static final int MAX_EXEMPEL = 3;
 
     /**
@@ -180,7 +183,7 @@ public class UpcomingAdCheckService {
             String namn = annonsnamn(doc);
             if (!annonsenNamnerModellen(model, namn)) continue;
             annonser++;
-            if (exempel.size() < MAX_EXEMPEL) exempel.add(namn);
+            if (exempel.size() < MAX_EXEMPEL) exempel.add(exempeltext(doc, namn));
         }
 
         Status status = annonser == 0 ? Status.INGA_ANNONSER
@@ -194,6 +197,34 @@ public class UpcomingAdCheckService {
         String rubrik = doc.path("heading").asText("");
         String spec = doc.path("model_specification").asText("");
         return (rubrik + " " + spec).trim();
+    }
+
+    /**
+     * Exempelraden i rapporten: annonsens namn plus årsmodell, pris och mätarställning.
+     *
+     * <p><b>Namnet ensamt går inte att döma på.</b> Den 2026-09-10 stod tio Audi A2 e-tron-rader
+     * i kön med domen {@code LARM} och exemplen "Audi A2 e-tron 125,00 kW Proline" och
+     * "Audi A2 e-tron 240,00 kW S line". Den rimliga läsningen var att en A2 från 2003 byggts om
+     * till el av en privatperson — modellen fanns aldrig med e-tron — alltså ett falskt larm.
+     * Först ett uppslag för hand mot Blockets API avgjorde saken åt andra hållet: annonserna var
+     * <b>2027, 0 mil, 454 800–822 300 kr</b>, alltså nya beställningsbara bilar hos svenska
+     * handlare, och raderna var korrekt fällda. Ett uppslag som rapporten inte bär bevis nog för
+     * att avgöra kostar precis den handpåläggning kollen byggdes för att slippa.
+     *
+     * <p>Fälten är valfria med flit: {@code mileage} skrivs ut även när den är 0, eftersom
+     * <i>noll mil</i> är själva beskedet att annonsen gäller en ny bil, medan ett saknat pris
+     * eller årtal bara utelämnas. Matchningen i {@link #annonsenNamnerModellen} rör inte den
+     * här strängen — den läser {@link #annonsnamn} som förut.
+     */
+    static String exempeltext(JsonNode doc, String namn) {
+        List<String> delar = new ArrayList<>();
+        int ar = doc.path("year").asInt(0);
+        if (ar > 0) delar.add(String.valueOf(ar));
+        long pris = doc.path("price").path("amount").asLong(0);
+        if (pris > 0) delar.add(pris + " kr");
+        JsonNode matare = doc.path("mileage");
+        if (matare.isNumber()) delar.add(matare.asLong() + " mil");
+        return delar.isEmpty() ? namn : namn + " (" + String.join(", ", delar) + ")";
     }
 
     static boolean sagerAttBilenArKommande(String text) {
