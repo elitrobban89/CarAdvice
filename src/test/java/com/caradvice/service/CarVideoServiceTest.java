@@ -143,6 +143,21 @@ class CarVideoServiceTest {
         assertThat(CarVideoService.tillatetSprak(en("AutoBild", "Audi Q5 Überblick"))).isFalse();
     }
 
+    @Test
+    void skoda_ar_ett_markesnamn_och_inte_ett_frammande_sprak() throws Exception {
+        // Cachegranskningen 2026-09-10 flaggade tva klipp pa tecknet S-caron - och bada bar det
+        // i ordet \"Skoda\". Markesnamnet skrivs sa aven pa svenska, sa utan undantaget hade
+        // filtret fallt varje svensk Skoda-recension.
+        assertThat(CarVideoService.tillatetSprak(
+                en("Teknikens Värld", "Škoda Enyaq provkörning"))).isTrue();
+        assertThat(CarVideoService.tillatetSprak(
+                en("carwow", "Škoda Octavia review"))).isTrue();
+        // Men resten av det slovakiska klippet faller fortfarande: najpopulárnejšej
+        // bar samma tecken utanfor markesnamnet.
+        assertThat(CarVideoService.tillatetSprak(en("AUTOGRÁTIS",
+                "Faceliftovaná Škoda Karoq v strednej výbave! Test jej najpopulárnejšej verzie!"))).isFalse();
+    }
+
     /** Ett enda item, for de prov som mater spraket och inte rankningen. */
     private static com.fasterxml.jackson.databind.JsonNode en(String kanal, String titel) throws Exception {
         return items(kanal, titel).get(0);

@@ -341,6 +341,15 @@ public class CarVideoService {
      * Ord som avslöjar språket när alfabetet inte gör det. En polsk titel kan bestå av bara
      * ASCII ("Audi Q5 test i pierwsza jazda"), och då räcker inte teckenfiltret.
      */
+    /**
+     * Marken vars EGET namn bar ett tecken som annars avslojar ett annat sprak. Skoda ar det
+     * enda i bildatabasen, och det ar ocksa det som fallde: en granskning av cachen 2026-09-10
+     * visade att bade den slovakiska Karoq-videon OCH varje tankbar svensk Skoda-recension
+     * skulle ha fallt pa samma tecken.
+     */
+    private static final Pattern MARKE_MED_DIAKRIT =
+            Pattern.compile("\u0160koda|\u0161koda", Pattern.CASE_INSENSITIVE);
+
     private static final List<String> FRAMMANDE_ORD = List.of(
             "recenzja", "jazda", "pierwsza", "prueba", "essai", "fahrbericht", "prova su strada",
             "prøvekjøring", "anmeldelse", "recensione", "avaliação", "przejazd", "opinia");
@@ -354,7 +363,10 @@ public class CarVideoService {
     static boolean tillatetSprak(JsonNode item) {
         String titel = item.path("snippet").path("title").asText("");
         String kanal = item.path("snippet").path("channelTitle").asText("");
-        String text = (titel + " " + kanal);
+        // Markesnamn plockas bort FORE teckenprovet. "Skoda" skrivs med S-caron aven pa
+        // svenska, och utan undantaget hade filtret fallt varje svensk Skoda-recension - felet
+        // syntes forst nar cachen granskades och tva traffar flaggades pa just det tecknet.
+        String text = MARKE_MED_DIAKRIT.matcher(titel + " " + kanal).replaceAll(" ");
         if (FRAMMANDE_TECKEN.matcher(text).find()) return false;
         String lag = text.toLowerCase(Locale.ROOT);
         for (String ord : FRAMMANDE_ORD) {
