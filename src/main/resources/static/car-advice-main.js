@@ -4426,6 +4426,39 @@ function caFcRenderResult(recs) {
     '.ca-vag{position:relative;flex:1 1 auto;min-width:70px;height:42px;overflow:hidden;',
       '-webkit-mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);',
       'mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
+    // ── Soluppgången framför bilen ──────────────────────────────────────────
+    // Bilens nos och strålkastare pekar åt höger, så solen ligger åt höger: man kör MOT den.
+    // Horisonten är asfaltens överkant (24 px från nederkant), och eftersom vägbanan ritas
+    // efter solen i DOM:en skär den av nedre halvan — det är den avskurna cirkeln som gör att
+    // en gul prick läser som en soluppgång i stället för som en lampa.
+    '.ca-vag-himmel{position:absolute;left:0;right:0;top:0;bottom:24px;pointer-events:none;',
+      'background:radial-gradient(ellipse 60% 150% at 72% 100%,rgba(251,191,36,.34),rgba(244,63,94,.16) 45%,transparent 72%),',
+      'linear-gradient(180deg,transparent 45%,rgba(251,113,133,.1) 78%,rgba(251,146,60,.16));}',
+    '.ca-vag-sol{position:absolute;left:72%;bottom:24px;width:19px;height:19px;margin-left:-9.5px;',
+      'margin-bottom:-9.5px;border-radius:50%;pointer-events:none;',
+      'background:radial-gradient(circle,#fffbeb 0 28%,#fde68a 48%,#fbbf24 68%,rgba(251,146,60,.85) 88%,rgba(251,146,60,0) 100%);',
+      'animation:ca-vag-soluppg 9s ease-in-out infinite alternate;}',
+    // Solen stiger bara någon pixel. Mer än så och den lämnar horisonten, och då är det inte
+    // längre en soluppgång utan en boll som svävar över vägen.
+    '@keyframes ca-vag-soluppg{from{transform:translateY(2.5px);box-shadow:0 0 12px 2px rgba(251,191,36,.5),0 0 26px 6px rgba(251,146,60,.28)}',
+      'to{transform:translateY(-1.5px);box-shadow:0 0 18px 4px rgba(253,224,71,.75),0 0 40px 10px rgba(251,146,60,.42)}}',
+    // Strålarna: en konisk solfjäder som vrider sig långsamt bakom solen. Låg opacitet och
+    // maskad utåt, annars blir det ett hjul i stället för ljus.
+    '.ca-vag-stralar{position:absolute;left:72%;bottom:24px;width:64px;height:64px;margin-left:-32px;',
+      'margin-bottom:-32px;pointer-events:none;opacity:.3;',
+      'background:conic-gradient(from 0deg,rgba(253,224,71,.55) 0 4deg,transparent 4deg 26deg,',
+        'rgba(253,224,71,.4) 26deg 29deg,transparent 29deg 52deg,rgba(253,224,71,.5) 52deg 56deg,',
+        'transparent 56deg 84deg,rgba(253,224,71,.35) 84deg 87deg,transparent 87deg 120deg);',
+      '-webkit-mask:radial-gradient(circle,#000 12%,rgba(0,0,0,.55) 34%,transparent 68%);',
+      'mask:radial-gradient(circle,#000 12%,rgba(0,0,0,.55) 34%,transparent 68%);',
+      'animation:ca-vag-snurr 26s linear infinite;}',
+    // Ljusstrimman på asfalten rakt under solen — utan den ligger solen bakom vägen i stället
+    // för att lysa på den.
+    '.ca-vag-glans{position:absolute;left:72%;bottom:9px;width:74px;height:15px;margin-left:-37px;',
+      'pointer-events:none;border-radius:2px;',
+      'background:radial-gradient(ellipse 50% 120% at 50% 0%,rgba(253,224,71,.3),transparent 70%);',
+      'animation:ca-vag-glans 9s ease-in-out infinite alternate;}',
+    '@keyframes ca-vag-glans{from{opacity:.55}to{opacity:1}}',
     // Asfalten
     '.ca-vag-yta{position:absolute;left:0;right:0;bottom:9px;height:15px;border-radius:2px;',
       'background:linear-gradient(180deg,#2b2247,#171126);',
@@ -4449,7 +4482,7 @@ function caFcRenderResult(recs) {
     // Bilen: står still i sidled, guppar lite. Skuggan följer med guppet.
     '.ca-vag-bil{position:absolute;left:44%;bottom:13px;width:46px;height:21px;',
       'animation:ca-vag-gupp .42s ease-in-out infinite alternate;',
-      'filter:drop-shadow(0 4px 5px rgba(0,0,0,.55));}',
+      'filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)) drop-shadow(3px 0 4px rgba(251,191,36,.45));}',
     '@keyframes ca-vag-gupp{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}',
     '.ca-vag-hjul{transform-box:fill-box;transform-origin:center;animation:ca-vag-snurr .34s linear infinite;}',
     '@keyframes ca-vag-snurr{to{transform:rotate(360deg)}}',
@@ -4468,7 +4501,8 @@ function caFcRenderResult(recs) {
     // Under 560 px konkurrerar vägen med rubriken om bredden och rubriken vinner.
     '@media(max-width:560px){.ca-vag{display:none;}.ca-rubrikrad{gap:0;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
-      '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus{animation:none!important;}',
+      '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
+      '.ca-vag-glans{animation:none!important;}',
       '.ca-vag-fart{opacity:.5;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
@@ -4497,8 +4531,13 @@ function caByggVag() {
     vag.className = 'ca-vag';
     vag.setAttribute('aria-hidden', 'true');
     vag.innerHTML =
+      // Solen först: allt som ritas efter den skär av den vid horisonten.
+      '<div class="ca-vag-himmel"></div>' +
+      '<div class="ca-vag-stralar"></div>' +
+      '<div class="ca-vag-sol"></div>' +
       '<div class="ca-vag-stolpar"></div>' +
       '<div class="ca-vag-yta"></div>' +
+      '<div class="ca-vag-glans"></div>' +
       '<div class="ca-vag-linje"></div>' +
       '<div class="ca-vag-kant"></div>' +
       '<span class="ca-vag-fart" style="left:calc(44% - 6px);width:16px;animation-delay:0s"></span>' +
