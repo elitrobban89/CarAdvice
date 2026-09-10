@@ -325,7 +325,7 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   s.id = 'ca-topp-css';
   // Ringen: en regel, tre värdar. padding = ringens tjocklek, masken skär ur mitten.
   var ring = 'content:"";position:absolute;inset:0;z-index:0;pointer-events:none;'
-    + 'border-radius:inherit;padding:1.5px;'
+    + 'border-radius:inherit;padding:2px;'
     + '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);'
     + 'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);'
     + '-webkit-mask-composite:xor;mask-composite:exclude;';
@@ -333,9 +333,22 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // ── Demo-raden: violett, kortens första familj ──────────────────────────
     '#ca-sub-bar{position:relative;isolation:isolate;}',
     '#ca-sub-bar>*{position:relative;z-index:1;}',
-    '#ca-sub-bar::after{' + ring + 'opacity:.5;',
-      'background:conic-gradient(from var(--ca-rim-ang),#8b5cf6,#a78bfa,#c4b5fd,#6366f1,#8b5cf6);',
-      'animation:ca-rim 18s linear infinite;}',
+    // Färgerna måste spänna över HELA färghjulet för att rörelsen ska gå att se. Första
+    // försöket höll varje ring inom en familj (#8b5cf6 → #a78bfa → #c4b5fd → #6366f1) — det är
+    // 19 graders färgton totalt, alltså samma lila hela varvet, och en ring som byter mellan
+    // fyra nyanser av samma färg mot en lila botten läser som stillastående även när den
+    // bevisligen roterar. Heron har alltid spänt violett → cyan → rosa → bärnsten, och det är
+    // därför DEN syns. Familjen bor nu i vilken färg ringen VILAR i (violett här, grönt på
+    // promon) medan resan går genom hela hjulet.
+    // Samma behandling som heron ger sin egen ring: full mättnad och nästan full opacitet.
+    // Korten klarar sig på .55 för att de ligger på mörkt glas där en tunn ring redan har stark
+    // kontrast — de övre rutorna ligger på heron egen lila botten, och där drunknar samma
+    // inställning. Rutorna får också en svag glöd i familjens färg, samma grepp som kortens
+    // hover, så ringen lyfter från bakgrunden i stället för att smälta in i den.
+    '#ca-sub-bar{background:rgba(15,12,41,.42);box-shadow:0 6px 26px -12px rgba(139,92,246,.75);}',
+    '#ca-sub-bar::after{' + ring + 'opacity:.95;filter:saturate(150%);',
+      'background:conic-gradient(from var(--ca-rim-ang),#a78bfa,#38bdf8,#22d3ee,#f472b6,#a78bfa);',
+      'animation:ca-rim 13s linear infinite;}',
     // Kvotraden byter till bärnsten när sökningarna tar slut (ca-sub-bar-limited). Ringen
     // måste följa med, annars säger kanten fortfarande "allt är som vanligt".
     '#ca-sub-bar.ca-sub-bar-limited::after{',
@@ -343,9 +356,10 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // ── Elbilspromon: grön, samma familj som kort 3 och som rutans egen text ─
     '#ca-ev-promo{position:relative;isolation:isolate;}',
     '#ca-ev-promo>*{position:relative;z-index:1;}',
-    '#ca-ev-promo::after{' + ring + 'opacity:.45;',
-      'background:conic-gradient(from var(--ca-rim-ang),#10b981,#34d399,#6ee7b7,#14b8a6,#10b981);',
-      'animation:ca-rim 18s linear infinite;animation-delay:-6s;}',
+    '#ca-ev-promo{background:rgba(15,12,41,.42);box-shadow:0 6px 26px -12px rgba(16,185,129,.7);}',
+    '#ca-ev-promo::after{' + ring + 'opacity:.95;filter:saturate(150%);',
+      'background:conic-gradient(from var(--ca-rim-ang),#34d399,#22d3ee,#a3e635,#2dd4bf,#34d399);',
+      'animation:ca-rim 13s linear infinite;animation-delay:-4.4s;}',
     // ── Det valda chipset: blått, kortens andra familj ───────────────────────
     // Bara det AKTIVA chipset ringas. Ringar på alla fem hade gjort valet omöjligt att se —
     // det är skillnaden mot grannarna som bär informationen, inte glansen i sig.
@@ -353,7 +367,7 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-chip-aktiv{isolation:isolate;}',
     '.ca-chip-aktiv>*{position:relative;z-index:1;}',
     '.ca-chip-aktiv::after{' + ring + 'opacity:.85;padding:1.5px;',
-      'background:conic-gradient(from var(--ca-rim-ang),#38bdf8,#a78bfa,#c4b5fd,#22d3ee,#38bdf8);',
+      'background:conic-gradient(from var(--ca-rim-ang),#38bdf8,#c4b5fd,#f472b6,#22d3ee,#38bdf8);',
       'animation:ca-rim 12s linear infinite;animation-delay:-3s;}',
     // ── Notisraderna: ingen låda alls, bara en färgkant ──────────────────────
     // De två raderna låg i varsin grå platta i exakt samma bredd och ton som fälten ovanför,
