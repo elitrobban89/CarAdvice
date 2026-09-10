@@ -24,7 +24,10 @@ public class CargoSpecSyncScheduler {
     @Scheduled(cron = "0 0 3 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily CargoSpec sync triggered");
-        int added = jobStatus.track(JobStatusService.JOB_CARGO_SPECS, () -> {
+        // trackDetailed, inte track: de tre delarna måste stå var för sig i scrape-status,
+        // annars går "0 volymer, 5 nya namn" inte att skilja från "5 volymer, 0 nya namn".
+        // Se JobStatusService.Utfall för natten som gjorde skillnaden omöjlig att avgöra.
+        int added = jobStatus.trackDetailed(JobStatusService.JOB_CARGO_SPECS, () -> {
             int nya = service.syncCarNames();
             // Namnen kommer från Bilweb och täcker hela marknaden, volymerna från ev-database
             // som bara har elbilar. auto-data fyller resten — och körs efter namnhämtningen så
@@ -36,7 +39,8 @@ public class CargoSpecSyncScheduler {
             int generationer = autoDataFill.fyllGenerationsar();
             log.info("Daily CargoSpec sync: {} nya bilnamn, {} bagagevolymer, {} generationsår ifyllda",
                     nya, fyllda, generationer);
-            return nya + fyllda + generationer;
+            return new JobStatusService.Utfall(nya + fyllda + generationer,
+                    "nya bilnamn: " + nya + ", bagagevolymer: " + fyllda + ", generationsår: " + generationer);
         });
         log.info("Daily CargoSpec sync finished — {} rader berörda", added);
     }

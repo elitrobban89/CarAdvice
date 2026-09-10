@@ -51,6 +51,28 @@ class JobStatusServiceTest {
     }
 
     @Test
+    void trackDetailedSkriverDelarnaTillDetailKolumnen() {
+        int result = service.trackDetailed(JobStatusService.JOB_CARGO_SPECS,
+                () -> new JobStatusService.Utfall(5, "nya bilnamn: 5, bagagevolymer: 0, generationsår: 0"));
+
+        assertThat(result).isEqualTo(5);
+        // Summan ensam kan inte skilja "5 namn, 0 volymer" från "0 namn, 5 volymer" — delarna måste med.
+        verify(jdbc).update(anyString(), eq(JobStatusService.JOB_CARGO_SPECS), any(), any(),
+                eq(5), eq("nya bilnamn: 5, bagagevolymer: 0, generationsår: 0"));
+    }
+
+    @Test
+    void trackDetailedSvaljerUndantagPaSammaSattSomTrack() {
+        int result = service.trackDetailed(JobStatusService.JOB_CARGO_SPECS, () -> {
+            throw new IllegalStateException("auto-data nere");
+        });
+
+        assertThat(result).isEqualTo(-1);
+        verify(jdbc).update(anyString(), eq(JobStatusService.JOB_CARGO_SPECS), any(), any(),
+                eq(null), eq(JobStatusService.ERROR_PREFIX + "auto-data nere"));
+    }
+
+    @Test
     void trackSvaljerUndantagOchMarkerarFel() {
         int result = service.track(JobStatusService.JOB_CARGO_SPECS, () -> {
             throw new IllegalStateException("Bilweb nere");

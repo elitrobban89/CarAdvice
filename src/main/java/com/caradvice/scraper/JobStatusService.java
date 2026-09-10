@@ -72,6 +72,37 @@ public class JobStatusService {
         }
     }
 
+    /**
+     * Utfallet för ett jobb som gör flera saker: totalen hamnar i {@code newInsights}, delarna
+     * i {@code perSource} — samma kolumn som web-insights lägger sin per-källa-rad i.
+     *
+     * <p><b>Varför det behövs.</b> Cargo-jobbet gör tre saker (nya bilnamn, bagagevolymer,
+     * generationsår) och rapporterade länge bara summan. Natten till 2026-09-09 stod den på 5
+     * medan {@code medVolym} i cargo-coverage inte rörde sig alls — och summan kunde inte skilja
+     * "5 nya namn, 0 volymer" från "0 namn, 5 volymer". Nattgranskningen 09-07 misstänkte just
+     * därför en död parser utan att kunna avgöra saken. Ett tal som slår ihop två sorters arbete
+     * kan aldrig larma om att den ena halvan dog; jämför {@code cargo-coverage} som stod på
+     * 602/602/0 med en död parser.
+     */
+    public record Utfall(int antal, String detalj) {}
+
+    /**
+     * Kör ett jobb som redovisar sina delar. Samma fel- och tidshantering som {@link #track} —
+     * skillnaden är bara att {@code detalj} skrivs till detail-kolumnen i stället för null.
+     */
+    public int trackDetailed(String job, DetailedJob work) {
+        markStarted(job);
+        try {
+            Utfall utfall = work.run();
+            markFinished(job, utfall.antal(), utfall.detalj());
+            return utfall.antal();
+        } catch (Exception e) {
+            log.error("Jobb [{}] misslyckades: {}", job, e.getMessage(), e);
+            markFailed(job, e.getMessage());
+            return -1;
+        }
+    }
+
     public void markStarted(String job) {
         write(job, now(), null, null, null);
     }
@@ -164,5 +195,11 @@ public class JobStatusService {
     @FunctionalInterface
     public interface CountingJob {
         int run() throws Exception;
+    }
+
+    /** Jobb som returnerar både ett antal och en läsbar uppdelning av det. Se {@link Utfall}. */
+    @FunctionalInterface
+    public interface DetailedJob {
+        Utfall run() throws Exception;
     }
 }
