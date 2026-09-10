@@ -1053,7 +1053,13 @@ function bcRenderBrandGrid() {
     box = document.createElement('div');
     box.id = 'bc-brandGrid';
     box.className = 'bc-brand-grid';
-    falt.insertBefore(box, sel.parentNode);      // ovanfor sjalva listan
+    // Rutnatet laggs FORE tvakolumnsraden, inte inuti markesfaltet. Lag det i faltet trycktes
+    // markets lista ned under rutnatet medan modellens lag kvar hogst upp i sin kolumn:
+    // uppmatt 209 px isar pa 1100 px skarm, vilket ar precis vad man ser som "olika hojd".
+    // Rutnatet ar dessutom brett till sin natur och hor inte hemma i en halv kolumn.
+    var rad = falt.closest ? falt.closest('.bc-two-col') : null;
+    if (rad && rad.parentNode) rad.parentNode.insertBefore(box, rad);
+    else falt.insertBefore(box, sel.parentNode);   // reserv om markupen ser annorlunda ut
     box.addEventListener('click', function(e) {
       var knapp = e.target.closest ? e.target.closest('.bc-brand-chip') : null;
       if (!knapp) return;
