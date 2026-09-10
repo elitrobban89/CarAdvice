@@ -3679,6 +3679,30 @@ function caKnappNedrakning(btn, sekunder, etikett) {
   }, 1000);
 }
 
+/**
+ * Rullar ned till snurran när sökningen startar.
+ *
+ * Knappen sitter längst ned i ett formulär som är över tusen pixlar högt, och laddaren ritas
+ * NEDANFÖR den. På en vanlig skärm hamnade den därför under vikningen: man tryckte, ingenting
+ * syntes hända, och de sekunder AI:n tänker såg ut som en död sida.
+ *
+ * Rullar bara när det behövs. Ligger snurran redan helt i bild står sidan still — att rycka
+ * till i en vy användaren redan tittar på är värre än att låta bli. Marginalen på 24 px gör att
+ * en snurra som nätt och jämnt skymtar i underkanten ändå räknas som dold.
+ *
+ * Följer prefers-reduced-motion: samma slutdestination, men utan den glidande rörelsen.
+ */
+function caScrollaTillLastning(el) {
+  if (!el) return;
+  try {
+    var r = el.getBoundingClientRect();
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top >= 0 && r.bottom <= h - 24) return;
+    var stilla = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: stilla ? 'auto' : 'smooth', block: 'center' });
+  } catch (_) { /* en utebliven rullning får aldrig fälla sökningen */ }
+}
+
 async function caGetRecommendation() {
   var btn = document.getElementById('ca-btn');
   var loader = document.getElementById('ca-loader');
@@ -3696,6 +3720,7 @@ async function caGetRecommendation() {
   document.getElementById('ca-cards').innerHTML = caSkeletonHTML();
   loader.style.display = 'block';
   caStartLoadingText();
+  caScrollaTillLastning(loader);
 
   var fuelVal = document.getElementById('ca-fuel').value;
   caCurrentKm = parseInt(document.getElementById('ca-km').value) * 10;
