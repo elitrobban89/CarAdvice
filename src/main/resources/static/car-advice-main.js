@@ -67,6 +67,14 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-wrap #ca-budget-mode{float:none;display:flex;width:100%;margin:9px 0 0;gap:8px;}' +
     '#ca-wrap #ca-budget-mode .ca-mode-btn{flex:1 1 0;}' +
     '#ca-wrap .ca-slider-ticks{clear:both;}' +
+    // Budgetreglaget var 24 px hogt - det enda reglaget i formularet, och det man MASTE dra.
+    // Fingermalen sattes till 44 px i a09a460 men reglaget missades. Inmatningen ar genomskinlig
+    // och bara tummen syns, sa en hogre ruta ar ren traffyta: inget flyttar sig visuellt.
+    // Vaxer NEDAT (top oforandrat) for att Kop/Leasing-knapparna ligger 12 px ovanfor spåret,
+    // och tummen dras tillbaka med negativ marginal sa den stannar mitt pa spåret.
+    '#ca-wrap #ca-budget-slider{height:44px;}' +
+    '#ca-wrap #ca-budget-slider::-webkit-slider-thumb{margin-top:-10px;}' +
+    '#ca-wrap #ca-budget-slider::-moz-range-thumb{margin-top:-10px;}' +
     '#ca-wrap #ca-fc-btn{min-height:44px;padding:12px 20px;font-size:.82rem;}' +
     '#ca-wrap #ca-prenumerera-btn{min-height:44px;padding:12px 22px;font-size:.85rem;}' +
     '#ca-wrap .ca-fb-btn{min-width:56px;min-height:44px;}' +
