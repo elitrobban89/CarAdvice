@@ -86,6 +86,9 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // och två jämnbreda när gruppen bara har två (laddare hemma), i stället för att sista
     // raden sträcks ut till dubbel bredd.
     '#ca-wrap .ca-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px;}' +
+    // Resultatknapparna ligger pa rubrikens rad. Pa en smal skarm ska de falla ned under den i
+    // stallet for att klamma ihop "Dina rekommendationer" till tva ord per rad.
+    '#ca-wrap .ca-result-actions{margin-left:0!important;width:100%;}' +
     '#ca-wrap .ca-chip{min-width:0;padding:11px 6px;font-size:.74rem;}' +
     // Promorutans rubrik: nowrap på en 228 px bred rad klipper alltid på mobil.
     '#ca-wrap .ca-ev-promo-title{display:block;white-space:normal;overflow-wrap:anywhere;margin-bottom:3px;}' +
@@ -2075,6 +2078,32 @@ function caTimeAgo(ts) {
  * {@code [hidden]}-regel förlorar mot vilken display-regel som helst med högre specificitet —
  * exakt samma fälla som gjorde att #ca-fler aldrig var ihopfälld i drift.
  */
+/**
+ * Slår ihop resultatrubriken och dess knappar till EN rad.
+ *
+ * <p>"Dina rekommendationer" låg på en rad och "Kopiera lista / Dela länk / Spara sökning" på
+ * nästa, direkt ovanför bilkorten. Två rader för en rubrik och tre knappar, precis där man vill
+ * komma åt svaret.
+ *
+ * <p><b>Ihopslagna, inte gömda.</b> Knapparna är sådant man gör i samma andetag som man läser
+ * svaret — bakom ett extra klick hade de blivit osynliga i praktiken. Rubriken tar vänsterkanten,
+ * knapparna högerkanten, och på en smal skärm bryter de till egen rad av sig själva:
+ * {@code .ca-result-header} har redan {@code flex-wrap:wrap}.
+ *
+ * <p>Flyttas i DOM:en i stället för att styras med CSS — de är syskon, och två syskon går inte
+ * att lägga på samma flexrad utan att den ena blir barn till den andra. Idempotent, och
+ * knapparnas egen visning ({@code style.display}) rörs inte: den sätts och nollställs på
+ * knapparna själva, inte på behållaren.
+ */
+function caResultatradIhop() {
+  var head = document.querySelector('#ca-results .ca-result-header');
+  var akt  = document.querySelector('#ca-results .ca-result-actions');
+  if (!head || !akt || akt.parentNode === head) return;
+  akt.style.marginBottom = '0';
+  akt.style.marginLeft = 'auto';
+  head.appendChild(akt);
+}
+
 function caHopfallbar(box, titel, hint, nyckel) {
   if (!box || box.dataset.hopfalld) return null;
   box.dataset.hopfalld = '1';
@@ -4916,6 +4945,7 @@ function caInit() {
 
   caByggVag();
   caGroqBadge();
+  caResultatradIhop();
   caHopfallbar(document.getElementById('ca-freecompare'),
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
