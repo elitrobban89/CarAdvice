@@ -272,21 +272,29 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // Negativt z-index målar ovanpå badgens bakgrund men under innehållet, och isolation
     // håller lagret inne i badgen.
     '@keyframes ca-groq-svep{0%{left:-32%}50%{left:96%}100%{left:-32%}}',
-    '@keyframes ca-groq-glod{0%,100%{box-shadow:0 0 15px -7px rgba(251,146,60,.85),inset 0 0 12px -9px rgba(251,191,36,.7)}50%{box-shadow:0 0 28px -4px rgba(251,146,60,1),0 0 52px -12px rgba(251,191,36,.8),inset 0 0 18px -7px rgba(251,191,36,.9)}}',
-    '@keyframes ca-groq-ikon{0%,100%{transform:scale(1);filter:drop-shadow(0 0 3px rgba(251,146,60,.7))}50%{transform:scale(1.16);filter:drop-shadow(0 0 10px rgba(251,191,36,1))}}',
-    '.ca-groq-badge{position:relative;overflow:hidden;isolation:isolate;color:rgba(255,238,214,.72);',
-      'border-color:rgba(251,146,60,.45);',
-      'background:linear-gradient(120deg,rgba(251,146,60,.12),rgba(251,191,36,.07) 60%,rgba(245,80,54,.1));',
-      'animation:ca-groq-glod 2.6s ease-in-out infinite;}',
+    // Färgerna kommer ur Groqs egen SVG: #f43e01 för märket, #f3f3ee för texten. Guldet som
+    // låg här förut var husets eget och hörde inte till märket — nu andas plaketten i deras
+    // orange i stället, så den ser ut att komma från samma ställe som logotypen i den.
+    '@keyframes ca-groq-glod{0%,100%{box-shadow:0 0 16px -8px rgba(244,62,1,.8),inset 0 0 12px -9px rgba(244,62,1,.6)}',
+      '50%{box-shadow:0 0 30px -5px rgba(244,62,1,.95),0 0 56px -14px rgba(251,146,60,.7),inset 0 0 18px -8px rgba(251,146,60,.75)}}',
+    '.ca-groq-badge{position:relative;overflow:hidden;isolation:isolate;display:inline-flex;',
+      'align-items:center;padding:8px 15px;gap:0;text-decoration:none;',
+      'border:1px solid rgba(244,62,1,.42);border-radius:14px;',
+      'background:linear-gradient(120deg,rgba(244,62,1,.13),rgba(15,12,41,.5) 55%,rgba(244,62,1,.1));',
+      'animation:ca-groq-glod 3.4s ease-in-out infinite;transition:transform .16s,border-color .16s;}',
+    // Nu när plaketten är en LÄNK ska den svara på att man pekar på den.
+    '.ca-groq-badge:hover{transform:translateY(-1px);border-color:rgba(244,62,1,.85);}',
+    '.ca-groq-badge:focus-visible{outline:2px solid rgba(244,62,1,.9);outline-offset:3px;}',
+    // Logotypen rörs inte: ingen filter, ingen omfärgning, ingen skalning i höjdled. Det är
+    // hela poängen med att använda deras fil i stället för en egen tolkning av den.
+    '.ca-groq-logo{display:block;height:32px;width:auto;}',
     '.ca-groq-badge::before{content:"";position:absolute;top:-30%;bottom:-30%;left:-32%;width:34%;z-index:-1;',
       'pointer-events:none;border-radius:50%;',
-      'background:linear-gradient(90deg,transparent,rgba(251,146,60,.5),rgba(255,241,190,.9),rgba(251,191,36,.5),transparent);',
-      'filter:blur(4px);animation:ca-groq-svep 3s cubic-bezier(.45,.02,.55,.98) infinite;}',
-    '.ca-groq-name{color:#fcd34d;text-shadow:0 0 14px rgba(251,191,36,.9);}',
-    '.ca-groq-icon{fill:#fcd34d;animation:ca-groq-ikon 2.6s ease-in-out infinite;}',
+      'background:linear-gradient(90deg,transparent,rgba(244,62,1,.45),rgba(255,214,190,.85),rgba(251,146,60,.45),transparent);',
+      'filter:blur(4px);animation:ca-groq-svep 3.4s cubic-bezier(.45,.02,.55,.98) infinite;}',
     // Respektera reduced motion
     '@media(prefers-reduced-motion:reduce){#ca-hero::before,#ca-hero::after,#ca-btn,#ca-btn::after,.ca-card::after,',
-      '.ca-groq-badge,.ca-groq-badge::before,.ca-groq-icon{animation:none!important;}',
+      '.ca-groq-badge,.ca-groq-badge::before{animation:none!important;}',
       '.ca-groq-badge::before{display:none;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
@@ -3680,6 +3688,43 @@ function caKnappNedrakning(btn, sekunder, etikett) {
 }
 
 /**
+ * Byter ut den hemmagjorda Groq-plaketten mot Groqs egen.
+ *
+ * Den gamla var en {@code <span>} med en generisk blixt och texten "Drivs av Groq AI" — inte
+ * Groqs märke, inte deras färg, och framför allt ingen länk. Deras dokumentation
+ * (console.groq.com/docs/badge) ber om just tre saker: deras SVG oförändrad, en länk till
+ * groq.com med {@code target="_blank"} och {@code rel="noopener noreferrer"}, och alt-texten
+ * ordagrant. Nu uppfylls alla tre.
+ *
+ * <b>Varför i JS och inte bara i snippeten.</b> Sidan i WordPress är en manuell kopia som
+ * släpar — den 2026-09-10 låg den en månad efter repot. Markupen finns därför på båda
+ * ställena: i snippeten som facit, och här så att den WP-sida som INTE klistrats om ändå får
+ * den riktiga badgen vid nästa sidladdning.
+ *
+ * Idempotent: har sidans egen markup redan bilden gör funktionen ingenting, så en omklistrad
+ * sida inte får två badgar.
+ */
+function caGroqBadge() {
+  var gammal = document.querySelector('.ca-groq-badge');
+  if (!gammal || gammal.querySelector('.ca-groq-logo')) return;
+  var lank = document.createElement('a');
+  lank.className = 'ca-groq-badge';
+  lank.href = 'https://groq.com';
+  lank.target = '_blank';
+  lank.rel = 'noopener noreferrer';
+  var bild = document.createElement('img');
+  bild.className = 'ca-groq-logo';
+  // Bilden serveras av oss och inte av console.groq.com: en tredjepartsvärd som ligger nere
+  // eller byter sökväg tar annars badgen med sig. CA_API_BASE pekar på samma värd som JS:en.
+  bild.src = CA_API_BASE + '/powered-by-groq-dark.svg';
+  bild.alt = 'Powered by Groq for fast inference.';
+  bild.width = 53;
+  bild.height = 32;
+  lank.appendChild(bild);
+  gammal.parentNode.replaceChild(lank, gammal);
+}
+
+/**
  * Rullar ned till snurran när sökningen startar.
  *
  * Knappen sitter längst ned i ett formulär som är över tusen pixlar högt, och laddaren ritas
@@ -4546,6 +4591,7 @@ function caInit() {
   };
 
   caByggVag();
+  caGroqBadge();
   caUpdateSliderFill();
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
   caEnsureCargoField();

@@ -816,10 +816,12 @@
       <div id="ca-history-area"></div>
 
       <div>
-        <span class="ca-groq-badge">
-          <svg class="ca-groq-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>
-          Drivs av <span class="ca-groq-name">Groq AI</span>
-        </span>
+        <!-- Se kommentaren i wordpress-snippet.html. Relativ sökväg här: test.html
+             serveras av samma värd som bilden. -->
+        <a class="ca-groq-badge" href="https://groq.com" target="_blank" rel="noopener noreferrer">
+          <img class="ca-groq-logo" src="/powered-by-groq-dark.svg"
+               alt="Powered by Groq for fast inference." width="53" height="32">
+        </a>
       </div>
 
       <div id="ca-loader">
