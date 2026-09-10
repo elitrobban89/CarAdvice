@@ -68,8 +68,23 @@ public class ExpertInsightService {
         return formatInsights(insights, "Expertinsikter (använd som extra underlag i din analys):\n");
     }
 
-    /** Max insikter som injiceras i chattens systemprompt */
-    static final int MAX_CHAT_INSIGHTS = 3;
+    /**
+     * Max insikter som injiceras i chattens systemprompt.
+     *
+     * <p>Höjt från 3 till 4 den 2026-09-10, samma dag som {@link #MAX_CARD_INSIGHTS} — och av ett
+     * hårdare skäl. Med tre platser och fyra rader om Volkswagen ID. California Cruise svarade
+     * chatten på en fråga om V2L: <i>"Ingen specifik V2L-effekt anges i de källor som finns
+     * tillgängliga … ingen dokumenterad V2L-funktion i de officiella specifikationerna"</i> —
+     * samtidigt som den citerade de tre rader som kom med, och medan bilkortet visade just den
+     * V2L-raden. Ett tak som tystar en uppgift blir alltså inte tyst i svaret, det blir ett
+     * <b>aktivt förnekande</b> av något vi har i databasen, och vilken rad som drabbas avgörs av
+     * {@code shuffle} ovan.
+     *
+     * <p>Det här taket matar en språkmodell, till skillnad från kortets: varje chattfråga för
+     * varje bil växer med en insikt (~50 tokens mot Groqs 8 000 TPM per minut). Höj det inte
+     * reflexmässigt vidare — där är det promptbudgeten som sätter gränsen, inte läsbarheten.
+     */
+    static final int MAX_CHAT_INSIGHTS = 4;
 
     public String buildChatExpertContext(List<String> recentMessages) {
         return buildChatExpertContext(recentMessages, null);

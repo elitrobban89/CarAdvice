@@ -155,16 +155,36 @@ class ExpertInsightServiceTest {
     }
 
     @Test
-    void chattBegransasTillTreInsikter() {
+    void chattBegransasTillFyraInsikter() {
         when(repo.findAll()).thenReturn(List.of(
                 insikt("Vi Bilägare", "Volvo", "XC40", "Insikt 1", 7),
                 insikt("Vi Bilägare", "Volvo", "XC60", "Insikt 2", 7),
                 insikt("Vi Bilägare", "Volvo", "XC90", "Insikt 3", 7),
-                insikt("Vi Bilägare", "Volvo", "EX30", "Insikt 4", 7)));
+                insikt("Vi Bilägare", "Volvo", "EX30", "Insikt 4", 7),
+                insikt("Vi Bilägare", "Volvo", "V60", "Insikt 5", 7)));
 
         String ctx = service().buildChatExpertContext(List.of("Berätta om Volvo"));
-        // Urvalet roterar (shuffle) — vilka tre som kommer med är inte deterministiskt, antalet är det
-        assertThat(ctx.lines().filter(l -> l.startsWith("- ")).count()).isEqualTo(3);
+        // Urvalet roterar (shuffle) — vilka fyra som kommer med är inte deterministiskt, antalet är det
+        assertThat(ctx.lines().filter(l -> l.startsWith("- ")).count()).isEqualTo(4);
+    }
+
+    @Test
+    void fyraRaderOmSammaBilKommerMedAllihop() {
+        // Fallet som höjde taket: fyra rader om ID. California Cruise, tre platser, och chatten
+        // svarade "ingen dokumenterad V2L-funktion" om just den rad som föll bort — ett aktivt
+        // förnekande av något vi har i databasen, inte bara en utelämnad mening.
+        when(repo.findAll()).thenReturn(List.of(
+                insikt("Teknikens Värld", "Volkswagen", "ID. California Cruise", "Sovsystem för två", 7),
+                insikt("Teknikens Värld", "Volkswagen", "ID. California Cruise", "V2L 2 000 W kontinuerligt", 7),
+                insikt("Teknikens Värld", "Volkswagen", "ID. California Cruise", "Kort och lång hjulbas", 7),
+                insikt("Teknikens Värld", "Volkswagen", "ID. California Cruise", "Klimatanläggning 48 timmar", 7)));
+
+        String ctx = service().buildChatExpertContext(
+                List.of("Berätta om Volkswagen ID. California Cruise"));
+        assertThat(ctx).contains("Sovsystem för två")
+                       .contains("V2L 2 000 W kontinuerligt")
+                       .contains("Kort och lång hjulbas")
+                       .contains("Klimatanläggning 48 timmar");
     }
 
     @Test
