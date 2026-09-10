@@ -126,6 +126,43 @@ class CarVideoServiceTest {
     }
 
     @Test
+    void bara_svenska_och_engelska_klipp_slapps_igenom() throws Exception {
+        // Skarpt utfall: en POLSK provkorning av Audi Q5 e-hybrid hamnade pa ett bilkort trots
+        // relevanceLanguage=sv/en. YouTubes sprakparameter ar ett onskemal, inte ett filter.
+        assertThat(pickedId(items(
+                "Motoryzacja", "Audi Q5 e-hybrid - pierwsza jazda i recenzja",
+                "Autotrader",  "Audi Q5 review"))).isEqualTo("v1");
+        // Bara frammande traffar: hellre INGEN videorad an en recension tittaren inte forstar.
+        assertThat(CarVideoService.pickBest(items(
+                "Motoryzacja", "Audi Q5 recenzja",
+                "AutoBild",    "Audi Q5 Fahrbericht"))).isNull();
+        // Svenska tecken far inte falla med: a, a och o ar tillatna, och e finns i "ide".
+        assertThat(CarVideoService.tillatetSprak(en("Teknikens Varld", "Volvo XC60 provkorning: en het ide"))).isTrue();
+        // ... men tyska u, danska/norska ae och o gor det inte.
+        assertThat(CarVideoService.tillatetSprak(en("Bilnorge", "Audi Q5 prøve: kjøreglede"))).isFalse();
+        assertThat(CarVideoService.tillatetSprak(en("AutoBild", "Audi Q5 Überblick"))).isFalse();
+    }
+
+    /** Ett enda item, for de prov som mater spraket och inte rankningen. */
+    private static com.fasterxml.jackson.databind.JsonNode en(String kanal, String titel) throws Exception {
+        return items(kanal, titel).get(0);
+    }
+
+    @Test
+    void htmlEntiteterAvkodasSaKortetInteVisarAmpKod() {
+        // Raden som stod pa ett bilkort: frontendens caEsc escapade YouTubes redan escapade
+        // titel en gang till, sa & blev &amp; och citattecknen blev &quot; i klartext.
+        assertThat(CarVideoService.avkodaHtml(
+                "Förnuft &amp; Känsla: Toyota RAV4 Plug-In Hybrid AWD-i | &quot;Den våta drömmen&quot;"))
+                .isEqualTo("Förnuft & Känsla: Toyota RAV4 Plug-In Hybrid AWD-i | \"Den våta drömmen\"");
+        // Ampersanden avkodas SIST: annars blir &amp;quot; ett riktigt citattecken,
+        // alltsa en avkodning for mycket.
+        assertThat(CarVideoService.avkodaHtml("a &amp;quot; b")).isEqualTo("a &quot; b");
+        assertThat(CarVideoService.avkodaHtml("utan entiteter")).isEqualTo("utan entiteter");
+        assertThat(CarVideoService.avkodaHtml(null)).isNull();
+    }
+
+    @Test
     void provkorningGarForeNyhetsnotisInomSammaKanalklass() throws Exception {
         // Skarpt utfall 2026-08-07: "Volvo EX60 levererad – nu gäller det!" valdes före
         // första provkörningen av samma bil, eftersom bara kanalen vägdes.

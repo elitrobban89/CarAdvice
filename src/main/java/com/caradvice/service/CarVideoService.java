@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.Locale;
 import java.util.Map;
 
@@ -308,6 +309,7 @@ public class CarVideoService {
         JsonNode best = null;
         int bestScore = Integer.MAX_VALUE;
         for (JsonNode item : items) {
+            if (!tillatetSprak(item)) continue;
             int score = score(item);
             if (score < bestScore) {
                 bestScore = score;
@@ -315,6 +317,72 @@ public class CarVideoService {
             }
         }
         return best;
+    }
+
+    /**
+     * Tecken som inte finns i svenska eller engelska — och som därför avslöjar ett annat språk.
+     *
+     * <p>{@code relevanceLanguage} i YouTubes API är ett önskemål, inte ett filter: en polsk
+     * provkörning av Audi Q5 e-hybrid hamnade på ett bilkort trots {@code sv}/{@code en}. Ett
+     * hårt filter behövs, och det billigaste tillförlitliga är alfabetet.
+     *
+     * <p><b>Vad som INTE står här är lika viktigt.</b> {@code é} är kvar: svenskan skriver
+     * "idé" och "armé". {@code å ä ö} är förstås kvar. Men {@code ü} (tyska), {@code æ ø}
+     * (danska/norska), {@code ñ ã õ} (spanska/portugisiska), {@code ł ą ę ż ź ć ń ś} (polska),
+     * {@code ř č š ž ě ů} (tjeckiska), {@code ă ș ț} (rumänska), {@code ő ű} (ungerska),
+     * {@code ı ğ} (turkiska) och {@code ß} finns inte i något tillåtet språk.
+     */
+    private static final Pattern FRAMMANDE_TECKEN = Pattern.compile(
+            "[łąężźćńśŁĄĘŻŹĆŃŚ" + "řčšžěůťďĽĺŕŘČŠŽĚŮ" + "ășțĂȘȚ" + "őűŐŰ" + "ıİğĞ"
+            + "ñÑãÃõÕ" + "üÜßæÆøØ" + "\\p{IsCyrillic}\\p{IsGreek}\\p{IsHan}\\p{IsHiragana}"
+            + "\\p{IsKatakana}\\p{IsHangul}\\p{IsArabic}\\p{IsHebrew}\\p{IsThai}\\p{IsDevanagari}]");
+
+    /**
+     * Ord som avslöjar språket när alfabetet inte gör det. En polsk titel kan bestå av bara
+     * ASCII ("Audi Q5 test i pierwsza jazda"), och då räcker inte teckenfiltret.
+     */
+    private static final List<String> FRAMMANDE_ORD = List.of(
+            "recenzja", "jazda", "pierwsza", "prueba", "essai", "fahrbericht", "prova su strada",
+            "prøvekjøring", "anmeldelse", "recensione", "avaliação", "przejazd", "opinia");
+
+    /**
+     * Släpper bara igenom klipp som ser svenska eller engelska ut.
+     *
+     * <p>Faller filtret för alla träffar visas ingen video alls, och det är avsikten: ett
+     * bilkort utan videorad är bättre än en recension tittaren inte förstår.
+     */
+    static boolean tillatetSprak(JsonNode item) {
+        String titel = item.path("snippet").path("title").asText("");
+        String kanal = item.path("snippet").path("channelTitle").asText("");
+        String text = (titel + " " + kanal);
+        if (FRAMMANDE_TECKEN.matcher(text).find()) return false;
+        String lag = text.toLowerCase(Locale.ROOT);
+        for (String ord : FRAMMANDE_ORD) {
+            if (lag.contains(ord)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * YouTube levererar titlar HTML-escapade, och kortet escapar dem en gång till.
+     *
+     * <p>Utfallet stod på ett bilkort: {@code Förnuft &amp;amp; Känsla: Toyota RAV4 …
+     * &amp;quot;Den våta drömmen&amp;quot;}. Klippet var svenskt och rätt vald — det var bara
+     * texten som gick sönder, eftersom {@code caEsc} i frontenden escapar {@code &} i
+     * {@code &amp;} till {@code &amp;amp;}.
+     *
+     * <p>Avkodningen sker vid utlämningen och inte vid hämtningen, så att rader som redan
+     * ligger escapade i cachen läks utan att tabellen behöver skrivas om.
+     */
+    static String avkodaHtml(String s) {
+        if (s == null || s.indexOf('&') < 0) return s;
+        String ut = s.replace("&quot;", "\"").replace("&#34;", "\"")
+                     .replace("&#39;", "'").replace("&apos;", "'")
+                     .replace("&lt;", "<").replace("&gt;", ">")
+                     .replace("&nbsp;", " ");
+        // Ampersanden sist: annars blir "&amp;quot;" till ett riktigt citattecken i stället
+        // för till texten &quot;, alltså en avkodning för mycket.
+        return ut.replace("&amp;", "&");
     }
 
     /** Lägre är bättre: kanalklassen dominerar, titeln skiljer inom klassen. */
@@ -336,8 +404,8 @@ public class CarVideoService {
         if (videoId == null || videoId.isBlank()) return Map.of();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("videoId", videoId);
-        out.put("title", title == null ? "" : title);
-        out.put("channel", channel == null ? "" : channel);
+        out.put("title", title == null ? "" : avkodaHtml(title));
+        out.put("channel", channel == null ? "" : avkodaHtml(channel));
         out.put("url", "https://www.youtube.com/watch?v=" + videoId);
         out.put("thumbnail", String.format(Locale.ROOT, "https://i.ytimg.com/vi/%s/hqdefault.jpg", videoId));
         return out;
