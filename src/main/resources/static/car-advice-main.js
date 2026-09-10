@@ -389,6 +389,32 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '#ca-hero #ca-usedcar-note{margin-top:-6px;}',
     '#ca-hero #ca-fuel-sum{margin:0 0 18px;}',
     '#ca-hero #ca-fler-btn{margin-bottom:20px;}',
+    // ── Snabbstarten: fyra eller två per rad, aldrig tre ────────────────────
+    // Raden var en flexbox som bröt på knapparnas egna bredder, och eftersom de fyra knapparna
+    // är olika breda blev radindelningen ojämn på nästan varje bredd. Uppmätt på den skarpa
+    // WP-sidan, där spalten är 818 px som mest: 4 vid ≥1024 px fönster, 3+1 vid 900 och 820,
+    // 2+2 vid 700 och 1+2+1 vid 600 — en ensam knapp under tre andra, eller värre.
+    //
+    // Rutnät med lika breda kolumner tar bort raggigheten, och antalet kolumner är antingen
+    // fyra eller två: med fyra element ger tre kolumner alltid 3+1. Frågan ställs till
+    // BEHÅLLAREN och inte till fönstret — det var just den skillnaden som gjorde att raden såg
+    // hel ut i test.html (900 px brett fönster, 818 px spalt) men bröt på WP-sidan vid samma
+    // fönsterbredd, där temat lämnar 722 px. En @media hade mätt fel storhet.
+    //
+    // Utan stöd för @container faller den tillbaka på två kolumner, vilket är jämnt i sig.
+    '#ca-snabbstart{container-type:inline-size;}',
+    '.ca-snabb-rad{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}',
+    '.ca-snabb-btn{justify-content:center;}',
+    // Fyra på en rad ritas som flex och inte som fyra 1fr-kolumner: lika breda kolumner blir
+    // 199 px i en 818 px spalt, och då bryter "Pendlare bensin · 150 000 kr" till två rader så
+    // hela raden växer från 36 till 52 px. Med flex behåller knapparna sina egna bredder och
+    // delar bara på överskottet — mätt 764 px innehåll i 818 px spalt, alltså gott om luft.
+    '@container (min-width:770px){.ca-snabb-rad{display:flex;flex-wrap:nowrap;}',
+      '.ca-snabb-btn{flex:1 1 auto;}}',
+    // Prislapparna ("el · 300 000 kr") göms redan under 520 px FÖNSTER, men det är spalten som
+    // avgör om de får plats: i ett 600 px fönster lämnar WP-temat 422 px, hintarna stod kvar och
+    // en knapp bröt till två rader medan grannen förblev enradig — 52 px bredvid 36 px.
+    '@container (max-width:480px){.ca-snabb-hint{display:none;}}',
     // ── Chipsen på mobil: tre per rad, som mobillagret redan syftade till ───
     // minmax(78px,1fr) skulle ge "tre jämnbreda chips även på en 360 px-skärm", men på 390 px
     // ryms fyra — och med fem kategorier blir raderna 4+1 med en ensam Småbil under. 95 px
