@@ -2079,6 +2079,54 @@ function caTimeAgo(ts) {
  * exakt samma fälla som gjorde att #ca-fler aldrig var ihopfälld i drift.
  */
 /**
+ * Rullar ned till appen när splashen är klar.
+ *
+ * <p><b>Varför.</b> På elitrobban.se ligger formuläret långt ned under sidans egen text och
+ * bild — uppmätt låg Demo-raden 543 px under vikningen vid {@code scrollY 0}. Den som klickar
+ * sig hit kommer för bilrådgivaren, och splashen har dessutom just lovat att den startar.
+ * Utan den här raden möttes man av rubriken "Bilrådgivning" och fick leta själv.
+ *
+ * <p><b>Tre saker den aldrig gör.</b>
+ * <ul>
+ *   <li>Rör inte en läsare som redan tagit över. Hjul, touch, tangent eller en egen rullning
+ *       under väntan avbryter — den som börjat läsa sidans text ska inte ryckas därifrån.</li>
+ *   <li>Rullar inte om appen redan syns. Landar man med appen i bild finns inget att göra.</li>
+ *   <li>Rullar inte förbi splashen. Den ligger som ett heltäckande lager och äter ändå rullningen;
+ *       vi väntar tills den plockats bort ur DOM:en.</li>
+ * </ul>
+ *
+ * <p>Splashen visas bara en gång per webbläsare ({@code SEEN_KEY} i splashskriptet), så för en
+ * återvändare finns ingen splash att vänta på — därför rullar vi ändå efter en kort frist.
+ * Taket på 25 s finns för det fall splashen fastnar: hellre en sen rullning än ingen alls.
+ *
+ * <p>Följer prefers-reduced-motion: samma slutposition, utan glidningen.
+ */
+function caRullaTillAppen() {
+  var mal = document.getElementById('ca-wrap');
+  if (!mal || window.location.hash) return;   // en ankarlänk vet bättre än vi
+  var avbrutet = false;
+  var startY = window.scrollY || 0;
+  function taOver() { avbrutet = true; }
+  ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function (t) {
+    window.addEventListener(t, taOver, { once: true, passive: true });
+  });
+
+  var start = Date.now();
+  (function vanta() {
+    if (avbrutet || Math.abs((window.scrollY || 0) - startY) > 40) return;
+    var splash = document.querySelector('.ca-splash');
+    var vantat = Date.now() - start;
+    // Splashen kvar: vänta ut den. Ingen splash inom 1,2 s: det finns ingen att vänta på.
+    if ((splash || vantat < 1200) && vantat < 25000) { setTimeout(vanta, 150); return; }
+    var r = mal.getBoundingClientRect();
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top >= 0 && r.top < h * 0.5) return;  // appen syns redan
+    var stilla = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { mal.scrollIntoView({ behavior: stilla ? 'auto' : 'smooth', block: 'start' }); } catch (_) {}
+  })();
+}
+
+/**
  * Slår ihop resultatrubriken och dess knappar till EN rad.
  *
  * <p>"Dina rekommendationer" låg på en rad och "Kopiera lista / Dela länk / Spara sökning" på
@@ -4946,6 +4994,7 @@ function caInit() {
   caByggVag();
   caGroqBadge();
   caResultatradIhop();
+  caRullaTillAppen();
   caHopfallbar(document.getElementById('ca-freecompare'),
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
