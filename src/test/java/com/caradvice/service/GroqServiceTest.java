@@ -115,10 +115,29 @@ class GroqServiceTest {
 
     @Test
     void utanLaddboxAvraddsBadeBevOchPhev() {
-        String p = service().buildPrompt(prefs(300_000, "suv", false, 15_000, false, "el", null, "köp", null));
+        // Drivmedlet är öppet: användaren har inte bett om el, och då är hela poängen med
+        // frågan att "nej" styr bort från laddbara bilar.
+        String p = service().buildPrompt(
+                prefs(300_000, "suv", false, 15_000, false, "spelar ingen roll", null, "köp", null));
         assertThat(p)
                 .contains("Laddbox: nej – undvik renodlad elbil (BEV) och laddhybrid (PHEV)")
                 .contains("elhybrid (HEV) som laddar sig själv");
+    }
+
+    @Test
+    void elbilssokUtanLaddboxAvradsInteFranElbilar() {
+        // Motsägelsen som fanns förut: prompten bad om en elbil och avrådde från elbilar i
+        // samma andetag. Sedan kategoriknapparna fick egna förval är kombinationen två klick
+        // från startläget — kategorin Elbil, sedan Nej på laddbox.
+        for (String p : new String[] {
+                service().buildPrompt(prefs(300_000, "elbil", false, 15_000, false, "spelar ingen roll", null, "köp", null)),
+                service().buildPrompt(prefs(300_000, "suv",   false, 15_000, false, "el",                null, "köp", null)) }) {
+            assertThat(p)
+                    .doesNotContain("undvik renodlad elbil")
+                    .contains("ingen laddbox hemma")
+                    .contains("räckvidd")
+                    .contains("laddeffekt");
+        }
     }
 
     @Test
@@ -126,7 +145,9 @@ class GroqServiceTest {
         String p = service().buildPrompt(prefs(300_000, "laddhybrid", false, 15_000, false, "hybrid", null, "köp", null));
         assertThat(p)
                 .contains("Laddbox: nej – undvik renodlad elbil")
-                .doesNotContain("laddhybrid (PHEV)");
+                .doesNotContain("laddhybrid (PHEV)")
+                // Gräns mot elbilsregeln: kategorin avgör vilken av de två som gäller.
+                .doesNotContain("ingen laddbox hemma");
     }
 
     @Test

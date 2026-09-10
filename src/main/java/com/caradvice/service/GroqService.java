@@ -4252,11 +4252,40 @@ public class GroqService {
         return base;
     }
 
+    /**
+     * Vad "ingen laddbox hemma" betyder — och det beror på vad användaren redan bett om.
+     *
+     * <p><b>Den gamla raden motsade sökningen.</b> Svaret "nej" skrev alltid "undvik renodlad
+     * elbil (BEV) och laddhybrid (PHEV)", även när användaren uttryckligen valt kategorin
+     * <i>Elbil</i> eller drivmedlet <i>el</i>. Prompten bad alltså om en elbil och avrådde från
+     * elbilar i samma andetag. Kombinationen är två klick från startläget sedan
+     * kategoriknapparna fick egna förval, och det gamla provet
+     * {@code utanLaddboxAvraddsBadeBevOchPhev} låste fast motsägelsen med
+     * {@code suv + drivmedel el}.
+     *
+     * <p><b>För den som ändå vill ha elbil är svaret information, inte ett avrådande.</b> Utan
+     * laddbox hemma är det räckvidden och laddeffekten som avgör om bilen går att leva med, så
+     * raden styr mot lång räckvidd och snabb DC-laddning i stället för att stryka hela
+     * drivmedlet. Regeln "nej ⇒ undvik el" gäller fortfarande alla som INTE bett om el — den
+     * är hela poängen med frågan.
+     *
+     * <p>Laddhybrid behåller sitt eget undantag: en PHEV går att köra på bensin, så bara den
+     * renodlade elbilen faller bort där.
+     */
+    private String laddningUtanBox(CarPreferences prefs) {
+        boolean elsokning = "elbil".equals(prefs.carCategory()) || "el".equals(prefs.fuelType());
+        if (elsokning)
+            return "nej – ingen laddbox hemma, men användaren vill ändå ha elbil. Prioritera "
+                 + "lång verklig räckvidd och hög laddeffekt (DC), och undvik modeller med kort "
+                 + "räckvidd eller långsam laddning — bilen måste gå att leva med på publik laddning.";
+        if ("laddhybrid".equals(prefs.carCategory()))
+            return "nej – undvik renodlad elbil";
+        return "nej – undvik renodlad elbil (BEV) och laddhybrid (PHEV). Om hybrid passar profilen: "
+             + "föreslå ENDAST elhybrid (HEV) som laddar sig själv under körning, t.ex. Toyota/Lexus/Honda/Kia HEV.";
+    }
+
     String buildPrompt(CarPreferences prefs) {
-        String laddning = prefs.hasCharger() ? "ja"
-                : "laddhybrid".equals(prefs.carCategory())
-                    ? "nej – undvik renodlad elbil"
-                    : "nej – undvik renodlad elbil (BEV) och laddhybrid (PHEV). Om hybrid passar profilen: föreslå ENDAST elhybrid (HEV) som laddar sig själv under körning, t.ex. Toyota/Lexus/Honda/Kia HEV.";
+        String laddning = prefs.hasCharger() ? "ja" : laddningUtanBox(prefs);
         String bilTyp = prefs.newCar() ? "ny" : "begagnad";
         int km = prefs.kmPerYear();
         String milprofil = km < 10000 ? "lågmilare" : km < 20000 ? "normalmilare" : "högmilare";
