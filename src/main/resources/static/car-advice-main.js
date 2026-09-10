@@ -4494,31 +4494,67 @@ function caFcRenderResult(recs) {
     '.ca-vag-himmel{position:absolute;left:0;right:0;top:0;bottom:24px;pointer-events:none;',
       'background:radial-gradient(ellipse 60% 150% at 72% 100%,rgba(251,191,36,.34),rgba(244,63,94,.16) 45%,transparent 72%),',
       'linear-gradient(180deg,transparent 45%,rgba(251,113,133,.1) 78%,rgba(251,146,60,.16));}',
-    '.ca-vag-sol{position:absolute;left:72%;bottom:24px;width:19px;height:19px;margin-left:-9.5px;',
+    // Solen går en långsam båge över himlen i stället för att stå still och andas. Sol och
+    // strålar sitter i en gemensam vagn så de aldrig glider isär — hade de haft var sin
+    // animation räckte en bildruta av olikhet för att strålarna skulle hamna bredvid solen.
+    //
+    // Bågen är EN animation med tre håll (vänster-lågt, mitten-högt, höger-lågt) och
+    // {@code alternate}, alltså vänder den och går tillbaka. Två ändpunkter hade gett en rak
+    // linje, och ett varv utan alternate hade hoppat tillbaka synligt vid varje omstart.
+    //
+    // 96 sekunder ett varv: rörelsen ska upptäckas, inte iakttas. Höjden är tagen så att solen
+    // aldrig når stripens överkant — 42 px hög remsa, horisonten 24 px upp, och en 19 px sol
+    // som toppar 9 px över horisonten slutar 1,5 px innanför kanten. Toppar den högre klipps
+    // den av ramen och ser trasig ut i stället för hög.
+    '.ca-vag-solvagn{position:absolute;left:72%;bottom:24px;width:0;height:0;pointer-events:none;',
+      'animation:ca-vag-bana 96s ease-in-out infinite alternate;}',
+    '@keyframes ca-vag-bana{0%{transform:translate(-52px,5px)}50%{transform:translate(0,-9px)}',
+      '100%{transform:translate(52px,5px)}}',
+    '.ca-vag-sol{position:absolute;left:0;bottom:0;width:19px;height:19px;margin-left:-9.5px;',
       'margin-bottom:-9.5px;border-radius:50%;pointer-events:none;',
       'background:radial-gradient(circle,#fffbeb 0 28%,#fde68a 48%,#fbbf24 68%,rgba(251,146,60,.85) 88%,rgba(251,146,60,0) 100%);',
-      'animation:ca-vag-soluppg 9s ease-in-out infinite alternate;}',
-    // Solen stiger bara någon pixel. Mer än så och den lämnar horisonten, och då är det inte
-    // längre en soluppgång utan en boll som svävar över vägen.
-    '@keyframes ca-vag-soluppg{from{transform:translateY(2.5px);box-shadow:0 0 12px 2px rgba(251,191,36,.5),0 0 26px 6px rgba(251,146,60,.28)}',
-      'to{transform:translateY(-1.5px);box-shadow:0 0 18px 4px rgba(253,224,71,.75),0 0 40px 10px rgba(251,146,60,.42)}}',
-    // Strålarna: en konisk solfjäder som vrider sig långsamt bakom solen. Låg opacitet och
-    // maskad utåt, annars blir det ett hjul i stället för ljus.
-    '.ca-vag-stralar{position:absolute;left:72%;bottom:24px;width:64px;height:64px;margin-left:-32px;',
-      'margin-bottom:-32px;pointer-events:none;opacity:.3;',
-      'background:conic-gradient(from 0deg,rgba(253,224,71,.55) 0 4deg,transparent 4deg 26deg,',
-        'rgba(253,224,71,.4) 26deg 29deg,transparent 29deg 52deg,rgba(253,224,71,.5) 52deg 56deg,',
-        'transparent 56deg 84deg,rgba(253,224,71,.35) 84deg 87deg,transparent 87deg 120deg);',
-      '-webkit-mask:radial-gradient(circle,#000 12%,rgba(0,0,0,.55) 34%,transparent 68%);',
-      'mask:radial-gradient(circle,#000 12%,rgba(0,0,0,.55) 34%,transparent 68%);',
-      'animation:ca-vag-snurr 26s linear infinite;}',
-    // Ljusstrimman på asfalten rakt under solen — utan den ligger solen bakom vägen i stället
-    // för att lysa på den.
+    // Två animationer med olika uppgifter: dagern äger glorian och följer bågen (svagast vid
+    // horisonten, starkast i topp), pulsen äger ljusstyrkan och andas i egen takt. Delade de
+    // på box-shadow hade den ena tyst vunnit över den andra.
+      'animation:ca-vag-dager 96s ease-in-out infinite alternate,ca-vag-puls 5s ease-in-out infinite alternate;}',
+    '@keyframes ca-vag-dager{0%,100%{box-shadow:0 0 11px 2px rgba(251,146,60,.45),0 0 24px 5px rgba(244,63,94,.2)}',
+      '50%{box-shadow:0 0 20px 5px rgba(253,224,71,.8),0 0 46px 12px rgba(251,146,60,.45)}}',
+    '@keyframes ca-vag-puls{from{filter:brightness(.94)}to{filter:brightness(1.12)}}',
+    // Strålarna: en solfjäder som vrider sig bakom solen. Två lager — korta täta strålar nära
+    // skivan och fyra långa som når ut i himlen — för att en ensam konisk gradient antingen
+    // blir ett hjul (om den syns) eller ingenting alls (om den inte gör det).
+    '.ca-vag-stralar{position:absolute;left:0;bottom:0;width:78px;height:78px;margin-left:-39px;',
+      'margin-bottom:-39px;pointer-events:none;opacity:.5;',
+      'background:conic-gradient(from 0deg,rgba(253,224,71,.9) 0 2.5deg,transparent 2.5deg 45deg,',
+        'rgba(253,224,71,.75) 45deg 47.5deg,transparent 47.5deg 90deg,',
+        'rgba(253,224,71,.9) 90deg 92.5deg,transparent 92.5deg 135deg,',
+        'rgba(253,224,71,.75) 135deg 137.5deg,transparent 137.5deg 180deg,',
+        'rgba(253,224,71,.9) 180deg 182.5deg,transparent 182.5deg 225deg,',
+        'rgba(253,224,71,.75) 225deg 227.5deg,transparent 227.5deg 270deg,',
+        'rgba(253,224,71,.9) 270deg 272.5deg,transparent 272.5deg 315deg,',
+        'rgba(253,224,71,.75) 315deg 317.5deg,transparent 317.5deg 360deg);',
+      '-webkit-mask:radial-gradient(circle,transparent 10%,#000 16%,rgba(0,0,0,.45) 40%,transparent 62%);',
+      'mask:radial-gradient(circle,transparent 10%,#000 16%,rgba(0,0,0,.45) 40%,transparent 62%);',
+      'animation:ca-vag-snurr 34s linear infinite;}',
+    // Den inre kransen: kortare, tätare och motsatt rotationsriktning, så skenet lever i stället
+    // för att snurra som ett hjul.
+    '.ca-vag-krans{position:absolute;left:0;bottom:0;width:40px;height:40px;margin-left:-20px;',
+      'margin-bottom:-20px;pointer-events:none;opacity:.42;',
+      'background:conic-gradient(from 0deg,rgba(255,251,235,.85) 0 2deg,transparent 2deg 22.5deg,',
+        'rgba(255,251,235,.7) 22.5deg 24.5deg,transparent 24.5deg 45deg);',
+      'background-size:100% 100%;',
+      '-webkit-mask:radial-gradient(circle,transparent 22%,#000 30%,transparent 58%);',
+      'mask:radial-gradient(circle,transparent 22%,#000 30%,transparent 58%);',
+      'animation:ca-vag-snurr-bak 21s linear infinite;}',
+    '@keyframes ca-vag-snurr-bak{to{transform:rotate(-360deg)}}',
+    // Ljusstrimman på asfalten följer solen i sidled — utan den ligger solen bakom vägen i
+    // stället för att lysa på den, och står den still avslöjar den att solen rört sig.
     '.ca-vag-glans{position:absolute;left:72%;bottom:9px;width:74px;height:15px;margin-left:-37px;',
       'pointer-events:none;border-radius:2px;',
       'background:radial-gradient(ellipse 50% 120% at 50% 0%,rgba(253,224,71,.3),transparent 70%);',
-      'animation:ca-vag-glans 9s ease-in-out infinite alternate;}',
-    '@keyframes ca-vag-glans{from{opacity:.55}to{opacity:1}}',
+      'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
+    '@keyframes ca-vag-glans{0%{transform:translateX(-52px);opacity:.5}',
+      '50%{transform:translateX(0);opacity:1}100%{transform:translateX(52px);opacity:.5}}',
     // Asfalten
     '.ca-vag-yta{position:absolute;left:0;right:0;bottom:9px;height:15px;border-radius:2px;',
       'background:linear-gradient(180deg,#2b2247,#171126);',
@@ -4544,6 +4580,27 @@ function caFcRenderResult(recs) {
       'animation:ca-vag-gupp .42s ease-in-out infinite alternate;',
       'filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)) drop-shadow(3px 0 4px rgba(251,191,36,.45));}',
     '@keyframes ca-vag-gupp{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}',
+    // ── Sportbilen som kör om ────────────────────────────────────────────────
+    // Den ligger i den NÄRMASTE filen: några pixlar lägre, en aning större och med en tyngre
+    // skugga. Utan den skillnaden ser en omkörning ut som två bilar som krockar i samma spår.
+    //
+    // Positionen animeras i procent av vägremsan (left), inte i pixlar med transform. Remsan
+    // är elastisk — den krymper när rubriken tar plats — och en omkörning mätt i pixlar hade
+    // slutat mitt i bild på en smal skärm och långt utanför på en bred.
+    //
+    // Cykeln är 13 s men själva passagen bara 4,3 s av dem: bilen ska komma, dra förbi och
+    // försvinna, och sedan ska vägen få vara i fred en stund. En sportbil som varvar i loop
+    // utan paus blir en karusell, inte en omkörning.
+    '.ca-vag-sport{position:absolute;bottom:10px;width:53px;height:19px;left:-20%;',
+      'pointer-events:none;z-index:2;',
+      'filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)) drop-shadow(-6px 0 7px rgba(239,68,68,.35));',
+      'animation:ca-vag-omkorning 13s linear infinite;}',
+    '@keyframes ca-vag-omkorning{0%{left:-20%}33%{left:118%}100%{left:118%}}',
+    // Fartstrimman ligger BAKOM bilen och töjs ut i färdriktningens motsats.
+    '.ca-vag-sport-strimma{position:absolute;bottom:14px;height:2px;width:34px;left:-20%;',
+      'margin-left:-30px;border-radius:2px;pointer-events:none;z-index:1;',
+      'background:linear-gradient(90deg,transparent,rgba(248,113,113,.75),rgba(254,202,202,.9));',
+      'animation:ca-vag-omkorning 13s linear infinite;}',
     '.ca-vag-hjul{transform-box:fill-box;transform-origin:center;animation:ca-vag-snurr .34s linear infinite;}',
     '@keyframes ca-vag-snurr{to{transform:rotate(360deg)}}',
     // Fartstrecken bakom bilen: tre streck som skjuts bakåt i olika takt
@@ -4562,7 +4619,8 @@ function caFcRenderResult(recs) {
     '@media(max-width:560px){.ca-vag{display:none;}.ca-rubrikrad{gap:0;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
-      '.ca-vag-glans{animation:none!important;}',
+      '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
+      '.ca-vag-sport,.ca-vag-sport-strimma{display:none;}',
       '.ca-vag-fart{opacity:.5;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
@@ -4593,8 +4651,11 @@ function caByggVag() {
     vag.innerHTML =
       // Solen först: allt som ritas efter den skär av den vid horisonten.
       '<div class="ca-vag-himmel"></div>' +
-      '<div class="ca-vag-stralar"></div>' +
-      '<div class="ca-vag-sol"></div>' +
+      '<div class="ca-vag-solvagn">' +
+        '<div class="ca-vag-stralar"></div>' +
+        '<div class="ca-vag-krans"></div>' +
+        '<div class="ca-vag-sol"></div>' +
+      '</div>' +
       '<div class="ca-vag-stolpar"></div>' +
       '<div class="ca-vag-yta"></div>' +
       '<div class="ca-vag-glans"></div>' +
@@ -4604,6 +4665,24 @@ function caByggVag() {
       '<span class="ca-vag-fart" style="left:calc(44% - 2px);width:11px;bottom:24px;animation-delay:.35s"></span>' +
       '<span class="ca-vag-fart" style="left:calc(44% - 9px);width:14px;bottom:15px;animation-delay:.62s"></span>' +
       '<div class="ca-vag-ljus"></div>' +
+      // Sportbilen ritas EFTER den lila bilen sa den passerar framfor den.
+      '<span class="ca-vag-sport-strimma"></span>' +
+      '<svg class="ca-vag-sport" viewBox="0 0 53 19" xmlns="http://www.w3.org/2000/svg">' +
+        '<defs><linearGradient id="ca-vag-rod" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="#fca5a5"/><stop offset="42%" stop-color="#ef4444"/>' +
+          '<stop offset="100%" stop-color="#991b1b"/></linearGradient></defs>' +
+        // Lag och lang kaross med kilformad nos at hoger
+        '<path d="M1.5 14.5 L2.4 11.4 Q2.8 9.9 5 9.6 L16 8.4 L22 5.4 Q23.6 4.6 26 4.6 L33 4.6 Q35.4 4.6 36.8 5.8 L40.5 8.9 L48.5 10.2 Q51.5 10.7 51.5 13 L51.5 14.5 Z" fill="url(#ca-vag-rod)"/>' +
+        '<path d="M19.5 8.6 L23.4 6.1 Q24.2 5.7 25.6 5.7 L28.6 5.7 L28.6 8.6 Z" fill="#1e293b" opacity=".85"/>' +
+        '<path d="M30 5.7 L32.8 5.7 Q34.2 5.7 35 6.5 L36.9 8.6 L30 8.6 Z" fill="#1e293b" opacity=".85"/>' +
+        // Sidostrimma i Ferraris gula, och stralkastare
+        '<rect x="6" y="11.6" width="12" height="1.1" rx=".5" fill="#fde047" opacity=".8"/>' +
+        '<rect x="49.2" y="11" width="2.3" height="2" rx="1" fill="#fef3c7"/>' +
+        '<g class="ca-vag-hjul"><circle cx="13.5" cy="14.2" r="3.7" fill="#0f172a"/>' +
+          '<circle cx="13.5" cy="14.2" r="1.5" fill="#e2e8f0"/></g>' +
+        '<g class="ca-vag-hjul"><circle cx="40" cy="14.2" r="3.7" fill="#0f172a"/>' +
+          '<circle cx="40" cy="14.2" r="1.5" fill="#e2e8f0"/></g>' +
+      '</svg>' +
       '<svg class="ca-vag-bil" viewBox="0 0 46 21" xmlns="http://www.w3.org/2000/svg">' +
         '<defs>' +
           '<linearGradient id="ca-vag-lack" x1="0" y1="0" x2="0" y2="1">' +
