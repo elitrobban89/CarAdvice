@@ -1117,12 +1117,87 @@ function caRenderEvBudgetHint() {
     '</strong> ' + caEsc(txt);
 }
 
+/* ── Prisreglaget ─────────────────────────────────────────────────────────────
+ *
+ * Skalan gick förut 50 000–1 000 000 i ett enda linjärt svep med 25 000 kr per steg.
+ * Det spann folk faktiskt handlar i — 100 000–300 000 kr, där 46 % av köparna ligger —
+ * upptog då 21 % av skenan, alltså en tumme bred på en telefon. Bara 10 % planerar att
+ * lägga över en halv miljon, så nio av tio fick kämpa i en femtedel av reglaget för att
+ * resten skulle rymmas.
+ *
+ * Tre grepp, alla med kronor kvar som reglagets värde (allt annat i appen läser
+ * #ca-budget-slider.value direkt, och en omräknad skala hade brutit varenda läsare):
+ *   1. Taket är 600 000 kr som standard. Då får 100–300k 36 % av skenan i stället för 21 %.
+ *      Knappen "Högre budget" fäller ut skalan till en miljon för den som vill dit, och en
+ *      sparad sökning eller delningslänk över taket fäller ut den automatiskt.
+ *   2. Steget är 10 000 kr under 300 000 (25 000 därutöver, 50 000 över 600 000) — finare
+ *      där valet står, grövre där det inte gör det.
+ *   3. Snabbknappar för 100k–300k: ett tryck i stället för ett dragande.
+ */
+var CA_BUDGET_TAK_NORMAL = 600000;
+var CA_BUDGET_TAK_HOGT   = 1000000;
+var CA_BUDGET_SNABBVAL   = [100000, 150000, 200000, 250000, 300000];
+var caBudgetTak = CA_BUDGET_TAK_NORMAL;
+
+/** Finare steg där valet står, grövre där det inte gör det. */
+function caBudgetSteg(v) {
+  if (v <= 300000) return 10000;
+  if (v <= 600000) return 25000;
+  return 50000;
+}
+
+function caSnapBudget(v) {
+  var steg = caBudgetSteg(v);
+  return Math.max(50000, Math.round(v / steg) * steg);
+}
+
+/** Ett värde över taket fäller ut skalan i stället för att klippas ned till taket. */
+function caSakraBudgetTak(v) {
+  if (!caIsLeasing && v > caBudgetTak) caBudgetTak = CA_BUDGET_TAK_HOGT;
+}
+
+/** Tick-raden ligger i markupen som .ca-slider-ticks (inget id — getElementById gav null). */
+function caTicksEl() {
+  var s = document.getElementById('ca-budget-slider');
+  var f = (s && s.closest) ? s.closest('.ca-field') : null;
+  return (f && f.querySelector('.ca-slider-ticks')) || document.querySelector('.ca-slider-ticks');
+}
+
+/**
+ * Tickarna sitter på RÄTT plats i skalan, inte utspridda jämnt.
+ *
+ * <p>Förut stod "200k" på en fjärdedel av skenan medan värdet i själva verket låg på 16 % —
+ * etiketterna pekade alltså på fel ställe, vilket är värre än inga etiketter alls.
+ */
+function caRenderBudgetTicks() {
+  var rad = caTicksEl();
+  var slider = document.getElementById('ca-budget-slider');
+  if (!rad || !slider) return;
+  var min = parseInt(slider.min) || 0;
+  var max = parseInt(slider.max) || 1;
+  var varden = caIsLeasing ? [1000, 3000, 5000, 8000, 15000]
+             : (caBudgetTak === CA_BUDGET_TAK_HOGT ? [50000, 200000, 400000, 700000, 1000000]
+                                                   : [50000, 200000, 300000, 450000, 600000]);
+  rad.style.position = 'relative';
+  rad.style.height = '14px';
+  rad.style.display = 'block';
+  rad.innerHTML = varden.map(function (v, i) {
+    var pct = (v - min) / (max - min) * 100;
+    var skjut = i === 0 ? '0' : (i === varden.length - 1 ? '-100%' : '-50%');
+    var txt = caIsLeasing ? Math.round(v / 1000) + 'k'
+            : (v >= 1000000 ? '1M' : Math.round(v / 1000) + 'k');
+    return '<span style="position:absolute;left:' + pct.toFixed(1) + '%;transform:translateX(' + skjut + ')">' + txt + '</span>';
+  }).join('');
+}
+
 function caUpdateSliderFill() {
   var slider = document.getElementById('ca-budget-slider');
   if (!slider) return;
   var val = parseInt(slider.value);
-  var min = caIsLeasing ? 1000 : 50000;
-  var max = caIsLeasing ? 15000 : 1000000;
+  // Läs skalan ur ELEMENTET. Hårdkodade 50 000/1 000 000 här betydde att fyllnaden pekade
+  // fel så fort taket ändrades — och den visar hur mycket av skenan som är förbrukad.
+  var min = parseInt(slider.min) || (caIsLeasing ? 1000 : 50000);
+  var max = parseInt(slider.max) || (caIsLeasing ? 15000 : caBudgetTak);
   var pct = (val - min) / (max - min) * 100;
   document.getElementById('ca-slider-fill').style.width = pct + '%';
   document.getElementById('ca-budget-display').textContent = caIsLeasing
@@ -1134,17 +1209,18 @@ function caUpdateSliderFill() {
 function caSetBudgetMode(mode, value) {
   caIsLeasing = (mode === 'leasing');
   var s = document.getElementById('ca-budget-slider');
-  var ticks = document.getElementById('ca-slider-ticks');
   if (!s) return;
   if (caIsLeasing) {
     s.min = 1000; s.max = 15000; s.step = 250;
     s.value = (value !== undefined) ? value : caLeasingBudget;
-    if (ticks) ticks.innerHTML = '<span>1k</span><span>3k</span><span>5k</span><span>8k</span><span>15k</span>';
   } else {
-    s.min = 50000; s.max = 1000000; s.step = 25000;
+    // Ett sparat värde över taket fäller ut skalan i stället för att klippas ned till den.
+    caSakraBudgetTak((value !== undefined) ? value : caKopBudget);
+    s.min = 50000; s.max = caBudgetTak; s.step = 5000;
     s.value = (value !== undefined) ? value : caKopBudget;
-    if (ticks) ticks.innerHTML = '<span>50k</span><span>200k</span><span>400k</span><span>700k</span><span>1M</span>';
   }
+  caRenderBudgetTicks();
+  caVisaBudgetTakKnapp();
   caUpdateSliderFill();
   // Utan den här hängde varningen kvar från köpläget efter ett byte till leasing
   caCheckMismatch();
@@ -1152,6 +1228,109 @@ function caSetBudgetMode(mode, value) {
   var leaseBtn = document.getElementById('ca-mode-leasing');
   if (kopBtn) kopBtn.classList.toggle('ca-mode-active', !caIsLeasing);
   if (leaseBtn) leaseBtn.classList.toggle('ca-mode-active', caIsLeasing);
+}
+
+/**
+ * Snabbknappar för det spann de flesta handlar i, plus knappen som fäller ut skalan.
+ *
+ * <p>Byggs i KOD och inte i markupen: WP-blocket är en manuell kopia, och en ändring där
+ * syns inte förrän någon klistrar in det på nytt (samma grepp som caGomUndanSmaval).
+ * Finns raden redan görs ingenting.
+ */
+function caBudgetSnabbval() {
+  var slider = document.getElementById('ca-budget-slider');
+  if (!slider || document.getElementById('ca-budget-snabb')) return;
+  var ticks = caTicksEl();
+  if (!ticks || !ticks.parentNode) return;
+
+  if (!document.getElementById('ca-budget-snabb-style')) {
+    var st = document.createElement('style');
+    st.id = 'ca-budget-snabb-style';
+    st.textContent =
+      '#ca-budget-snabb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;}' +
+      '#ca-budget-snabb .ca-bsnabb{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);' +
+        'color:rgba(255,255,255,.62);border-radius:20px;padding:6px 12px;font-family:inherit;' +
+        'font-size:.76rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}' +
+      '#ca-budget-snabb .ca-bsnabb:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.5);color:#fff;}' +
+      '#ca-budget-snabb .ca-bsnabb.ca-bsnabb-aktiv{background:linear-gradient(135deg,#8b5cf6,#6366f1);' +
+        'border-color:transparent;color:#fff;box-shadow:0 2px 12px rgba(99,102,241,.45);}' +
+      '#ca-budget-tak{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.42);' +
+        'font-family:inherit;font-size:.76rem;padding:6px 2px;cursor:pointer;text-decoration:underline;' +
+        'text-decoration-color:rgba(255,255,255,.2);text-underline-offset:3px;white-space:nowrap;}' +
+      '#ca-budget-tak:hover{color:rgba(255,255,255,.85);}';
+    document.head.appendChild(st);
+  }
+
+  var rad = document.createElement('div');
+  rad.id = 'ca-budget-snabb';
+  CA_BUDGET_SNABBVAL.forEach(function (v) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ca-bsnabb';
+    b.dataset.varde = String(v);
+    b.textContent = Math.round(v / 1000) + 'k';
+    b.addEventListener('click', function () {
+      caSetBudgetMode(caIsLeasing ? 'leasing' : 'köp', v);
+      // Ett tryck ÄR ett eget val — kategorins budgetförval ska inte skriva över det sedan.
+      slider.dataset.rord = '1';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    rad.appendChild(b);
+  });
+  var tak = document.createElement('button');
+  tak.type = 'button';
+  tak.id = 'ca-budget-tak';
+  tak.textContent = 'Högre budget →';
+  tak.addEventListener('click', function () {
+    caBudgetTak = CA_BUDGET_TAK_HOGT;
+    caSetBudgetMode(caIsLeasing ? 'leasing' : 'köp', parseInt(slider.value) || undefined);
+  });
+  rad.appendChild(tak);
+  ticks.parentNode.insertBefore(rad, ticks.nextSibling);
+  caSynkaBudgetSnabb();
+}
+
+/** Markerar det snabbval som matchar reglaget, och göm raden i leasingläget (andra tal). */
+function caSynkaBudgetSnabb() {
+  var rad = document.getElementById('ca-budget-snabb');
+  var slider = document.getElementById('ca-budget-slider');
+  if (!rad || !slider) return;
+  rad.style.display = caIsLeasing ? 'none' : 'flex';
+  var v = parseInt(slider.value) || 0;
+  Array.prototype.forEach.call(rad.querySelectorAll('.ca-bsnabb'), function (b) {
+    b.classList.toggle('ca-bsnabb-aktiv', parseInt(b.dataset.varde) === v);
+  });
+}
+
+function caVisaBudgetTakKnapp() {
+  var t = document.getElementById('ca-budget-tak');
+  if (t) t.style.display = (caIsLeasing || caBudgetTak === CA_BUDGET_TAK_HOGT) ? 'none' : '';
+  caSynkaBudgetSnabb();
+}
+
+/**
+ * Snäpper reglaget till ett jämnt tal medan man drar — 10 000 kr under 300 000, grövre
+ * därutöver. Elementets eget step ligger på 10 000 så att webbläsaren släpper fram de
+ * finare lägena; snäppningen här tar hand om de grövre.
+ */
+function caInitBudgetReglage() {
+  var s = document.getElementById('ca-budget-slider');
+  if (!s || s.dataset.reglageKlart) return;
+  s.dataset.reglageKlart = '1';
+  caSakraBudgetTak(parseInt(s.value) || 0);
+  s.min = 50000; s.max = caBudgetTak; s.step = 5000;
+  s.addEventListener('input', function () {
+    if (caIsLeasing) return;
+    var v = parseInt(s.value) || 0;
+    var snappat = caSnapBudget(v);
+    if (snappat !== v) s.value = snappat;
+    caSynkaBudgetSnabb();
+  });
+  s.addEventListener('change', caSynkaBudgetSnabb);
+  caBudgetSnabbval();
+  caRenderBudgetTicks();
+  caVisaBudgetTakKnapp();
 }
 
 function caUpdateFuelVisibility() {
@@ -1515,6 +1694,37 @@ var caForvalPaus = false;
 function caUtanForval(fn) {
   caForvalPaus = true;
   try { fn(); } finally { caForvalPaus = false; }
+}
+
+/**
+ * Startläget en NY besökare möter: Familjebil, laddare hemma <b>Ja</b> och 200 000 kr.
+ *
+ * <p><b>Varför Ja.</b> Laddarfrågan svarar på drivmedelsfrågan (se caUpdateFuelVisibility):
+ * Ja ger El i alla kategorier. Med Familjebil som kategori är "Familjebil · El · 200 000 kr"
+ * alltså färdigt att söka på direkt — ett klick mindre för den som inte vill ställa in något.
+ * Budgeten låg redan på 200 000 och står kvar: 46 % av bilköparna siktar på 100 000–299 999 kr
+ * och bara 10 % på över en halv miljon, så mitten av det spannet är det förval som passar
+ * flest. Formuläret söker dessutom begagnat, vilket är vad 47 % planerar att köpa.
+ *
+ * <p><b>Rör bara den som inte har något eget.</b> Sparade inställningar, delningslänkar och
+ * historikposter sätts EFTER det här anropet och vinner därför alltid. Finns det redan ett
+ * ca-prefs eller en parameter i länken avstår funktionen helt — annars hade ett förval
+ * skrivit över besökarens senaste sökning, vilket är precis den fällan dataset.rord finns
+ * till för i de andra förvalen.
+ */
+function caForvalStartlage() {
+  var chg = document.getElementById('ca-charger');
+  if (!chg) return;
+  try { if (localStorage.getItem('ca-prefs')) return; } catch (e) {}
+  try {
+    var p = new URLSearchParams(window.location.search);
+    if (p.has('charger') || p.has('fuelType') || p.has('category') || p.has('budget')) return;
+  } catch (e) {}
+  if (chg.value === 'true') return;   // markupen är redan omklistrad — inget att göra
+  chg.value = 'true';
+  // Utan det här anropet står drivmedlet kvar på "spelar ingen roll": en tilldelning i JS
+  // utlöser inget change-event, och det är lyssnaren som kör regeln laddbox → el.
+  caUpdateFuelVisibility();
 }
 
 /** Nollställ ska ge ett JUNGFRULIGT formulär — annars sitter förra sökningens egna val kvar för alltid. */
@@ -1887,7 +2097,13 @@ function caReadUrlParams() {
   try {
     var p = new URLSearchParams(window.location.search);
     if (p.get('category'))   document.getElementById('ca-category').value   = caCanonCat(p.get('category'));
-    caSetBudgetMode(p.get('budgetMode') || 'köp', p.get('budget') ? parseInt(p.get('budget')) : undefined);
+    // BARA när länken faktiskt bär en budget. Anropet stod förut utan villkor, och då
+    // körde det med value=undefined på VARJE sidladdning — vilket satte reglaget till
+    // caKopBudget (200 000) och kastade den budget caLoadPrefs just hade återställt. En
+    // sparad sökning på 125 000 kom alltså alltid tillbaka som 200 000. Uppmätt, inte gissat.
+    if (p.has('budget') || p.has('budgetMode')) {
+      caSetBudgetMode(p.get('budgetMode') || 'köp', p.get('budget') ? parseInt(p.get('budget')) : undefined);
+    }
     if (p.get('charger'))    document.getElementById('ca-charger').value     = p.get('charger');
     if (p.get('km'))         document.getElementById('ca-km').value          = p.get('km');
     if (p.get('usage'))      document.getElementById('ca-usage').value       = p.get('usage');
@@ -2331,9 +2547,11 @@ function caBytbilUrl(title) {
 }
 
 function caResetForm() {
-  document.getElementById('ca-category').value   = 'smaabil';
+  // Samma läge som en ny besökare möter (se caForvalStartlage) — Nollställ ska ge appens
+  // förval, inte ett tredje läge som varken är förvalet eller det man hade.
+  document.getElementById('ca-category').value   = 'familjebil';
   document.getElementById('ca-budget-slider').value = 200000;
-  document.getElementById('ca-charger').value    = 'false';
+  document.getElementById('ca-charger').value    = 'true';
   document.getElementById('ca-km').value         = CA_KM_FORVAL;
   document.getElementById('ca-usage').value      = 'pendling';
   document.getElementById('ca-passengers').value = 4;
@@ -5056,6 +5274,9 @@ function caInit() {
   caHopfallbar(document.getElementById('ca-freecompare'),
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
+  // Före caUpdateSliderFill: reglaget får sitt tak och sina steg, och fyllnaden räknas på
+  // den skalan.
+  caInitBudgetReglage();
   caUpdateSliderFill();
   // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
   caEnsureCargoField();
@@ -5069,6 +5290,9 @@ function caInit() {
   // Efter caEnsureCargoField och förvalen: rutorna måste finnas OCH vara ifyllda innan de
   // flyttas, annars fälls tomma fält ihop.
   caFlerVal();
+  // Efter caFlerVal (drivmedelsraden finns då och kan skrivas), men FÖRE caLoadPrefs och
+  // caReadUrlParams: den som har ett eget val ska alltid vinna över startläget.
+  caForvalStartlage();
   // Efter caFlerVal: raden ska ligga överst i formuläret, och caFlerVal flyttar fält mellan
   // rutnäten. Egen klass och inget .ca-grid, så den aldrig plockas in i "Fler val"-lådan.
   caLoadPrefs();

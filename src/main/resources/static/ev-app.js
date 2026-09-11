@@ -252,6 +252,18 @@
   (function injectStyles() {
     const s = document.createElement("style");
     s.textContent =
+      // ── Layoutfix: "Årlig körsträcka" stack ut ur kortet ──────────────────────────
+      // .ev-input är width:100% med 14 px vadd och 1 px kant, och WP-sidans CSS ger den
+      // content-box. Bredden räknas då PÅ innehållet och vadden läggs utanpå: uppmätt 5 px
+      // utanför kortet på desktop och 13 px på mobil, alltså synligt snett. Rutan bredvid
+      // (.ev-select) hade redan border-box, så bara den ena stack ut — därav att det såg ut
+      // som ett fel på just körsträckefältet.
+      //
+      // Fixen står HÄR och inte bara i elbilsladdning-web.html därför att WP-sidan är en
+      // manuell kopia: en ändring i markupen syns inte förrän någon klistrar om blocket.
+      ".ev-app .ev-input,.ev-app .ev-select,.ev-app .ev-controls{box-sizing:border-box;}" +
+      ".ev-app .ev-input{max-width:100%;}" +
+
       ".ev-op-chip{padding:4px 11px;border-radius:20px;border:1.5px solid rgba(59,130,246,0.2);background:rgba(59,130,246,0.06);color:rgba(147,197,253,0.7);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}" +
       ".ev-op-chip:hover{border-color:rgba(59,130,246,0.5);color:#93c5fd;background:rgba(59,130,246,0.12);}" +
       ".ev-op-chip.ev-op-active{border-color:rgba(59,130,246,0.6);color:#fff;background:linear-gradient(135deg,#1d4ed8,#2563eb);}" +
@@ -2829,13 +2841,28 @@
          i stallet for att JS ska spegla tillstandet at den. */
       body.ev-chat-open .ev-chat-panel{display:flex;}
       @keyframes ev-panel-in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+      /* Ribban skiftar färg i appens egen palett (djupblått → blått → cyan → grönt, samma
+         toner som laddningstemat) i stället för att ligga still. Bandet är dubbelt så brett
+         som rutan och panoreras — färgen vandrar, layouten står still, texten står stilla.
+         ALLA toner är mörka med flit: rubriken är vit, och en ljus ton hade ätit läsbarheten. */
       .ev-chat-header {
-        background:linear-gradient(135deg,rgba(17,40,110,0.95),rgba(29,78,216,0.88));
+        background:linear-gradient(110deg,
+          rgba(9,20,48,0.96) 0%,rgba(17,40,110,0.94) 22%,rgba(29,78,216,0.9) 44%,
+          rgba(14,116,144,0.88) 64%,rgba(6,95,70,0.9) 82%,rgba(17,40,110,0.94) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
         backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
         border-bottom:1px solid rgba(147,197,253,0.18);
         color:#fff;padding:14px 16px 13px;
         display:flex;align-items:center;justify-content:space-between;
         flex-shrink:0;gap:8px;
+      }
+      @keyframes ev-chat-header-skift {
+        0%{background-position:0% 50%;}
+        100%{background-position:100% 50%;}
+      }
+      @media (prefers-reduced-motion:reduce){
+        .ev-chat-header{animation:none;background-position:50% 50%;}
       }
       .ev-chat-header-title { display:flex;flex-direction:column;gap:1px; }
       .ev-chat-header-name { font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px; }
