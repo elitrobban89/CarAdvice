@@ -627,6 +627,58 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void kommandevaktenParkerarInteEnArsmodellsuppdateringEllerEttPrissattPris() {
+        /*
+         * Natten 2026-09-11 parkerades sex rader om bilar som säljs i dag: fyra om Volvo EX40
+         * (id 1486, 1483, 1474, 1473), en om EC40 (1477) och en om Audi A2 e-tron (1478).
+         * Annonskollen gav LARM på alla tre bilarna — EX40 42 annonser, EC40 44, A2 e-tron 3,
+         * den sista med årsmodell 2027 till exakt radens eget pris (454 800 kr).
+         *
+         * Två luckor, båda i texten och alltså möjliga att stänga i prompten:
+         *
+         *  - EX40/EC40-raderna handlar om en ANSIKTSLYFTNING: nya bakljus, 11,2-tumsskärm i
+         *    stället för nio tum, längre räckvidd. Prompten kunde bara skilja "ny variant"
+         *    (KÖPBAR) från "hel ny generation" (KOMMANDE), och en uppdaterad årsmodell föll
+         *    mellan dem. Att uppdateringen dessutom skrivs i presens ("EX40 får nya bakljus")
+         *    läste vakten som framtid.
+         *  - A2 e-tron-raden bär en svensk prislista i kronor. RELEVANCE_PROMPT har haft
+         *    regeln "anges ett svenskt pris i kronor är den RELEVANT" sedan 08-08, men
+         *    kommande-vakten hade bara den underförstådda motsatsen ("presenterad men inte
+         *    prissatt").
+         *
+         * MÄTT mot hela kön (14 rader, produktionsparametrarna: gpt-oss-120b, temperature
+         * 0.2, reasoning_effort low). Före: EX40 2/3 parkerade, EC40 3/3, A2 e-tron 3/3.
+         * Efter, fem körningar: EX40 0/5, EC40 1/5, A2 e-tron 1/5 — och de riktiga
+         * parkeringarna står kvar orörda, Mitsubishi Pajero 5/5 och Hyundai Santa Fe 5/5
+         * (EREV-versionen som lanseras 2027). Gränsen som bär det är VAD texten kallar nytt:
+         * detaljer på en modell som säljs, eller modellen själv.
+         */
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("VAD texten kallar")
+                // ansiktslyftningens egna ord, så nästa omskrivning inte tappar fallet
+                .contains("bakljus")
+                .contains("årsmodellsuppdatering")
+                // presensfällan: "får nya bakljus" är inte en framtidsutsaga
+                .contains("beskrivs i presens")
+                // ...och motvikten: det är modellen, inte detaljen, som gör den kommande
+                .contains("Är det MODELLEN som utnämns till ny")
+                .contains("den nya Pajero-modellen");
+
+        // Prisregeln är RELEVANCE_PROMPT:s, nu utskriven även här
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("svenskt pris i kronor")
+                .contains("presenterad men inte prissatt");
+
+        // Ingen av de två nya reglerna får upphäva kön där den fungerar: en utskriven
+        // säljstart fram i tiden väger tyngre än båda (Santa Fe 2027, EX50 2027)
+        assertThat(WebInsightScraperService.UPCOMING_PROMPT)
+                .contains("säljstarten utskriven fram i tiden")
+                .contains("säljstarten ligger fram i tiden")
+                .contains("en hel ny generation som ännu inte")
+                .contains("EX50 med säljstart 2027");
+    }
+
+    @Test
     void kommandevaktenParkerarInteEnProvkordBil() {
         /*
          * Tredje gången samma feltyp mättes upp, och signalen var densamma alla tre

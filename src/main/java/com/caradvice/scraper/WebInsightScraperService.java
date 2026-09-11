@@ -380,7 +380,10 @@ public class WebInsightScraperService {
      * TEXTEN i stället för i marknadskunskap den inte har — en uppmätt avvikelse från
      * tillverkarens egen siffra kan bara komma ur en bil någon haft i handen. Undantaget för
      * förserier och utskriven framtida säljstart skyddar överblockeringshållet: A2 e-tron och
-     * EX50 bär förhandsuppgifter, inte mätvärden, och ska fortsätta parkeras.
+     * EX50 bar förhandsuppgifter, inte mätvärden, och skulle fortsätta parkeras. <b>A2 e-tron
+     * är inte längre ett sådant exempel</b> — raden bär sedan 2026-09-11 en svensk prislista
+     * och bilen ligger annonserad som årsmodell 2027, se stycket om prisregeln nedan. EX50
+     * står kvar som arketyp.
      *
      * <p><b>Ett mätvärde behöver inte vara ett klagomål</b> (2026-08-18). Regeln bet inte på
      * id 1259, Ford Puma Gen-E: "uppvisade en förbrukning på endast 10 kWh/100 km i samma test".
@@ -391,6 +394,26 @@ public class WebInsightScraperService {
      * aldrig "vi mätte". Att raden dessutom kom ur SAMMA test som id 1258 Volvo EX30 — som
      * släpptes igenom — visar att det var osäkerhet om just Puma Gen-E och inte om testet:
      * bilen fanns hos tolv svenska handlare för 329 000-417 000 kr samma morgon.
+     *
+     * <p><b>En ansiktslyftning är inte en ny generation, och ett svenskt pris är ett svar</b>
+     * (2026-09-11). Sex rader om bilar som säljs i dag parkerades samma natt: fyra om Volvo
+     * EX40, en om EC40 och en om Audi A2 e-tron. Annonskollen gav LARM på alla tre bilarna
+     * (42, 44 respektive 3 annonser, den sista med årsmodell 2027 till radens eget pris
+     * 454 800 kr). EX40-raderna beskriver en uppdaterad årsmodell — nya bakljus, 11,2-tums
+     * skärm i stället för nio tum, längre räckvidd — och prompten kunde bara skilja "ny
+     * variant" från "hel ny generation"; en uppdatering föll mellan dem, och presensformen
+     * ("EX40 får nya bakljus") lästes som framtid. A2 e-tron-raden bär en svensk prislista,
+     * och regeln "anges ett svenskt pris i kronor är den RELEVANT" fanns bara i
+     * {@link #RELEVANCE_PROMPT}. Gränsen som stänger båda ligger i texten: <b>är det
+     * detaljerna som är nya, eller modellen?</b> Mätt mot hela kön med produktionsparametrar
+     * gick EX40 från 2/3 till 0/5 parkerade, EC40 och A2 e-tron från 3/3 till 1/5, medan
+     * Pajero och Santa Fe (EREV-lansering 2027) stod kvar på 5/5.
+     *
+     * <p><b>Siffrorna gäller per rad, men kön fylls per bil:</b> {@link #upcomingCarKeys} låter
+     * en parkerad rad smitta sina syskon inom batchen, så en enda felaktig dom på
+     * ansiktslyftningen drog med sig de rena faktaraderna (1483 och 1473 säger ingenting alls
+     * om framtiden). Det är därför en överblockering här kostar fler rader än den ser ut att
+     * kosta.
      */
     static final String UPCOMING_PROMPT = """
             Du avgör en enda sak om varje rad: har modellen ännu inte nått den svenska
@@ -413,6 +436,22 @@ public class WebInsightScraperService {
             säljs bedöms på modellen, inte på varianten: Golf GTI och Audi Q6 e-tron säljs
             här, alltså är de KÖPBARA. Undantaget är just en hel ny generation som ännu inte
             börjat levereras — den regeln står kvar.
+
+            Skillnaden mellan en uppdatering och en ny generation ligger i VAD texten kallar
+            nytt. Är det detaljer på en modell som säljs i dag — bakljus, strålkastare,
+            skärm, infotainment, mjukvara, räckvidd eller batteri under samma modellnamn —
+            är det en årsmodellsuppdatering av bilen som redan står hos handlaren, och
+            svaret är KÖPBAR. Det gäller även när uppdateringen beskrivs i presens ("får
+            nya bakljus", "får längre räckvidd"): så skriver svensk motorpress om en
+            uppdatering av en bil man kan köpa. Är det MODELLEN som utnämns till ny — "femte
+            generationens Tucson", "den nya Pajero-modellen", "helt ny", "nästa generation" —
+            eller står säljstarten utskriven fram i tiden, då gäller generationsregeln ovan
+            och svaret är KOMMANDE.
+
+            Ett utskrivet svenskt pris i kronor för en konkret variant gör modellen KÖPBAR.
+            Prislistan kommer ur den svenska säljorganisationen och är motsatsen till
+            "presenterad men inte prissatt" ovan. Undantaget är detsamma: säger texten själv
+            att säljstarten ligger fram i tiden står parkeringen kvar.
 
             Gränsen går vid leveranserna, inte vid hur ny bilen är. Har svenska kunder redan
             fått sina bilar är modellen KÖPBAR — även om den kallas ny eller nyss lanserad,
