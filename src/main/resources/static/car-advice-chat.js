@@ -210,8 +210,80 @@
         box-shadow:0 4px 20px rgba(109,40,217,.6);
         display:flex;align-items:center;justify-content:center;
         transition:transform .15s,box-shadow .15s;
+        /* Ligger OVANFÖR halon och ringarna nedan. Utan egen z-index målas de
+           positionerade lagren över knappen och bilen bleks bort. */
+        position:relative;z-index:1;
       }
       .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
+
+      /* ── Rådgivaren vaknar när besökaren ser appen ────────────────────────────
+         Knappen satt stilla i hörnet och sågs inte av den som inte redan visste att
+         den fanns. Sekvensen spelas EN gång, när formuläret faktiskt är i vy (se
+         caVackRadgivaren), och halon andas sedan vidare tills chatten öppnats.
+         Halon och ringarna ligger SIST i .ca-chat-fab-ring med flit: gnistorna
+         adresseras med :nth-child(1..3) och hade tappat sina platser annars. */
+      .ca-chat-halo {
+        position:absolute;inset:-12px;border-radius:50%;pointer-events:none;z-index:0;
+        background:radial-gradient(circle,rgba(139,92,246,.55) 0%,rgba(109,40,217,.22) 52%,transparent 72%);
+        opacity:0;transition:opacity .4s ease;
+      }
+      .ca-chat-fab-wrap.ca-lockar .ca-chat-halo{opacity:1;animation:ca-halo-andas 3.2s ease-in-out infinite;}
+      @keyframes ca-halo-andas {
+        0%,100%{transform:scale(.9);opacity:.5;}
+        50%{transform:scale(1.14);opacity:1;}
+      }
+      .ca-chat-wave {
+        position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:0;
+        border:2px solid rgba(167,139,250,.75);opacity:0;
+      }
+      .ca-chat-fab-wrap.ca-vaknar .ca-chat-wave{animation:ca-wave 1.5s cubic-bezier(.2,.7,.3,1);}
+      .ca-chat-fab-wrap.ca-vaknar .ca-chat-wave:nth-of-type(2){animation-delay:.38s;border-color:rgba(196,181,253,.6);}
+      .ca-chat-fab-wrap.ca-vaknar .ca-chat-wave:nth-of-type(3){animation-delay:.76s;border-color:rgba(251,191,36,.5);}
+      @keyframes ca-wave {
+        0%{transform:scale(.72);opacity:.95;}
+        65%{opacity:.25;}
+        100%{transform:scale(2.5);opacity:0;}
+      }
+      /* Bilen kör in från höger, bromsar in och gungar till. */
+      .ca-chat-fab-wrap.ca-vaknar .ca-chat-fab{animation:ca-bil-kor-in 1.15s cubic-bezier(.22,1,.36,1);}
+      @keyframes ca-bil-kor-in {
+        0%{transform:translateX(26px) scale(.72) rotate(6deg);}
+        45%{transform:translateX(-5px) scale(1.14) rotate(-5deg);}
+        70%{transform:translateX(2px) scale(.97) rotate(3deg);}
+        100%{transform:none;}
+      }
+      /* Strålkastaren blinkar till när bilen kommit fram. (Hjulen lämnas i fred: naven är
+         runda och symmetriska, en rotation på dem syns inte alls.) */
+      .ca-chat-fab-wrap.ca-vaknar .ca-bot-lampa{animation:ca-lampa-blink 1.2s ease-out;}
+      @keyframes ca-lampa-blink {
+        0%{fill:#a78bfa;}
+        25%{fill:#fffbe6;}
+        45%{fill:#fef08a;}
+        65%{fill:#fffbe6;}
+        100%{fill:#fef08a;}
+      }
+      /* Pratbubblan. Pekhändelser släcks med flit: den ska aldrig stå i vägen för
+         knappen den pekar på. width:max-content KRÄVS — bubblan är absolut placerad i
+         .ca-chat-fab-wrap, som är lika smal som knappen, och utan egen bredd krymper
+         den till en bokstav per rad. */
+      .ca-chat-hej {
+        position:absolute;right:72px;bottom:4px;z-index:1;
+        width:max-content;max-width:min(240px,calc(100vw - 120px));
+        background:linear-gradient(145deg,rgba(76,29,149,.96),rgba(124,58,237,.92));
+        border:1px solid rgba(196,181,253,.4);border-radius:15px 15px 4px 15px;
+        color:#f3ecff;font-size:12px;font-weight:600;line-height:1.35;
+        padding:9px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+        pointer-events:none;opacity:0;transform:translateX(12px) scale(.9);
+        transform-origin:100% 100%;transition:opacity .32s ease,transform .32s cubic-bezier(.22,1,.36,1);
+      }
+      .ca-chat-fab-wrap.ca-hej .ca-chat-hej{opacity:1;transform:none;}
+      @media (prefers-reduced-motion:reduce){
+        .ca-chat-halo,.ca-chat-wave,.ca-chat-fab-wrap.ca-vaknar .ca-chat-fab,
+        .ca-chat-fab-wrap.ca-vaknar .ca-bot-hjul,.ca-chat-fab-wrap.ca-vaknar .ca-bot-lampa{
+          animation:none!important;
+        }
+        .ca-chat-fab-wrap.ca-lockar .ca-chat-halo{opacity:.75;}
+      }
       /* Frostat glas: basfärgen är i praktiken borta (.01) — det som gör panelen
          läsbar är blur/saturate plus att VARJE textbärande del har en egen tätare
          bricka (header, bubblor, snabbknappar, inputrad, disclaimer). Panelen byter
@@ -274,14 +346,31 @@
       @media (prefers-reduced-motion:reduce){
         .ca-chat-panel::before,.ca-chat-panel::after{ animation:none; }
       }
+      /* Ribban skiftar färg i appens egen palett (#0f0c29 → #302b63 → #7c3aed → #f55036,
+         samma toner som hero:n och splashen) i stället för att ligga still i en fast lila.
+         Bandet är dubbelt så brett som rutan och panoreras — färgen vandrar, inget rör sig
+         i layouten, och texten ovanpå står stilla. */
       .ca-chat-header {
-        background:linear-gradient(135deg,rgba(109,40,217,0.78),rgba(139,92,246,0.55));
+        background:linear-gradient(110deg,
+          rgba(15,12,41,0.92) 0%,rgba(48,43,99,0.88) 22%,rgba(109,40,217,0.82) 45%,
+          rgba(167,139,250,0.62) 62%,rgba(245,80,54,0.55) 78%,rgba(48,43,99,0.88) 100%);
+        background-size:220% 100%;
+        animation:ca-chat-header-skift 14s ease-in-out infinite alternate;
         backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);
         border-bottom:1px solid rgba(196,181,253,0.22);
         box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);
         color:#fff;padding:13px 16px;
         display:flex;align-items:center;justify-content:space-between;
         font-weight:700;font-size:14px;flex-shrink:0;gap:8px;
+      }
+      @keyframes ca-chat-header-skift {
+        0%{background-position:0% 50%;}
+        100%{background-position:100% 50%;}
+      }
+      /* Stillastående färg för den som bett om mindre rörelse — mitten av bandet, så
+         ribban ser likadan ut som när animationen råkar stå still. */
+      @media (prefers-reduced-motion:reduce){
+        .ca-chat-header{animation:none;background-position:50% 50%;}
       }
       .ca-chat-header-title { display:flex;align-items:center;gap:8px; }
       .ca-chat-header-actions { display:flex;align-items:center;gap:6px; }
@@ -414,8 +503,14 @@
       /* Ljust läge: samma färgspel men dämpat, annars konkurrerar det med den mörka texten */
       .ca-chat-panel.ca-chat-onlight::before { opacity:.52; }
       .ca-chat-panel.ca-chat-onlight::after { opacity:.8;filter:saturate(120%); }
+      /* Ljus sida bakom panelen: samma skiftande band, men tätare toner så den vita texten
+         i ribban håller kontrasten. background-size MÅSTE upprepas — background-kortformen
+         ovanför nollställer den, och utan den står bandet still igen. */
       .ca-chat-onlight .ca-chat-header {
-        background:linear-gradient(135deg,rgba(91,33,182,0.88),rgba(124,58,237,0.72));
+        background:linear-gradient(110deg,
+          rgba(15,12,41,0.95) 0%,rgba(49,27,146,0.92) 24%,rgba(91,33,182,0.9) 48%,
+          rgba(124,58,237,0.85) 66%,rgba(194,65,12,0.8) 82%,rgba(49,27,146,0.92) 100%);
+        background-size:220% 100%;
         border-bottom-color:rgba(109,40,217,0.25);
       }
       .ca-chat-onlight .ca-chat-bubble.bot {
@@ -457,6 +552,10 @@
       @media(max-width:400px){
         .ca-chat-panel{width:calc(100vw - 16px);right:8px;bottom:92px;}
         .ca-chat-fab-wrap{right:12px;bottom:12px;}
+        /* Bredvid knappen finns ingen plats kvar på en telefon — bubblan får lägga sig
+           ovanför i stället, med hela skärmbredden minus marginalerna. */
+        .ca-chat-hej{right:0;bottom:70px;max-width:calc(100vw - 36px);white-space:normal;
+          border-radius:15px 15px 15px 4px;transform:translateY(10px) scale(.92);transform-origin:100% 0;}
       }
     `;
     document.head.appendChild(style);
@@ -483,14 +582,19 @@
               <circle cx="38" cy="33" r="5.5" fill="#1e1b4b" stroke="rgba(167,139,250,0.6)" stroke-width="1.5"/>
               <circle cx="38" cy="33" r="2.5" fill="rgba(167,139,250,0.5)"/>
               <!-- headlight -->
-              <rect x="44" y="21" width="4" height="3" rx="1.5" fill="#fef08a"/>
+              <rect class="ca-bot-lampa" x="44" y="21" width="4" height="3" rx="1.5" fill="#fef08a"/>
               <!-- lightning bolt (EV) -->
               <path d="M24 12 L21 19 L25 17 L23 24" fill="#fef08a" stroke="#fef08a" stroke-width="0.4" stroke-linejoin="round"/>
               <!-- fuel drop (petrol) -->
               <path d="M31 11 Q33 8 33 12 Q33 15 31 15 Q29 15 29 12 Q29 8 31 11Z" fill="rgba(251,191,36,0.8)"/>
             </svg>
           </button>
+          <span class="ca-chat-halo"></span>
+          <span class="ca-chat-wave"></span>
+          <span class="ca-chat-wave"></span>
+          <span class="ca-chat-wave"></span>
         </div>
+        <div class="ca-chat-hej">👋 Hej! Berätta vad du söker — jag hittar rätt bil åt dig.</div>
       </div>
       <div class="ca-chat-panel" id="ca-chat-panel" style="display:none;">
         <div class="ca-chat-header">
@@ -599,7 +703,88 @@
     var panel = document.getElementById("ca-chat-panel");
     var open = panel.style.display === "none";
     panel.style.display = open ? "flex" : "none";
-    if (open) { caChatSyncGlass(); document.getElementById("ca-chat-input").focus(); }
+    if (open) {
+      // Lockropet har gjort sitt i samma stund chatten öppnas — en halo som fortsätter
+      // pulsa bakom en öppen panel är bara brus.
+      caChatVackt = true;
+      caLugnaRadgivaren();
+      caChatSyncGlass();
+      document.getElementById("ca-chat-input").focus();
+    }
+  }
+
+  // ── Rådgivaren vaknar när besökaren SER appen ─────────────────────────────────
+  //
+  // Knappen i hörnet sågs inte: den som inte redan visste att den fanns rullade förbi.
+  // Uppvakningen är därför en sekvens — ringar som slår ut, bilen som kör in och
+  // blinkar med strålkastaren, och en pratbubbla som säger vad den kan.
+  //
+  // Trigger är att FORMULÄRET faktiskt är i vy, inte att sidan laddat: på
+  // /bilradgivning/ ligger appen under sidhuvud och rubrik, och en uppvakning som
+  // spelas medan besökaren står i texten ovanför syns inte alls. IntersectionObserver
+  // när den finns, annars en scrollyssnare. Splashen räknas som "ser inte appen" —
+  // den täcker hela skärmen.
+  var caChatVackt = false;
+
+  function caLugnaRadgivaren() {
+    var wrap = document.querySelector(".ca-chat-fab-wrap");
+    if (wrap) wrap.classList.remove("ca-lockar", "ca-hej", "ca-vaknar");
+  }
+
+  function caMindreRorelse() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function caVackRadgivaren() {
+    if (caChatVackt) return;
+    var wrap = document.querySelector(".ca-chat-fab-wrap");
+    if (!wrap) return;
+    var panel = document.getElementById("ca-chat-panel");
+    if (panel && panel.style.display !== "none") { caChatVackt = true; return; }
+    caChatVackt = true;
+
+    var lugnt = caMindreRorelse();
+    wrap.classList.add("ca-lockar");
+    if (!lugnt) {
+      wrap.classList.add("ca-vaknar");
+      setTimeout(function () { wrap.classList.remove("ca-vaknar"); }, 1900);
+    }
+    setTimeout(function () {
+      var p = document.getElementById("ca-chat-panel");
+      if (!p || p.style.display === "none") wrap.classList.add("ca-hej");
+    }, lugnt ? 0 : 700);
+    setTimeout(function () { wrap.classList.remove("ca-hej"); }, 9000);
+  }
+
+  function caBevakaAppenIVy() {
+    var mal = document.getElementById("ca-wrap") || document.querySelector(".ca-grid");
+    if (!mal) return;
+
+    function kanske() {
+      if (caChatVackt) return true;
+      // Splashen täcker skärmen: appen är i DOM:en men syns inte.
+      if (document.querySelector(".ca-splash")) return false;
+      var r = mal.getBoundingClientRect();
+      var synligt = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+      if (synligt < Math.min(220, r.height * 0.35)) return false;
+      // Lite andrum efter att appen kommit i vy — bubblan ska inte krocka med att
+      // sidan fortfarande rör sig.
+      setTimeout(caVackRadgivaren, 600);
+      return true;
+    }
+
+    if (kanske()) return;
+
+    if (window.IntersectionObserver) {
+      var obs = new IntersectionObserver(function () {
+        if (kanske() && obs) obs.disconnect();
+      }, { threshold: [0, 0.2, 0.4] });
+      obs.observe(mal);
+    }
+    // Scrollyssnaren behövs ÄVEN med observer: splashen kan ligga kvar när appen
+    // korsar tröskeln, och då avstår kanske() utan att observern rapporterar igen.
+    var t = setInterval(function () { if (kanske()) clearInterval(t); }, 700);
+    setTimeout(function () { clearInterval(t); }, 60000);
   }
 
   /* ── Adaptivt glas ──────────────────────────────────────────────────────────
@@ -941,4 +1126,5 @@
 
   window.caChatSetRecsContext = caChatSetRecsContext;
   initCaChat();
+  caBevakaAppenIVy();
 })();

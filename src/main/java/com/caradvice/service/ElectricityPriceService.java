@@ -37,15 +37,42 @@ public class ElectricityPriceService {
 
     private volatile String cachedContext = "";
     private volatile long nextRefreshAt = 0L;
+    private volatile double senasteSnabbladdning = 0;
+    private final java.util.concurrent.atomic.AtomicBoolean varmerUpp =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /**
+     * Hemmaladdningens mittvärde — samma tal som promptraden nedan anger som "räkna med".
+     * Konstant med flit: intervallet 1,50–3,50 kr/kWh beror på elavtal, inte på dagens spotpris.
+     */
+    public static final double HEMMA_KR_PER_KWH = 2.50;
 
     /** Promptrad med elpriser — hemmaladdning alltid, snabbladdning när snittet kunnat hämtas. */
     public String promptContext() {
         if (System.currentTimeMillis() >= nextRefreshAt) {
             double dc = fetchNationalAverage();
+            senasteSnabbladdning = dc > 0 ? dc : senasteSnabbladdning;
             cachedContext = buildContext(dc);
             nextRefreshAt = System.currentTimeMillis() + (dc > 0 ? TTL_MS : RETRY_MS);
         }
         return cachedContext;
+    }
+
+    /**
+     * Senast kända snabbladdningssnitt <b>utan att blockera</b> (0 tills en hämtning lyckats).
+     *
+     * <p>Samma skäl som {@code FuelPriceService.senastKandaPriser()}: källan ligger på Renders
+     * gratisnivå och kan behöva väckas, och den väntan hör hemma i ett AI-anrop — inte i
+     * splashens prisrad på en sidladdning.
+     */
+    public double senastKandSnabbladdning() {
+        if (System.currentTimeMillis() >= nextRefreshAt && varmerUpp.compareAndSet(false, true)) {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try { promptContext(); } catch (Exception e) { log.debug("Bakgrundshämtning elpris: {}", e.getMessage()); }
+                finally { varmerUpp.set(false); }
+            });
+        }
+        return senasteSnabbladdning;
     }
 
     /** 0 om priset inte kunde hämtas. */

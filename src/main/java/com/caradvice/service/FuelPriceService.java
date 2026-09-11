@@ -34,6 +34,10 @@ public class FuelPriceService {
 
     private volatile String cachedContext = "";
     private volatile long nextRefreshAt = 0L;
+    private volatile double senasteBensin = 0;
+    private volatile double senasteDiesel = 0;
+    private final java.util.concurrent.atomic.AtomicBoolean varmerUpp =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     /** Promptrad med aktuella priser, eller tom sträng om priserna inte kunnat hämtas. */
     public String promptContext() {
@@ -43,6 +47,25 @@ public class FuelPriceService {
             nextRefreshAt = System.currentTimeMillis() + (fetched.isEmpty() ? RETRY_MS : TTL_MS);
         }
         return cachedContext;
+    }
+
+    /**
+     * Senast kända priser <b>utan att blockera</b>: {@code [bensin95, diesel]}, nollor tills en
+     * hämtning lyckats.
+     *
+     * <p>Finns för splashens prisrad, som körs på varje förstabesök. {@link #promptContext()}
+     * hämtar synkront med 8 sekunders timeout mot en tjänst på Renders gratisnivå — den väntan
+     * hör hemma i ett AI-anrop som ändå tar sekunder, aldrig i en sidladdning. Är cachen inaktuell
+     * startas i stället en uppdatering i bakgrunden, och anroparen får det som redan finns.
+     */
+    public double[] senastKandaPriser() {
+        if (System.currentTimeMillis() >= nextRefreshAt && varmerUpp.compareAndSet(false, true)) {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try { promptContext(); } catch (Exception e) { log.debug("Bakgrundshämtning bränslepris: {}", e.getMessage()); }
+                finally { varmerUpp.set(false); }
+            });
+        }
+        return new double[]{ senasteBensin, senasteDiesel };
     }
 
     private String fetchContext() {
@@ -57,6 +80,8 @@ public class FuelPriceService {
             double bensin = json.path("bensin95").asDouble(0);
             double diesel = json.path("diesel").asDouble(0);
             if (bensin <= 0) return "";
+            senasteBensin = bensin;
+            senasteDiesel = diesel;
             return buildContext(bensin, diesel);
         } catch (Exception e) {
             log.warn("Kunde inte hämta bränslepris från Bilresa: {}", e.getMessage());

@@ -730,6 +730,11 @@ public class CarController {
         out.put("models", models.size());
         out.put("variants", variants);
         out.put("insights", insights);
+        // Datapunkter till uppstartssplashen: modellnamnet rekommendationerna körs på och de
+        // priser AI:n räknar med. Läses ur cachen utan nätanrop — splashen får aldrig vänta på
+        // en systertjänst som sover, och saknas ett värde visar raden sin statiska text i stället.
+        try { out.put("live", groqService.splashDatapunkter()); }
+        catch (Exception e) { log.warn("Stats: splash-datapunkter: {}", e.getMessage()); }
         return ResponseEntity.ok(out);
     }
 

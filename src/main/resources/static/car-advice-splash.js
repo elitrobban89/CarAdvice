@@ -25,20 +25,54 @@
   var CAR_MODELS   = 670;
   var CAR_VARIANTS = 2200;
 
+  var GROQ_ROW   = 0; // språkmodellen (roboten som vaknar + live modellnamn)
   var MODELS_ROW = 1; // bildatabasen (modeller + varianter)
   var INS_ROW    = 5; // expertdata (live insiktsantal)
+  var EL_ROW     = 6; // elpriser (live kr/kWh)
+  var FUEL_ROW   = 7; // bränslepriser (live kr/l)
 
   var FORCE = /[?&]splash=1/.test(location.search);
 
+  // Raderna ÄR appens datakällor, en för en. Elpriser och bränslepriser ligger här därför att
+  // de faktiskt går in i AI-prompten (ElectricityPriceService/FuelPriceService) — utan dem
+  // räknade chatten driftkostnad på gissade priser. Siffrorna kommer live ur /api/stats när
+  // de finns i serverns cache; annars står den beskrivande texten kvar.
   var ROWS = [
-    { ic: '🤖', t: 'Groq AI',        s: 'Startar spr\xe5kmodellen' },
+    { ic: '🤖', t: 'Groq AI',        s: 'V\xe4cker spr\xe5kmodellen…', kind: 'groq' },
     { ic: '🚗', t: 'Bildatabas',     kind: 'models' },
     { ic: '⚡',       t: 'Elbilsdata',     s: 'R\xe4ckvidd, batteri &amp; laddeffekt \xb7 ev-database.org' },
     { ic: '⛽',       t: 'F\xf6rbrukning', s: 'Verifierad l/mil &amp; kWh/mil' },
     { ic: '🛡️', t: 'S\xe4kerhet', s: 'Euro NCAP &amp; Folksam krocktester' },
     { ic: '📰', t: 'Expertdata',     kind: 'insights' },
+    { ic: '🔌', t: 'Elpriser',       kind: 'el' },
+    { ic: '💸', t: 'Br\xe4nslepriser', kind: 'fuel' },
+    { ic: '🎬', t: 'Videotester',    s: 'YouTube-recensioner per modell' },
     { ic: '🔵', t: 'Marknadspriser', s: 'Dagsaktuella priser fr\xe5n Blocket' }
   ];
+
+  // Live-datapunkter från /api/stats.live — tomma tills servern svarat.
+  var live = { model: '', bensin95: 0, diesel: 0, elHemma: 0, elSnabb: 0 };
+
+  function kr(n, dec) { return n.toLocaleString('sv-SE', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+
+  function elText() {
+    if (!live.elHemma) return 'Hemmaladdning &amp; snabbladdning \xb7 kr/kWh';
+    var s = 'hemma ca <b>' + kr(live.elHemma, 2) + ' kr/kWh</b>';
+    if (live.elSnabb > 0) s += ' \xb7 snabbladdning ca <b>' + kr(live.elSnabb, 2) + ' kr/kWh</b>';
+    return s;
+  }
+  function fuelText() {
+    if (!live.bensin95) return 'Dagsaktuella bensin- &amp; dieselpriser';
+    var s = 'bensin 95 ca <b>' + kr(live.bensin95, 2) + ' kr/l</b>';
+    if (live.diesel > 0) s += ' \xb7 diesel ca <b>' + kr(live.diesel, 2) + ' kr/l</b>';
+    return s;
+  }
+  function groqText(klar) {
+    // Modellnamnet är en riktig uppgift ur serverns konfiguration, inte en etikett: byts
+    // GROQ_MODEL i miljön följer raden med av sig själv.
+    if (live.model) return (klar ? 'ONLINE \xb7 ' : '') + '<b>' + live.model + '</b> p\xe5 Groq LPU';
+    return klar ? 'Spr\xe5kmodellen ONLINE' : 'V\xe4cker spr\xe5kmodellen…';
+  }
 
   var BOOT_PHRASES = ['ansluter till Groq AI', 'l\xe4ser in bildata &amp; k\xe4llor', 'rankar 2\xa0200+ varianter', 'kalibrerar rekommendationsmotorn'];
   var INS_SRC = 'Teknikens V\xe4rld, Vi Bil\xe4gare, car.info…';
@@ -127,6 +161,29 @@
       '.ca-sp-row.show{opacity:1;transform:translateY(0);}',
       '.ca-sp-row.done{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.06);}',
       '.ca-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;}',
+      // Roboten på Groq-raden: sover, vaknar och stannar vaken. Glöden ligger i text-shadow
+      // och inte i ett ::after — ett absolut pseudoelement ovanpå en emoji tvättar ur den
+      // (samma fälla som glasglöden på elbilskorten).
+      '.ca-sp-bot{display:inline-block;filter:grayscale(1) brightness(.65);opacity:.75;',
+        'transition:filter .5s ease,opacity .5s ease;animation:ca-bot-sover 2.6s ease-in-out infinite;}',
+      '@keyframes ca-bot-sover{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-1px) scale(.97);}}',
+      // Uppvakningen: skakar till, far upp, snurrar ett varv och tänds i färg.
+      '.ca-sp-row.done .ca-sp-bot{filter:none;opacity:1;',
+        'text-shadow:0 0 10px rgba(245,80,54,.85),0 0 20px rgba(167,139,250,.6);',
+        'animation:ca-bot-vaknar 1.15s cubic-bezier(.22,1,.36,1);}',
+      '@keyframes ca-bot-vaknar{',
+        '0%{transform:translateY(0) rotate(0) scale(1);}',
+        '12%{transform:translateX(-2px) rotate(-9deg);}',
+        '24%{transform:translateX(2px) rotate(9deg);}',
+        '36%{transform:translateX(-2px) rotate(-6deg);}',
+        '55%{transform:translateY(-7px) rotate(360deg) scale(1.35);}',
+        '75%{transform:translateY(2px) rotate(360deg) scale(.95);}',
+        '100%{transform:none;}}',
+      // Efter uppvakningen: en lugn andning i glöden, så raden fortsätter leva.
+      '.ca-sp-row.done .ca-sp-bot.ca-bot-vaken{animation:ca-bot-andas 2.4s ease-in-out infinite;}',
+      '@keyframes ca-bot-andas{',
+        '0%,100%{text-shadow:0 0 8px rgba(245,80,54,.6),0 0 16px rgba(167,139,250,.4);transform:translateY(0);}',
+        '50%{text-shadow:0 0 14px rgba(245,80,54,.95),0 0 26px rgba(167,139,250,.7);transform:translateY(-2px);}}',
       '.ca-sp-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25;}',
       '.ca-sp-tx b{font-size:.83rem;font-weight:700;color:#f1e9ff;}',
       '.ca-sp-tx i{font-size:.69rem;font-style:normal;color:rgba(233,213,255,.62);',
@@ -173,9 +230,11 @@
         '.ca-sp-core{width:74px;height:74px;margin-bottom:11px;}',
         '.ca-sp-node{width:52px;height:52px;border-radius:16px;}',
         '.ca-sp-chip{margin-bottom:11px;}',
-        '.ca-sp-boot{margin-bottom:15px;font-size:.72rem;}',
-        '.ca-sp-rows{gap:7px;}',
-        '.ca-sp-row{padding:8px 12px;gap:10px;}',
+        // Tio rader i stället för sju: utan den här åtstramningen hamnade laddstapeln under
+        // fold på en 780 px hög telefon (uppmätt i skärmbild, inte gissat).
+        '.ca-sp-boot{margin-bottom:12px;font-size:.72rem;}',
+        '.ca-sp-rows{gap:6px;}',
+        '.ca-sp-row{padding:7px 12px;gap:10px;}',
         '.ca-sp-tx b{font-size:.8rem;}.ca-sp-tx i{font-size:.67rem;}',
         '.ca-sp-bar{margin-top:14px;}',
       '}',
@@ -203,13 +262,16 @@
   function subFor(row) {
     if (row.kind === 'models')   return 'L\xe4ser bildatabasen…';
     if (row.kind === 'insights') return insightsText(cachedInsights);
+    if (row.kind === 'el')       return elText();
+    if (row.kind === 'fuel')     return fuelText();
+    if (row.kind === 'groq')     return groqText(false);
     return row.s;
   }
 
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="ca-sp-row" data-i="' + i + '">' +
-        '<span class="ca-sp-ic">' + r.ic + '</span>' +
+        '<span class="ca-sp-ic' + (r.kind === 'groq' ? ' ca-sp-bot' : '') + '">' + r.ic + '</span>' +
         '<span class="ca-sp-tx"><b>' + r.t + '</b><i class="ca-sp-suba">' + subFor(r) + '</i></span>' +
         '<span class="ca-sp-st"><span class="ca-sp-spin"></span></span>' +
       '</div>';
@@ -268,11 +330,34 @@
     animate(el, 1200, function (e) { return insightsText(Math.round(from + (n - from) * e)); });
   }
 
+  /** Skriver om en rads undertext på plats — används när live-datan kommer efter att raden ritats. */
+  function sattSub(i, html) {
+    var el = suba(i);
+    if (el) el.innerHTML = html;
+  }
+
+  function refreshLive() {
+    sattSub(EL_ROW, elText());
+    sattSub(FUEL_ROW, fuelText());
+    var groqRad = document.querySelector('.ca-sp-row[data-i="' + GROQ_ROW + '"]');
+    sattSub(GROQ_ROW, groqText(!!(groqRad && groqRad.classList.contains('done'))));
+  }
+
   function fetchStats() {
     fetch(API + '/api/stats')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d) return;
+        if (d.live) {
+          // Servern skickar 0 för ett pris den ännu inte hunnit hämta — då står den
+          // beskrivande texten kvar, hellre än en nolla som ser ut som ett mätvärde.
+          if (d.live.model)      live.model    = String(d.live.model);
+          if (d.live.bensin95 > 0) live.bensin95 = d.live.bensin95;
+          if (d.live.diesel > 0)   live.diesel   = d.live.diesel;
+          if (d.live.elHemma > 0)  live.elHemma  = d.live.elHemma;
+          if (d.live.elSnabb > 0)  live.elSnabb  = d.live.elSnabb;
+          refreshLive();
+        }
         if (d.models > 0)   { targets.models   = clampFloor(d.models, CAR_MODELS);     try { localStorage.setItem(MODELS_KEY, String(d.models)); } catch (e) {} }
         if (d.variants > 0) { targets.variants = clampFloor(d.variants, CAR_VARIANTS); try { localStorage.setItem(VARIANTS_KEY, String(d.variants)); } catch (e) {} }
         refreshModels();
@@ -361,13 +446,16 @@
       animated.models = true; // så refreshModels() uppdaterar till live-siffran när /api/stats svarar
       var mEl = suba(MODELS_ROW); if (mEl) mEl.innerHTML = modelsText(1, targets.models, targets.variants);
       animateInsights();
+      sattSub(GROQ_ROW, groqText(true)); // raderna är redan "done" här
       if (fill) fill.style.width = '100%';
       timers.push(setTimeout(finish, 2200));
       return;
     }
 
-    // ~5,5 s total: rader tickar in (loading-känsla), sen "boot complete"-flärt
-    var START = 420, STAGGER = 500, FLIP = 360;
+    // ~5,5 s total: rader tickar in (loading-känsla), sen "boot complete"-flärt.
+    // STAGGER sänktes från 500 till 380 när raderna blev tio — total tid före "klar" ska
+    // ligga kvar där den var, annars betalar besökaren för de nya datapunkterna i väntan.
+    var START = 420, STAGGER = 380, FLIP = 300;
     rows.forEach(function (row, i) {
       var appear = START + i * STAGGER;
       timers.push(setTimeout(function () {
@@ -378,6 +466,13 @@
       timers.push(setTimeout(function () {
         row.classList.add('done');
         row.querySelector('.ca-sp-st').innerHTML = '<span class="ca-sp-check">✓</span>';
+        if (i === GROQ_ROW) {
+          sattSub(GROQ_ROW, groqText(true));
+          // Andningen tar vid när uppvakningen spelat klart — samma element, andra animation,
+          // så klassen får inte sättas förrän keyframe-sekvensen är slut.
+          var bot = row.querySelector('.ca-sp-bot');
+          if (bot) timers.push(setTimeout(function () { bot.classList.add('ca-bot-vaken'); }, 1200));
+        }
         if (fill) fill.style.width = Math.round((i + 1) / rows.length * 100) + '%';
         if (i === rows.length - 1) timers.push(setTimeout(finish, 500));
       }, appear + FLIP));

@@ -2143,6 +2143,63 @@ function caRullaTillAppen() {
  * knapparnas egen visning ({@code style.display}) rörs inte: den sätts och nollställs på
  * knapparna själva, inte på behållaren.
  */
+/**
+ * Gömmer undan "Dela sökning" och "Nollställ" ur huvudknappraden.
+ *
+ * <p>De satt som två fyrkantiga knappar bredvid "Hitta min bil" och tog plats från sidans enda
+ * viktiga knapp. Nu ligger de som små textlänkar på egen rad under den — undanstoppade men
+ * fortfarande nåbara. Delning finns dessutom kvar i resultatpanelen.
+ *
+ * <p><b>Varför i kod och inte bara i markupen.</b> Blocket är omklistrat i WordPress-sidan, och
+ * en ändring i wordpress-snippet.html syns inte förrän någon klistrar in det på nytt. Samma
+ * grepp som evFixPromoText i ev-charging.js: skriptet laddas på sidan och uppdateras vid deploy,
+ * så det kan flytta knapparna direkt. Har blocket redan den nya raden gör funktionen ingenting.
+ *
+ * <p>Stilen skrivs med TVÅ id-selektorer. Blockets egen CSS ligger i en {@code <style>} i
+ * body:n, alltså senare i dokumentordningen än ett injicerat huvud-style — vid samma
+ * specificitet hade blockets gamla knappstil vunnit.
+ */
+function caGomUndanSmaval() {
+  var dela = document.getElementById('ca-share-search-btn');
+  var noll = document.getElementById('ca-reset-btn');
+  if (!dela && !noll) return;
+
+  if (!document.getElementById('ca-smaval-style')) {
+    var st = document.createElement('style');
+    st.id = 'ca-smaval-style';
+    st.textContent =
+      '#ca-smaval{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;}' +
+      '#ca-smaval .ca-smaval-sep{color:rgba(255,255,255,0.18);font-size:0.8rem;}' +
+      '#ca-smaval #ca-share-search-btn,#ca-smaval #ca-reset-btn{' +
+        'background:none;border:none;padding:7px 6px;font-family:inherit;font-size:0.82rem;' +
+        'color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;text-decoration:underline;' +
+        'text-decoration-color:rgba(255,255,255,0.16);text-underline-offset:3px;' +
+        'transition:color 0.2s,text-decoration-color 0.2s;border-radius:0;box-shadow:none;}' +
+      '#ca-smaval #ca-share-search-btn:hover,#ca-smaval #ca-reset-btn:hover{' +
+        'color:rgba(255,255,255,0.85);text-decoration-color:rgba(255,255,255,0.45);}' +
+      '#ca-smaval #ca-share-search-btn.copied{color:#34d399;text-decoration-color:rgba(52,211,153,0.45);}';
+    document.head.appendChild(st);
+  }
+
+  var rad = document.getElementById('ca-smaval');
+  if (!rad) {
+    var area = document.getElementById('ca-btn-area');
+    if (!area) return;
+    rad = document.createElement('div');
+    rad.id = 'ca-smaval';
+    area.parentNode.insertBefore(rad, area.nextSibling);
+  }
+  if (dela && dela.parentNode !== rad) rad.appendChild(dela);
+  if (dela && noll && !rad.querySelector('.ca-smaval-sep')) {
+    var sep = document.createElement('span');
+    sep.className = 'ca-smaval-sep';
+    sep.setAttribute('aria-hidden', 'true');
+    sep.textContent = '·';
+    rad.appendChild(sep);
+  }
+  if (noll && noll.parentNode !== rad) rad.appendChild(noll);
+}
+
 function caResultatradIhop() {
   var head = document.querySelector('#ca-results .ca-result-header');
   var akt  = document.querySelector('#ca-results .ca-result-actions');
@@ -4994,6 +5051,7 @@ function caInit() {
   caByggVag();
   caGroqBadge();
   caResultatradIhop();
+  caGomUndanSmaval();
   caRullaTillAppen();
   caHopfallbar(document.getElementById('ca-freecompare'),
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');

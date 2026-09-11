@@ -209,6 +209,29 @@ public class GroqService {
     private final ElectricityPriceService electricityPriceService;
     private final LeasingPriceService leasingPriceService;
 
+    /**
+     * Vad splashens datarader ska visa: modellnamnet rekommendationerna körs på och de priser
+     * som redan ligger i cachen.
+     *
+     * <p>Går via GroqService därför att det är den som äger båda pristjänsterna — alternativet
+     * hade varit att injicera dem en andra gång i controllern. Värdena hämtas utan att blockera:
+     * en sidladdning får aldrig vänta på en systertjänst som sover (se
+     * {@link FuelPriceService#senastKandaPriser()}).
+     *
+     * @return karta med {@code model}, {@code bensin95}, {@code diesel}, {@code elHemma} och
+     *         {@code elSnabb}; prisfälten är 0 tills en hämtning lyckats.
+     */
+    public java.util.Map<String, Object> splashDatapunkter() {
+        double[] bransle = fuelPriceService.senastKandaPriser();
+        java.util.Map<String, Object> ut = new java.util.LinkedHashMap<>();
+        ut.put("model", model);
+        ut.put("bensin95", bransle[0]);
+        ut.put("diesel", bransle[1]);
+        ut.put("elHemma", ElectricityPriceService.HEMMA_KR_PER_KWH);
+        ut.put("elSnabb", electricityPriceService.senastKandSnabbladdning());
+        return ut;
+    }
+
     public GroqService(ExpertInsightService expertInsightService, SafetyRatingService safetyRatingService,
                        EvSpecService evSpecService, CargoSpecService cargoSpecService,
                        BlocketPriceService blocketPriceService, NewCarPriceService newCarPriceService,
