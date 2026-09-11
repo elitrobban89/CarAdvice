@@ -18,22 +18,91 @@
   var SEEN_KEY = 'ev_splash_seen_v1';
   var CARS_KEY = 'ev_car_count';
 
+  var BILRESA = window.EV_BILRESA_URL || 'https://bilresa.onrender.com';
+
   var CARS_FLOOR = 90; // siffran visas aldrig lägre än detta även innan /api/cars svarat
-  var CARS_ROW = 2;    // raden som visar antal elbilar
+  var CARS_ROW      = 2;  // antal elbilar
+  var GROQ_ROW      = 0;  // språkmodellens namn
+  var RACKVIDD_ROW  = 3;  // snitt/längst räckvidd
+  var BATTERI_ROW   = 4;  // batteristorlekar och laddeffekt
+  var ELPRIS_ROW    = 5;  // spotpris per elområde
+  var LADDPRIS_ROW  = 6;  // operatörernas kWh-priser
+  var BILPRIS_ROW   = 7;  // vad bilarna kostar
 
   var FORCE = /[?&]splash=1/.test(location.search);
 
-  // Alla datakällor appen faktiskt använder — de med tag:'ONLINE' får en pulsande grön pill.
+  // Raderna ÄR appens datakällor, och siffrorna på dem är RIKTIGA — hämtade ur samma
+  // endpoints som appen själv använder (/api/cars, /api/charging-price, /api/health och
+  // Bilresas /api/electricity-price). Varje rad har en beskrivande text som står kvar tills
+  // datan kommer; kommer den aldrig (tjänsten sover, nätet strular) ser besökaren en hel
+  // rad ändå i stället för en tom siffra. De med tag:'ONLINE' får en pulsande grön pill.
   var ROWS = [
-    { ic: '🤖', t: 'Groq AI',        s: 'Spr\xe5kmodell startad', tag: 'ONLINE' },
+    { ic: '🤖', t: 'Groq AI',        kind: 'groq', tag: 'ONLINE' },
     { ic: '🗄️', t: 'PostgreSQL',     s: 'ev_spec-databasen ansluten', tag: 'ONLINE' },
     { ic: '🔋', t: 'Elbilar',        kind: 'cars' },
+    { ic: '🛣️', t: 'R\xe4ckvidd',     kind: 'rackvidd' },
+    { ic: '⚡',       t: 'Batteri &amp; effekt', kind: 'batteri' },
+    { ic: '💡', t: 'Elpriser',       kind: 'elpris', tag: 'LIVE' },
+    { ic: '💰', t: 'Laddpriser',     kind: 'laddpris', tag: 'LIVE' },
+    { ic: '💸', t: 'Bilpriser',      kind: 'bilpris' },
     { ic: '🔌', t: 'Laddstationer',  s: 'Open Charge Map \xb7 realtidsdata', tag: 'LIVE' },
-    { ic: '💰', t: 'Laddpriser',     s: 'Chargeprice \xb7 aktuella kWh-priser' },
-    { ic: '📊', t: 'S\xe4ljstatistik', s: 'Mest s\xe5lda elbilar i Sverige' },
-    { ic: '🗺️', t: 'Ruttplanering',  s: 'Laddstopp l\xe4ngs din resa \xb7 OSRM' },
-    { ic: '💡', t: 'Laddtips',       s: 'Smarta tips fr\xe5n databasen' }
+    { ic: '🗺️', t: 'Ruttplanering',  s: 'Laddstopp l\xe4ngs din resa \xb7 OSRM' }
   ];
+
+  // Live-siffror; tomma tills respektive anrop svarat.
+  var live = {
+    model: '', rackviddSnitt: 0, rackviddMax: 0, rackviddBil: '',
+    battMin: 0, battMax: 0, effektMax: 0,
+    zoner: null, laddSnitt: 0, laddBillig: null, laddDyr: null,
+    prisMin: 0, prisMinBil: '', prisSnitt: 0
+  };
+
+  function kr(n) { return Math.round(n).toLocaleString('sv-SE'); }
+  function dec(n, d) { return n.toLocaleString('sv-SE', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+
+  function groqText() {
+    return live.model ? '<b>' + live.model + '</b> \xb7 svarar p\xe5 Groq LPU'
+                      : 'Spr\xe5kmodell startad';
+  }
+  function rackviddText() {
+    if (!live.rackviddSnitt) return 'WLTP-r\xe4ckvidd f\xf6r varje modell';
+    var s = 'snitt <b>' + kr(live.rackviddSnitt) + ' km</b>';
+    if (live.rackviddMax) {
+      s += ' \xb7 l\xe4ngst <b>' + kr(live.rackviddMax) + ' km</b>';
+      if (live.rackviddBil) s += ' (' + live.rackviddBil + ')';
+    }
+    return s;
+  }
+  function batteriText() {
+    if (!live.battMax) return 'Batteristorlek &amp; max laddeffekt';
+    var s = '<b>' + dec(live.battMin, 0) + '–' + dec(live.battMax, 0) + ' kWh</b>';
+    if (live.effektMax) s += ' \xb7 snabbladdning upp till <b>' + kr(live.effektMax) + ' kW</b>';
+    return s;
+  }
+  function elprisText() {
+    if (!live.zoner || !live.zoner.length) return 'Spotpris SE1–SE4 \xb7 elprisetjustnu.se';
+    return live.zoner.slice(0, 4).map(function (z) {
+      return z.zone + ' <b>' + dec(z.spot, 2) + '</b>';
+    }).join(' \xb7 ') + ' kr/kWh';
+  }
+  // Raderna är ENRADIGA med ellips (se .ev-sp-tx i), så texten måste få plats i kortets
+  // ~400 px. Uppmätt: "billigast X … dyrast Y" och bilnamnet i prisraden klipptes båda —
+  // därför pil mellan operatörerna och inget modellnamn här.
+  function laddprisText() {
+    if (!live.laddSnitt) return 'Operat\xf6rernas kWh-priser';
+    var s = 'snitt <b>' + dec(live.laddSnitt, 2) + ' kr/kWh</b>';
+    if (live.laddBillig && live.laddDyr) {
+      s += ' \xb7 ' + live.laddBillig.operator + ' <b>' + dec(live.laddBillig.priceKr, 2) + '</b>'
+         + ' → ' + live.laddDyr.operator + ' <b>' + dec(live.laddDyr.priceKr, 2) + '</b>';
+    }
+    return s;
+  }
+  function bilprisText() {
+    if (!live.prisMin) return 'Nypriser f\xf6r varje modell';
+    var s = 'fr\xe5n <b>' + kr(live.prisMin) + ' kr</b>';
+    if (live.prisSnitt) s += ' \xb7 snitt <b>' + kr(Math.round(live.prisSnitt / 1000) * 1000) + ' kr</b>';
+    return s;
+  }
 
   var BOOT_PHRASES = ['ansluter till Groq AI', 'l\xe4ser in laddstationer', 'kalibrerar laddeffekt &amp; priser', 'planerar optimala laddstopp'];
 
@@ -227,7 +296,13 @@
     '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/></svg>';
 
   function subFor(row) {
-    if (row.kind === 'cars') return 'L\xe4ser elbilsdatabasen…';
+    if (row.kind === 'cars')     return 'L\xe4ser elbilsdatabasen…';
+    if (row.kind === 'groq')     return groqText();
+    if (row.kind === 'rackvidd') return rackviddText();
+    if (row.kind === 'batteri')  return batteriText();
+    if (row.kind === 'elpris')   return elprisText();
+    if (row.kind === 'laddpris') return laddprisText();
+    if (row.kind === 'bilpris')  return bilprisText();
     return row.s;
   }
 
@@ -291,7 +366,21 @@
     if (el) el.innerHTML = carsText(1);
   }
 
+  /** Skriver om en rads undertext på plats när siffrorna kommit. */
+  function sattSub(i, html) {
+    var el = suba(i);
+    if (el) el.innerHTML = html;
+  }
+
+  /**
+   * Hämtar siffrorna till raderna.
+   *
+   * <p>Alla fyra anropen är FRISTÅENDE och fail-soft: svarar ett inte står den beskrivande
+   * texten kvar på just den raden. Splashen väntar aldrig på dem — den har sitt eget tak
+   * (se narDataFinns), och tjänsten den frågar är samma som appen ändå håller på att väcka.
+   */
   function fetchStats() {
+    // 1. Bilarna: antal, räckvidd, batteri, effekt och pris i EN hämtning.
     fetch(API + '/api/cars')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
@@ -299,6 +388,67 @@
         targetCars = clampFloor(d.length, CARS_FLOOR);
         try { localStorage.setItem(CARS_KEY, String(d.length)); } catch (e) {}
         refreshCars();
+
+        var rack = 0, rackN = 0, bastBil = null;
+        var battMin = 0, battMax = 0, effekt = 0;
+        var prisMin = 0, prisMinBil = '', prisSum = 0, prisN = 0;
+        d.forEach(function (b) {
+          if (b.rangeKm > 0) {
+            rack += b.rangeKm; rackN++;
+            if (!bastBil || b.rangeKm > bastBil.rangeKm) bastBil = b;
+          }
+          if (b.batteryKwh > 0) {
+            if (!battMin || b.batteryKwh < battMin) battMin = b.batteryKwh;
+            if (b.batteryKwh > battMax) battMax = b.batteryKwh;
+          }
+          if (b.maxDcKw > effekt) effekt = b.maxDcKw;
+          if (b.priceKr > 0) {
+            prisSum += b.priceKr; prisN++;
+            if (!prisMin || b.priceKr < prisMin) { prisMin = b.priceKr; prisMinBil = b.name || ''; }
+          }
+        });
+        if (rackN) { live.rackviddSnitt = rack / rackN; }
+        if (bastBil) { live.rackviddMax = bastBil.rangeKm; live.rackviddBil = bastBil.name || ''; }
+        live.battMin = battMin; live.battMax = battMax; live.effektMax = effekt;
+        live.prisMin = prisMin; live.prisMinBil = prisMinBil;
+        if (prisN) live.prisSnitt = prisSum / prisN;
+
+        sattSub(RACKVIDD_ROW, rackviddText());
+        sattSub(BATTERI_ROW, batteriText());
+        sattSub(BILPRIS_ROW, bilprisText());
+      })
+      .catch(function () {});
+
+    // 2. Modellnamnet — serverns eget svar, inte en avskriven sträng.
+    fetch(API + '/api/health', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.model) return;
+        live.model = String(d.model);
+        sattSub(GROQ_ROW, groqText());
+      })
+      .catch(function () {});
+
+    // 3. Laddpriserna: nationellt snitt plus billigaste och dyraste operatör.
+    fetch(API + '/api/charging-price')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) return;
+        live.laddSnitt  = d.avgNationalKr || d.priceKr || 0;
+        live.laddBillig = (d.cheapest && d.cheapest.operator) ? d.cheapest : null;
+        live.laddDyr    = (d.priciest && d.priciest.operator) ? d.priciest : null;
+        sattSub(LADDPRIS_ROW, laddprisText());
+      })
+      .catch(function () {});
+
+    // 4. Spotpriset per elområde. Ligger hos Bilresa — samma källa som appens egen elprisrad,
+    // och den tjänsten kan sova: uteblir svaret står SE1–SE4-texten kvar.
+    fetch(BILRESA + '/api/electricity-price?zone=alla')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !Array.isArray(d.zones) || !d.zones.length) return;
+        live.zoner = d.zones;
+        sattSub(ELPRIS_ROW, elprisText());
       })
       .catch(function () {});
   }
@@ -444,7 +594,9 @@
     }
 
     // ~5,5 s total: rader tickar in (laddkänsla), sen "fulladdad"-flärt
-    var START = 400, STAGGER = 440, FLIP = 340;
+    // STAGGER sankt 440 -> 360 nar raderna blev tio: total tid fore "fulladdad" ska ligga
+    // kvar dar den var, annars betalar besokaren for de nya siffrorna i vantan.
+    var START = 400, STAGGER = 360, FLIP = 300;
     rows.forEach(function (row, i) {
       var appear = START + i * STAGGER;
       timers.push(setTimeout(function () {
