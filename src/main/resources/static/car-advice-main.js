@@ -1259,11 +1259,16 @@ function caBudgetSnabbval() {
         'text-decoration-color:rgba(255,255,255,.2);text-underline-offset:3px;white-space:nowrap;}' +
       '#ca-budget-tak:hover{color:rgba(255,255,255,.85);}' +
       // Telefon: knapparna mättes till 30 px höga, vilket är i minsta laget för en tumme.
-      // Samma tal, större yta.
+      // Vadd tog dem till 37 — nu sätts höjden i stället, till de 44 px som är vedertaget
+      // fingermål. Höjden får INTE komma från mer vadd: knapparna står på en rad som redan
+      // radbryter, och vadd växer även i sidled. min-height + centrering håller bredden.
+      // box-sizing sätts här också så de 44 blir hela knappen, oberoende av sidans reset.
       '@media (max-width:520px){' +
         '#ca-budget-snabb{gap:7px;}' +
-        '#ca-budget-snabb .ca-bsnabb{padding:9px 15px;font-size:.8rem;}' +
-        '#ca-budget-tak{padding:9px 2px;font-size:.8rem;}' +
+        '#ca-budget-snabb .ca-bsnabb{box-sizing:border-box;min-height:44px;padding:0 15px;' +
+          'font-size:.8rem;display:inline-flex;align-items:center;justify-content:center;}' +
+        '#ca-budget-tak{box-sizing:border-box;min-height:44px;padding:0 2px;font-size:.8rem;' +
+          'display:inline-flex;align-items:center;}' +
       '}';
     document.head.appendChild(st);
   }
