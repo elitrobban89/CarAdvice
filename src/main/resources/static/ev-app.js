@@ -73,6 +73,92 @@
   }
   window.evDataKlar = evDataKlar;
 
+  // ── Landa i appen, inte i rubriken ────────────────────────────────────────
+  //
+  // WP-sidan börjar med sidhuvud, meny och en hero-rubrik; appen ligger under den.
+  // Besökaren såg splashen släppa och landade sedan i en rubrik hen redan läst, och fick
+  // leta rätt på appen själv. Nu rullas appen fram i stället — en gång, direkt efter
+  // splashen, för ALLA besökare.
+  //
+  // Två vägar in, för splashen visas inte för alla: eventet `ev-splash-klar` från
+  // ev-splash.js när lagret släpper scrollen, och ett tak som rullar ändå när ingen
+  // splash dök upp (en återkommande besökare utan kallstart ser ingen). Taket ligger
+  // EFTER kallstartsvaktens 900 ms — annars hade det rullat innan splashen hann
+  // bestämma sig, och sedan rullat en andra gång när den ändå kom.
+  let evRullningGjord = false;
+  let evAnvandarenRullade = false;
+
+  (function bevakaEgenScroll() {
+    const EGNA_TANGENTER = { PageDown: 1, PageUp: 1, End: 1, Home: 1, ArrowDown: 1, ArrowUp: 1, " ": 1 };
+    function egenRorelse(e) {
+      // Splashen låser scrollen. Allt som händer MEDAN den ligger uppe är därför inget
+      // val — bara ett hjul som snurrar mot ett låst dokument — och får inte räknas som
+      // att besökaren tagit över.
+      if (document.querySelector(".ev-splash")) return;
+      if (e.type === "keydown" && !EGNA_TANGENTER[e.key]) return;
+      evAnvandarenRullade = true;
+    }
+    ["wheel", "touchmove", "keydown"].forEach(function (t) {
+      window.addEventListener(t, egenRorelse, { passive: true });
+    });
+  })();
+
+  /** Sidhuvud som ligger kvar överst (sticky/fixed) och annars hade täckt appens topp. */
+  function evFastHuvudHojd() {
+    let hojd = 0;
+    const kandidater = document.querySelectorAll('header, #wpadminbar, .site-header, [class*="sticky"]');
+    for (let i = 0; i < kandidater.length; i++) {
+      const el = kandidater[i];
+      let pos = "";
+      try { pos = getComputedStyle(el).position; } catch (e) { continue; }
+      if (pos !== "fixed" && pos !== "sticky") continue;
+      const r = el.getBoundingClientRect();
+      if (r.top <= 4 && r.bottom > hojd) hojd = r.bottom;
+    }
+    return Math.min(hojd, 160);
+  }
+
+  function evAppensTopp() {
+    return document.getElementById("ev-sub-bar") ||
+           document.getElementById("ev-content") ||
+           document.querySelector(".ev-app");
+  }
+
+  function rullaTillAppen() {
+    if (evRullningGjord) return;
+    evRullningGjord = true;
+    // En djuplänk och ett eget scrollval är båda uttryckta önskemål om var sidan ska stå.
+    // De slår vårt förval — annars rycker sidan ifrån besökaren.
+    if (location.hash || evAnvandarenRullade) return;
+    const mal = evAppensTopp();
+    if (!mal) return;
+    const topp = mal.getBoundingClientRect().top + window.pageYOffset - evFastHuvudHojd() - 12;
+    if (topp <= 8) return; // appen syns redan — rulla inte i sidled av ren vana
+    try { window.scrollTo({ top: topp, behavior: evMindreRorelse() ? "auto" : "smooth" }); }
+    catch (e) { window.scrollTo(0, topp); }
+  }
+
+  function evMindreRorelse() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  (function planeraLandning() {
+    const TAK_MS = 1600;
+    let planerat = false;
+    function landa() {
+      if (planerat) return;
+      planerat = true;
+      rullaTillAppen();
+      evVackChatbotenNarSidanSyns();
+    }
+    window.addEventListener("ev-splash-klar", landa);
+    setTimeout(function () {
+      // Ligger splashen kvar sköter eventet ovan landningen — den vet när den släpper.
+      if (document.querySelector(".ev-splash")) return;
+      landa();
+    }, TAK_MS);
+  })();
+
   let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [] };
   // ===== PRISLOGIK BÖRJAR — ren, testas av backend/src/test/js/pris-prov.js =====
   //
@@ -2534,6 +2620,73 @@
     window.open('https://caradvice.onrender.com/subscribe.html?from=elbilsladdning', '_blank', 'width=480,height=650,resizable=yes');
   }
 
+  // ── Chatboten vaknar när sidan landat ─────────────────────────────────────
+  //
+  // Boten satt stilla i hörnet och sågs inte: den som inte redan visste att den fanns
+  // rullade förbi. Uppvakningen är därför en SEKVENS, inte en ikon till — ringar som
+  // slår ut, roboten som bootar (ögonen tänds, antennen gnistrar) och en hälsning som
+  // säger vad den kan. Sedan andas halon vidare tills chatten öppnats.
+  //
+  // Spelas en gång per sidvisning, och aldrig ovanpå en chatt som redan är öppen.
+  let evChatVackt = false;
+
+  function evLugnaChatbot() {
+    const wrap = document.querySelector(".ev-chat-fab-wrap");
+    if (wrap) wrap.classList.remove("ev-lockar", "ev-hej", "ev-vaknar");
+  }
+
+  function vackChatboten() {
+    if (evChatVackt) return;
+    const wrap = document.querySelector(".ev-chat-fab-wrap");
+    if (!wrap) return;
+    evChatVackt = true;
+    if (chatIsOpen()) return;
+
+    const lugnt = evMindreRorelse();
+    wrap.classList.add("ev-lockar");
+    if (!lugnt) {
+      wrap.classList.add("ev-vaknar");
+      setTimeout(function () { wrap.classList.remove("ev-vaknar"); }, 1900);
+    }
+
+    const label = wrap.querySelector(".ev-chat-fab-label");
+    if (label) {
+      label.textContent = "👋 Hej!";
+      // Etiketten delas med ruttipset (triggerRouteProactiveMessage). Skriv bara tillbaka
+      // om det fortfarande är VÅR text som står där, annars klottrar vi över dess besked.
+      //
+      // Jämförelsen får INTE vara mot hela strängen: WordPress emoji-skript byter ut varje
+      // emoji i sidan mot en <img class="emoji">, så textContent läser " Hej!" utan vinken
+      // — mätt i skarpt läge mot den riktiga sidan. En likhetsjämförelse hade därför aldrig
+      // slagit till och etiketten hade stått kvar på "Hej!" för alltid.
+      setTimeout(function () {
+        if (label.textContent.indexOf("Hej!") >= 0) label.textContent = "✨ Fråga AI";
+      }, 9000);
+    }
+
+    setTimeout(function () { if (!chatIsOpen()) wrap.classList.add("ev-hej"); }, lugnt ? 0 : 700);
+    setTimeout(function () { wrap.classList.remove("ev-hej"); }, 9000);
+  }
+
+  /**
+   * Väntar tills splashlagret faktiskt är borta innan boten vaknar.
+   *
+   * Signalen `ev-splash-klar` går när splashen SLÄPPER scrollen, inte när den är borta —
+   * däremellan ligger ~1,3 s täckande yta, och en uppvakning som spelas där syns inte alls.
+   * Rullningen ska ske just då (bakom lagret), uppvakningen efter.
+   */
+  function evVackChatbotenNarSidanSyns() {
+    let forsok = 0;
+    (function vanta() {
+      if (document.querySelector(".ev-splash")) {
+        if (++forsok > 160) return; // ~40 s: splashen hänger kvar, då avstår vi hellre
+        setTimeout(vanta, 250);
+        return;
+      }
+      setTimeout(vackChatboten, 450);
+    })();
+  }
+
   function initChat() {
     const style = document.createElement("style");
     style.textContent = `
@@ -2572,8 +2725,92 @@
         box-shadow:0 4px 16px rgba(29,78,216,.55);
         display:flex;align-items:center;justify-content:center;
         transition:transform .15s,box-shadow .15s;
+        /* Ligger OVANFOR halon och ringarna nedan. Utan egen z-index maler de
+           positionerade lagren over knappen och roboten bleks bort. */
+        position:relative;z-index:1;
       }
       .ev-chat-fab:hover{transform:scale(1.1);box-shadow:0 6px 22px rgba(29,78,216,.7);}
+
+      /* ── Chatboten vaknar ────────────────────────────────────────────────
+         Uppvakningen spelas EN gang nar sidan landat i appen (se vackChatboten).
+         Halon fortsatter sedan andas tills chatten oppnats — hela poangen ar att
+         hornet ska dra blicken till sig, inte att blinka till och forsvinna.
+         Halon och ringarna ligger SIST i .ev-chat-fab-ring med flit: gnistorna
+         adresseras med :nth-child(1..3) och hade tappat sina platser annars. */
+      .ev-chat-halo {
+        position:absolute;inset:-12px;border-radius:50%;pointer-events:none;z-index:0;
+        background:radial-gradient(circle,rgba(59,130,246,.5) 0%,rgba(34,197,94,.18) 52%,transparent 72%);
+        opacity:0;transition:opacity .4s ease;
+      }
+      .ev-chat-fab-wrap.ev-lockar .ev-chat-halo{opacity:1;animation:ev-halo-andas 3.2s ease-in-out infinite;}
+      @keyframes ev-halo-andas {
+        0%,100%{transform:scale(.9);opacity:.5;}
+        50%{transform:scale(1.14);opacity:1;}
+      }
+      .ev-chat-wave {
+        position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:0;
+        border:2px solid rgba(96,165,250,.7);opacity:0;
+      }
+      .ev-chat-fab-wrap.ev-vaknar .ev-chat-wave{animation:ev-wave 1.5s cubic-bezier(.2,.7,.3,1);}
+      .ev-chat-fab-wrap.ev-vaknar .ev-chat-wave:nth-of-type(2){animation-delay:.38s;border-color:rgba(74,222,128,.6);}
+      .ev-chat-fab-wrap.ev-vaknar .ev-chat-wave:nth-of-type(3){animation-delay:.76s;border-color:rgba(251,191,36,.55);}
+      @keyframes ev-wave {
+        0%{transform:scale(.72);opacity:.95;}
+        65%{opacity:.25;}
+        100%{transform:scale(2.5);opacity:0;}
+      }
+      .ev-chat-fab-wrap.ev-vaknar .ev-chat-fab{animation:ev-bot-wake 1.15s cubic-bezier(.22,1,.36,1);}
+      @keyframes ev-bot-wake {
+        0%{transform:scale(.5) rotate(-16deg);}
+        35%{transform:scale(1.2) rotate(9deg);}
+        55%{transform:scale(.94) rotate(-6deg);}
+        75%{transform:scale(1.07) rotate(3deg);}
+        100%{transform:scale(1) rotate(0);}
+      }
+      /* Robotens egna delar: ogonen tands som en skarm som bootar, antennen gnistrar.
+         transform-box:fill-box kravs — utan den raknas SVG-elementets origin fran
+         hela ritytan och ogat flyger ivag i stallet for att blinka. */
+      .ev-bot-eye{transform-box:fill-box;transform-origin:center;}
+      .ev-chat-fab-wrap.ev-vaknar .ev-bot-eye{animation:ev-bot-eye-boot 1.3s ease-out;}
+      @keyframes ev-bot-eye-boot {
+        0%,26%{transform:scaleY(.08);fill:#475569;}
+        42%{transform:scaleY(1);fill:#1e3a8a;}
+        52%{transform:scaleY(.12);fill:#1e3a8a;}
+        64%{transform:scaleY(1);fill:#1e3a8a;}
+        100%{transform:scaleY(1);fill:#1e3a8a;}
+      }
+      .ev-chat-fab-wrap.ev-vaknar .ev-bot-antenna{animation:ev-bot-antenna-spark 1.5s ease-out;}
+      @keyframes ev-bot-antenna-spark {
+        0%{fill:#475569;}
+        30%{fill:#fef08a;}
+        45%{fill:#fbbf24;}
+        60%{fill:#fff7ed;}
+        100%{fill:#fbbf24;}
+      }
+      /* Halsningen. Pekhandelser slacks med flit: bubblan ska aldrig sta i vagen for
+         knappen den pekar pa. */
+      .ev-chat-hej {
+        position:absolute;right:70px;bottom:4px;z-index:1;
+        /* width:max-content KRAVS. Bubblan ar absolut placerad i .ev-chat-fab-wrap, som ar
+           lika smal som knappen (~56 px) — utan egen bredd far den "shrink-to-fit" mot en
+           yta som redan ar negativ efter right:70px, och raderar ut sig till en enda
+           bokstav per rad. Uppmatt i skarmbild mot den riktiga sidan. */
+        width:max-content;max-width:min(230px,calc(100vw - 120px));
+        background:linear-gradient(145deg,rgba(17,40,110,.96),rgba(29,78,216,.92));
+        border:1px solid rgba(147,197,253,.38);border-radius:15px 15px 4px 15px;
+        color:#eaf2ff;font-size:12px;font-weight:600;line-height:1.35;
+        padding:9px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+        pointer-events:none;opacity:0;transform:translateX(12px) scale(.9);
+        transform-origin:100% 100%;transition:opacity .32s ease,transform .32s cubic-bezier(.22,1,.36,1);
+      }
+      .ev-chat-fab-wrap.ev-hej .ev-chat-hej{opacity:1;transform:none;}
+      @media (prefers-reduced-motion:reduce){
+        .ev-chat-halo,.ev-chat-wave,.ev-chat-fab-wrap.ev-vaknar .ev-chat-fab,
+        .ev-chat-fab-wrap.ev-vaknar .ev-bot-eye,.ev-chat-fab-wrap.ev-vaknar .ev-bot-antenna{
+          animation:none!important;
+        }
+        .ev-chat-fab-wrap.ev-lockar .ev-chat-halo{opacity:.75;}
+      }
       .ev-chat-panel {
         position:fixed;bottom:92px;right:24px;z-index:9998;
         width:390px;
@@ -2720,6 +2957,11 @@
           max-height:min(440px, 58dvh);
         }
         .ev-chat-fab-wrap{right:12px;bottom:12px;gap:4px;}
+        /* Bredvid knappen finns ingen plats kvar pa en telefon — halsningen far
+           lagga sig ovanfor i stallet, med hela skarmbredden minus marginalerna. */
+        .ev-chat-hej{right:0;bottom:62px;max-width:calc(100vw - 36px);white-space:normal;
+          border-radius:15px 15px 15px 4px;transform:translateY(10px) scale(.92);transform-origin:100% 0;}
+        .ev-chat-wave{border-radius:15px;}
         .ev-chat-fab{width:48px;height:48px;border-radius:15px;}
         .ev-chat-fab svg{width:29px;height:34px;}
         .ev-chat-fab-label{font-size:10px;padding:2px 8px;}
@@ -2742,6 +2984,8 @@
            tas bort nar hojden tryter, en varning om att svaren kan vara fel kan inte. */
         .ev-chat-disclaimer{padding:2px 10px 5px !important;font-size:.62rem !important;}
         .ev-chat-fab-label{display:none;}
+        /* Liggande telefon: knappen ar redan trang mot panelen, halsningen far stryka pa foten. */
+        .ev-chat-hej{display:none;}
         .ev-chat-fab{width:44px;height:44px;}
         .ev-chat-fab svg{width:27px;height:31px;}
       }
@@ -2780,12 +3024,12 @@
             </defs>
             <!-- antenna -->
             <line x1="22" y1="1" x2="22" y2="6" stroke="#92400e" stroke-width="1.8" stroke-linecap="round"/>
-            <circle cx="22" cy="1" r="2" fill="#fbbf24"/>
+            <circle class="ev-bot-antenna" cx="22" cy="1" r="2" fill="#fbbf24"/>
             <!-- head -->
             <ellipse cx="22" cy="13" rx="10" ry="9" fill="url(#hg)" stroke="#d97706" stroke-width="0.8"/>
             <!-- eyes -->
-            <ellipse cx="18.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
-            <ellipse cx="25.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
+            <ellipse class="ev-bot-eye" cx="18.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
+            <ellipse class="ev-bot-eye" cx="25.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
             <circle cx="19.2" cy="11.2" r="0.7" fill="#fff"/>
             <circle cx="26.2" cy="11.2" r="0.7" fill="#fff"/>
             <!-- smile -->
@@ -2806,7 +3050,12 @@
             <text x="32" y="28" font-size="7" fill="#fef08a">⚡</text>
           </svg>
         </button>
+        <span class="ev-chat-halo"></span>
+        <span class="ev-chat-wave"></span>
+        <span class="ev-chat-wave"></span>
+        <span class="ev-chat-wave"></span>
         </div>
+        <div class="ev-chat-hej">👋 Hej! Jag kan laddning, räckvidd och priser — fråga mig!</div>
       </div>
       <div class="ev-chat-panel" id="ev-chat-panel">
         <div class="ev-chat-header">
@@ -2906,6 +3155,9 @@
 
   function chatSetOpen(open) {
     document.body.classList.toggle("ev-chat-open", open);
+    // Lockropet har gjort sitt i samma stund chatten öppnas — en halo som fortsätter
+    // pulsa bakom en öppen panel är bara brus.
+    if (open) { evChatVackt = true; evLugnaChatbot(); }
     if (open) document.getElementById("ev-chat-input").focus();
   }
 

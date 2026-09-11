@@ -402,6 +402,10 @@
       if (fill) fill.style.width = '100%';
       setPct(pctEl, 100);
       document.documentElement.style.overflow = prevOverflow;
+      // Signalen går HÄR, inte när lagret tas bort: scrollen är upplåst från och med nu,
+      // och de 800 + 540 ms som återstår är precis det fönster där appen hinner rulla fram
+      // bakom en täckande yta. Lyssnaren bor i ev-app.js (rullaTillAppen).
+      try { window.dispatchEvent(new Event('ev-splash-klar')); } catch (e) {}
       timers.push(setTimeout(function () {
         overlay.classList.add('ev-sp-out');
         setTimeout(function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 540);

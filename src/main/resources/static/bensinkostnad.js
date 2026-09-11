@@ -2917,6 +2917,71 @@ window.addEventListener('message', function(ev) {
   }
 });
 
+// ── Landa i kalkylatorn, inte i säljtexten ────────────
+//
+// WP-sidan inleds med sidhuvud, rubrik och tre säljstycken innan formuläret börjar.
+// Besökaren såg splashen släppa och landade sedan i text hen redan läst, och fick leta
+// rätt på kalkylatorn själv. Nu rullas den fram — en gång, för ALLA besökare.
+//
+// Två vägar in, för splashen visas bara första besöket per webbläsare: eventet
+// `bc-splash-klar` när lagret släpper scrollen, och ett tak som rullar ändå när ingen
+// splash dök upp. Samma mönster som elbilsappens rullaTillAppen().
+var bcRullningGjord = false;
+var bcAnvandarenRullade = false;
+
+(function bcBevakaEgenScroll() {
+  var EGNA = { PageDown: 1, PageUp: 1, End: 1, Home: 1, ArrowDown: 1, ArrowUp: 1, ' ': 1 };
+  function egen(e) {
+    // Splashen låser scrollen. Ett hjul som snurrar mot ett låst dokument är inget val
+    // och får därför inte räknas som att besökaren tagit över.
+    if (document.querySelector('.bcsp')) return;
+    if (e.type === 'keydown' && !EGNA[e.key]) return;
+    bcAnvandarenRullade = true;
+  }
+  ['wheel', 'touchmove', 'keydown'].forEach(function (t) {
+    window.addEventListener(t, egen, { passive: true });
+  });
+})();
+
+/** Sidhuvud som ligger kvar överst (sticky/fixed) och annars hade täckt kalkylatorns topp. */
+function bcFastHuvudHojd() {
+  var hojd = 0;
+  var kandidater = document.querySelectorAll('header, #wpadminbar, .site-header, [class*="sticky"]');
+  for (var i = 0; i < kandidater.length; i++) {
+    var pos = '';
+    try { pos = getComputedStyle(kandidater[i]).position; } catch (e) { continue; }
+    if (pos !== 'fixed' && pos !== 'sticky') continue;
+    var r = kandidater[i].getBoundingClientRect();
+    if (r.top <= 4 && r.bottom > hojd) hojd = r.bottom;
+  }
+  return Math.min(hojd, 160);
+}
+
+function bcRullaTillAppen() {
+  if (bcRullningGjord) return;
+  bcRullningGjord = true;
+  // En djuplänk och ett eget scrollval är båda uttryckta önskemål om var sidan ska stå.
+  // De slår vårt förval — annars rycker sidan ifrån besökaren.
+  if (location.hash || bcAnvandarenRullade) return;
+  var mal = document.querySelector('.bc-wrap');
+  if (!mal) return;
+  var topp = mal.getBoundingClientRect().top + window.pageYOffset - bcFastHuvudHojd() - 12;
+  if (topp <= 8) return; // kalkylatorn syns redan
+  var lugnt = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  try { window.scrollTo({ top: topp, behavior: lugnt ? 'auto' : 'smooth' }); }
+  catch (e) { window.scrollTo(0, topp); }
+}
+
+(function bcPlaneraLandning() {
+  var TAK_MS = 1400;
+  window.addEventListener('bc-splash-klar', bcRullaTillAppen);
+  setTimeout(function () {
+    // Ligger splashen kvar sköter eventet ovan landningen — den vet när den släpper.
+    if (document.querySelector('.bcsp')) return;
+    bcRullaTillAppen();
+  }, TAK_MS);
+})();
+
 // ── Starta när DOM är redo ────────────────────────────
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', function() { bcWireEvents(); bcUpdateDemoUI(); bcVerifyLogin(); });
@@ -3251,6 +3316,10 @@ if (document.readyState === 'loading') {
       if (fill) fill.style.width = '100%';
       setPct(pctEl, 100);
       document.documentElement.style.overflow = prevOverflow;
+      // Signalen går HÄR, inte när lagret tas bort: scrollen är upplåst från och med nu,
+      // och de 800 + 540 ms som återstår är precis det fönster där sidan hinner rulla fram
+      // bakom en täckande yta. Lyssnaren är bcRullaTillAppen ovan.
+      try { window.dispatchEvent(new Event('bc-splash-klar')); } catch (e) {}
       timers.push(setTimeout(function () {
         overlay.classList.add('bcsp-out');
         setTimeout(function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 540);
