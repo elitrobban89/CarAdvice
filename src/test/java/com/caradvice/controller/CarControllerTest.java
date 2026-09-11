@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -79,6 +80,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.UsageStatsService usageStatsService;
     @MockBean private com.caradvice.service.VpicYearCheckService vpicYearCheckService;
     @MockBean private com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
+    @MockBean private com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
 
     // --- health ---
 
@@ -928,6 +930,61 @@ class CarControllerTest {
 
         // Kollen är rådgivande — den får aldrig släppa en rad på egen hand.
         verify(upcomingInsightService, never()).release(any());
+    }
+
+    @Test
+    void autoslappetKraverNyckel() throws Exception {
+        // Det enda skrivande anropet i kön som en automatik gör — nyckeln är hela spärren.
+        mvc.perform(post("/api/admin/insights/upcoming/auto-release"))
+           .andExpect(status().isForbidden());
+        verify(upcomingAutoReleaseService, never()).kor(anyBoolean());
+    }
+
+    @Test
+    void autoslappetRedovisarBadeSlapptOchKvarstaende() throws Exception {
+        /*
+         * Svaret läses av nattrutinen, som ska kunna skriva en rapport UTAN att själv välja id:n.
+         * Därför måste tre saker synas: vad som släpptes, vad som står kvar på samma bil (annars
+         * faller bilen tyst till GRANSKA i morgon), och om taket stoppade hela körningen.
+         */
+        var utfall = new com.caradvice.service.UpcomingAutoReleaseService.Utfall(
+                2, 1, false, false,
+                List.of(new com.caradvice.service.UpcomingAutoReleaseService.Slappt(
+                        "Volvo", "EX40", 42, List.of(1483L, 1473L), List.of(1486L, 1474L))),
+                new com.caradvice.service.UpcomingAdCheckService.Rapport(
+                        4, 8, 0,
+                        new java.util.LinkedHashMap<>(Map.of(
+                                "LARM", 1L, "UPPSLAG_MISSLYCKADES", 0L,
+                                "GRANSKA", 3L, "INGA_ANNONSER", 0L)),
+                        List.of()));
+        when(upcomingAutoReleaseService.kor(false)).thenReturn(utfall);
+
+        mvc.perform(post("/api/admin/insights/upcoming/auto-release").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.slappta").value(2))
+           .andExpect(jsonPath("$.bilar").value(1))
+           .andExpect(jsonPath("$.dryRun").value(false))
+           .andExpect(jsonPath("$.taketSlogTill").value(false))
+           .andExpect(jsonPath("$.per[0].carModel").value("EX40"))
+           .andExpect(jsonPath("$.per[0].slappta[0]").value(1483))
+           .andExpect(jsonPath("$.per[0].kvar[0]").value(1486))
+           .andExpect(jsonPath("$.perStatus.GRANSKA").value(3));
+    }
+
+    @Test
+    void autoslappetsDryRunNarFramTillTjansten() throws Exception {
+        // Provet som rutinen kan köra utan att röra något — flaggan måste faktiskt gå hela vägen.
+        when(upcomingAutoReleaseService.kor(true)).thenReturn(
+                new com.caradvice.service.UpcomingAutoReleaseService.Utfall(
+                        0, 0, true, false, List.of(),
+                        new com.caradvice.service.UpcomingAdCheckService.Rapport(
+                                0, 0, 0, new java.util.LinkedHashMap<>(), List.of())));
+
+        mvc.perform(post("/api/admin/insights/upcoming/auto-release")
+                        .param("dryRun", "true").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.dryRun").value(true));
+        verify(upcomingAutoReleaseService).kor(true);
     }
 
     @Test

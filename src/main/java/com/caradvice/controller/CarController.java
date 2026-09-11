@@ -82,6 +82,7 @@ public class CarController {
     private final com.caradvice.service.UsageStatsService usageStatsService;
     private final com.caradvice.service.EvFactCandidateService evFactCandidateService;
     private final com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
+    private final com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -172,7 +173,9 @@ public class CarController {
                          com.caradvice.service.UsageStatsService usageStatsService,
                          com.caradvice.service.VpicYearCheckService vpicYearCheckService,
                          com.caradvice.service.EvFactCandidateService evFactCandidateService,
-                         com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService) {
+                         com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService,
+                         com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService) {
+        this.upcomingAutoReleaseService = upcomingAutoReleaseService;
         this.upcomingAdCheckService = upcomingAdCheckService;
         this.evFactCandidateService = evFactCandidateService;
         this.vpicYearCheckService = vpicYearCheckService;
@@ -327,6 +330,34 @@ public class CarController {
                 "hoppade", rapport.hoppade(),
                 "perStatus", rapport.perStatus(),
                 "domar", rapport.domar()));
+    }
+
+    /**
+     * Admin: kör annonskollen och SLÄPP det den kan döma utan mänsklig avvägning.
+     *
+     * <p>Det enda skrivande anropet i kommande-kön som en automatik får göra, och gränsen för vad
+     * den rör står i {@link com.caradvice.service.UpcomingAutoReleaseService} — inte i anroparens
+     * prompt. Nattrutinen kallar alltså på ett beslut som redan är fattat i kod och testat, i
+     * stället för att själv välja id:n ur rapporten.
+     *
+     * <p>{@code ?dryRun=true} svarar med exakt samma utfall utan att röra en rad. Svaret bär
+     * {@code kvar} per bil: rader som stod kvar i kön på en bil vi släppte ifrån, och som kräver
+     * ett beslut — utan dem faller bilen tyst till GRANSKA i morgondagens rapport.
+     */
+    @PostMapping("/admin/insights/upcoming/auto-release")
+    public ResponseEntity<?> upcomingAutoRelease(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                                 @RequestParam(defaultValue = "false") boolean dryRun) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        var utfall = upcomingAutoReleaseService.kor(dryRun);
+        return ResponseEntity.ok(Map.of(
+                "slappta", utfall.slappta(),
+                "bilar", utfall.bilar(),
+                "dryRun", utfall.dryRun(),
+                // taketSlogTill = INGENTING slapptes, oavsett vad "per" innehaller
+                "taketSlogTill", utfall.taketSlogTill(),
+                "per", utfall.per(),
+                "perStatus", utfall.rapport().perStatus(),
+                "hoppade", utfall.rapport().hoppade()));
     }
 
     /**
