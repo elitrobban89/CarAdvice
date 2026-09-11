@@ -1257,7 +1257,14 @@ function caBudgetSnabbval() {
       '#ca-budget-tak{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.42);' +
         'font-family:inherit;font-size:.76rem;padding:6px 2px;cursor:pointer;text-decoration:underline;' +
         'text-decoration-color:rgba(255,255,255,.2);text-underline-offset:3px;white-space:nowrap;}' +
-      '#ca-budget-tak:hover{color:rgba(255,255,255,.85);}';
+      '#ca-budget-tak:hover{color:rgba(255,255,255,.85);}' +
+      // Telefon: knapparna mättes till 30 px höga, vilket är i minsta laget för en tumme.
+      // Samma tal, större yta.
+      '@media (max-width:520px){' +
+        '#ca-budget-snabb{gap:7px;}' +
+        '#ca-budget-snabb .ca-bsnabb{padding:9px 15px;font-size:.8rem;}' +
+        '#ca-budget-tak{padding:9px 2px;font-size:.8rem;}' +
+      '}';
     document.head.appendChild(st);
   }
 
