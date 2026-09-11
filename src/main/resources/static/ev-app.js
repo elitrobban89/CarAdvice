@@ -2862,7 +2862,9 @@
         100%{background-position:100% 50%;}
       }
       @media (prefers-reduced-motion:reduce){
-        .ev-chat-header{animation:none;background-position:50% 50%;}
+        .ev-chat-header,.ev-chat-messages,.ev-chat-quick,.ev-chat-quick-btn,.ev-chat-input-row,.ev-chat-demobar,.ev-chat-disclaimer{
+          animation:none;background-position:50% 50%;
+        }
       }
       .ev-chat-header-title { display:flex;flex-direction:column;gap:1px; }
       .ev-chat-header-name { font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px; }
@@ -2896,10 +2898,21 @@
       .ev-chat-header-expand:hover { background:rgba(255,255,255,0.18);color:#fff; }
       .ev-chat-header-expand svg { display:block;transition:transform .18s; }
       body.ev-chat-max .ev-chat-header-expand svg { transform:rotate(180deg); }
+      /* Panelens kropp var nastan svart medan ribban ovanfor skiftade — nu bar samtalsytan
+         SAMMA vandrande band, fast morkare (alfa .5-.8 mot ribbans .84-.96) sa att bubblorna
+         och deras text behaller kontrasten. Bandet ligger pa MESSAGES och inte pa .ev-chat-panel
+         med flit: panelen har backdrop-filter, och en animerad background-position pa ett
+         element med backdrop-filter tvingar om-filtrering av hela bakgrunden varje bildruta
+         och svalter renderaren (samma fella som glasspeglingen i vader-appen). */
       .ev-chat-messages {
         flex:1;overflow-y:auto;padding:16px 13px;
         display:flex;flex-direction:column;gap:11px;
-        background:transparent;min-height:0;
+        min-height:0;
+        background:linear-gradient(110deg,
+          rgba(6,14,36,0.88) 0%,rgba(14,33,88,0.8) 22%,rgba(23,62,170,0.6) 44%,
+          rgba(12,92,115,0.55) 64%,rgba(6,80,60,0.6) 82%,rgba(14,33,88,0.8) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
       }
       .ev-chat-messages::-webkit-scrollbar { width:3px; }
       .ev-chat-messages::-webkit-scrollbar-track { background:transparent; }
@@ -2926,23 +2939,50 @@
       }
       .ev-chat-quick {
         padding:10px 13px 6px;display:flex;flex-wrap:wrap;gap:7px;flex-shrink:0;
-        background:rgba(4,8,20,0.55);border-top:1px solid rgba(147,197,253,0.1);
+        border-top:1px solid rgba(147,197,253,0.1);
+        background:linear-gradient(110deg,
+          rgba(5,11,28,0.9) 0%,rgba(12,28,76,0.84) 22%,rgba(20,54,148,0.66) 44%,
+          rgba(10,80,100,0.6) 64%,rgba(5,70,52,0.64) 82%,rgba(12,28,76,0.84) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
       }
       /* JS-styrt lage: satts nar samtalet borjat sa att snabbknapparna forsvinner.
          Egen klass i stallet for inline display, annars kan CSS-reglerna nedan
          (platsbrist i liggande lage, expanderat lage) aldrig ta over. */
       .ev-chat-quick.ev-chat-quick-off { display:none; }
+      /* Snabbknapparna bar samma band. De ar sma, sa varje knapp visar sin egen skiva av
+         bandet och de vandrar i takt — texten ar ljusblå och bandet morkt, sa kontrasten
+         haller hela varvet. backdrop-filter ar borttagen har: den kostar en om-filtrering
+         per bildruta nar bakgrunden rors, och knappen har nu en egen botten att sta pa. */
       .ev-chat-quick-btn {
-        background:rgba(59,130,246,0.1);border:1px solid rgba(147,197,253,0.22);color:#93c5fd;
+        border:1px solid rgba(147,197,253,0.24);color:#bfdcff;
         border-radius:20px;padding:5px 13px;font-size:12px;font-weight:600;
-        cursor:pointer;transition:all .15s;white-space:nowrap;
-        backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+        cursor:pointer;transition:color .15s,border-color .15s,box-shadow .15s;white-space:nowrap;
+        background:linear-gradient(110deg,
+          rgba(10,22,54,0.92) 0%,rgba(18,44,120,0.86) 24%,rgba(29,78,216,0.7) 46%,
+          rgba(13,110,132,0.66) 66%,rgba(6,95,70,0.7) 84%,rgba(18,44,120,0.86) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
       }
-      .ev-chat-quick-btn:hover { background:rgba(59,130,246,0.28);color:#fff;border-color:rgba(147,197,253,0.5); }
+      .ev-chat-quick-btn:hover { color:#fff;border-color:rgba(147,197,253,0.6);box-shadow:0 0 14px rgba(59,130,246,.35); }
+      /* Demoraden och brasklappen har ingen egen bakgrund i markupen och lyste igenom som
+         morka band mellan de skiftande raderna — de far samma botten sa panelen hanger ihop. */
+      .ev-chat-demobar,.ev-chat-disclaimer {
+        background:linear-gradient(110deg,
+          rgba(4,10,26,0.92) 0%,rgba(10,26,70,0.86) 22%,rgba(18,50,140,0.62) 44%,
+          rgba(9,76,96,0.56) 64%,rgba(5,66,50,0.6) 82%,rgba(10,26,70,0.86) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
+      }
       .ev-chat-input-row {
         display:flex;gap:8px;padding:10px 13px 11px;
         border-top:1px solid rgba(147,197,253,0.1);
-        background:rgba(4,8,20,0.55);flex-shrink:0;
+        flex-shrink:0;
+        background:linear-gradient(110deg,
+          rgba(4,10,26,0.92) 0%,rgba(10,26,70,0.86) 22%,rgba(18,50,140,0.66) 44%,
+          rgba(9,76,96,0.6) 64%,rgba(5,66,50,0.64) 82%,rgba(10,26,70,0.86) 100%);
+        background-size:220% 100%;
+        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
       }
       .ev-chat-input {
         flex:1;border:1.5px solid rgba(147,197,253,0.18);border-radius:22px;
