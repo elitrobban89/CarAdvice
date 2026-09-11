@@ -3,13 +3,16 @@
 //   https://elitrobban.se/minipristaget/   (tågappen)
 //   https://elitrobban.se/bankomat-2-0/    (bankomaten)
 //
-// RESERVEN, inte huvudvägen. Appen i ramen rullar fram sig själv när VÄLKOMSTSPLASHEN lyft
-// (scrollIntoView inifrån ramen fungerar över domängränsen), och så ska det vara: rullningen
-// hör ihop med att appen är klar att använda, inte med att sidan råkat ladda.
+// Rullar fram ramen DIREKT, så att appens egen välkomstsplash spelar i bild.
 //
-// Men båda tjänsterna ligger på Renders gratisnivå och sover. Uppmätt från kall start: 36 s
-// för tåget, 12 s för bankomaten — och under den tiden händer ingenting alls i föräldersidan.
-// Därför väntar den här filen ut splashvägen och rullar bara om ingen annan gjort det.
+// Första versionen väntade ut appen i ramen (den rullar också fram sig själv). Det var fel
+// ordning: splashen hann spela klart för en skärm ingen tittade på, och besökaren kom ned
+// till appen precis när den var över — "jag fick ingen splash screen". Nu rullar
+// föräldersidan fram ramen med en gång, och splashen syns medan den går.
+//
+// Att göra det HÄR och inte bara i appen har ett andra skäl: båda tjänsterna ligger på
+// Renders gratisnivå och sover. Uppmätt från kall start dröjde det 36 s för tåget och 12 s
+// för bankomaten innan appen inuti ens hann köra sin egen rullning.
 //
 // EXTERN fil därför att WordPress blockerar inline-<script>, och serverad av CarAdvice
 // därför att den tjänsten ligger på betald plan och alltid är vaken. Klistra in raden
@@ -21,10 +24,10 @@
 (function () {
   'use strict';
 
-  // 25 s: appens egen splash hinner lyfta och rulla fram ramen först i alla normala fall
-  // (mätt 7,7 s för tåget och 9,3 s för bankomaten på en vaken tjänst). Slår det här taket
-  // till betyder det att tjänsten sover — då är en rullning bättre än en sida som står still.
-  var TAK_MS = 25000;
+  // 600 ms: bara så mycket att sidhuvud, bilder och block hunnit lägga sig, annars siktar
+  // mätningen på en ram som fortfarande flyttar sig. Splashen i ramen börjar senare än så
+  // även på en vaken tjänst, så den spelar i bild.
+  var TAK_MS = 600;
   var gjort = false;
   var egenScroll = false;
 
