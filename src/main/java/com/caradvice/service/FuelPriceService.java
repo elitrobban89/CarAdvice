@@ -68,6 +68,28 @@ public class FuelPriceService {
         return new double[]{ senasteBensin, senasteDiesel };
     }
 
+/**
+     * Ett extra hamtningsforsok, oavsett RETRY_MS-fonstret. Bara for {@link PrisUppvarmning}.
+     *
+     * <p>Uppvarmningen kan inte anvanda {@link #promptContext()} till sina omforsok: ett
+     * misslyckat forsok satter {@code nextRefreshAt} fem minuter fram, sa ett nytt anrop inom
+     * fonstret returnerar den tomma cachen UTAN att prova kallan igen. Kallan ligger pa Renders
+     * gratisniva och behover upp till tva minuter pa sig att vakna, alltsa exakt det intervall
+     * dar omforsoken skulle bli tysta no-ops.
+     *
+     * <p>Ett MISSLYCKAT forsok ror inte {@code nextRefreshAt}, sa det lata beteendet ar oforandrat.
+     *
+     * @return sant nar priset nu finns i cachen
+     */
+    boolean varmUppForsok() {
+        String hamtat = fetchContext();
+        if (hamtat.isEmpty()) return false;
+        cachedContext = hamtat;
+        nextRefreshAt = System.currentTimeMillis() + TTL_MS;
+        return true;
+    }
+
+
     private String fetchContext() {
         try {
             HttpRequest req = HttpRequest.newBuilder()

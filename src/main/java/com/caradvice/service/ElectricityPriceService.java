@@ -76,6 +76,23 @@ public class ElectricityPriceService {
     }
 
     /** 0 om priset inte kunde hämtas. */
+/**
+     * Ett extra hamtningsforsok, oavsett RETRY_MS-fonstret. Bara for {@link PrisUppvarmning} -
+     * se {@code FuelPriceService.varmUppForsok} for varfor omforsoken inte kan ga via
+     * {@link #promptContext()}.
+     *
+     * @return sant nar snabbladdningspriset nu finns i cachen
+     */
+    boolean varmUppForsok() {
+        double dc = fetchNationalAverage();
+        if (dc <= 0) return false;
+        senasteSnabbladdning = dc;
+        cachedContext = buildContext(dc);
+        nextRefreshAt = System.currentTimeMillis() + TTL_MS;
+        return true;
+    }
+
+
     private double fetchNationalAverage() {
         try {
             HttpRequest req = HttpRequest.newBuilder()
