@@ -131,6 +131,28 @@ class AutoDataScraperServiceTest {
         assertThat(vol.minLiter()).isNotEqualTo(50);
     }
 
+
+    @Test
+    void variantsidansNyaDivmarkupGerVolym() {
+        // 2026-09-13: sajten bytte spec-tabellen fran th/td till div.par/div.val, precis som den
+        // bytte variantlistan 2026-08-14. Fixturen ar ett utdrag ur den RIKTIGA sidan samma dag,
+        // och den bar noll th-element - hela literVid sag alltsa tomt och bagagejobbet rapporterade
+        // "bagagevolymer: 0" med OK-status i tretton natter medan medVolym stod still pa 651.
+        var vol = AutoDataScraperService.parseBagagevolym(fixtur("audi-a4-allroad-divmarkup.html"));
+
+        assertThat(vol.minLiter()).isEqualTo(495);
+        assertThat(vol.maxLiter()).isEqualTo(1495);
+    }
+
+    @Test
+    void nyaMarkupenForvaxlarInteBranslebehallareEllerImperialmatt() {
+        // Samma tva fallor som i th/td-formen: "Fuel tank capacity 58 l" star tva rader ned, och
+        // varje cell bar imperialmattet i span.val2 ("17.5 cu. ft." -> 17 liter vore rimligt fel).
+        var vol = AutoDataScraperService.parseBagagevolym(fixtur("audi-a4-allroad-divmarkup.html"));
+
+        assertThat(vol.minLiter()).isNotIn(58, 17, 52);
+    }
+
     // --- navigering: märke → modell → generation ---
 
     @Test

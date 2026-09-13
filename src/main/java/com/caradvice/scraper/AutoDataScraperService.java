@@ -248,16 +248,31 @@ public class AutoDataScraperService {
         return (min == null && max == null) ? null : new Bagagevolym(min, max);
     }
 
-    /** Talet i datacellen bredvid rubriken, eller null när raden saknas eller inte bär liter. */
+    /**
+     * Talet i datacellen bredvid rubriken, eller null när raden saknas eller inte bär liter.
+     *
+     * <p><b>Båda markupformerna godtas</b>, av exakt samma skäl som i
+     * {@link #parseMotorAlternativ}: sajten bytte spec-tabellen från {@code <th>/<td>} till
+     * {@code <div class="par">/<div class="val">} någon gång mellan 2026-09-05 och 2026-09-11,
+     * och variantsidan bär nu noll {@code th}-element. Rubrikerna står oförändrade ("Trunk
+     * (boot) space - minimum") och litersiffran ligger kvar i samma cell med imperialmåttet i
+     * {@code span.val2} — bara behållaren är en annan.
+     *
+     * <p>Felet såg ut precis som förra gången: bagagejobbet rapporterade OK varje natt med
+     * "bagagevolymer: 0" medan {@code medVolym} stod still på 651, eftersom
+     * {@link #parseBagagevolym} gav null för varenda bil. Skillnaden mot 2026-08-14 är att
+     * arbetslistan den här gången INTE var tom (1024 rader utan volym), så täckningssiffran
+     * kunde stå still i stället för att ljuga om 100 %.
+     */
     private static Integer literVid(Document doc, String rubrik) {
-        for (Element th : doc.select("th")) {
-            if (!th.text().trim().startsWith(rubrik)) continue;
+        for (Element rubrikcell : doc.select("th, div.par")) {
+            if (!rubrikcell.text().trim().startsWith(rubrik)) continue;
 
-            Element td = th.nextElementSibling();
-            if (td == null) continue;
+            Element datacell = rubrikcell.nextElementSibling();
+            if (datacell == null) continue;
 
             // val2 är imperialkolumnen ("13.42 cu. ft.") och får inte matcha litersiffran.
-            Element ren = td.clone();
+            Element ren = datacell.clone();
             ren.select("span.val2").remove();
 
             Matcher m = LITER.matcher(ren.text());
