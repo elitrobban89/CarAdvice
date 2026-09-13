@@ -38,6 +38,14 @@ public class PrisUppvarmning {
     private final ElectricityPriceService el;
     private final long[] forsokEfterMs;
 
+    /**
+     * <b>@Autowired behovs trots att klassen bara har en PUBLIK konstruktor.</b> Spring valjer
+     * automatiskt bara nar det finns EN konstruktor overhuvudtaget; hittar den flera - har den
+     * paketprivata som testerna anvander for att korta vantetiderna - kraver den en tom
+     * konstruktor i stallet, och utan den dog uppstarten med "No default constructor found"
+     * (09-13, deployen av a4e09e0 rullades tillbaka av Render). Synligheten spelar ingen roll.
+     */
+    @org.springframework.beans.factory.annotation.Autowired
     public PrisUppvarmning(FuelPriceService bransle, ElectricityPriceService el) {
         this(bransle, el, STANDARD_FORSOK_MS);
     }
