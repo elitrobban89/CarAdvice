@@ -373,6 +373,63 @@ class AutoDataScraperServiceTest {
         assertThat(AutoDataScraperService.basgenerationsStartAr(gen, "Lexus is")).isEqualTo(2013);
     }
 
+@Test
+    void numeriskChassikodIParentesFallerInteEnGeneration() {
+        /*
+         * 2026-09-13: samma familj som chassikodenFallerInteEnGeneration, men den halva som
+         * monstret INTE tackte. Regeln fran 08-16 kraver bade bokstav och siffra - just det som
+         * raddar "3" i "3 Series" - och Alfa Romeos koder ar rena tal: "Alfa Romeo 156 (932,
+         * facelift 2003)". "932" fanns inte i vart bilnamn, sa alla sju generationer foll och
+         * modellen kunde varken dateras eller fa bagagevolym. Samma sak drabbade 155 (167),
+         * 166 (936), Giulietta (940), GTV och Spider (916).
+         *
+         * Talet skalas bort BARA inne i parentesen. Utanfor den ar ett rent tal modellnamnet
+         * sjalvt ("156"), och skalas det bort matchar raden lika garna Alfa Romeo 166.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("alfa-romeo-156-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        // Med karosskrav: sedanen vinner, kombititlarna bar ord som inte star i bilnamnet.
+        var vald = AutoDataScraperService.valjGeneration(gen, "Alfa Romeo 156", null, true);
+        assertThat(vald).isNotNull();
+        assertThat(vald.titel()).doesNotContain("Wagon");
+        assertThat(vald.titel()).doesNotContain("Crosswagon");
+    }
+
+    @Test
+    void modellnamnetSomArEttTalOverleverBrusfiltret() {
+        /*
+         * Gransen at andra hallet, och den ar hela skalet till att fixen sitter i parentesen:
+         * "156" utanfor parentesen ar modellen. Skalas rena tal bort overallt ryms "Alfa Romeo
+         * 166" i bilnamnet "Alfa Romeo 156" - fel bil, ratt marke.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("alfa-romeo-156-model.html"));
+
+        // Ingen av 156-sidans generationer far passera som en 166.
+        assertThat(AutoDataScraperService.valjGeneration(gen, "Alfa Romeo 166", null, true)).isNull();
+    }
+
+    @Test
+    void ordetTypeIGenerationstitelnFallerInteDenModernaBilen() {
+        /*
+         * Foljdfel som den numeriska chassikoden avslojade 2026-09-13: auto-data skriver Alfas
+         * moderna generationer som "(Type 940)" och "(Type 940 facelift 2016)". Koden 940
+         * skalades bort av den nya regeln, men ordet "Type" gjorde det inte - och det star inte
+         * i vart bilnamn. Kvar att valja pa blev bara den klassiska "(116)" fran 1977, alltsa
+         * FEL BIL: en 2010-hatchback hade fatt en 70-talssedans matt om sidan burit en bagagerad.
+         *
+         * Ett tomt svar ar en lucka, ett fel varde ar en logn i kortet - darfor maste "Type" bort.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("alfa-romeo-giulietta-model.html"));
+        assertThat(gen).isNotEmpty();
+
+        var vald = AutoDataScraperService.valjGeneration(gen, "Alfa Romeo Giulietta", null, true);
+        assertThat(vald).isNotNull();
+        // Den nyaste 940:an, inte 116:an fran 1977.
+        assertThat(vald.franAr()).isGreaterThanOrEqualTo(2010);
+    }
+
+
     @Test
     void karossordetFallerGenerationenBaraNarKarossenAvgor() {
         /*

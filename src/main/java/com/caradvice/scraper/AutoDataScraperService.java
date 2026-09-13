@@ -112,8 +112,9 @@ public class AutoDataScraperService {
      * generation vald — karossvalet ligger kvar i {@link #titelnRymsIBilnamnet}.
      */
     private static final Pattern TITELBRUS = Pattern.compile(
-            "(?i)\\b(facelift|restyling|\\d{4}|[ivx]+|\\d-door|door|doors)\\b"
+            "(?i)\\b(facelift|restyling|type|\\d{4}|[ivx]+|\\d-door|door|doors)\\b"
                     + "|\\b(?=[a-z0-9]*[a-z])(?=[a-z0-9]*\\d)[a-z]{0,3}\\d{1,3}[a-z]{0,2}\\b"
+                    + "|(?<=\\([^)]{0,30})\\d{2,3}\\b"
                     + "|[()\\-,]");
 
     /**
@@ -1114,6 +1115,26 @@ public class AutoDataScraperService {
     }
 
     /** Märkes- och modelluppslaget, delat av ingångarna ovan. */
+    /**
+     * Marces- och modelluppslaget, delat av ingangarna ovan.
+     *
+     * <p><b>Namnet oversatts INTE med {@link #uppslagsnamn} har, till skillnad fran
+     * {@link #generationForNamn}</b> - och det ar ett medvetet val, matt 2026-09-13.
+     * Aliaset gor "BMW 328" till "bmw 3 series", vilket oppnar modellsidan men kastar bort
+     * just det som pekar ut BILEN. Karosskravet slar sedan ut varje titel som bar ett
+     * karossord, och hos BMW ar det alla moderna generationer ("3 Series Sedan (G20)",
+     * "3 Series Touring (G21)"). Kvar att valja pa star de gamla, vars titlar saknar kaross:
+     * provet gav <b>"BMW 3 Series (E21)" fran 1975 med 404 l</b> for en modern 328, och
+     * E60 for en BMW 501. Tre av sju BMW-namn fick en volym, minst en av dem fel bil.
+     *
+     * <p>Hastkraftsprovet ({@link #artalMedEffektprov}) skulle kunna ankra ERAN, men inte
+     * karossen: sedan och kombi delar motorlista, och skillnaden ar 480 mot 495 l pa en F30 -
+     * varre pa en halvkombi mot kombi (380 mot 605). Vår {@code ice-consumption.csv} bar
+     * kolumnerna brand;variant;fuel;liter_per_mil och vet alltsa ingen kaross alls.
+     * <b>En saknad volym ar fail-soft</b> - {@code requireCargoCapacity} faller bara pa
+     * positivt bevis - medan ett fel varde ar en lognaktig siffra i kortet. Darfor star
+     * BMW-raderna hellre tomma tills nagot i vår data kan peka ut karossen.
+     */
     private Generation generationForBil(String bilnamn, Integer arsmodell) {
         return valjGeneration(generationerFor(bilnamn), bilnamn, arsmodell);
     }
