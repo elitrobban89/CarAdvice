@@ -30,6 +30,24 @@ class IceConsumptionServiceTest {
         service.ensureTableAndSeed();
     }
 
+@Test
+    void karosskolumnenLasesForDeModellerDenAngerOchArNullForResten() {
+        /*
+         * Femte kolumnen (2026-09-13). Tom betyder OKAND och maste ge null - inte en gissning -
+         * for det ar tomheten som far bagageuppslaget att behalla det gamla, forsiktiga
+         * beteendet. Kolumnen fylldes bara dar auto-datas modellsida visar EN kaross i dagens
+         * generation; 445 av 957 rader har ett varde.
+         */
+        assertThat(service.karossForModell("Volkswagen tiguan")).isEqualTo("suv");
+        assertThat(service.karossForModell("Suzuki swift")).isEqualTo("halvkombi");
+
+        // BMW:s rader ar tvetydiga (sedan eller Touring) och SKA vara tomma.
+        assertThat(service.karossForModell("BMW 320d")).isNull();
+        // Okant modellnamn ar ocksa null, inte ett undantag.
+        assertThat(service.karossForModell("Saab 9000")).isNull();
+        assertThat(service.karossForModell(null)).isNull();
+    }
+
     @Test
     void seedenLaddarHundratalsVarianter() {
         assertThat(service.findAll().size()).isGreaterThan(900);

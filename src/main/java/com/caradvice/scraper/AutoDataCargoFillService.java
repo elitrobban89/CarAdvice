@@ -111,7 +111,11 @@ public class AutoDataCargoFillService {
             if (forsokta >= MAX_PER_KORNING) break;
             forsokta++;
             try {
-                var vol = autoData.bagageForBil(bilnamn, CarTitle.year(bilnamn));
+                // Karossen ur CSV:ns femte kolumn nar den finns - det ar den som gor det
+                // forsvarligt att sla upp "BMW 320d" som "bmw 3 series". Tom kolumn = gamla
+                // uppslaget, alltsa ingen gissning. Se AutoDataScraperService.bagageForBil.
+                String kaross = iceConsumption.karossForModell(bilnamn);
+                var vol = autoData.bagageForBil(bilnamn, CarTitle.year(bilnamn), kaross);
                 if (vol == null || vol.minLiter() == null || vol.minLiter() <= 0) {
                     utanTraff++;
                     continue;

@@ -153,6 +153,50 @@ class AutoDataScraperServiceTest {
         assertThat(vol.minLiter()).isNotIn(58, 17, 52);
     }
 
+@Test
+    void karossordetOversattsFranAutoDatasEngelska() {
+        assertThat(AutoDataScraperService.vartKarossord("Station wagon (estate)")).isEqualTo("kombi");
+        assertThat(AutoDataScraperService.vartKarossord("Station wagon (estate), Crossover")).isEqualTo("kombi");
+        assertThat(AutoDataScraperService.vartKarossord("Sedan")).isEqualTo("sedan");
+        assertThat(AutoDataScraperService.vartKarossord("Hatchback")).isEqualTo("halvkombi");
+        assertThat(AutoDataScraperService.vartKarossord("SUV")).isEqualTo("suv");
+        assertThat(AutoDataScraperService.vartKarossord("Cabriolet")).isEqualTo("cab");
+        assertThat(AutoDataScraperService.vartKarossord("Coupe")).isEqualTo("coupe");
+        // Ord vi inte kan tolka far ALDRIG bli en gissning - Grand Tourer ar varken kombi eller coupe
+        assertThat(AutoDataScraperService.vartKarossord("Grand Tourer")).isEmpty();
+        assertThat(AutoDataScraperService.vartKarossord(null)).isEmpty();
+    }
+
+
+    @Test
+    void kandKarossValjerTouringenIStalletForEn1975a() {
+        /*
+         * 2026-09-13: hela skalet till CSV:ns femte kolumn. Utan kaross maste "BMW 320d" slas upp
+         * pa sitt rana namn, och da hittas ingen modellsida alls. Oversatter man i stallet namnet
+         * till "bmw 3 series" faller titelkravet pa varje modern generation - deras titlar bar
+         * karossordet ("3 Series Touring (G21)") som inte star i bilnamnet - och kvar blir bara
+         * de gamla titlarna utan kaross: E21 fran 1975 med 404 l at en modern 328.
+         *
+         * Med karossen given byts titelkravet mot generationens EGEN karossrad.
+         */
+        var gen = AutoDataScraperService.parseGenerationer(fixtur("bmw-3-series-model.html"));
+
+        var kombi = AutoDataScraperService.valjGenerationForKaross(gen, "kombi", null);
+        assertThat(kombi.titel()).contains("Touring");
+        assertThat(kombi.franAr()).isGreaterThanOrEqualTo(2019);
+
+        var sedan = AutoDataScraperService.valjGenerationForKaross(gen, "sedan", null);
+        assertThat(sedan.titel()).contains("Sedan");
+        assertThat(sedan.franAr()).isGreaterThanOrEqualTo(2018);
+
+        // Arsmodellen far fortfarande styra nar den finns: en 2013:a ar F31, inte G21.
+        var gammalKombi = AutoDataScraperService.valjGenerationForKaross(gen, "kombi", 2013);
+        assertThat(gammalKombi.titel()).contains("F31");
+
+        // En kaross modellen inte finns i ger null - inte narmaste gissning.
+        assertThat(AutoDataScraperService.valjGenerationForKaross(gen, "pickup", null)).isNull();
+    }
+
     // --- navigering: märke → modell → generation ---
 
     @Test

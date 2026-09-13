@@ -549,6 +549,67 @@ public class AutoDataScraperService {
         return parseBagagevolym(hamta(BAS + motorer.get(0).sokvag()));
     }
 
+/** Vara karossord, oversatta fran auto-datas engelska. Tom strang nar ordet inte gar att tolka. */
+    static String vartKarossord(String autoDataKaross) {
+        String k = autoDataKaross == null ? "" : autoDataKaross.toLowerCase();
+        if (k.contains("station wagon") || k.contains("estate")) return "kombi";
+        if (k.contains("hatchback")) return "halvkombi";
+        if (k.contains("sedan") || k.contains("saloon")) return "sedan";
+        if (k.contains("suv") || k.contains("crossover") || k.contains("off-road")) return "suv";
+        if (k.contains("cabriolet") || k.contains("roadster") || k.contains("convertible") || k.contains("targa")) return "cab";
+        if (k.contains("coupe") || k.contains("coup\u00e9")) return "coupe";
+        if (k.contains("minivan") || k.contains("mpv") || k.contains("van")) return "mpv";
+        if (k.contains("pickup")) return "pickup";
+        return "";
+    }
+
+    /**
+     * Bagagevolymen nar VI vet karossen ({@code ice-consumption.csv}s femte kolumn).
+     *
+     * <p>Det ar karossordet som gor det forsvarligt att oversatta namnet med
+     * {@link #uppslagsnamn}. "BMW 320d" blir "bmw 3 series", vilket oppnar modellsidan men
+     * kastar bort allt som pekar ut bilen - och {@link #titelnRymsIBilnamnet} faller da pa
+     * varje modern generation, eftersom deras titlar bar karossordet ("3 Series Touring (G21)").
+     * Kvar blir bara de gamla titlarna utan kaross: matt 2026-09-13 gav det <b>E21 fran 1975
+     * med 404 l for en modern 328</b>. Med karossen given byts titelkravet mot ett RIKTIGARE
+     * krav - generationens egen karossrad maste stamma - och da vinner Touringen som den ska.
+     *
+     * <p>Nyaste generationen valjs nar arsmodell saknas. Volymen andrar sig sallan mellan
+     * generationer (Golf VIII 380 l mot faceliftens 381) medan karossen andrar den med hundra
+     * liter, vilket ar hela ordningen har: <b>kaross forst, arsmodell sen.</b>
+     *
+     * @param kaross vart karossord, eller null/tomt nar CSV:n inte vet - da galler det gamla
+     *               uppslaget med det otranslaterade namnet
+     */
+    public Bagagevolym bagageForBil(String bilnamn, Integer arsmodell, String kaross) {
+        if (kaross == null || kaross.isBlank()) return bagageForBil(bilnamn, arsmodell);
+
+        String uppslag = uppslagsnamn(bilnamn);
+        Generation gen = valjGenerationForKaross(generationerFor(uppslag), kaross, arsmodell);
+        if (gen == null) return null;
+
+        List<MotorAlternativ> motorer = parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+        if (motorer.isEmpty()) return null;
+        return parseBagagevolym(hamta(BAS + motorer.get(0).sokvag()));
+    }
+
+    /** Nyaste generationen med ratt kaross, eller null nar ingen av dem bar den. */
+    static Generation valjGenerationForKaross(List<Generation> alla, String kaross, Integer arsmodell) {
+        if (alla == null || kaross == null) return null;
+        List<Generation> kvar = new ArrayList<>();
+        for (Generation g : alla) {
+            if (arsmodell != null && !g.galler(arsmodell)) continue;
+            if (!kaross.equalsIgnoreCase(vartKarossord(g.kaross()))) continue;
+            kvar.add(g);
+        }
+        return kvar.stream()
+                .max(java.util.Comparator
+                        .comparingInt((Generation g) -> g.franAr() != null ? g.franAr() : Integer.MIN_VALUE)
+                        .thenComparingInt(g -> -g.titel().length()))
+                .orElse(null);
+    }
+
+
     /** Motoralternativen för en bil, hela generationens utbud. Tom lista när uppslaget misslyckas. */
     public List<MotorAlternativ> motorerForBil(String bilnamn, Integer arsmodell) {
         Generation gen = generationForBil(bilnamn, arsmodell);
