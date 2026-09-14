@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.0</version>
+        <version>3.5.16</version>
     </parent>
 
     <groupId>com.caradvice</groupId>
@@ -16,10 +16,10 @@
     <name>Car Advice</name>
 
     <properties>
-        <java.version>21</java.version>
-        <!-- Spring Boot 3.2 pinnar Mockito 5.7/Byte Buddy 1.14 som inte kan mocka klasser på Java 25 -->
+        <java.version>25</java.version>
+        <!-- Boot 3.5 pinnar Mockito 5.17; 5.23 behövs för att mocka klasser på Java 25.
+             Byte Buddy lämnas till Boot (1.17.8), nyare än 1.17.7 som Mockito kräver. -->
         <mockito.version>5.23.0</mockito.version>
-        <byte-buddy.version>1.17.7</byte-buddy.version>
     </properties>
 
     <dependencies>
