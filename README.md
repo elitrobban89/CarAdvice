@@ -364,7 +364,7 @@ En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** —
 
 | Del | Teknologi |
 |-----|-----------|
-| Backend | Java 25, Spring Boot 3.5 |
+| Backend | Java 25, Spring Boot 3.5.16 |
 | AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.6-27b` reserv) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
