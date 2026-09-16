@@ -106,7 +106,17 @@ public class AutoDataCargoFillService {
             return 0;
         }
 
-        int fyllda = 0, forsokta = 0, utanTraff = 0;
+        // Drivmedlet stämplades förr "ice" på VARJE rad listan gick. Det var sant bara för
+        // halva listan: arbetslistan är namnUtanVolym UNION ice_consumption, och den förra
+        // halvan kommer ur cargo_spec — där ligger elbilarna. Uppmätt 2026-09-16 bar tabellen
+        // därför "ice" på BMW i7, Audi e-tron GT, BYD Sealion 7, Alpine A290 och flera till,
+        // och GroqService.arElbil läser tabellen FÖRE namnregeln: okänt är inte "nej", men ett
+        // felaktigt "ice" ÄR ett nej. Stämpeln kräver därför att namnet står i ice_consumption,
+        // som per definition är bensin, diesel och hybrid.
+        Set<String> iceNamn = new HashSet<>();
+        for (String n : iceConsumption.allModelNames()) iceNamn.add(normaliseratNamn(n));
+
+        int fyllda = 0, forsokta = 0, utanTraff = 0, iceStamplade = 0;
         for (String bilnamn : namn) {
             if (forsokta >= MAX_PER_KORNING) break;
             forsokta++;
@@ -122,10 +132,12 @@ public class AutoDataCargoFillService {
                 }
                 // Maxvolymen är frivillig hos källan; 0 betyder "vet inte" för fillFromScrape.
                 int max = vol.maxLiter() != null ? vol.maxLiter() : 0;
-                // "ice": arbetslistan byggs på ice_consumption, som per definition är bensin,
-                // diesel och hybrid. Källan vet alltså drivmedlet, och raden slipper gissas på
-                // sitt namn när bagagelistan sållas för en elbilsfråga.
-                if (cargoSpecs.fillFromScrape(bilnamn, vol.minLiter(), max, 0, "ice")) {
+                // "ice" bara när namnet står i ice_consumption — då vet källan drivmedlet och
+                // raden slipper gissas på sitt namn när bagagelistan sållas för en elbilsfråga.
+                // null för resten: okänt lämnar namnregeln orörd, ett gissat "ice" gör inte det.
+                String drivmedel = iceNamn.contains(normaliseratNamn(bilnamn)) ? "ice" : null;
+                if (drivmedel != null) iceStamplade++;
+                if (cargoSpecs.fillFromScrape(bilnamn, vol.minLiter(), max, 0, drivmedel)) {
                     fyllda++;
                     log.info("auto-data bagage: {} → {} l (max {} l)", bilnamn, vol.minLiter(), max);
                 }
@@ -135,9 +147,22 @@ public class AutoDataCargoFillService {
                 utanTraff++;
             }
         }
-        log.info("auto-data bagage: {} fyllda, {} utan träff, {} försökta av {} saknade",
-                fyllda, utanTraff, forsokta, namn.size());
+        log.info("auto-data bagage: {} fyllda, {} utan träff, {} försökta av {} saknade, "
+                        + "{} drivmedelsstämplade ice",
+                fyllda, utanTraff, forsokta, namn.size(), iceStamplade);
         return fyllda;
+    }
+
+    /**
+     * Samma namnform som {@link IceConsumptionService#allModelNames()} ger, så att ett bilnamn ur
+     * arbetslistan går att slå upp i den mängden. Bara gemener och städade blanksteg — namnen
+     * jämförs med varandra, inte med en fritextstitel.
+     */
+    private static String normaliseratNamn(String s) {
+        return s.toLowerCase(java.util.Locale.ROOT)
+                .replace("š", "s").replace("ë", "e").replace("é", "e")
+                .replaceAll("\\p{Cf}", "")
+                .replaceAll("[\\p{Z}\\s]+", " ").trim();
     }
 
     /**

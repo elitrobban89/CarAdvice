@@ -183,4 +183,41 @@ class AutoDataCargoFillServiceTest {
         verify(autoData).artalMedEffektprov("BMW 730d", Set.of(286), Set.of(286, 265, 340));
         verify(iceGenerations).spara("BMW 730d", 2015);
     }
+
+    /**
+     * Drivmedelsstämpeln får bara sättas för namn som KOMMER ur ice_consumption.
+     *
+     * <p>Arbetslistan är {@code namnUtanVolym} UNION {@code allModelNames}, och den förra halvan
+     * kommer ur cargo_spec — där ligger elbilarna. Uppmätt i drift 2026-09-16 bar tabellen "ice"
+     * på BMW i7, Audi e-tron GT, BYD Sealion 7 och Alpine A290, och
+     * {@code GroqService.arElbil} läser tabellen FÖRE namnregeln: okänt är inte "nej", men ett
+     * felaktigt "ice" ÄR ett nej — elbilen faller då ur bagagelistan på en elbilsfråga.
+     */
+    @Test
+    void elbilUrCargoListanFarINGEN_iceStampel() {
+        modeller("Volvo v60");                                  // ice_consumption känner inte i7
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("BMW i7"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("BMW i7"), any(), any()))
+                .thenReturn(new AutoDataScraperService.Bagagevolym(500, 0));
+        when(autoData.bagageForBil(eq("Volvo v60"), any(), any())).thenReturn(null);
+
+        service.fyllSaknadeVolymer();
+
+        // null = okänt, alltså namnregeln orörd. INTE "ice".
+        verify(cargoSpecs).fillFromScrape("BMW i7", 500, 0, 0, null);
+    }
+
+    @Test
+    void namnUrIceConsumptionStamplasFortfarandeSomIce() {
+        modeller("Volvo v60");
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of());
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("Volvo v60"), any(), any()))
+                .thenReturn(new AutoDataScraperService.Bagagevolym(529, 1441));
+
+        service.fyllSaknadeVolymer();
+
+        verify(cargoSpecs).fillFromScrape("Volvo v60", 529, 1441, 0, "ice");
+    }
 }
