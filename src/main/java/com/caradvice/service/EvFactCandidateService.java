@@ -140,6 +140,29 @@ public class EvFactCandidateService {
             "högvolt", "supercharger");
 
     /**
+     * Ord som säger att radens <b>mätvärde</b> är fossilt.
+     *
+     * <p>Mätt behov 2026-09-17, och det är samma drivmedelsblindhet som fällde Kia K4
+     * Sportswagon 08-22 — men i den form spärren ovan inte klarar: <i>"Lexus LBX har en
+     * bensintank på 36 liter och en officiell förbrukning på 0,57 l/mil ... jämfört med
+     * <b>elbilar</b>"</i> stod som kandidat nummer tre i fyndlistan i drift. Temat
+     * "förbrukning" träffade, och <b>jämförelseordet sist i meningen bar hela
+     * elmarkörskravet</b>. K4-raden saknade elordet helt och föll därför redan då.
+     *
+     * <p>Därför prövas de här orden mot {@link #STARKA_ELMARKORER} och inte mot hela listan:
+     * {@code elbil} kan lika gärna komma ur en jämförelse som ur bilen. Laddhybriden går fri —
+     * Nissans e-Power skriver "en bensinmotor endast <b>laddar batteriet</b>" och V60 T8
+     * skriver "laddhybrid", alltså en stark markör i båda fallen.
+     */
+    private static final List<String> BRANSLEMARKORER = List.of(
+            "bensintank", "bensinmotor", "bensindriven", "dieselmotor", "dieseldriven",
+            "bränsletank", "l/mil", "liter per mil", "liter/mil");
+
+    /** {@link #ELMARKORER} utan jämförelseordet — härlett så att listorna inte kan glida isär. */
+    private static final List<String> STARKA_ELMARKORER =
+            ELMARKORER.stream().filter(ord -> !ord.equals("elbil")).toList();
+
+    /**
      * Märken som inte säljs i Sverige. Handhållen lista, och det är ett medvetet val:
      * <b>ingen tabell vi har skiljer den svenska marknaden från den europeiska.</b> Mätt
      * 2026-08-22 innehåller {@code ev_spec} tolv Zeekr-rader och tre Genesis, och
@@ -202,6 +225,13 @@ public class EvFactCandidateService {
             // "inte-eldrift" betyder då en rad som såg laddningsrelevant ut men handlar om
             // en bensinbil, inte vilken rad som helst utan laddkoppling.
             if (ELMARKORER.stream().noneMatch(normaliserad::contains)) {
+                rakna(avslag, "inte-eldrift"); continue;
+            }
+
+            // Samma nej en gång till, för raden som mäter i liter men nämner elbilar i en
+            // jämförelse: elordet ensamt gör inte bensintanken till laddfakta.
+            if (BRANSLEMARKORER.stream().anyMatch(normaliserad::contains)
+                    && STARKA_ELMARKORER.stream().noneMatch(normaliserad::contains)) {
                 rakna(avslag, "inte-eldrift"); continue;
             }
 

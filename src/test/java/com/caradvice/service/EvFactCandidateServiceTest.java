@@ -207,6 +207,36 @@ class EvFactCandidateServiceTest {
     }
 
     @Test
+    void bensintankFallerAvenNarRadenJamforMedElbilar() {
+        // Driftens rad 1519 (09-17), kandidat nummer tre i fyndlistan: ordet "elbilar" står
+        // i en JÄMFÖRELSE sist i meningen och bar hela elmarkörskravet. Bensintanken blev
+        // alltså laddfakta. K4-raden ovan saknar elordet helt och provar därför inte det här.
+        nyaRader(insikt(1519, "Vi Bilägare", "Lexus", "LBX",
+                "Lexus LBX har en bensintank på 36 liter och en officiell förbrukning på "
+                        + "0,57 l/mil, vilket ger en teoretisk räckvidd på över 60 mil, men bilen "
+                        + "varnar för låg räckvidd sent och med varierande precision jämfört med elbilar."));
+
+        Map<String, Object> svar = service.hittaKandidater(1518L, 25);
+
+        assertThat(kandidater(svar)).isEmpty();
+        assertThat(avslag(svar)).containsEntry("inte-eldrift", 1);
+    }
+
+    @Test
+    void laddhybridenGarFriTrotsBensinmotorn() {
+        // Gränsen åt andra hållet: bränslemarkören ensam får inte fälla en rad som bär en
+        // STARK elmarkör. Nissans e-Power skriver ut bensinmotorn i samma mening som batteriet.
+        nyaRader(insikt(1546, "Vi Bilägare", "Nissan", "Kicks",
+                "Nissan Kicks använder Nissans e-Power-system där en elmotor driver hjulen och "
+                        + "en bensinmotor endast laddar batteriet."));
+
+        Map<String, Object> svar = service.hittaKandidater(1545L, 25);
+
+        assertThat(kandidater(svar)).hasSize(1);
+        assertThat(avslag(svar)).doesNotContainKey("inte-eldrift");
+    }
+
+    @Test
     void epaInutiReparationskostnadArIngenRackvidd() {
         // "rEPArationskostnad" träffade nyckelordet epa utan ordgräns, och ett haverifall
         // om en trasig laddhybrid blev kandidat på temat räckvidd.
