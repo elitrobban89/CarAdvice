@@ -1344,6 +1344,47 @@ class GroqServiceTest {
     }
 
     @Test
+    void framandeVaxelladebeteckningStryksUrGearbox() {
+        // Skarpt 2026-09-17: ett laddhybrid-SUV-sök gav "Volvo XC60 Recharge (2022)" växellådan
+        // "Automat DSG 7-växlad". DSG är VW-koncernens dubbelkoppling; XC60 har en Aisin.
+        // Samma fel som "(TSI turbo)" 2026-08-14 men genom en annan dörr: beteckningen stod
+        // INLINE och inte i en parentes, så parentesstädningen såg den aldrig. Roten var
+        // återigen promptens eget exempel, som avslutade listan med just "Automat DSG 7-växlad".
+        assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad", "Volvo XC60 Recharge (2022)"))
+                .isEqualTo("Automat 7-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat Steptronic 8-växlad", "Volvo XC60 (2021)"))
+                .isEqualTo("Automat 8-växlad");
+    }
+
+    @Test
+    void egenBeteckningPaEgetMarkeStarKvar() {
+        // DSG på en Škoda och Geartronic på en Volvo är RÄTT uppgift — vakten får inte äta den.
+        assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad", "Škoda Kodiaq iV (2023)"))
+                .isEqualTo("Automat DSG 7-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad", "Volkswagen Tiguan (2022)"))
+                .isEqualTo("Automat DSG 7-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat Geartronic 8-växlad", "Volvo XC60 (2021)"))
+                .isEqualTo("Automat Geartronic 8-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat PDK 8-växlad", "Porsche Macan (2022)"))
+                .isEqualTo("Automat PDK 8-växlad");
+    }
+
+    @Test
+    void deladeBeteckningarLamnasIFred() {
+        // DCT, EDC, CVT och AMT anvands av FLERA tillverkare och star med flit utanfor tabellen:
+        // att falla dem hade tagit bort riktig information. Okant marke ror vi inte heller.
+        assertThat(GroqService.rensaVaxellada("Automat DCT 7-växlad", "Hyundai Tucson (2022)"))
+                .isEqualTo("Automat DCT 7-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat CVT", "Toyota RAV4 Plug-in (2022)"))
+                .isEqualTo("Automat CVT");
+        assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad", "Hongqi E-HS9 (2023)"))
+                .isEqualTo("Automat 7-växlad");   // okant marke AGER inte DSG -> stryks
+        // Utan titel gar markeskontrollen inte att gora - da stads bara parenteserna.
+        assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad"))
+                .isEqualTo("Automat DSG 7-växlad");
+    }
+
+    @Test
     void bensinkortFarIngenEvSpecNarIceConsumptionHarBilen() {
         // Live 2026-08-14, SUV/bensin/250 000 kr: korten "Kia Niro (2021)" och "Hyundai Kona
         // (2020)" bar en elbils evSpec ("ladda var 10:e dag" / "var 6:e dag") samtidigt som

@@ -983,7 +983,7 @@ public class GroqService {
             // fuel nollställs medvetet: AI:ns egen gissning kastas och fältet fylls bara av
             // den verifierade ice_consumption-raden nedan. Samma linje som förbrukning och hk.
             if (fuelSpec != null) fuelSpec = new com.caradvice.model.FuelSpecDto(
-                    fuelSpec.consumptionLiterPerMil(), rensaVaxellada(fuelSpec.gearbox()),
+                    fuelSpec.consumptionLiterPerMil(), rensaVaxellada(fuelSpec.gearbox(), r.title()),
                     fuelSpec.horsepower(), fuelSpec.engineVolumeLiters(), null);
             IceConsumptionService.Variant iceVariant = null;
             if (fuelSpec != null && fuelSpec.consumptionLiterPerMil() != null) {
@@ -2756,13 +2756,67 @@ public class GroqService {
         return evSpec != null && !"PHEV".equalsIgnoreCase(evSpec.carType());
     }
 
+    /** Utan titel går märkeskontrollen inte att göra — då städas bara parenteserna. */
     static String rensaVaxellada(String gearbox) {
+        return rensaVaxellada(gearbox, null);
+    }
+
+    /**
+     * Som ovan, men fäller dessutom en växellådebeteckning som tillhör ett ANNAT märke.
+     *
+     * <p>Skarpt 2026-09-17: ett laddhybrid-SUV-sök gav <i>Volvo XC60 Recharge</i> växellådan
+     * <b>"Automat DSG 7-växlad"</b>. DSG är VW-koncernens dubbelkoppling och XC60 har en
+     * åttastegad Aisin — alltså exakt samma fel som "(TSI turbo)" gav 2026-08-14, men genom
+     * en annan dörr: <b>beteckningen stod inline och inte i en parentes</b>, så
+     * parentesstädningen ovan såg den aldrig.
+     *
+     * <p><b>Roten var återigen promptens eget exempel.</b> Listan över godkända strängar
+     * slutade med "Automat DSG 7-växlad", så prompten förbjöd TSI vid namn samtidigt som den
+     * delade ut DSG som mönster. Exemplen ÄR den operativa regeln. Exemplet är utbytt — och
+     * regeln står nu på TVÅ ställen av samma skäl som förut: en prompt kan ignoreras.
+     *
+     * <p>Bara <b>entydigt märkesägda</b> beteckningar står i tabellen. DCT, EDC, CVT och AMT
+     * är utelämnade med flit: de används av flera tillverkare, och att fälla dem hade tagit
+     * bort riktig information. Känner vi inte igen märket i titeln rör vi ingenting — samma
+     * fail open som resten av städningen.
+     */
+    static String rensaVaxellada(String gearbox, String title) {
         if (gearbox == null) return null;
         String rensad = PARENTES.matcher(gearbox)
                 .replaceAll(m -> VAXELLADEORD.matcher(m.group(1)).find()
                         ? java.util.regex.Matcher.quoteReplacement(m.group(0)) : "");
+        rensad = utanFrammandeLadebeteckning(rensad, title);
         rensad = rensad.replaceAll("\\s{2,}", " ").trim();
         return rensad.isEmpty() ? null : rensad;
+    }
+
+    /** Växellådebeteckningar som ÄGS av ett märke, och märkena de hör till. */
+    private static final Map<String, java.util.Set<String>> LADEBETECKNINGAR = Map.of(
+            "dsg",         java.util.Set.of("volkswagen", "vw", "skoda", "škoda", "seat", "cupra", "audi"),
+            "geartronic",  java.util.Set.of("volvo"),
+            "steptronic",  java.util.Set.of("bmw"),
+            "powershift",  java.util.Set.of("ford"),
+            "multitronic", java.util.Set.of("audi"),
+            "xtronic",     java.util.Set.of("nissan"),
+            "pdk",         java.util.Set.of("porsche"),
+            "tiptronic",   java.util.Set.of("porsche", "audi", "volkswagen", "vw"));
+
+    private static String utanFrammandeLadebeteckning(String gearbox, String title) {
+        if (title == null || title.isBlank()) return gearbox;
+        String marke = CarTitle.stripYear(title).trim().split("\\s+")[0].toLowerCase(java.util.Locale.ROOT);
+        String ut = gearbox;
+        for (Map.Entry<String, java.util.Set<String>> e : LADEBETECKNINGAR.entrySet()) {
+            if (e.getValue().contains(marke)) continue;              // beteckningen hör hemma
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                    "(?i)\\s*\\b" + java.util.regex.Pattern.quote(e.getKey()) + "\\b");
+            if (p.matcher(ut).find()) {
+                log.warn("Växellådan \"{}\" bär {} som tillhör {} — inte {}. Beteckningen stryks.",
+                        gearbox, e.getKey().toUpperCase(java.util.Locale.ROOT),
+                        String.join("/", e.getValue()), marke);
+                ut = p.matcher(ut).replaceAll(" ");
+            }
+        }
+        return ut;
     }
 
     private static final java.util.regex.Pattern PARENTES =
@@ -4393,7 +4447,7 @@ public class GroqService {
                 Svensk bilrådgivare, sv. marknaden 2025–2026. Svara ENDAST med JSON:
                 {"recommendations":[{"title":"Märke Modell (år)","price":"X–Y kr","whyRecommended":"källa t.ex. 'Teknikens Värld: toppbetyg'","pros":["p1","p2","p3"],"con":"nackdel","fitSummary":"varför bilen passar profilen","expertOpinion":"max 2 meningar om körkänsla och tillförlitlighet — ej listpris","horsepower":150,"engineOptions":"motorvarianter kommaseparerade","fuelSpec":null}]}
                 horsepower (hk, heltal) och engineOptions (kommaseparerad STRÄNG) får ALDRIG vara null. engineOptions bensin/diesel ex: '1.0 TSI 95hk manuell, 1.5 TSI 150hk DSG automat'; elbil ex: '44 kWh 95hk (400km), 60 kWh 204hk (570km)'.
-                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN — "Manuell 6-växlad", "Automat 8-växlad", "Automat CVT", "Automat DSG 7-växlad". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. Elbil/laddhybrid: fuelSpec=null.
+                Bensin/diesel fuelSpec: {"consumptionLiterPerMil":X.X,"gearbox":"Automat 7-växlad","horsepower":N,"engineVolumeLiters":X.X}. gearbox ska bara innehålla VÄXELLÅDAN, i GENERISK form — "Manuell 6-växlad", "Automat 8-växlad", "Automat 7-växlad", "Automat CVT". Skriv ALDRIG motor- eller turbobeteckningar där (TSI, TDI, GDI, HEV, turbo): de hör till motorn, sätts av databasen och blir fel på fel märke — TSI är VW-koncernens beteckning och hör inte hemma på en Volvo. **Växellådans EGNA märkesnamn är samma fälla**: DSG och S tronic ägs av VW-koncernen, Geartronic av Volvo, Steptronic av BMW, PowerShift av Ford, PDK av Porsche, Xtronic av Nissan. Skriv dem ALDRIG på ett annat märke — är du det minsta osäker, skriv bara "Automat N-växlad". Elbil: fuelSpec=null. LADDHYBRID: fuelSpec MED förbrukning och växellåda — en laddhybrid har en förbränningsmotor, och dess växellåda är nästan undantagslöst automat.
                 ALLTID EXAKT 3 OLIKA bilar (tre olika modeller — aldrig samma bil två gånger) — aldrig färre. Om budgeten är knapp: billigare segment, äldre årsmodell eller annat märke (nämn det i fitSummary). fitSummary konkret och personlig; driftkostnad i pros vid hög körsträcka.
                 """ + kategoriRegler + evGolvBlock(wantsEv, allt, prefs) + """
                 UTNYTTJA BUDGETEN: minst en rekommendation ska ligga nära budgeten (topp ~80–100 %) — föreslå aldrig bara väsentligt billigare bilar när budgeten räcker till något rymligare, nyare eller bättre utrustat. En billig outlier är OK som prisvärt alternativ, men aldrig som enda nivå.
