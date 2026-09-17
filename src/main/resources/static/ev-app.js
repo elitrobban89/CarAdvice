@@ -159,7 +159,7 @@
     }, TAK_MS);
   })();
 
-  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [] };
+  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [], vroomTopp: null, vroomNyheter: null };
   // ===== PRISLOGIK BÖRJAR — ren, testas av backend/src/test/js/pris-prov.js =====
   //
   // Låg förut inline på TRE ställen (stationskorten, chattens stationskontext och
@@ -1268,6 +1268,22 @@
       evDataKlar();
     });
 
+  // Vroom: manadens tio mest registrerade elbilar plus manadens nyheter ur pressrummet.
+  // Tva anrop och inte ett: topplistan och nyheterna har olika kallor och olika livslangd,
+  // och en sammanslagen endpoint hade betytt att ett dott floede tog med sig det andra.
+  // Bada ar fail-soft — utan svar ritas ingen Vroom-flik alls.
+  fetch(API + "/api/vroom-top-cars")
+    .then(r => r.json())
+    .then(d => { if (d && Array.isArray(d.bilar) && d.bilar.length) state.vroomTopp = d; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
+  fetch(API + "/api/vroom-news")
+    .then(r => r.json())
+    .then(d => { if (d && Array.isArray(d.nyheter) && d.nyheter.length) state.vroomNyheter = d; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
   fetch(API + "/api/ev-sales-rank")
     .then(r => r.json())
     .then(rows => { if (Array.isArray(rows)) state.evSalesRank = rows; })
@@ -1983,7 +1999,7 @@
      */
     // Tva argument och inte en ihopslagen strang: avdelningen bygger flikar av dem, och
     // da maste den veta var den ena slutar och den andra borjar.
-    const carouselSection = carouselArea(funfactHtml, factHtml);
+    const carouselSection = carouselArea(funfactHtml, factHtml, buildVroomHtml());
 
     /*
      * Stationslistan är hopfälld från start. Öppet läge lever i state och inte i DOM:en:
@@ -2077,10 +2093,11 @@
    * om dem vid flikbytet hade nollställt karusellens position och pausläge, alltså straffat
    * den som just pausat för att läsa.
    */
-  function carouselArea(tipsHtml, tabellHtml) {
+  function carouselArea(tipsHtml, tabellHtml, vroomHtml) {
     const delar = [
       { id: 'tips', ikon: '💡', etikett: 'AI-tips &amp; Visste du att', html: tipsHtml },
-      { id: 'tabeller', ikon: '📊', etikett: 'Jämför bilarna', html: tabellHtml }
+      { id: 'tabeller', ikon: '📊', etikett: 'Jämför bilarna', html: tabellHtml },
+      { id: 'vroom', ikon: '🏆', etikett: 'Vroom: månadens siffror', html: vroomHtml }
     ].filter(function (d) { return !!d.html; });
     if (!delar.length) return '';
 
@@ -2127,7 +2144,90 @@
     if (state.lastData) return;
     const el = document.getElementById("ev-output");
     if (!el || el.querySelector('.ev-status')) return;   // spinnern far vara ifred
-    setOutput(carouselArea(buildFunfactHtml(null)));
+    setOutput(carouselArea(buildFunfactHtml(null), null, buildVroomHtml()));
+  }
+
+  /**
+   * Vroom-kortet: månadens topplista först, sedan månadens nyheter — en slide var.
+   *
+   * Topplistan är en TABELL och nyheterna är text, men de delar kort med flit: båda svarar
+   * på frågan "vad hände på elbilsmarknaden den här månaden", och två kort hade betytt två
+   * prickrader och två Paus-knappar för samma sak — precis det flikarna en gång byggdes
+   * bort.
+   *
+   * Returnerar tom sträng när ingendera källan svarat: carouselArea filtrerar bort tomma
+   * delar, så fliken finns helt enkelt inte förrän det finns något att visa. En flik man
+   * klickar på för att mötas av ingenting är sämre än ingen flik alls.
+   *
+   * ALLT som kommer utifrån går genom esc(). Texten är någon annans och hamnar i innerHTML.
+   */
+  function buildVroomHtml() {
+    const topp = state.vroomTopp;
+    const nyh  = state.vroomNyheter;
+    if (!topp && !nyh) return '';
+
+    const slides = [];
+
+    if (topp) {
+      const rader = topp.bilar.map(function (b) {
+        return '<tr style="border-bottom:1px solid #f3f4f6">'
+          + '<td style="padding:6px 10px;color:#9ca3af;font-variant-numeric:tabular-nums">' + b.plats + '</td>'
+          + '<td style="padding:6px 10px"><strong>' + esc(b.modell) + '</strong> '
+          + '<span style="color:#9ca3af">' + esc(b.marke) + '</span></td>'
+          + '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums">'
+          + b.antal.toLocaleString('sv-SE') + '</td></tr>';
+      }).join('');
+      // Rubriken säger ELBILAR fast källan skriver "personbilar" — se VroomTopCarsService:
+      // samtliga rader är batterielbilar, och en etta på 731 kan inte vara hela nybilsmarknaden.
+      const kalltext = 'Källa: <strong>' + esc(topp.kalla) + '</strong>'
+        + (topp.sammanstalltAv ? ', sammanställt av ' + esc(topp.sammanstalltAv) : '')
+        + (topp.lank ? ' · <a href="' + esc(topp.lank) + '" target="_blank" rel="noopener">se genomgången</a>' : '');
+      slides.push(
+        '<div class="ev-vroom-slide" style="display:flex;flex-direction:column;">'
+        + '<div class="ev-funfact-label">Mest registrerade elbilarna · ' + esc(topp.manad) + '</div>'
+        + '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-top:8px;">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+        + '<thead><tr style="background:#f3f4f6;border-bottom:1px solid #e5e7eb;">'
+        + '<th style="padding:6px 10px;text-align:left;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;width:24px;">#</th>'
+        + '<th style="padding:6px 10px;text-align:left;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Modell</th>'
+        + '<th style="padding:6px 10px;text-align:right;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Nyreg.</th>'
+        + '</tr></thead><tbody>' + rader + '</tbody></table></div>'
+        + '<div style="margin-top:8px;font-size:12px;color:#6b7280;">' + kalltext + '</div>'
+        + '</div>');
+    }
+
+    if (nyh) {
+      nyh.nyheter.forEach(function (n) {
+        slides.push(
+          '<div class="ev-vroom-slide" style="display:none;flex-direction:column;">'
+          + '<div class="ev-funfact-label">Vroom · ' + esc(n.datum) + '</div>'
+          + '<div class="ev-funfact-text" style="margin-top:4px;"><strong>' + esc(n.rubrik) + '</strong><br>'
+          + esc(n.sammanfattning) + '</div>'
+          + (n.lank ? '<div style="margin-top:8px;font-size:12px;"><a href="' + esc(n.lank)
+              + '" target="_blank" rel="noopener">Läs hela pressmeddelandet</a></div>' : '')
+          + '</div>');
+      });
+    }
+
+    // Första sliden ska synas även när topplistan uteblev och nyheterna står ensamma.
+    const forsta = slides[0].replace('display:none', 'display:flex');
+    const kropp = [forsta].concat(slides.slice(1)).join('');
+    const prickar = slides.map(function (_, i) {
+      return '<button class="ev-fact-dot' + (i === 0 ? ' ev-fact-dot-active' : '')
+        + '" data-dot="' + i + '" aria-label="Vroom ' + (i + 1) + '"></button>';
+    }).join('');
+
+    return '<div class="ev-funfact-card" id="ev-vroom-carousel" style="flex-direction:column;align-items:stretch;gap:0;">'
+      + '<div data-slides style="position:relative;">' + kropp + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">'
+      + '<button class="ev-fact-nav" data-carousel-prev>‹</button>'
+      + '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;">' + prickar + '</div>'
+      + '<button class="ev-fact-nav" data-carousel-next>›</button></div>'
+      + '<div class="ev-fact-progress"><div class="ev-fact-progress-bar"></div></div>'
+      + '<div style="display:flex;justify-content:center;margin-top:10px;">'
+      + '<button class="ev-fact-play" data-carousel-play aria-pressed="false" title="Pausa karusellen">'
+      + '<span class="ev-fact-play-icon">⏸</span><span data-carousel-play-label>Paus</span>'
+      + '</button></div></div>';
   }
 
   function buildFunfactHtml(funFact) {
@@ -2521,6 +2621,7 @@
     }
 
     evInitCarousel('ev-funfact-carousel', '.ev-funfact-slide');
+    evInitCarousel('ev-vroom-carousel', '.ev-vroom-slide');
 
     evInitCarousel('ev-fact-carousel', '.ev-fact-slide', (activeSlide) => {
       const highlighted = activeSlide.querySelector('tr[style*="rgba(59,130,246"]');
