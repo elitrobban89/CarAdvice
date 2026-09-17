@@ -2267,6 +2267,57 @@ public class GroqService {
             Map.entry("Mercedes GLC",        929_000)));
 
     /**
+     * Uppmätta begagnatgolv för LADDHYBRID-SUV:ar.
+     *
+     * <p><b>Mätt 2026-09-17</b> mot Blockets sök-API med exakt samma metod som
+     * {@link #SUV_ICE_PRICE_FLOOR_KR}: {@code sales_form} 1+2, pris över 10 000 kr, högst
+     * {@link BlocketPriceService#MAX_MILEAGE_MIL} mil och {@code AdFilter} med drivmedlet
+     * {@code "Plug-in Bensin"}. Antal matchande annonser inom parentes.
+     *
+     * <p><b>Varför tabellen måste finnas:</b> {@code suvModelsLine} valde tabell på
+     * {@code pureEv()} allena, så ett laddhybridssök landade i bensintabellen. Skarpt
+     * 2026-08-22 prissattes <i>Škoda Kodiaq iV</i> till 289 800 kr — exakt bensin-Kodiaqens
+     * golv. Mätningen ovan ger 429 000 kr för laddhybriden, alltså <b>139 200 kr fel</b>, och
+     * felet pekar konsekvent åt samma håll: laddhybriden är den dyraste varianten av samma
+     * kaross, aldrig den billigaste. Prisraden på kortet blev därför för låg.
+     *
+     * <p>Bara modeller med <b>minst fem</b> matchande annonser står här. Volvo XC40 (2),
+     * Audi Q7 (3, och näst billigaste annons låg på 969 000 kr) och Seat Tarraco (3) mättes
+     * men är utelämnade: ett golv som vilar på ett par annonser är en slump, inte en
+     * marknad. Cupra Formentor (22 annonser, 248 900 kr) är utelämnad av ett annat skäl —
+     * den är lika låg som Niro och Kona, som användaren uttryckligen inte räknar som SUV:ar
+     * (se {@link #NON_SUV_MARKERS}). Vill man ha in den är det en rad, inte en ommätning.
+     *
+     * <p>Precis som de två andra tabellerna fäller den här ingenting — den väljer bara vilka
+     * modeller som namnges.
+     */
+    static final Map<String, Integer> SUV_PHEV_PRICE_FLOOR_KR = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("Jeep Renegade 4xe",        179_500),   // (5)
+            Map.entry("Mitsubishi Outlander",     179_800),   // (11)
+            Map.entry("Jeep Compass 4xe",         194_800),   // (17)
+            Map.entry("Peugeot 3008 Hybrid",      194_900),   // (5)
+            Map.entry("Opel Grandland",           199_000),   // (7)
+            Map.entry("Citroën C5 Aircross",      199_900),   // (6)
+            Map.entry("Ford Kuga PHEV",           214_000),   // (24)
+            Map.entry("Volkswagen Tiguan eHybrid", 279_900),  // (6)
+            Map.entry("BMW X1 xDrive30e",         288_900),   // (11)
+            Map.entry("Mazda CX-60 PHEV",         289_900),   // (38)
+            Map.entry("Audi Q3 TFSI e",           294_900),   // (5)
+            Map.entry("Mercedes GLA 250e",        299_000),   // (11)
+            Map.entry("Hyundai Tucson PHEV",      299_900),   // (20)
+            Map.entry("Kia Sportage PHEV",        309_900),   // (28)
+            Map.entry("Suzuki Across",            329_000),   // (14)
+            Map.entry("Audi Q5 TFSI e",           339_000),   // (11)
+            Map.entry("Mercedes GLC 300e",        369_700),   // (7)
+            Map.entry("Toyota RAV4 Plug-in",      389_900),   // (11)
+            Map.entry("Volvo XC60 Recharge",      399_000),   // (25)
+            Map.entry("BMW X3 xDrive30e",         425_700),   // (21)
+            Map.entry("Škoda Kodiaq iV",          429_000),   // (9)
+            Map.entry("Lexus NX 450h+",           459_900),   // (24)
+            Map.entry("Volvo XC90 Recharge",      509_800),   // (32)
+            Map.entry("BMW X5 xDrive45e",         579_000))); // (20)
+
+    /**
      * SUV-kandidaterna i FÖRSTA prompten, inte som tillrättavisning efteråt.
      *
      * <p>Samma lärdom som {@link #affordableModelsLine}: {@code requireSuvShapedCars} säger vad
@@ -2277,9 +2328,14 @@ public class GroqService {
      */
     static String suvModelsLine(CarPreferences prefs) {
         if (!requiresSuvShapedCar(prefs)) return "";
-        boolean el = fuelIntent(prefs.fuelType(), prefs.carCategory()).pureEv();
-        Map<String, Integer> golv = el ? SUV_EV_PRICE_FLOOR_KR : SUV_ICE_PRICE_FLOOR_KR;
-        String rubrik = el ? "EL-SUV" : "SUV";
+        // Tre tabeller, inte två: laddhybriden ÄR den dyraste varianten av samma kaross, så
+        // bensingolvet ger ett tal som ligger ordentligt under den bil användaren kan köpa.
+        FuelIntent avsikt = fuelIntent(prefs.fuelType(), prefs.carCategory());
+        boolean el = avsikt.pureEv();
+        boolean laddhybrid = !el && avsikt.phev();
+        Map<String, Integer> golv = el ? SUV_EV_PRICE_FLOOR_KR
+                : laddhybrid ? SUV_PHEV_PRICE_FLOOR_KR : SUV_ICE_PRICE_FLOOR_KR;
+        String rubrik = el ? "EL-SUV" : laddhybrid ? "LADDHYBRID-SUV" : "SUV";
 
         // Golven är begagnatpriser: i leasing- och nybilsläge är de fel prisvärld helt och hållet.
         if (!harGolvvakt(prefs)) return " " + rubrik + ":AR ATT UTGÅ FRÅN: " + String.join(", ",
@@ -2299,7 +2355,8 @@ public class GroqService {
             Map.Entry<String, Integer> billigast = golv.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .orElseThrow();
-            return " " + rubrik + " OCH BUDGET: ingen " + (el ? "el-SUV" : "SUV")
+            return " " + rubrik + " OCH BUDGET: ingen "
+                    + (el ? "el-SUV" : laddhybrid ? "laddhybrid-SUV" : "SUV")
                     + " har ett uppmätt begagnatgolv under " + kr(tak)
                     + " kr. Billigast är " + billigast.getKey() + " från " + kr(billigast.getValue())
                     + " kr — säg det rakt ut i fitSummary i stället för att hitta på en billigare bil.";
@@ -2419,6 +2476,82 @@ public class GroqService {
                 + " \"Kia Niro Hybrid\" eller liknande; välj i stället rena bensin- eller"
                 + " dieselmodeller som Škoda Fabia, Toyota Aygo, VW Polo, Hyundai i20 eller Kia Picanto.");
     }
+
+    /**
+     * Användarens växellådekrav som ETT ord — {@code "manuell"}, {@code "automat"} eller
+     * {@code null} när inget krav finns. Formulärets tredje värde är "spelar ingen roll".
+     */
+    static String transmissionIntent(CarPreferences prefs) {
+        String t = prefs.transmission() == null ? ""
+                : prefs.transmission().trim().toLowerCase(java.util.Locale.ROOT);
+        return "manuell".equals(t) || "automat".equals(t) ? t : null;
+    }
+
+    /**
+     * Skarpt läge: valde man MANUELL ska korten inte vara automater — och tvärtom.
+     *
+     * <p>Växellådan var det sista formulärfältet utan kodvakt. Drivmedel, kategori,
+     * familjestorlek, bagage och budget har alla fått en efter att prompttexten släppt igenom
+     * ett brott; växellådan stod kvar med enbart promptraden ("rekommendera endast bilar med
+     * denna växellåda") trots att mätningen 2026-08-22 visade samma sorts brott: bensin +
+     * <b>manuell</b> + 150 000 kr gav <i>Toyota Yaris (2020) · Automat CVT</i> — ett kort som
+     * skriver ut motsatsen till det som efterfrågades.
+     *
+     * <p><b>Fäller bara på positivt bevis, precis som drivlinevakterna.</b> Beviset är kortets
+     * EGET växellådefält: står det "Automat CVT" på ett manuellsök är motsägelsen kortets egen.
+     * Saknas fuelSpec finns inget bevis och bilen släpps igenom — det är normalläget för en ren
+     * elbil, som inte har någon växellåda alls.
+     *
+     * <p>Vakten prövas på det RÅA fältet, alltså före {@link #rensaVaxellada}: den letar ORD och
+     * jämför inte strängar, så skräpet i "Automat 8-växlad (TSI turbo)" spelar ingen roll.
+     * {@code IMT} och {@code AMT} är med flit utelämnade ur båda ordlistorna — automatiserade
+     * manuella lådor tillhör inte entydigt någon sida, och en gissning där vore ett påhittat bevis.
+     * Av samma skäl ger en sträng som bär BÅDA sidornas ord ingenting: två bevis som pekar åt var
+     * sitt håll är inget bevis.
+     *
+     * <p>Notera vad vakten INTE kan: att ett kort påstår "Manuell" om en modell som bara finns med
+     * automat går inte att fälla här. {@code ice_consumption} lagrar ingen växellåda, så det
+     * påståendet har vi inget facit till — samma lucka som {@link #rensaVaxellada} beskriver.
+     */
+    static void requireTransmissionCars(List<CarRecommendation> parsed, String krav) {
+        List<CarRecommendation> kvar = new ArrayList<>();
+        List<String> avvisade = new ArrayList<>();
+        for (CarRecommendation r : parsed) {
+            String lada = r.fuelSpec() == null ? null : r.fuelSpec().gearbox();
+            if (gearboxSide(lada) != null && !gearboxSide(lada).equals(krav))
+                avvisade.add(r.title() + " (" + lada + ")");
+            else kvar.add(r);
+        }
+        if (avvisade.isEmpty()) return;
+        log.warn("AI föreslog fel växellåda mot kravet {}: {} — {} bil(ar) kvar",
+                krav, String.join(", ", avvisade), kvar.size());
+        boolean manuell = "manuell".equals(krav);
+        throw new RuleViolationException("AI:n föreslog en bil med fel växellåda. Försök igen.",
+                kvar, avvisade,
+                "Alla tre bilar måste finnas med " + (manuell ? "MANUELL" : "AUTOMATISK")
+                + " växellåda, och fältet gearbox ska säga just det. "
+                + (manuell
+                   ? "En automat är ALDRIG ett giltigt svar här: skriv aldrig \"Automat\", \"CVT\","
+                   + " \"DSG\", \"DCT\" eller \"Geartronic\" i gearbox. Välj modeller som"
+                   + " faktiskt säljs med manuell låda — en självladdande hybrid gör det nästan aldrig."
+                   : "En manuell låda är ALDRIG ett giltigt svar här: skriv aldrig \"Manuell\" i gearbox.")
+                + " Hittar du ingen bil som uppfyller kravet: byt bil, ändra aldrig bara texten.");
+    }
+
+    /** {@code "manuell"}, {@code "automat"} eller null när fältet inte säger något entydigt. */
+    private static String gearboxSide(String gearbox) {
+        if (gearbox == null) return null;
+        boolean m = MANUELL_LADA.matcher(gearbox).find();
+        boolean a = AUTOMAT_LADA.matcher(gearbox).find();
+        if (m == a) return null;   // båda eller ingen — inget entydigt bevis
+        return m ? "manuell" : "automat";
+    }
+
+    private static final java.util.regex.Pattern MANUELL_LADA =
+            java.util.regex.Pattern.compile("(?i)\\bmanuell\\w*\\b");
+    private static final java.util.regex.Pattern AUTOMAT_LADA = java.util.regex.Pattern.compile(
+            "(?i)\\b(automat\\w*|cvt|e-cvt|dsg|dct|edc|geartronic|powershift|steptronic|"
+            + "tiptronic|multitronic|xtronic|s.tronic|pdk)\\b");
 
     /** Kategorin är SUV — då ska bilarna vara höga. Speglar SUV-regeln i systemprompten. */
     static boolean requiresSuvShapedCar(CarPreferences prefs) {
@@ -2797,6 +2930,8 @@ public class GroqService {
         if (fuelIntent(prefs.fuelType(), prefs.carCategory()).phev())
             validator = validator.andThen(GroqService::requirePhevCars);
         if (requiresIceCar(prefs)) validator = validator.andThen(GroqService::requireIceCars);
+        String vaxellada = transmissionIntent(prefs);
+        if (vaxellada != null) validator = validator.andThen(p -> requireTransmissionCars(p, vaxellada));
         if (prefs.minCargoLiters() != null && prefs.minCargoLiters() > 0) {
             int krav = prefs.minCargoLiters();
             validator = validator.andThen(p -> requireCargoCapacity(p, krav));

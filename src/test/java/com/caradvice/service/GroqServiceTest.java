@@ -1053,6 +1053,41 @@ class GroqServiceTest {
 
         assertThat(rad).contains("ATT UTGÅ FRÅN").doesNotContain("fr. ");
     }
+    @Test
+    void laddhybridSuvFarSinaEgnaGolvOchInteBensinens() {
+        // Skarpt 2026-08-22 prissattes Škoda Kodiaq iV till 289 800 kr — exakt bensin-Kodiaqens
+        // golv, för tabellen valdes på pureEv() allena. Laddhybriden är den DYRASTE varianten av
+        // samma kaross: uppmätt golv 429 000 kr, alltså 139 200 kr fel åt det billiga hållet.
+        String rad = GroqService.suvModelsLine(new CarPreferences(450_000, "suv", true, 15_000,
+                "pendling", 4, false, "laddhybrid", "automat", "köp", null, null));
+
+        assertThat(rad).contains("LADDHYBRID-SUV");
+        assertThat(rad).contains("Škoda Kodiaq iV (fr. 429 000)");
+        // Bensintabellens tal får inte synas: Kodiaq 289 800 och XC60 249 900 hör till en annan bil
+        assertThat(rad).doesNotContain("289 800").doesNotContain("249 900");
+    }
+
+    @Test
+    void laddhybridSuvViaKategorinTarSammaVag() {
+        // Formulärets laddhybridssök bär fuelType "spelar ingen roll" — drivmedelssträngen ensam
+        // vet alltså ingenting, och därför läses avsikten ur fuelIntent och inte ur strängen.
+        String rad = GroqService.suvModelsLine(new CarPreferences(250_000, "suv", true, 15_000,
+                "pendling", 4, false, "spelar ingen roll", null, "köp", null, null));
+        assertThat(rad).startsWith(" SUV");   // utan laddhybridsavsikt: bensintabellen som förut
+
+        String phev = GroqService.suvModelsLine(new CarPreferences(250_000, "laddhybrid", true,
+                15_000, "pendling", 4, false, "spelar ingen roll", null, "köp", null, null));
+        assertThat(phev).isEmpty();   // kategorin är laddhybrid, inte suv — raden gäller SUV-sök
+    }
+
+    @Test
+    void laddhybridSuvSagerIfranNarIngenRyms() {
+        String rad = GroqService.suvModelsLine(new CarPreferences(100_000, "suv", true, 15_000,
+                "pendling", 4, false, "laddhybrid", null, "köp", null, null));
+
+        assertThat(rad).contains("ingen laddhybrid-SUV").contains("Jeep Renegade 4xe från 179 500");
+    }
+
     // --- affordableModelsLine (kandidatlistan i FÖRSTA prompten, inte bara i rättelsen) ---
 
     @Test
@@ -2677,6 +2712,95 @@ class GroqServiceTest {
         return new CarPreferences(150_000, "smaabil", false, 15_000, "pendling",
                 4, false, drivmedel, null, "köp", null, null);
     }
+    // --- requireTransmissionCars (växellådan, sista formulärfältet utan kodvakt) ---
+
+    /** GILTIG_BIL med en riktig fuelSpec, så växellådefältet finns att pröva mot. */
+    private static String bilMedLada(String titel, String gearbox) {
+        return GILTIG_BIL.replace("Volvo EX30 (2024)", titel)
+                .replace("\"fuelSpec\":null",
+                        "\"fuelSpec\":{\"consumptionLiterPerMil\":5.2,\"gearbox\":\""
+                        + gearbox
+                        + "\",\"horsepower\":116,\"engineVolumeLiters\":1.5}");
+    }
+
+    @Test
+    void automatkortFallsPaManuellsok() throws Exception {
+        // Skarpt 2026-08-22: bensin + manuell + 150 000 gav Toyota Yaris (2020) · Automat CVT.
+        // Kortet skriver alltså ut motsatsen till det som efterfrågades — motsägelsen är dess egen.
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + bilMedLada("Toyota Yaris (2020)", "Automat CVT") + "]}");
+        assertThatThrownBy(() -> GroqService.requireTransmissionCars(parsed, "manuell"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("växellåda");
+    }
+
+    @Test
+    void motorskrapIVaxelladefaltetHindrarInteVakten() throws Exception {
+        // Vakten prövas på det RÅA fältet, före rensaVaxellada — den letar ord, jämför inte
+        // strängar, så motorbeteckningen i parentesen får inte skymma "Automat".
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":["
+                + bilMedLada("Volkswagen Polo (2021)", "Automat 7-växlad (TSI turbo)") + "]}");
+        assertThatThrownBy(() -> GroqService.requireTransmissionCars(parsed, "manuell"))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void manuelltKortPasserarManuellsok() throws Exception {
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":["
+                + bilMedLada("Škoda Fabia (2021)", "Manuell 6-växlad") + "]}");
+        GroqService.requireTransmissionCars(parsed, "manuell");
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void kortUtanVaxelladaSlappsIgenom() throws Exception {
+        // En ren elbil HAR ingen växellåda, och GILTIG_BIL bär därför fuelSpec:null. Frånvaro
+        // av bevis är inget bevis — samma linje som drivlinevakterna.
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + GILTIG_BIL + "]}");
+        GroqService.requireTransmissionCars(parsed, "manuell");
+        GroqService.requireTransmissionCars(parsed, "automat");
+        assertThat(parsed).hasSize(1);
+    }
+
+    @Test
+    void otydligLadaFallerInte() throws Exception {
+        // AMT/IMT är automatiserade manuella lådor och tillhör ingen sida entydigt; en sträng
+        // som bär BÅDA sidornas ord är två bevis som pekar åt var sitt håll, alltså inget bevis.
+        List<CarRecommendation> amt = service().parseRecommendations("{\"recommendations\":["
+                + bilMedLada("Hyundai i20 (2021)", "AMT") + "]}");
+        GroqService.requireTransmissionCars(amt, "manuell");
+        GroqService.requireTransmissionCars(amt, "automat");
+
+        List<CarRecommendation> bada = service().parseRecommendations("{\"recommendations\":["
+                + bilMedLada("Toyota Aygo (2020)", "Manuell eller automat") + "]}");
+        GroqService.requireTransmissionCars(bada, "manuell");
+        GroqService.requireTransmissionCars(bada, "automat");
+    }
+
+    @Test
+    void manuellkortFallsPaAutomatsok() throws Exception {
+        List<CarRecommendation> parsed = service().parseRecommendations("{\"recommendations\":["
+                + bilMedLada("Dacia Sandero (2022)", "Manuell 6-växlad") + "]}");
+        assertThatThrownBy(() -> GroqService.requireTransmissionCars(parsed, "automat"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("växellåda");
+    }
+
+    @Test
+    void vaxelladevaktenGallerBaraNarEttVarderatValFinns() {
+        assertThat(GroqService.transmissionIntent(prefsMedLada("manuell"))).isEqualTo("manuell");
+        assertThat(GroqService.transmissionIntent(prefsMedLada("Automat"))).isEqualTo("automat");
+        assertThat(GroqService.transmissionIntent(prefsMedLada("spelar ingen roll"))).isNull();
+        assertThat(GroqService.transmissionIntent(prefsMedLada(""))).isNull();
+        assertThat(GroqService.transmissionIntent(prefsMedLada(null))).isNull();
+    }
+
+    private static CarPreferences prefsMedLada(String vaxellada) {
+        return new CarPreferences(150_000, "smaabil", false, 15_000, "pendling",
+                4, false, "bensin", vaxellada, "köp", null, null);
+    }
+
     // --- requirePhevCars (hård spärr mot självladdande hybrid i laddhybridssök) ---
 
     @Test
