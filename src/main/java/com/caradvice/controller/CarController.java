@@ -447,6 +447,30 @@ public class CarController {
         }
     }
 
+    /**
+     * Städvägen efter ett parserhaveri: raderar namngivna rader som saknar volym.
+     *
+     * <p>Kroppen är ett bilnamn per rad. {@code ?dryRun=true} räknar utan att röra något —
+     * använd den först, och jämför {@code raderade} med det antal städlistan skulle ge.
+     * Rader som HAR en volym raderas aldrig; de räknas som {@code skyddade} i svaret, så ett
+     * felskrivet namn syns i stället för att tyst ta med sig mätdata.
+     *
+     * <p>Fanns inte förrän 2026-09-17, och saknaden var dyr: namnsynken la in 3551
+     * filter- och stadslänkar som bilar den natten ({@code Volvo Ystad}, {@code XPENG 2024})
+     * och tabellen hade ingen väg tillbaka.
+     */
+    @PostMapping("/admin/cargo-specs/rensa")
+    public ResponseEntity<?> rensaCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                             @RequestParam(required = false, defaultValue = "false") boolean dryRun,
+                                             @RequestBody String namn) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        try {
+            return ResponseEntity.ok(cargoSpecService.raderaUtanVolym(namn, dryRun));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", String.valueOf(e.getMessage())));
+        }
+    }
+
     @PostMapping("/admin/upsert/cargospecs")
     public ResponseEntity<?> upsertCargoSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key,
                                               @RequestBody String csv) {

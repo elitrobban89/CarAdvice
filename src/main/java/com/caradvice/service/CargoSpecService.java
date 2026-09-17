@@ -298,6 +298,60 @@ public class CargoSpecService {
     }
 
     /**
+     * Raderar namngivna rader som ännu saknar volym — städvägen efter ett parserhaveri.
+     *
+     * <p><b>Varför den behövs.</b> Natten till 2026-09-17 la Bilweb till filter- och stadslänkar
+     * på varje märkessida, och namnsynken tog dem för modeller: <b>3551</b> rader som
+     * {@code Volvo Ystad} och {@code XPENG 2024} på en körning. Tabellen hade ingen raderingsväg
+     * alls, så skräpet hade blivit kvar i {@code /api/cars}, i {@code /api/stats} (models
+     * 2116 → 5667) och främst i arbetslistan {@link #namnUtanVolym()}, där det la sig först i
+     * bokstavsordningen och åt hela nattbudgeten för bagagevolymerna.
+     *
+     * <p><b>Rader med volym rörs aldrig.</b> En uppmätt siffra är det enda i tabellen som inte
+     * går att skapa om ur källan, och en städlista skriven för hand är precis det tillfälle då
+     * ett namn kan slinka med av misstag. Sådana rader räknas som {@code skyddade} i stället,
+     * så att ett felskrivet namn syns i svaret i stället för att tyst radera data.
+     *
+     * @param dryRun true = räkna och redovisa, rör ingenting
+     */
+    @Transactional
+    public Map<String, Object> raderaUtanVolym(String namnLista, boolean dryRun) {
+        Map<String, List<CargoSpec>> byNorm = new HashMap<>();
+        for (CargoSpec cs : repo.findAll()) {
+            byNorm.computeIfAbsent(normalize(cs.getCarName()), k -> new ArrayList<>()).add(cs);
+        }
+
+        List<CargoSpec> attRadera = new ArrayList<>();
+        List<String> skyddade = new ArrayList<>(), okanda = new ArrayList<>();
+        for (String rad : namnLista.split("\\R")) {
+            String namn = rad.trim().replaceAll("^\"|\"$", "");
+            if (namn.isBlank() || namn.startsWith("#")) continue;
+            List<CargoSpec> rader = byNorm.get(normalize(namn));
+            if (rader == null || rader.isEmpty()) { okanda.add(namn); continue; }
+            for (CargoSpec cs : rader) {
+                if (cs.getCargoLiters() != null && cs.getCargoLiters() > 0) skyddade.add(cs.getCarName());
+                else attRadera.add(cs);
+            }
+        }
+
+        if (!dryRun && !attRadera.isEmpty()) {
+            repo.deleteAll(attRadera);
+            log.info("cargo_spec: raderade {} rader utan volym ({} skyddade, {} okända namn)",
+                    attRadera.size(), skyddade.size(), okanda.size());
+        }
+        Map<String, Object> ut = new LinkedHashMap<>();
+        ut.put("dryRun", dryRun);
+        ut.put("raderade", attRadera.size());
+        ut.put("skyddade", skyddade.size());
+        ut.put("skyddadeRader", skyddade);
+        ut.put("okanda", okanda.size());
+        ut.put("okandaRader", okanda.size() > 50 ? okanda.subList(0, 50) : okanda);
+        // Efter deleteAll speglar count() redan raderingen; i dryRun är talet en prognos.
+        ut.put("kvar", dryRun ? repo.count() - attRadera.size() : repo.count());
+        return ut;
+    }
+
+    /**
      * Hur stor del av tabellen som faktiskt har en uppmätt volym.
      *
      * <p>Finns för att täckningen annars inte går att mäta: admin-API:t hade `import` och
