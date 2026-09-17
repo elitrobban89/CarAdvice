@@ -1064,9 +1064,18 @@ var CA_LEASING_LEVELS = { ikon: '📄', nivaer: [
 function caBudgetLevelsFor(kategori) {
   if (!kategori) return null;
   var fuel = document.getElementById('ca-fuel');
-  var elbilssok = fuel && fuel.value === 'el'
-                  && kategori !== 'elbil' && kategori !== 'laddhybrid';
-  return CA_BUDGET_LEVELS[elbilssok ? 'elbil' : kategori] || null;
+  var drivmedelsbestamd = kategori === 'elbil' || kategori === 'laddhybrid';
+  // DRIVMEDLET slår kategorin när det är entydigt. Gällde förut bara "el"; "laddhybrid" kom
+  // in som eget val i drivmedelsrutan 2026-09-17 och behövde samma väg — en laddhybrid-SUV
+  // hade annars mötts av bensin-SUV:arnas prisnivåer, alltså EXAKT samma fel som
+  // suvModelsLine hade i backenden till samma dag: laddhybriden är den dyraste varianten av
+  // samma kaross, så bensinnivåerna ligger konsekvent för lågt.
+  var nyckel = kategori;
+  if (fuel && !drivmedelsbestamd) {
+    if (fuel.value === 'el') nyckel = 'elbil';
+    else if (fuel.value === 'laddhybrid') nyckel = 'laddhybrid';
+  }
+  return CA_BUDGET_LEVELS[nyckel] || null;
 }
 
 // Elementet skapas från JS, inte i HTML-snippeten: WordPress-sidan är en manuell kopia och
@@ -1376,7 +1385,11 @@ function caUpdateFuelVisibility() {
   // "rekommendera endast bilar med denna växellåda" på ett elbilssök. Därför nollställs den
   // också, inte bara göms.
   var fuelVal   = document.getElementById('ca-fuel').value;
-  var doljTrans = hide || fuelVal === 'el';
+  // Laddhybrid göms på samma grund som el: det finns ingen manuell laddhybrid att välja.
+  // Sedan 2026-09-17 är det inte bara onödigt utan skadligt — requireTransmissionCars fäller
+  // ett kort vars gearbox säger emot kravet, så ett kvarglömt "Manuell" från ett tidigare
+  // bensinsök hade fällt varje riktig laddhybrid och bränt ett omförsök på det.
+  var doljTrans = hide || fuelVal === 'el' || fuelVal === 'laddhybrid';
   if (transField) transField.style.display = doljTrans ? 'none' : '';
   if (doljTrans) { var tr = document.getElementById('ca-transmission'); if (tr) tr.value = 'spelar ingen roll'; }
 
@@ -1388,7 +1401,7 @@ function caUpdateFuelVisibility() {
   // Rutan har inget eget id i markupen (till skillnad från #ca-fuel-field), därav closest().
   var chgEl    = document.getElementById('ca-charger');
   var chgField = (chgEl && chgEl.closest) ? chgEl.closest('.ca-field') : null;
-  var laddbart = hide || fuelVal === 'el' || fuelVal === 'spelar ingen roll';
+  var laddbart = hide || fuelVal === 'el' || fuelVal === 'laddhybrid' || fuelVal === 'spelar ingen roll';
   if (chgField) chgField.style.display = laddbart ? '' : 'none';
 
   caUpdateMaxAgeVisibility();
@@ -1434,6 +1447,7 @@ function caDrivmedelsrad() {
   var v = fuel.value;
   var text;
   if (v === 'el')            text = '⚡ El';
+  else if (v === 'laddhybrid') text = '🔌 Laddhybrid';
   else if (v === 'bensin')   text = '⛽ Bensin';
   else if (v === 'diesel')   text = '🛢️ Diesel';
   else if (v === 'hybrid')   text = '♻️ Hybrid (ej laddbar)';
