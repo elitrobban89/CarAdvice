@@ -170,9 +170,11 @@ public class GroqService {
 
     // Reservmodell för rekommendationer/jämförelser: tredje 429-utväg (egen TPM-pott hos Groq)
     // och omförsöksmodell när svaret kom tillbaka trunkerat/tomt.
-    // qwen3.6-27b är preview-tier hos Groq ("evaluation only") — därför reserv, inte primär.
-    // Bevakas av hälsokollen så en avveckling larmar via UptimeRobot.
-    @Value("${groq.reserve.model:qwen/qwen3.6-27b}")
+    // qwen är preview-tier hos Groq ("evaluation only") — därför reserv, inte primär.
+    // Bevakas av hälsokollen så en avveckling larmar via UptimeRobot, och den bevakningen
+    // BET 2026-09-17: qwen3.6-27b avvecklades och /api/health/groq svarade 503 MODEL_MISSING.
+    // Reserven pekar sedan dess på qwen3.8-27b — se application.properties för hela historien.
+    @Value("${groq.reserve.model:qwen/qwen3.8-27b}")
     private String reserveModel;
 
     /**
@@ -333,7 +335,13 @@ public class GroqService {
         return apiKey != null && !apiKey.isBlank();
     }
 
-    /** qwen3.6 stöder "none" (stänger av reasoning helt); gpt-oss tar bara low/medium/high. */
+    /**
+     * qwen stöder "none" (stänger av reasoning helt); gpt-oss tar bara low/medium/high.
+     *
+     * <p>Regeln sitter på {@code openai/}-prefixet och inte på ett modellnamn, och det är
+     * skälet till att modellbytet 2026-09-17 (qwen3.6 avvecklad → 3.8) inte krävde en rad här.
+     * "none" är live-provat mot 3.8 samma dag.
+     */
     static String reasoningEffortFor(String modelName) {
         return modelName.startsWith("openai/") ? "low" : "none";
     }

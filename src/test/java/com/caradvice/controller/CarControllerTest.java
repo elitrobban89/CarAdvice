@@ -1225,12 +1225,12 @@ class CarControllerTest {
     void groqHealthMedSaknadModellGer503() throws Exception {
         when(groqService.isConfigured()).thenReturn(true);
         when(groqService.checkModels())
-                .thenReturn(new GroqService.ModelStatus(List.of("qwen/qwen3.6-27b"), null, 0));
+                .thenReturn(new GroqService.ModelStatus(List.of("qwen/qwen3.8-27b"), null, 0));
 
         mvc.perform(get("/api/health/groq"))
            .andExpect(status().isServiceUnavailable())
            .andExpect(jsonPath("$.status").value("MODEL_MISSING"))
-           .andExpect(jsonPath("$.missing[0]").value("qwen/qwen3.6-27b"));
+           .andExpect(jsonPath("$.missing[0]").value("qwen/qwen3.8-27b"));
     }
 
     @Test
@@ -1248,7 +1248,7 @@ class CarControllerTest {
     void groqHealthAlltValGer200MedModellista() throws Exception {
         when(groqService.isConfigured()).thenReturn(true);
         when(groqService.checkModels()).thenReturn(new GroqService.ModelStatus(List.of(), null, 0));
-        when(groqService.configuredModels()).thenReturn(List.of("qwen/qwen3.6-27b", "openai/gpt-oss-20b"));
+        when(groqService.configuredModels()).thenReturn(List.of("qwen/qwen3.8-27b", "openai/gpt-oss-20b"));
 
         mvc.perform(get("/api/health/groq"))
            .andExpect(status().isOk())

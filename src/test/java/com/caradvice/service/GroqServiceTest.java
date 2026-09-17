@@ -88,7 +88,7 @@ class GroqServiceTest {
     void gptOssFarLowOchQwenFarNone() {
         // gpt-oss stöder inte "none"; qwen ska ha reasoning helt avstängd
         assertThat(GroqService.reasoningEffortFor("openai/gpt-oss-20b")).isEqualTo("low");
-        assertThat(GroqService.reasoningEffortFor("qwen/qwen3.6-27b")).isEqualTo("none");
+        assertThat(GroqService.reasoningEffortFor("qwen/qwen3.8-27b")).isEqualTo("none");
     }
 
     // --- buildPrompt ---
@@ -2564,9 +2564,9 @@ class GroqServiceTest {
 
     @Test
     void ingaModellerSaknasNarBadaFinnsIListan() throws Exception {
-        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+        GroqService s = serviceMedModeller("qwen/qwen3.8-27b", "openai/gpt-oss-20b");
         String body = """
-                {"data":[{"id":"qwen/qwen3.6-27b"},{"id":"openai/gpt-oss-20b"},{"id":"openai/gpt-oss-120b"}]}""";
+                {"data":[{"id":"qwen/qwen3.8-27b"},{"id":"openai/gpt-oss-20b"},{"id":"openai/gpt-oss-120b"}]}""";
         assertThat(s.missingModels(body)).isEmpty();
     }
 
@@ -2581,9 +2581,9 @@ class GroqServiceTest {
 
     @Test
     void tomModellistaGerBadaModellernaSomSaknade() throws Exception {
-        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+        GroqService s = serviceMedModeller("qwen/qwen3.8-27b", "openai/gpt-oss-20b");
         assertThat(s.missingModels("{\"data\":[]}"))
-                .containsExactly("qwen/qwen3.6-27b", "openai/gpt-oss-20b");
+                .containsExactly("qwen/qwen3.8-27b", "openai/gpt-oss-20b");
     }
 
     @Test
@@ -2596,20 +2596,20 @@ class GroqServiceTest {
     void reservmodellenIngarIHalsokollen() {
         // qwen är preview-tier och numera reserv — en avveckling ska fortfarande larma
         GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
-        ReflectionTestUtils.setField(s, "reserveModel", "qwen/qwen3.6-27b");
+        ReflectionTestUtils.setField(s, "reserveModel", "qwen/qwen3.8-27b");
         assertThat(s.configuredModels())
-                .containsExactly("openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b");
+                .containsExactly("openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b");
     }
 
     @Test
     void bevakadeExtramodellerIngarIHalsokollen() throws Exception {
         // gpt-oss-120b används av Tag/VaderKlader som saknar egen hälsokoll — bevakas härifrån
-        GroqService s = serviceMedModeller("qwen/qwen3.6-27b", "openai/gpt-oss-20b",
+        GroqService s = serviceMedModeller("qwen/qwen3.8-27b", "openai/gpt-oss-20b",
                 "openai/gpt-oss-120b, openai/gpt-oss-20b");
         assertThat(s.configuredModels())
-                .containsExactly("qwen/qwen3.6-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b");
+                .containsExactly("qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b");
         String utan120b = """
-                {"data":[{"id":"qwen/qwen3.6-27b"},{"id":"openai/gpt-oss-20b"}]}""";
+                {"data":[{"id":"qwen/qwen3.8-27b"},{"id":"openai/gpt-oss-20b"}]}""";
         assertThat(s.missingModels(utan120b)).containsExactly("openai/gpt-oss-120b");
     }
 

@@ -190,7 +190,7 @@ Innan AI-anropet hämtas verifierade specifikationer ur databasen och statiska k
 - Dynamiska follow-up chips baserade på svarsinnehållet
 - Rensa-knapp; chattfrågor drar ur den kombinerade timpotten (se Rate limiting nedan) + burstspärr 20/min utloggad
 - **Persistent chatthistorik** — sparas i `localStorage`; vid sidladdning visas tidigare konversation direkt utan välkomstmeddelande; FAB-etiketten ändras till "Fortsätt chatten" när historik finns
-- **Modellsplit:** rekommendationer och jämförelser använder `openai/gpt-oss-120b` (`reasoning_effort: low`), fallback `openai/gpt-oss-20b`; chatboten använder `openai/gpt-oss-20b` primärt, `openai/gpt-oss-120b` som fallback. `qwen/qwen3.6-27b` (preview-tier hos Groq) är reservmodell — tredje 429-utväg och trunkeringsomförsök
+- **Modellsplit:** rekommendationer och jämförelser använder `openai/gpt-oss-120b` (`reasoning_effort: low`), fallback `openai/gpt-oss-20b`; chatboten använder `openai/gpt-oss-20b` primärt, `openai/gpt-oss-120b` som fallback. `qwen/qwen3.8-27b` (preview-tier hos Groq) är reservmodell — tredje 429-utväg och trunkeringsomförsök
 
 ### Produktionsstatus
 
@@ -365,7 +365,7 @@ En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** —
 | Del | Teknologi |
 |-----|-----------|
 | Backend | Java 25, Spring Boot 3.5.16 |
-| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.6-27b` reserv) |
+| AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.8-27b` reserv) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
 | ORM | Spring Data JPA / Hibernate |
@@ -1022,7 +1022,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 
 | Läge | HTTP | Body |
 |---|---|---|
-| Alla modeller finns | 200 | `{ "status": "OK", "models": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"] }` |
+| Alla modeller finns | 200 | `{ "status": "OK", "models": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"] }` |
 | Modell avvecklad | **503** | `{ "status": "MODEL_MISSING", "missing": ["..."] }` |
 | Groq onåbart (transient) | 200 | `{ "status": "UNKNOWN", "error": "..." }` — inget falsklarm, fel cachas inte |
 | `GROQ_API_KEY` saknas | **503** | `{ "status": "UNCONFIGURED" }` |
@@ -1111,7 +1111,7 @@ Den korta hashen finns även i [`/api/health`](#get-apihealth) — vill man bara
 | `GROQ_API_KEY` | API-nyckel från console.groq.com |
 | `GROQ_MODEL` | (valfri) Primärmodell för rekommendationer/jämförelser — default `openai/gpt-oss-120b` |
 | `GROQ_CHAT_MODEL` | (valfri) Chatt- och fallbackmodell — default `openai/gpt-oss-20b` |
-| `GROQ_RESERVE_MODEL` | (valfri) Reservmodell (tredje 429-utväg + trunkeringsomförsök) — default `qwen/qwen3.6-27b` |
+| `GROQ_RESERVE_MODEL` | (valfri) Reservmodell (tredje 429-utväg + trunkeringsomförsök) — default `qwen/qwen3.8-27b` |
 | `DB_URL` | PostgreSQL JDBC-URL |
 | `DB_USER` | Databasanvändarnamn |
 | `DB_PASS` | Databaslösenord |
@@ -1138,7 +1138,7 @@ Backend-monitorn håller Render-instansen varm och eliminerar cold starts.
 
 Hälsomonitorn är en keyword-monitor: den larmar både när tjänsten är nere och när servern svarar men datalagret är sjukt — tom/onåbar databas ger `"status":"DEGRADED"` och nyckelordet försvinner ur svaret (se `GET /api/health` ovan).
 
-Groq-modellmonitorn larmar (503) den dag Groq avvecklar en konfigurerad modell — uptime-pingarna missade llama-3.3-70b-avvecklingen 2026-06-29 eftersom appen var uppe medan alla AI-anrop föll. Pingarna kostar inga tokens: `/models`-anropet är ometerat och svaret cachas 1 timme, så Groq ser max ~24 anrop/dygn oavsett pingintervall. Kollen täcker de egna modellerna (`qwen/qwen3.6-27b`, `openai/gpt-oss-20b`) **plus bevakade extramodeller** via `GROQ_WATCHED_MODELS` (default `openai/gpt-oss-120b` — Tag/VaderKlader kör den men saknar egen hälsokoll, så avveckling larmas härifrån).
+Groq-modellmonitorn larmar (503) den dag Groq avvecklar en konfigurerad modell — uptime-pingarna missade llama-3.3-70b-avvecklingen 2026-06-29 eftersom appen var uppe medan alla AI-anrop föll. Pingarna kostar inga tokens: `/models`-anropet är ometerat och svaret cachas 1 timme, så Groq ser max ~24 anrop/dygn oavsett pingintervall. Kollen täcker de egna modellerna (`qwen/qwen3.8-27b`, `openai/gpt-oss-20b`) **plus bevakade extramodeller** via `GROQ_WATCHED_MODELS` (default `openai/gpt-oss-120b` — Tag/VaderKlader kör den men saknar egen hälsokoll, så avveckling larmas härifrån).
 
 ---
 
@@ -1275,11 +1275,11 @@ att manuell provning kan lura.
 
 Groq: `openai/gpt-oss-120b` (rekommendationer/jämförelser, `reasoning_effort: low`) och `openai/gpt-oss-20b` (chatt + 429-fallback, `reasoning_effort: low`). Varje sökning använder upp till **2 000 output-tokens** plus ~1 500–2 500 input-tokens (systemprompt med priskontextar). Identiska sökprofiler returneras från 4-timmars cache utan tokenkostnad. Chattboten använder upp till **1 800 output-tokens** per meddelande; historiken begränsas till senaste 8 meddelanden.
 
-**Groq 429-fallback:** en gemensam `callGroqWithFallback(...)`-metod (varargs-kedja) används av alla flöden. Rekommendationer och jämförelser har en trestegskedja: `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → `qwen/qwen3.6-27b` (reservmodell, `groq.reserve.model` — preview-tier, därför inte primär; bevakas av hälsokollen). Varje modell har egen TPM-pott hos Groq, så flera sökningar i rad går igenom även när primärmodellen är strypt. Chatten använder tvåstegskedjan som förut. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
+**Groq 429-fallback:** en gemensam `callGroqWithFallback(...)`-metod (varargs-kedja) används av alla flöden. Rekommendationer och jämförelser har en trestegskedja: `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → `qwen/qwen3.8-27b` (reservmodell, `groq.reserve.model` — preview-tier, därför inte primär; bevakas av hälsokollen). Varje modell har egen TPM-pott hos Groq, så flera sökningar i rad går igenom även när primärmodellen är strypt. Chatten använder tvåstegskedjan som förut. `chatStream` öppnar en ny stream mot fallback-modellen vid 429 innan fel returneras.
 
 **reasoning_content-fallback:** qwen3/gpt-oss reasoning-modeller kan returnera tomt `content`-fält och lägga svaret i `reasoning_content` — koden läser båda fälten och väljer det som har innehåll.
 
-**Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen (`groq.reserve.model`, default `qwen/qwen3.6-27b` med `reasoning_effort: none`) innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
+**Omförsök vid trunkerat/tomt svar:** om AI-svaret inte går att parsa (trunkerat JSON vid max_tokens, eller tomt content — typiskt när gpt-oss-20b bränner tokenbudgeten på reasoning) gör `parseWithRetry` automatiskt ETT omförsök med reservmodellen (`groq.reserve.model`, default `qwen/qwen3.8-27b` med `reasoning_effort: none`) innan felet "AI-svaret blev ofullständigt. Försök igen." når användaren.
 
 **Rate limit på omförsöket är ett EGET fel** (`RateLimitedException`): får omförsöket 429 kastades förr det *ursprungliga* trunkeringsfelet vidare, så användaren fick "AI-svaret blev ofullständigt … prova högre budget, färre passagerare eller ett annat drivmedel" — fast kriterierna var oskyldiga och det enda som hjälpte var att vänta. Skarpt fall 2026-08-10: samma sökning gick igenom direkt efteråt. Symptomen var identiska i koden, vilket gjorde frågan "är det trunkering eller rate limit?" obesvarbar från loggen. Nu bär felet Groqs egen text via `buildRateLimitError` (som dessutom skiljer dygnstaket TPD/RPD från minuttaket och läser väntetiden ur svaret) plus raden "Dina kriterier är inte problemet", och `medRadOmKriterier` lägger aldrig till kriterierådet på den typen. **Räkneexempel bakom felet:** systemprompten är ~1 650 tokens, användarprompten ~400 och `max_tokens` 3 000 — en sökning drar alltså ~5 050 av minutbudgetens **8 000**, så två inom samma minut räcker för att utlösa det.
 
@@ -1394,6 +1394,7 @@ kriterier är inte problemet", just för att felet annars läses som att söknin
 | Škoda EV-referenspriser tillagda | Epiq (fr. 389 000 kr), Elroq (fr. 450 000 kr), Enyaq (fr. 599 500 kr) och Peaq (654 000 kr) tillagda i alla tre referensprislistorna — förbättrar AI:ns prisuppskattningar för Škoda-elbilar |
 | Groq-modeller bytta (omgång 1) | `llama-3.3-70b-versatile` (deprecated 2026-06-29) → `openai/gpt-oss-120b`; fallback `llama-3.1-8b-instant` → `qwen/qwen3.6-27b` |
 | Groq-modeller bytta (omgång 2) | `openai/gpt-oss-120b` visade sig vara reasoning-modell på Groq — returnerar tomt `content` eller trunkerat JSON. Primär bytt till `qwen/qwen3.6-27b` (versatile, `/no_think`); fallback till `gpt-oss-20b` (instant). `reasoning_content`-fallback tillagd; trunkerat JSON ger clean error. |
+| Groq-modeller bytta (omgång 3) | `qwen/qwen3.6-27b` avvecklad 2026-09-17 → reserven pekar på `qwen/qwen3.8-27b`. Modellen låg samma dag inte kvar i kontots katalog, alltså var BÅDE tredje 429-utvägen och trunkeringsomförsöket döda. `GET /api/health/groq` larmade korrekt (503 `MODEL_MISSING`) — monitorn byggd efter llama-avvecklingen gjorde precis det den skulle. Fjärde 429-utvägen är tom sedan dess: 3.8 var den platsen, och kontot har ingen femte chattmodell (resten är whisper, TTS, safeguard-klassificerare och compound-systemen). Kedjan är tre modeller djup i stället för fyra. Samma dag bytte `VaderKlader` sin hårdkodade `MODEL_FALLBACK` och fick dessutom `reasoning_effort` satt på qwen-grenen, som saknat det sedan start |
 | NewCarPriceService | Ny `new_car_price`-tabell med ~65 ICE-nyprisar per generation seedas vid uppstart; injiceras i alla AI-systempromptars pris-kontext |
 | Groq-anropsoptimering | ICE/EV-priskontextar cachas 1h (tidigare DB-query per anrop); compare-resultat cachas 4h; fallback max_tokens 4000→1050; chatthistorik begränsad till senaste 8 meddelanden |
 | GroqService-refaktorering | `buildRequest`/`callGroqWithFallback`/`enrichRecommendations` extraherade — eliminerar ~80 rader duplikat HTTP- och enrichment-kod; `DEPRECIATION_RULE` som konstant; chat() och chatStream() får nu 429-fallback till primärmodellen |
