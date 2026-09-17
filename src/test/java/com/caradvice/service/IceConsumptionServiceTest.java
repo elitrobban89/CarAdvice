@@ -31,6 +31,55 @@ class IceConsumptionServiceTest {
     }
 
 @Test
+    void laddbarBadgeFarAldrigStamplasSomBensinbil() {
+        /*
+         * Skarpt 2026-09-17: ett laddhybridssok gav "Skoda Kodiaq iV" drivmedlet BENSIN och
+         * bensinbilens forbrukning, markt som VERIFIERAT. Tabellen har sju Kodiaq-rader och
+         * ingen ar iV, sa drivmedelsfiltret gav tom lista och foll tillbaka pa hela
+         * kandidatlistan - alltsa bensinraden. Fel drivmedel raknas vidare till kronor i
+         * agandekostnaden, precis som 2026-08-14.
+         *
+         * Hellre ingen siffra an en verifierad-markt fel siffra: uppslaget ska AVSTA.
+         */
+        assertThat(service.consumptionForTitle("Skoda Kodiaq iV (2022)", 204, "laddhybrid")).isNull();
+        assertThat(service.consumptionForTitle("Skoda Kodiaq iV (2022)", 204, null)).isNull();
+        // Utan badge ar bensinraden fortfarande ratt svar for en vanlig Kodiaq.
+        assertThat(service.consumptionForTitle("Skoda Kodiaq (2022)", 150, "bensin")).isNotNull();
+    }
+
+    @Test
+    void badgenKravsPaRATT_marke_ochRomerskaFyrorArInteLaddbara() {
+        /*
+         * "iV" ar tva bokstaver och matchar romerska fyror. "Golf IV" och "Passat IV" ar
+         * riktiga modellnamn - utan markesvillkoret hade en fjarde generations Golf blivit
+         * laddbar och tappat sin forbrukning.
+         */
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Skoda Kodiaq iV (2022)")).isTrue();
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Škoda Superb iV (2021)")).isTrue();
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Volkswagen Golf IV (2003)")).isFalse();
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Volkswagen Passat IV (1999)")).isFalse();
+
+        // Markesbadges som INTE sager vilken sort: Recharge sitter pa bade XC60 T8 och EX40.
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Volvo XC60 Recharge (2022)")).isTrue();
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Jeep Compass 4xe (2021)")).isTrue();
+        assertThat(IceConsumptionService.barElektrifieringsbadge("Volvo XC60 (2021)")).isFalse();
+        assertThat(IceConsumptionService.barElektrifieringsbadge(null)).isFalse();
+    }
+
+    @Test
+    void badgeMedLaddhybridsradValjerDENradenOchInteBensinens() {
+        /*
+         * Motsatsen till provet ovan: har FINNS raden, och da ska den valjas. XC60 ligger i
+         * tabellen som B5, B6, D4, D5, T6 PHEV och T8 PHEV - en "Recharge"-titel far aldrig
+         * landa pa B5:an bara for att hastkrafterna rakar ligga narmare.
+         */
+        IceConsumptionService.Variant v =
+                service.consumptionForTitle("Volvo XC60 Recharge (2022)", 350, "laddhybrid");
+        assertThat(v).isNotNull();
+        assertThat(v.fuel()).isEqualTo("laddhybrid");
+    }
+
+@Test
     void karosskolumnenLasesForDeModellerDenAngerOchArNullForResten() {
         /*
          * Femte kolumnen (2026-09-13). Tom betyder OKAND och maste ge null - inte en gissning -

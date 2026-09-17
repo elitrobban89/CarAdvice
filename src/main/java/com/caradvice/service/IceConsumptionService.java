@@ -381,6 +381,27 @@ public class IceConsumptionService {
             if (!efterTitel.isEmpty()) return pickVariant(efterTitel, horsepower);
         }
 
+        // ELEKTRIFIERINGSBADGEN: titeln säger att bilen är laddbar, men inte vilken sort.
+        // Skarpt 2026-09-17: ett laddhybridssök gav "Škoda Kodiaq iV" drivmedlet BENSIN och
+        // bensinbilens förbrukning, märkt som VERIFIERAT. Tabellen har sju Kodiaq-rader och
+        // ingen av dem är iV, så drivmedelsfiltret nedan gav tom lista och föll tillbaka på
+        // hela kandidatlistan — alltså bensinraden. Samma skada som 2026-08-14: fel drivmedel
+        // räknas vidare till kronor i ägandekostnaden.
+        //
+        // Badgen kan INTE läggas i drivetrainOf, som annars äger ordlistan: Škodas "iV" sitter
+        // på BÅDE laddhybrider (Kodiaq, Octavia, Superb) och elbilar (Enyaq), så ordet säger
+        // "elektrifierad" utan att säga vilken sort. Ett naket \biv\b hade dessutom träffat
+        // romerska fyror — "Golf IV" och "Passat IV" är riktiga modellnamn, därav märkesvillkoret.
+        //
+        // Regeln är smal med flit: den säger bara att en REN förbränningsrad aldrig är rätt rad
+        // för en laddbar bil. Hittas ingen laddhybridsrad avstår vi helt, och kortet behåller
+        // AI:ns egen text — hellre ingen siffra än en verifierad-märkt fel siffra.
+        if (barElektrifieringsbadge(title)) {
+            List<Variant> laddbara = candidates.stream()
+                    .filter(v -> "laddhybrid".equals(v.fuel())).toList();
+            return laddbara.isEmpty() ? null : pickVariant(laddbara, horsepower);
+        }
+
         if (fuelPref != null && !fuelPref.isBlank()) {
             String fp = fuelPref.toLowerCase(Locale.ROOT);
             List<Variant> filtered = candidates.stream().filter(v -> v.fuel().equals(fp)).toList();
@@ -418,6 +439,38 @@ public class IceConsumptionService {
      * <p>Titeln plattas först med {@code flattenSpaces}: AI-titlar bär ibland smalt hårt
      * mellanslag (U+202F), och den fällan har redan kostat en gång i CarTitle.
      */
+    /**
+     * Bär titeln ett MÄRKESBADGE för laddbar drivlina?
+     *
+     * <p>Skilt från {@link #fuelFromTitle}, som svarar på VILKEN drivlina titeln utpekar. De här
+     * orden säger bara "laddbar" — Volvos {@code Recharge} sitter på både XC60 T8 (laddhybrid)
+     * och EX40 (elbil), och Škodas {@code iV} på både Kodiaq (laddhybrid) och Enyaq (elbil).
+     * Just därför hör de inte hemma i {@code drivetrainOf}: den lovar en drivlina, och det kan
+     * de här orden inte hålla.
+     *
+     * <p>{@code iV} kräver Škoda i titeln. Ordet är två bokstäver och matchar annars romerska
+     * fyror — "Golf IV" och "Passat IV" är riktiga modellnamn, och utan villkoret hade en
+     * fjärde generations Golf blivit laddbar.
+     */
+    static boolean barElektrifieringsbadge(String title) {
+        // foldDiacritics FÖRE ordgränsmatchningen: Javas \b är ASCII-definierad, så "\bškoda"
+        // matchar ALDRIG — det finns ingen ordgräns framför "š". Provet föll på exakt det med
+        // "Škoda Superb iV", och märket stavas med caron i de flesta AI-titlar. Samma familj
+        // som U+202F- och U+2011-fällorna: rätt bil, fel teckenkod.
+        String t = ExpertInsightService.foldDiacritics(
+                ExpertInsightService.flattenSpaces(CarTitle.stripYear(title == null ? "" : title)))
+                .toLowerCase(Locale.ROOT);
+        if (LADDBAR_BADGE.matcher(t).find()) return true;
+        return SKODA_I_TITELN.matcher(t).find() && IV_BADGE.matcher(t).find();
+    }
+
+    private static final java.util.regex.Pattern LADDBAR_BADGE =
+            java.util.regex.Pattern.compile("\\b(recharge|e-tense|4xe|e-tech)\\b");
+    private static final java.util.regex.Pattern SKODA_I_TITELN =
+            java.util.regex.Pattern.compile("\\bskoda\\b");
+    private static final java.util.regex.Pattern IV_BADGE =
+            java.util.regex.Pattern.compile("\\biv\\b");
+
     private static String fuelFromTitle(String title) {
         String d = ExpertInsightService.drivetrainOf(
                 ExpertInsightService.flattenSpaces(CarTitle.stripYear(title)));
