@@ -2191,6 +2191,26 @@
         // delade upp hade läsaren sett golvet utan passet eller passet utan golvet — och
         // poängen är just att de två hakar i varandra.
         { icon: '⚖️', text: 'Batterihälsan blir mätbar och garanterad: <strong>Euro 7</strong> kräver att en ny elbil har minst <strong>80 %</strong> av batterikapaciteten kvar efter <strong>5 år eller 10 000 mil</strong> och <strong>72 %</strong> efter <strong>8 år eller 16 000 mil</strong> – nya typgodkännanden från <strong>29 november 2026</strong>, alla nyregistrerade från november 2027. Från <strong>18 februari 2027</strong> får varje ny elbil dessutom ett <strong>digitalt batteripass</strong> med samma uppgifter oavsett märke: kapacitet, kemi, ursprung och hälsa. Passet kommer ur EU:s batteriförordning, inte ur Euro 7 – men tillsammans gör de batterihälsa till något du kan läsa av i stället för att lita på (EU-förordning 2024/1257 respektive 2023/1542).' },
+        // Fjärde omgången ur CarAdvice-insikterna (2026-09-17), id 1509 och 1510 ur fyndlistan.
+        //
+        // BÅDA raderna bar en siffra som inte går ihop, och båda är strukna här. Skriv inte
+        // tillbaka dem utan att först läsa Teknikens Världs egen text:
+        //   id 1510 sa "cirka 40 minuter för en 40 % laddning". 40 % av 52,8 kWh är 21 kWh,
+        //     alltså ~31 kW i snitt — omöjligt för en bil som enligt samma mening håller
+        //     nästan 87 kW. Talet passar däremot 10–80 %, så AI:n har med all sannolikhet
+        //     bytt ut intervallet. Laddkurvan och effekterna står kvar, minuterna är borta.
+        //   id 1509 sa "verklig räckvidd cirka 43 mil" ur en körning som gick 110 km mellan
+        //     67 % och 30 %. 37 procentenheter på 110 km ger 297 km på hela batteriet, alltså
+        //     ~30 mil — och en VERKLIG räckvidd ÖVER den officiella (41,6 mil) vid 18 °C är
+        //     orimlig i sig. Hela testsiffran är struken; raden bär i stället kapaciteterna.
+        //
+        // Det som står kvar är kontrollerat mot ev_spec i CarAdvice (ev-database, kurerad för
+        // svenska marknaden): MG4 Urban Standard Range 41,9 kWh / 325 km / 82 kW och MG4 Urban
+        // Comfort Long Range 52,8 kWh / 416 km / 87 kW. Insiktens "43 respektive 54 kWh" är
+        // bruttotal, och 41,6 mil är exakt Comfort Long Range — alltså rätt bil, rätt siffror.
+        // Att tabellen bär bilen med svenskt pris är dessutom beviset att den GÅR ATT KÖPA här.
+        { icon: '⏱️', text: 'Toppeffekten säger mindre än kurvan: <strong>MG4 Urban</strong> laddar som mest <strong>87 kW</strong> (82 kW i den billigaste versionen) – blygsamt på pappret – men håller nästan full effekt ända upp till <strong>65–70 %</strong> batteri (Teknikens Värld). En bil som toppar högre men viker av redan vid 40 % kan mycket väl ta längre tid på samma laddstopp.' },
+        { icon: '📏', text: '<strong>MG4 Urban</strong> säljs med två batterier: <strong>41,9 kWh</strong> som ger <strong>325 km</strong> WLTP och <strong>52,8 kWh</strong> som ger <strong>416 km</strong>. Det billigare alternativet kostar alltså runt <strong>nio mil</strong> räckvidd – och räkna med mindre än WLTP i verklig fart och kyla (Teknikens Värld; kapacitet och WLTP ur ev-database).' },
       ];
       /*
        * Fyndraden. ERSATTE den handskrivna Audi e-tron-raden 2026-08-18 — samma sorts tips, men
