@@ -41,10 +41,21 @@ class IceConsumptionServiceTest {
          *
          * Hellre ingen siffra an en verifierad-markt fel siffra: uppslaget ska AVSTA.
          */
-        assertThat(service.consumptionForTitle("Skoda Kodiaq iV (2022)", 204, "laddhybrid")).isNull();
-        assertThat(service.consumptionForTitle("Skoda Kodiaq iV (2022)", 204, null)).isNull();
-        // Utan badge ar bensinraden fortfarande ratt svar for en vanlig Kodiaq.
-        assertThat(service.consumptionForTitle("Skoda Kodiaq (2022)", 150, "bensin")).isNotNull();
+        // Karoq har sju rader i tabellen och INGEN laddhybrid - modellen saljs inte som iV.
+        // Uppslaget ska avsta helt i stallet for att lamna ifran sig bensinraden.
+        assertThat(service.consumptionForTitle("Skoda Karoq iV (2022)", 204, "laddhybrid")).isNull();
+        assertThat(service.consumptionForTitle("Skoda Karoq iV (2022)", 204, null)).isNull();
+        // Utan badge ar bensinraden fortfarande ratt svar for en vanlig Karoq.
+        assertThat(service.consumptionForTitle("Skoda Karoq (2022)", 150, "bensin")).isNotNull();
+
+        // KODIAQ iV FINNS numera i tabellen (tillagd 2026-09-17, efter att drift visade att
+        // kortet stod utan verifierad siffra). Da ska uppslaget INTE avsta - det ska svara med
+        // laddhybridsraden, aldrig med bensinens.
+        IceConsumptionService.Variant kodiaq =
+                service.consumptionForTitle("Skoda Kodiaq iV (2022)", 204, "laddhybrid");
+        assertThat(kodiaq).isNotNull();
+        assertThat(kodiaq.fuel()).isEqualTo("laddhybrid");
+        assertThat(kodiaq.literPerMil()).isEqualTo(0.55);
     }
 
     @Test

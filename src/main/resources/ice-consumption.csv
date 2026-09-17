@@ -98,6 +98,7 @@ Audi;RS Q8 4.0 TFSI 600 hk;bensin;1.42;
 Audi;TT 45 TFSI 245 hk;bensin;0.8;
 Audi;TTS 2.0 TFSI 320 hk;bensin;0.9;
 Audi;TT RS 2.5 TFSI 400 hk;bensin;1.05;
+Audi;Q3 45 TFSI e PHEV 245 hk;laddhybrid;0.52;suv
 BMW;116i 1.5 T 109 hk;bensin;0.58;
 BMW;118i 1.5 T 136 hk;bensin;0.62;
 BMW;120i 2.0 T 178 hk;bensin;0.68;
@@ -192,6 +193,7 @@ BMW;X7 xDrive40i 340 hk;bensin;1.12;
 BMW;X7 xDrive30d 286 hk;diesel;0.85;
 BMW;X7 xDrive40d 340 hk;diesel;0.92;
 BMW;X7 M60i 4.4 V8 585 hk;bensin;1.42;
+BMW;X1 xDrive30e PHEV 326 hk;laddhybrid;0.52;suv
 Cadillac;CT5 2.0 Turbo 237 hk;bensin;0.98;sedan
 Cadillac;CT5-V 3.0 TT 360 hk;bensin;1.12;sedan
 Cadillac;CT5-V Blackwing 6.2 V8 668 hk;bensin;1.55;sedan
@@ -806,6 +808,7 @@ Skoda;Kodiaq 2.0 TSI 190 hk DSG;bensin;0.98;suv
 Skoda;Kodiaq RS 2.0 TSI 245 hk;bensin;1.05;suv
 Skoda;Kodiaq 2.0 TDI 150 hk;diesel;0.68;suv
 Skoda;Kodiaq 2.0 TDI 200 hk;diesel;0.72;suv
+Skoda;Kodiaq iV PHEV 204 hk;laddhybrid;0.55;suv
 Subaru;Impreza 2.0 150 hk;bensin;0.78;
 Subaru;Impreza WRX 2.5 T 268 hk;bensin;1.05;
 Subaru;Impreza STI 2.5 T 301 hk;bensin;1.18;

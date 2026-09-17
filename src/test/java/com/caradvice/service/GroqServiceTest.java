@@ -1778,6 +1778,30 @@ class GroqServiceTest {
     }
 
     @Test
+    void laddhybridUnderEttLiterArLmilOchSKA_tiodubblas() throws Exception {
+        /*
+         * Rattelse av min egen forsta version, som undantog ALLA laddhybrider fran troskeln.
+         * Under 1,0 ar talet l/mil aven pa en laddhybrid: tabellens 85 laddhybridsrader ligger
+         * pa 0,45-0,75 l/mil, och ett kort som visar 0,5 l/100 km bredvid ett som visar 5,8
+         * jamfor inte samma sak. WLTP-talet (0,4-2,5 l/100 km) hor hemma i spannet ovanfor.
+         */
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+
+        String phev = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volvo XC60 Recharge (2022)")
+                .replace("\"fuelSpec\":null",
+                         "\"fuelSpec\":{\"consumptionLiterPerMil\":0.5,\"gearbox\":\"Automat\","
+                         + "\"horsepower\":350,\"engineVolumeLiters\":2.0}");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + phev + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        assertThat(result.get(0).fuelSpec().consumptionLiterPerMil()).isEqualTo(5.0);
+    }
+
+    @Test
     void bensinbilensLmilSiffraNormaliserasFortfarande() throws Exception {
         // Tosklen finns av en anledning och far inte forsvinna: en bensinbil som svarar 0,58
         // menar l/mil, och 0,58 l/100 km ar omojligt. Bara laddbara bilar ar undantagna.

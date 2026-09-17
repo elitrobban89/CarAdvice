@@ -1006,10 +1006,17 @@ public class GroqService {
                 // och väntade bakom drivmedelsbuggen — så länge uppslaget (fel) stämplade raden
                 // som bensin fanns en verifierad siffra och tröskeln kördes aldrig. Att laga det
                 // ena avtäckte det andra.
+                // Undantaget gäller BARA 1,0–3,0, och det är en rättelse av min egen första
+                // version: under 1,0 är talet l/mil även på en laddhybrid. Tabellens 85
+                // laddhybridsrader ligger på 0,45–0,75 l/mil, alltså 4,5–7,5 l/100 km — ett kort
+                // som visar 0,5 l/100 km bredvid ett som visar 5,8 jämför inte samma sak.
+                // WLTP-talet (0,4–2,5 l/100 km) hör hemma i spannet ovanför, och DET är det
+                // tröskeln inte får röra.
                 boolean laddbar = "phev".equals(ExpertInsightService.drivetrainOf(
                                 ExpertInsightService.flattenSpaces(CarTitle.stripYear(r.title()))))
                         || IceConsumptionService.barElektrifieringsbadge(r.title());
-                if (consumption == null && !laddbar && fuelSpec.consumptionLiterPerMil() > 0
+                boolean troligenWltp = laddbar && fuelSpec.consumptionLiterPerMil() >= 1;
+                if (consumption == null && !troligenWltp && fuelSpec.consumptionLiterPerMil() > 0
                         && fuelSpec.consumptionLiterPerMil() < 3) {
                     consumption = fuelSpec.consumptionLiterPerMil() * 10;
                 }
