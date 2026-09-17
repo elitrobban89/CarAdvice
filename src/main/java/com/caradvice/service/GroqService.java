@@ -2786,8 +2786,51 @@ public class GroqService {
                 .replaceAll(m -> VAXELLADEORD.matcher(m.group(1)).find()
                         ? java.util.regex.Matcher.quoteReplacement(m.group(0)) : "");
         rensad = utanFrammandeLadebeteckning(rensad, title);
+        rensad = utanVaxelantalPaPlanetvaxel(rensad, title);
         rensad = rensad.replaceAll("\\s{2,}", " ").trim();
         return rensad.isEmpty() ? null : rensad;
+    }
+
+    /** Märken vars hybrider och laddhybrider är planetväxlade: e-CVT, aldrig numrerade steg. */
+    private static final java.util.Set<String> PLANETVAXELMARKEN =
+            java.util.Set.of("toyota", "lexus", "honda");
+
+    /** "8-växlad", "8 växlad", "8‑växlad" (U+2011) — samma smala bindestreck som bitit förut. */
+    private static final java.util.regex.Pattern VAXELANTAL =
+            java.util.regex.Pattern.compile("(?i)\\s*\\b\\d+\\s*[-\\u2011]?\\s*växlad\\b");
+
+    /**
+     * Stryker ett VÄXELANTAL på en planetväxlad hybrid.
+     *
+     * <p>Behövdes för att prompttexten inte räckte — <b>två försök i rad misslyckades</b>.
+     * Först bad prompten om generiska former vid osäkerhet, och modellen började då defaulta
+     * till "Automat 8-växlad" på allt; sedan namngavs typerna uttryckligen ("en planetväxlad
+     * hybrid har CVT, skriv aldrig ett växelantal på en sådan"), och nästa skarpa sökning gav
+     * ändå <i>Toyota RAV4 Plug-in</i> växellådan <b>"Automat 8-växlad"</b>. Bilen har e-CVT.
+     * Samma lärdom som drivmedels-, familje-, SUV- och budgetvakterna: en promptregel är ett
+     * önskemål, och den regel som ska hålla måste stå i kod.
+     *
+     * <p><b>Vi skriver inte dit "CVT".</b> Att stryka siffran lämnar "Automat", som är sant om
+     * varenda en av dem — att fylla i typen hade varit att byta AI:ns gissning mot vår egen.
+     * Säger modellen själv "Automat CVT" står det kvar orört: strängen bär inget växelantal.
+     *
+     * <p>Regeln är smal på TVÅ villkor samtidigt: märket måste vara ett av de tre som bygger
+     * planetväxlade hybrider, och titeln måste själv säga att bilen ÄR en hybrid. Utan
+     * drivlineord i titeln rör vi ingenting — "Toyota Corolla (2022)" finns som både
+     * bensinbil med riktig växellåda och hybrid, och ett fel här hade tagit bort en sann siffra.
+     */
+    private static String utanVaxelantalPaPlanetvaxel(String gearbox, String title) {
+        if (title == null || title.isBlank()) return gearbox;
+        String rent = CarTitle.stripYear(title);
+        String marke = rent.trim().split("\\s+")[0].toLowerCase(java.util.Locale.ROOT);
+        if (!PLANETVAXELMARKEN.contains(marke)) return gearbox;
+        String drivlina = ExpertInsightService.drivetrainOf(ExpertInsightService.flattenSpaces(rent));
+        if (!"hev".equals(drivlina) && !"phev".equals(drivlina)) return gearbox;
+        java.util.regex.Matcher m = VAXELANTAL.matcher(gearbox);
+        if (!m.find()) return gearbox;
+        log.warn("Växellådan \"{}\" bär ett växelantal på en planetväxlad {}-hybrid ({}) — "
+                + "siffran stryks, e-CVT har inga steg.", gearbox, marke, title);
+        return m.replaceAll("");
     }
 
     /** Växellådebeteckningar som ÄGS av ett märke, och märkena de hör till. */

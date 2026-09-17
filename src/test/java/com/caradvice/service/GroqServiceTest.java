@@ -1357,6 +1357,48 @@ class GroqServiceTest {
     }
 
     @Test
+    void vaxelantalStryksPaPlanetvaxladHybrid() {
+        // Prompttexten racker inte - TVA forsok i rad misslyckades. Forst bad prompten om
+        // generiska former vid osakerhet, och modellen defaultade till "Automat 8-vaxlad" pa
+        // allt; sedan namngavs typerna uttryckligen, och nasta skarpa sokning gav anda
+        // "Toyota RAV4 Plug-in" vaxelladan "Automat 8-vaxlad". Bilen har e-CVT.
+        assertThat(GroqService.rensaVaxellada("Automat 8-växlad", "Toyota RAV4 Plug-in (2022)"))
+                .isEqualTo("Automat");
+        assertThat(GroqService.rensaVaxellada("Automat 6-växlad", "Honda CR-V Hybrid (2021)"))
+                .isEqualTo("Automat");
+        // U+2011 (smalt hardt bindestreck) har bitit forut och maste traffas har ocksa.
+        assertThat(GroqService.rensaVaxellada("Automat 8\u2011växlad", "Lexus NX Hybrid (2022)"))
+                .isEqualTo("Automat");
+    }
+
+    @Test
+    void rattVaxelladaPaPlanetvaxelRorsInte() {
+        // Sager modellen sjalv CVT star det kvar orort - strangen bar inget vaxelantal, och vi
+        // skriver ALDRIG dit typen sjalva: da hade vi bytt AI:ns gissning mot var egen.
+        assertThat(GroqService.rensaVaxellada("Automat CVT", "Toyota RAV4 Plug-in (2022)"))
+                .isEqualTo("Automat CVT");
+        assertThat(GroqService.rensaVaxellada("Automat e-CVT", "Toyota Corolla Hybrid (2021)"))
+                .isEqualTo("Automat e-CVT");
+    }
+
+    @Test
+    void vaxelantalStarKvarNarBADA_villkoren_inteArUppfyllda() {
+        // Bada villkoren kravs samtidigt: ratt marke OCH att titeln sjalv sager hybrid.
+        // "Toyota Corolla (2022)" finns som bade bensinbil med riktig vaxellada och hybrid -
+        // utan drivlineord i titeln ror vi ingenting, annars hade en sann siffra fallit.
+        assertThat(GroqService.rensaVaxellada("Automat 8-växlad", "Toyota Corolla (2022)"))
+                .isEqualTo("Automat 8-växlad");
+        // Ratt drivlina men fel marke: Volvo och BMW bygger numrerade automatlador.
+        assertThat(GroqService.rensaVaxellada("Automat 8-växlad", "Volvo XC60 Recharge (2022)"))
+                .isEqualTo("Automat 8-växlad");
+        assertThat(GroqService.rensaVaxellada("Automat 8-växlad", "BMW X3 xDrive30e PHEV (2022)"))
+                .isEqualTo("Automat 8-växlad");
+        // Manuell pa fel marke ror vi inte heller.
+        assertThat(GroqService.rensaVaxellada("Manuell 6-växlad", "Volkswagen Golf (2019)"))
+                .isEqualTo("Manuell 6-växlad");
+    }
+
+    @Test
     void egenBeteckningPaEgetMarkeStarKvar() {
         // DSG på en Škoda och Geartronic på en Volvo är RÄTT uppgift — vakten får inte äta den.
         assertThat(GroqService.rensaVaxellada("Automat DSG 7-växlad", "Škoda Kodiaq iV (2023)"))
