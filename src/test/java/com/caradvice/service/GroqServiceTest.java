@@ -1749,6 +1749,54 @@ class GroqServiceTest {
         assertThat(result.get(0).engineOptions()).isEqualTo("51 kWh 272hk (344km)");
     }
 
+    @Test
+    void laddhybridensLagaForbrukningTiodubblasInte() throws Exception {
+        /*
+         * Skarpt 2026-09-17: "Skoda Kodiaq iV" visade 22 l/100 km pa kortet. AI:n hade svarat
+         * 2,2 - helt korrekt WLTP for en laddhybrid - men trosklen "under 3 kan inte vara
+         * l/100km, alltsa ar det l/mil" tiodubblade den. Premissen ar sann for bensin och
+         * diesel och FALSK for laddhybrider: 1,4-2,2 ar hela kategorins saljargument.
+         *
+         * Felet lag och vantade bakom drivmedelsbuggen. Sa lange uppslaget (fel) stamplade
+         * raden som bensin fanns en verifierad siffra, och trosklen kordes aldrig. Att laga
+         * det ena avtackte det andra.
+         */
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+
+        String phev = GILTIG_BIL.replace("Volvo EX30 (2024)", "Škoda Kodiaq iV (2022)")
+                .replace("\"fuelSpec\":null",
+                         "\"fuelSpec\":{\"consumptionLiterPerMil\":2.2,\"gearbox\":\"Automat\","
+                         + "\"horsepower\":204,\"engineVolumeLiters\":1.4}");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + phev + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        assertThat(result.get(0).fuelSpec().consumptionLiterPerMil()).isEqualTo(2.2);
+    }
+
+    @Test
+    void bensinbilensLmilSiffraNormaliserasFortfarande() throws Exception {
+        // Tosklen finns av en anledning och far inte forsvinna: en bensinbil som svarar 0,58
+        // menar l/mil, och 0,58 l/100 km ar omojligt. Bara laddbara bilar ar undantagna.
+        GroqService s = service();
+        when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
+
+        String bensin = GILTIG_BIL.replace("Volvo EX30 (2024)", "Hongqi HS3 (2022)")
+                .replace("\"fuelSpec\":null",
+                         "\"fuelSpec\":{\"consumptionLiterPerMil\":0.58,\"gearbox\":\"Manuell 6-växlad\","
+                         + "\"horsepower\":95,\"engineVolumeLiters\":1.0}");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + bensin + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>)
+                ReflectionTestUtils.invokeMethod(s, "enrichRecommendations", parsed, 15000);
+
+        assertThat(result.get(0).fuelSpec().consumptionLiterPerMil()).isEqualTo(5.8);
+    }
+
     // --- enrichRecommendations: verifierad systemeffekt ersätter AI:ns hk-gissning ---
 
     @Test

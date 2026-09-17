@@ -998,8 +998,18 @@ public class GroqService {
                 } catch (Exception ignored) {}
 
                 Double consumption = iceVariant != null ? iceVariant.literPerMil() * 10 : null;
-                // Ingen verifierad match men AI:n svarade i l/mil-skala (< 3 kan inte vara l/100km) — normalisera
-                if (consumption == null && fuelSpec.consumptionLiterPerMil() > 0
+                // Ingen verifierad match men AI:n svarade i l/mil-skala (< 3 kan inte vara l/100km)
+                // — normalisera. MEN INTE PÅ EN LADDBAR BIL: under 3 l/100 km är själva
+                // definitionen av en laddhybrid (WLTP 1,4–2,2 är normalt), så tröskelns premiss
+                // är falsk just där. Skarpt 2026-09-17: "Škoda Kodiaq iV" fick 22 l/100 km på
+                // kortet, för AI:ns korrekta 2,2 tolkades som l/mil och tiodubblades. Felet låg
+                // och väntade bakom drivmedelsbuggen — så länge uppslaget (fel) stämplade raden
+                // som bensin fanns en verifierad siffra och tröskeln kördes aldrig. Att laga det
+                // ena avtäckte det andra.
+                boolean laddbar = "phev".equals(ExpertInsightService.drivetrainOf(
+                                ExpertInsightService.flattenSpaces(CarTitle.stripYear(r.title()))))
+                        || IceConsumptionService.barElektrifieringsbadge(r.title());
+                if (consumption == null && !laddbar && fuelSpec.consumptionLiterPerMil() > 0
                         && fuelSpec.consumptionLiterPerMil() < 3) {
                     consumption = fuelSpec.consumptionLiterPerMil() * 10;
                 }
