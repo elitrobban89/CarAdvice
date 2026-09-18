@@ -65,6 +65,21 @@ class UpcomingAdCheckServiceTest {
         };
     }
 
+    /** Samma söm med Blockets drivmedelsfält: rad = {rubrik, trim, fuel}. Tomt fuel = fältet saknas. */
+    private Function<String, JsonNode> annonserMedDrivmedel(Map<String, List<String[]>> svar) {
+        return q -> {
+            sokningar.add(q);
+            List<String[]> rader = svar.get(q);
+            if (rader == null) return null;
+            ArrayNode docs = MAPPER.createArrayNode();
+            for (String[] rad : rader) {
+                var doc = docs.addObject().put("heading", rad[0]).put("model_specification", rad[1]);
+                if (rad[2] != null) doc.put("fuel", rad[2]);
+            }
+            return docs;
+        };
+    }
+
     private Map<String, Object> rad(long id, String make, String model, String insight) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("insight_id", id);
@@ -169,7 +184,8 @@ class UpcomingAdCheckServiceTest {
                 "Pris för Ioniq 3 Standard Range Select startar på 344 900 kr")).isFalse();
         // Och den som ordlistan ALDRIG kan rädda: raden är skriven som ren presensfakta om en
         // bil som inte går att köpa (id 1578, el-Range Rover mot 49 bensin-/dieselannonser).
-        // Den ska fortsätta ge LARM — en människa avgör den, se javadocen i tjänsten.
+        // Ordlistan ska fortsätta säga nej här — raden räddas i stället av drivlinan i annonserna,
+        // se elversionsradMotBaraFossilaAnnonserGerAnnanDrivlina.
         assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
                 "Med smart mjukvara, luftfjädring och 900 mm vadardjup klarar den 2,8 ton "
                         + "tunga el‑Range Rover lätt över klippor och leriga underlag")).isFalse();
@@ -223,6 +239,100 @@ class UpcomingAdCheckServiceTest {
 
         assertThat(dom(r, "Striker").status()).isEqualTo(Status.INGA_ANNONSER);
         assertThat(dom(r, "Striker").annonser()).isZero();
+    }
+
+    // ── Drivlinan som skiljer två bilar med samma namn ────────────────────────
+
+    /**
+     * Id 1578 ur kön 2026-09-18, mot Blockets skarpa svar samma dag: 49 annonser bär namnet
+     * Range Rover och <b>42 är diesel, 7 bensin, 0 el</b>. Raden är ren presensfakta, så
+     * {@code NYHETSORD} kan aldrig rädda den — men el-Range Rovern går inte att köpa.
+     */
+    @Test
+    void elversionsradMotBaraFossilaAnnonserGerAnnanDrivlina() {
+        Rapport r = tjanst().granska(
+                List.of(rad(1578, "Range Rover", "Range Rover",
+                            "Med smart mjukvara, luftfjädring och 900 mm vadardjup klarar den 2,8 ton "
+                                    + "tunga el‑Range Rover lätt över klippor och leriga underlag")),
+                annonserMedDrivmedel(Map.of("Range Rover Range Rover", List.of(
+                        new String[] {"Land Rover Range Rover Sport", "Sport 3.0", "Diesel"},
+                        new String[] {"Land Rover Range Rover Sport", "3.0 TDV6 4WD Automatisk", "Diesel"},
+                        new String[] {"Land Rover Range Rover", "5.0 V8 Autobiography", "Bensin"}))));
+
+        Dom d = dom(r, "Range Rover");
+        assertThat(d.status()).isEqualTo(Status.ANNAN_DRIVLINA);
+        assertThat(d.annonser()).isEqualTo(3);
+        // Raden står kvar som "läses som ren fakta" — vakten döljer inte VARFÖR den var ett larm.
+        assertThat(d.raderUtanNyhetsord()).containsExactly(1578L);
+        // Beviset ska gå att läsa i rapporten utan ett eget uppslag.
+        assertThat(d.exempel().get(0)).isEqualTo("Land Rover Range Rover Sport Sport 3.0 (Diesel)");
+    }
+
+    /**
+     * Motprovet ur samma kö samma dag: Mazda 6e svarade med 45 träffar där samtliga är
+     * {@code fuel=El}. Vakten får inte tysta larmet på den bil faran faktiskt gäller.
+     */
+    @Test
+    void elversionsradMotElAnnonserStarKvarSomLarm() {
+        Rapport r = tjanst().granska(
+                List.of(rad(1551, "Mazda", "6e",
+                            "Den el-Mazda 6e som säljs i Sverige har ett 68,8 kWh-batteri")),
+                annonserMedDrivmedel(Map.of("Mazda 6e", List.of(
+                        new String[] {"Mazda 6e", "68.8 kWh Takumi Plus", "El"},
+                        new String[] {"Mazda 6e", "80 kWh Homura", "El"}))));
+
+        assertThat(dom(r, "6e").status()).isEqualTo(Status.LARM);
+    }
+
+    @Test
+    void annonserUtanDrivmedelsfaltFarInteTystaLarmet() {
+        // Tomt fält är inget bevis för att bilen är fossil — samma avvägning som AdFilter gör
+        // åt andra hållet. Utan känt drivmedel står larmet kvar.
+        Rapport r = tjanst().granska(
+                List.of(rad(1578, "Range Rover", "Range Rover",
+                            "Den el‑Range Rover väger 2,8 ton")),
+                annonserMedDrivmedel(Map.of("Range Rover Range Rover", List.<String[]>of(
+                        new String[] {"Land Rover Range Rover Sport", "Sport 3.0", null}))));
+
+        assertThat(dom(r, "Range Rover").status()).isEqualTo(Status.LARM);
+    }
+
+    @Test
+    void generellFaktaradBredvidElversionsradBeharLarmet() {
+        // 1578 gäller elversionen, men 1579 är en rad om bilen som står hos handlaren i dag.
+        // Grannen får inte tysta den.
+        Rapport r = tjanst().granska(
+                List.of(rad(1578, "Range Rover", "Range Rover",
+                            "Den el‑Range Rover väger 2,8 ton"),
+                        rad(1579, "Range Rover", "Range Rover",
+                            "Range Rover har 900 mm vadardjup och luftfjädring")),
+                annonserMedDrivmedel(Map.of("Range Rover Range Rover", List.<String[]>of(
+                        new String[] {"Land Rover Range Rover Sport", "Sport 3.0", "Diesel"}))));
+
+        Dom d = dom(r, "Range Rover");
+        assertThat(d.status()).isEqualTo(Status.LARM);
+        assertThat(d.raderUtanNyhetsord()).containsExactly(1578L, 1579L);
+    }
+
+    @Test
+    void elordetMasteSittaPaBilensNamn() {
+        // Kvalificeraren direkt före märkets eller modellens första ord.
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "den 2,8 ton tunga el‑Range Rover", "Range Rover", "Range Rover")).isTrue();
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "Den eldrivna Range Rover väger 2,8 ton", "Range Rover", "Range Rover")).isTrue();
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "Den elektriska Volvo XC70 får 200 km räckvidd", "Volvo", "XC70")).isTrue();
+        // Elordet i en jämförelse gör inte bensinbilen till en elversion — fyndlistans fälla,
+        // ordagrant ur Lexus LBX-raden som stod som kandidat 2026-09-17.
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "Lexus LBX har en bensintank på 36 liter och en förbrukning på 0,57 l/mil "
+                        + "jämfört med elbilar", "Lexus", "LBX")).isFalse();
+        // Och ordet får inte matcha inuti ett annat ord.
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "Range Rover har elassisterad servostyrning", "Range Rover", "Range Rover")).isFalse();
+        assertThat(UpcomingAdCheckService.gallerElversionAv(
+                "Tesla Model Y har eluppvärmd ratt", "Tesla", "Model Y")).isFalse();
     }
 
     @Test

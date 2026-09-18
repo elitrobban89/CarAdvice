@@ -40,6 +40,8 @@ import java.util.regex.Pattern;
  * ser ut som ren fakta" med "bilen säljs men raden handlar om nästa generation" hade gjort
  * rapporten värdelös på samma sätt som ett {@code INGEN_DATA} som räknas som ett godkännande i
  * {@code VpicYearCheckService}: två sorters svar i samma siffra döljer vilket av dem som växer.
+ * {@link Status#ANNAN_DRIVLINA} är en egen utgång av exakt samma skäl — "bilen säljs, men inte i
+ * den drivlina raden handlar om" är ett tredje svar och inte en sorts {@code GRANSKA}.
  *
  * <p><b>Varför den inte är ett nattjobb.</b> Samma skäl som vPIC-vakten: {@code GRANSKA} kommer
  * att stå kvar natt efter natt för Tucson, Santa Fe och NX 450h+, och ett larm som är falskt varje
@@ -103,6 +105,14 @@ public class UpcomingAdCheckService {
             + "|vantas|premiar|saljstart|introduceras|blir|debuterar)"
             + "(?![\\p{L}\\p{N}])");
 
+    /**
+     * Orden som gör nästa ord till en elbil — se {@link #gallerElversionAv}. Folierade och i
+     * gemener, eftersom texten körs genom {@code foldDiacritics} + {@code flattenSpaces} före
+     * matchningen.
+     */
+    private static final String ELKVALIFICERARE =
+            "(el|eldriv[a-z]*|elektrisk[a-z]*|helelektrisk[a-z]*|batterielektrisk[a-z]*)";
+
     /** Tecken som skalas bort i annonsernas kanter — Blocket skriver "Outback," och "EV6." */
     private static final Pattern KANTTECKEN = Pattern.compile("^[.,;:!?\"'()\\[\\]|&/]+|[.,;:!?\"'()\\[\\]|&/]+$");
 
@@ -123,6 +133,11 @@ public class UpcomingAdCheckService {
         UPPSLAG_MISSLYCKADES,
         /** Bilen har annonser, men varje köad rad säger själv att den gäller något kommande. */
         GRANSKA,
+        /**
+         * Annonserna bär modellnamnet men <b>ingen av dem har den drivlina raden handlar om</b> —
+         * namnet träffade en annan bil. Parkeringen ser riktig ut. Se {@link #gallerElversionAv}.
+         */
+        ANNAN_DRIVLINA,
         /** Inga annonser bär modellnamnet. Parkeringen ser riktig ut. */
         INGA_ANNONSER
     }
@@ -198,18 +213,80 @@ public class UpcomingAdCheckService {
             return new Dom(make, model, Status.UPPSLAG_MISSLYCKADES, 0, alla, utanNyhetsord, List.of());
 
         List<String> exempel = new ArrayList<>();
-        int annonser = 0;
+        int annonser = 0, elAnnonser = 0, kandDrivlina = 0;
         for (JsonNode doc : docs) {
             String namn = annonsnamn(doc);
             if (!annonsenNamnerModellen(model, namn)) continue;
             annonser++;
+            String drivmedel = doc.path("fuel").asText("").trim();
+            if (!drivmedel.isBlank()) kandDrivlina++;
+            if (drivmedel.equalsIgnoreCase("El")) elAnnonser++;
             if (exempel.size() < MAX_EXEMPEL) exempel.add(exempeltext(doc, namn));
         }
 
-        Status status = annonser == 0 ? Status.INGA_ANNONSER
-                : utanNyhetsord.isEmpty() ? Status.GRANSKA
-                : Status.LARM;
+        Status status;
+        if (annonser == 0) status = Status.INGA_ANNONSER;
+        else if (utanNyhetsord.isEmpty()) status = Status.GRANSKA;
+        else if (elAnnonser == 0 && kandDrivlina > 0
+                && allaGallerElversion(gruppen, utanNyhetsord, make, model)) status = Status.ANNAN_DRIVLINA;
+        else status = Status.LARM;
         return new Dom(make, model, status, annonser, alla, utanNyhetsord, exempel);
+    }
+
+    /**
+     * Gäller <b>varje</b> rad som annars hade larmat en elversion av bilen?
+     *
+     * <p>Kravet är {@code varje} av samma skäl som {@link Status#GRANSKA} kräver nyhetsord i varje
+     * rad: en generell faktarad om bensinbilen bredvid en elversionsrad är fortfarande en trolig
+     * felparkering, och den får inte tystas av grannen.
+     */
+    private static boolean allaGallerElversion(List<Map<String, Object>> gruppen,
+                                               List<Long> utanNyhetsord, String make, String model) {
+        for (Map<String, Object> rad : gruppen) {
+            Long id = idOf(rad.get("insight_id"));
+            if (id == null || !utanNyhetsord.contains(id)) continue;
+            if (!gallerElversionAv(text(rad.get("insight")), make, model)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Handlar raden om en <b>elversion</b> av just den här bilen?
+     *
+     * <p><b>Felet regeln lagar</b> (uppmätt 2026-09-18). Id 1578 — "Med smart mjukvara,
+     * luftfjädring och 900 mm vadardjup klarar den 2,8 ton tunga <b>el‑Range Rover</b> lätt över
+     * klippor och leriga underlag" — gav {@code LARM} mot 49 annonser som bär namnet Range Rover.
+     * Raden är ren presensfakta, så {@link #NYHETSORD} kan aldrig rädda den, och den är ändå
+     * korrekt parkerad: el-Range Rovern går inte att köpa. Drivmedlet i Blockets egna annonser
+     * avgör saken utan tolkning — <b>42 diesel, 7 bensin, 0 el</b> av de 49. Namnet träffade en
+     * annan bil.
+     *
+     * <p><b>Motprovet i samma kö samma dag:</b> Mazda 6e svarade med 45 träffar där <b>samtliga
+     * 45</b> är {@code fuel=El}. En elversionsrad om 6e behåller alltså sitt larm — vakten är
+     * smal nog att inte tysta den bil den mätta faran gäller.
+     *
+     * <p><b>Elordet måste sitta på bilens namn, inte i texten någonstans.</b> Ett fritt
+     * {@code elbil} eller {@code eldrift} hade fällt fel på precis det sätt som redan kostat i
+     * fyndlistan: "Lexus LBX … jämfört med <b>elbilar</b>" är en bensinbilsrad där elordet står i
+     * en jämförelse ({@code EvFactCandidateService.STARKA_ELMARKORER}). Kvalificeraren prövas
+     * därför bara direkt före märkets eller modellens första ord: {@code el-Range},
+     * {@code eldrivna Range}, {@code elektriska Range}.
+     *
+     * <p>Att raden <b>inte</b> gäller en elversion är aldrig ett besked åt andra hållet: då står
+     * larmet kvar som förut. Vakten kan bara byta {@code LARM} mot {@link Status#ANNAN_DRIVLINA},
+     * aldrig släppa en rad — se klassens javadoc.
+     */
+    static boolean gallerElversionAv(String insiktstext, String make, String model) {
+        String text = ExpertInsightService.foldDiacritics(
+                ExpertInsightService.flattenSpaces(insiktstext));
+        if (text.isBlank()) return false;
+        for (List<String> namnord : List.of(ord(model), ord(make))) {
+            if (namnord.isEmpty()) continue;
+            Pattern elversionen = Pattern.compile("(?<![\\p{L}\\p{N}])" + ELKVALIFICERARE + "[- ]"
+                    + Pattern.quote(namnord.get(0)) + "(?![\\p{L}\\p{N}])");
+            if (elversionen.matcher(text).find()) return true;
+        }
+        return false;
     }
 
     /** Rubrik + trimnivå: "Hyundai IONIQ" ensamt räcker inte, "3 Long Range Trend" sitter i specen. */
@@ -220,7 +297,7 @@ public class UpcomingAdCheckService {
     }
 
     /**
-     * Exempelraden i rapporten: annonsens namn plus årsmodell, pris och mätarställning.
+     * Exempelraden i rapporten: annonsens namn plus drivmedel, årsmodell, pris och mätarställning.
      *
      * <p><b>Namnet ensamt går inte att döma på.</b> Den 2026-09-10 stod tio Audi A2 e-tron-rader
      * i kön med domen {@code LARM} och exemplen "Audi A2 e-tron 125,00 kW Proline" och
@@ -241,6 +318,10 @@ public class UpcomingAdCheckService {
      */
     static String exempeltext(JsonNode doc, String namn) {
         List<String> delar = new ArrayList<>();
+        // Drivmedlet står först, eftersom det är beviset bakom ANNAN_DRIVLINA: "Diesel, 2010"
+        // säger på en rad varför 49 träffar på namnet Range Rover inte är el-Range Rovern.
+        String drivmedel = doc.path("fuel").asText("").trim();
+        if (!drivmedel.isBlank()) delar.add(drivmedel);
         int ar = doc.path("year").asInt(0);
         if (ar > 0) delar.add(String.valueOf(ar));
         long pris = doc.path("price").path("amount").asLong(0);
