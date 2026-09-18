@@ -85,10 +85,22 @@ public class UpcomingAdCheckService {
      * {@code vantas}, {@code premiar}, {@code saljstart}. Missar ordlistan ett nyhetsord blir
      * domen {@code LARM} i stället för {@code GRANSKA} — ett falskt larm i en rådgivande rapport,
      * aldrig ett släpp.
+     *
+     * <p><b>Böjningen var hålet, inte ordet</b> (2026-09-18): listan bar {@code lanseras},
+     * {@code lansering} och {@code lanseringen} men inte den aktiva formen, så id 1573 —
+     * "Volvo har <i>lanserat</i> en laddhybrid av XC70 i Kina … och <i>överväger</i> att ta den
+     * till den europeiska marknaden" — gav {@code LARM} mot 46 annonser för den XC70 som såldes
+     * 2004–2016. Raden var korrekt parkerad; det var ordlistan som inte kände igen sin egen
+     * verbstam i tempus. Ett ord läggs till som en <b>böjning av något listan redan bär</b>, och
+     * {@code overvager} hör hit av samma skäl som {@code planerar}: ett övervägande är per
+     * definition inte en bil hos handlaren. Åt överblockeringshållet kostar de nästan ingenting —
+     * en svensk lanseringsrad bär nästan alltid {@code ny} också och står därför redan som
+     * {@code GRANSKA}.
      */
     static final Pattern NYHETSORD = Pattern.compile(
             "(?<![\\p{L}\\p{N}])(ny|nya|nytt|nasta generation|kommande|kommer att|planerar|planeras"
-            + "|lanseras|lansering|lanseringen|vantas|premiar|saljstart|introduceras|blir|debuterar)"
+            + "|lanseras|lansering|lanseringen|lanserar|lanserat|lanserade|overvager|overvags"
+            + "|vantas|premiar|saljstart|introduceras|blir|debuterar)"
             + "(?![\\p{L}\\p{N}])");
 
     /** Tecken som skalas bort i annonsernas kanter — Blocket skriver "Outback," och "EV6." */

@@ -148,6 +148,33 @@ class UpcomingAdCheckServiceTest {
                 "E‑Outback kan dra släp på upp till 1 500 kg")).isFalse();
     }
 
+    /**
+     * Böjningshålet från 2026-09-18: id 1573 gav LARM mot 46 annonser för den XC70 som såldes
+     * 2004–2016, enbart för att listan bar {@code lanseras} men inte {@code lanserat}.
+     */
+    @Test
+    void aktivBojningAvLanseraOchOvervagandeRaknasSomNyhetsord() {
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Volvo har lanserat en laddhybrid av XC70 i Kina med lång räckvidd och "
+                        + "överväger att ta den till den europeiska marknaden")).isTrue();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Volvo lanserar XC70 i Kina")).isTrue();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Mercedes lanserade C-klass Electric i Kina")).isTrue();
+        // Gränsen åt överblockeringshållet: stammen får inte matcha inuti ett annat ord, och
+        // en ren faktarad om en bil hos handlaren står kvar som LARM.
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Lanseringsfesten avslöjade inget om priset")).isFalse();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Pris för Ioniq 3 Standard Range Select startar på 344 900 kr")).isFalse();
+        // Och den som ordlistan ALDRIG kan rädda: raden är skriven som ren presensfakta om en
+        // bil som inte går att köpa (id 1578, el-Range Rover mot 49 bensin-/dieselannonser).
+        // Den ska fortsätta ge LARM — en människa avgör den, se javadocen i tjänsten.
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Med smart mjukvara, luftfjädring och 900 mm vadardjup klarar den 2,8 ton "
+                        + "tunga el‑Range Rover lätt över klippor och leriga underlag")).isFalse();
+    }
+
     // ── Domarna ───────────────────────────────────────────────────────────────
 
     @Test
