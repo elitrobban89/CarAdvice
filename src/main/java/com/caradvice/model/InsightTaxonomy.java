@@ -72,11 +72,22 @@ public final class InsightTaxonomy {
      * <p>Bara modeller vi VET är för stora står här, och syskon av exakt samma kaross (Model S/X/Y,
      * Polestar 3/4, Saab 9-5). En okänd modell släpps igenom hellre än att en riktig småbil
      * kastas — vakten fäller på positivt bevis, aldrig på frånvaro.
+     *
+     * <p><b>VW ID.3 tillkom 2026-09-19 em på användarens beslut</b>, och den är listans enda
+     * kompaktbil. Skälet är att ID.3 uttryckligen ströks ur småbilslistan i rekommendations-
+     * prompten redan tidigare — den är Golf-klass med fem säten — men den regeln fanns bara på
+     * läsvägen, så skrapan kunde fortsätta skriva {@code smaabil} på den. Sex ID.3 GTI-rader
+     * (1545, 1552, 1553, 1554, 1556, 1557) och två vanliga ID.3 (850, 989) låg så i drift.
+     * <b>Gränsen för listan går alltså inte vid en storleksklass utan vid vad som ska få agera
+     * småbil i prompten</b> — Golf-klass och uppåt gör det inte.
+     *
+     * <p>{@code id3} står med bredvid {@code id.3} eftersom AI:n skriver bägge formerna; samma
+     * dubblering finns i {@link #LAGA_MODELLER}.
      */
     public static final List<String> STORA_MODELLER = List.of(
-            "model 3", "model s", "model x", "model y", "id.7", "polestar 2", "polestar 3",
-            "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger", "duster",
-            "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo");
+            "model 3", "model s", "model x", "model y", "id.3", "id3", "id.7", "polestar 2",
+            "polestar 3", "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger",
+            "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo");
 
     /**
      * Kategorin som bilens egen modell motsäger — felets text för loggen, annars {@code null}.

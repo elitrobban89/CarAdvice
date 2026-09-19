@@ -36,6 +36,24 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.canonicalCategory("suv", "Volkswagen", "Golf Alltrack")).isNull();
     }
 
+    /**
+     * ID.3 är listans enda kompaktbil, tillagd 2026-09-19 em på användarens beslut: den ströks ur
+     * småbilslistan i rekommendationsprompten för att den är Golf-klass med fem säten, men regeln
+     * fanns bara på läsvägen — sex ID.3 GTI-rader och två vanliga ID.3 låg som smaabil i drift.
+     */
+    @Test
+    void id3ArAldrigSmaabil() {
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Volkswagen", "ID.3")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Volkswagen", "ID.3 GTI")).isNull();
+        // AI:n skriver bagge formerna
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Volkswagen", "ID3")).isNull();
+        // Syskonen far inte falla med: ID.4 och ID. Polo ar inte samma bil
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Volkswagen", "ID. Polo")).isEqualTo("smaabil");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "Volkswagen", "ID.4")).isEqualTo("suv");
+        // suv-hallet var redan tackt av LAGA_MODELLER och ska fortsatta falla
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "Volkswagen", "ID.3")).isNull();
+    }
+
     @Test
     void riktigaSmaabilarOchSuvarSlapperIgenom() {
         // Fäller på positivt bevis: en modell utanför listorna rörs aldrig
