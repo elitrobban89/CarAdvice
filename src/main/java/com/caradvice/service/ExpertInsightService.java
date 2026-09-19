@@ -742,9 +742,29 @@ ett bilkort.*/
         return repo.countByExpertName(expertName);
     }
 
+    /**
+     * CSV-import av kurerade insikter.
+     *
+     * <p><b>Kategorivakten gäller även här sedan 2026-09-19.</b> Den satt först bara på skrapans
+     * skrivväg, med motiveringen att en CSV-rad är mänsklig kuration och därför ska vinna över en
+     * lista. Men de tjugo felkategoriserade raderna i drift visade att skadan inte beror på VEM som
+     * skrev raden: {@link #buildExpertContext} hämtar alla rader med kategorin oavsett vilken bil
+     * sökningen gäller, så en Tesla Model 3 som {@code smaabil} förgiftar småbilssöket lika mycket
+     * från en CSV-fil som från AI:n. En import är dessutom masskrivning — ett fel i mallen blir lika
+     * många felaktiga rader som filen har.
+     *
+     * <p><b>Vägen förbi vakten är admin-PATCH</b> ({@link #updateInsight}), som med flit står
+     * oskyddad. Vill man verkligen sätta en kategori som listorna motsäger går det på en rad — men
+     * då som ett medvetet beslut per rad, inte som ett tyst bortfall i en fil på hundra.
+     *
+     * <p>Raden sparas alltid, precis som vid okänd kategori: texten är värd ett bilkort, och kortet
+     * matchar på märke och modell. Bortfallet loggas per rad MED modellnamnet, för det är
+     * modellnamnet som säger om listan träffat rätt eller behöver utökas.
+     */
     public int importCsv(String csv, String expertName) {
         int count = 0;
         int okandaKategorier = 0;
+        int motsagdaKategorier = 0;
         for (String line : csv.split("\\R")) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#") || line.startsWith("car_make")) continue;
@@ -756,6 +776,13 @@ ett bilkort.*/
             String category  = blank(f[3]) ? null : f[3];
             if (InsightTaxonomy.isUnknownCategory(category)) { okandaKategorier++; category = null; }
             else category = InsightTaxonomy.canonicalCategory(category);
+            String motsagelse = InsightTaxonomy.kategoriMotsagelse(category, carMake, carModel);
+            if (motsagelse != null) {
+                log.warn("CSV-import [{}]: kategorin \"{}\" motsägs av bilen ({}) — raden sparas utan kategori",
+                        expertName, category, motsagelse);
+                motsagdaKategorier++;
+                category = null;
+            }
             String insight   = f[4];
             Integer rating   = null;
             if (f.length > 5 && !blank(f[5])) {
@@ -769,6 +796,8 @@ ett bilkort.*/
         // i veckor, så bortfallet ska synas i loggen.
         if (okandaKategorier > 0)
             log.warn("CSV-import [{}]: {} rader hade en kategori utanför formuläret och sparades utan kategori", expertName, okandaKategorier);
+        if (motsagdaKategorier > 0)
+            log.warn("CSV-import [{}]: {} rader bar en kategori som bilens egen modell motsade", expertName, motsagdaKategorier);
         return count;
     }
 

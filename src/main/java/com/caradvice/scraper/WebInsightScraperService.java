@@ -1449,9 +1449,13 @@ public class WebInsightScraperService {
      * {@code suv} på Kia Niro, Hyundai Kona, Polestar 2 och Golf Alltrack. Samma lärdom som
      * växel-, drivmedels- och SUV-vakterna bär: en regel som ska hålla måste stå i kod.
      *
-     * <p>Vakten sitter HÄR och inte i admin-PATCH:en: den rättar felkategoriserade rader för hand,
-     * och en människa som uttryckligen skriver ett värde ska vinna över en lista. CSV-importen bär
-     * användarens egna kurerade rader och lämnas av samma skäl orörd.
+     * <p>Vakten sitter HÄR och i CSV-importen, men INTE i admin-PATCH:en. PATCH:en rättar rader
+     * en och en för hand, och en människa som uttryckligen skriver ett värde ska vinna över en
+     * lista — den är därför också vägen förbi vakten när listorna har fel. CSV-importen stod först
+     * utanför med motiveringen att dess rader är kurerade, men skadan beror inte på vem som skrev
+     * raden: {@code buildExpertContext} hämtar alla rader med kategorin oavsett vilken bil
+     * sökningen gäller, och en import skriver många rader på en gång (se
+     * {@link com.caradvice.service.ExpertInsightService#importCsv(String, String)}).
      */
     private String kategoriFor(JsonNode ins) {
         String varde = ins.path("category").asText("");

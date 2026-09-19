@@ -807,6 +807,45 @@ class ExpertInsightServiceTest {
     }
 
     /**
+     * Kategorivakten gäller CSV-importen sedan 2026-09-19. Den satt först bara på skrapan, men
+     * skadan beror inte på vem som skrev raden — buildExpertContext hämtar ALLA rader med
+     * kategorin oavsett vilken bil sökningen gäller, och en import skriver många rader på en gång.
+     */
+    @Test
+    void csvImportNollarKategoriSomBilenMotsager() {
+        savePasserarIgenom();
+        ArgumentCaptor<ExpertInsight> sparad = ArgumentCaptor.forClass(ExpertInsight.class);
+
+        int antal = service().importCsv("Tesla,Model 3,elbil,smaabil,Saknar dragkrok.,"
+                + System.lineSeparator() + "Kia,Niro,elbil,suv,Låg crossover.,"
+                + System.lineSeparator() + "Toyota,Aygo X,bensin,smaabil,Billig i drift.,");
+
+        assertThat(antal).isEqualTo(3);
+        verify(repo, times(3)).save(sparad.capture());
+        // Raderna behålls — bara kategorin stryks, och kortet matchar på märke och modell
+        assertThat(sparad.getAllValues().get(0).getCategory()).isNull();
+        assertThat(sparad.getAllValues().get(0).getInsight()).isEqualTo("Saknar dragkrok.");
+        assertThat(sparad.getAllValues().get(1).getCategory()).isNull();
+        // Fäller på positivt bevis: en riktig småbil rörs inte
+        assertThat(sparad.getAllValues().get(2).getCategory()).isEqualTo("smaabil");
+    }
+
+    /**
+     * Admin-PATCH är med flit vägen FÖRBI vakten: rättar man en rad för hand ska människan vinna
+     * över listan, annars går en felaktig lista inte att arbeta runt.
+     */
+    @Test
+    void adminPatchFarSattaKategoriSomListanMotsager() {
+        ExpertInsight rad = new ExpertInsight("Vi Bilägare", "Tesla", "Model 3", "elbil", null, "En insikt.", null);
+        when(repo.findById(5L)).thenReturn(Optional.of(rad));
+        when(repo.save(any(ExpertInsight.class))).thenAnswer(i -> i.getArgument(0));
+
+        service().updateInsight(5L, Map.of("category", "smaabil"));
+
+        assertThat(rad.getCategory()).isEqualTo("smaabil");
+    }
+
+    /**
      * Kategoribytet finns för att RÄTTA stavningar. Utan kontroll av målet kunde samma
      * endpoint skapa felet den ska laga: "suv" -> "crossover" gör 382 rader osynliga i ett anrop.
      */
