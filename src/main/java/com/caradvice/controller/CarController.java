@@ -83,6 +83,7 @@ public class CarController {
     private final com.caradvice.service.EvFactCandidateService evFactCandidateService;
     private final com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
     private final com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
+    private final com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -174,7 +175,9 @@ public class CarController {
                          com.caradvice.service.VpicYearCheckService vpicYearCheckService,
                          com.caradvice.service.EvFactCandidateService evFactCandidateService,
                          com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService,
-                         com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService) {
+                         com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService,
+                         com.caradvice.service.KategoriVaktStats kategoriVaktStats) {
+        this.kategoriVaktStats = kategoriVaktStats;
         this.upcomingAutoReleaseService = upcomingAutoReleaseService;
         this.upcomingAdCheckService = upcomingAdCheckService;
         this.evFactCandidateService = evFactCandidateService;
@@ -1217,6 +1220,27 @@ public class CarController {
      * rad": är prompten 4 700 och 3 000 reserverade blir talet 1.
      */
     /** Senaste otolkbara AI-svaren med råsvar och modellnamn — jakten på "AI-svaret blev ofullständigt". */
+    /**
+     * Kategorier som vakten strukit, nyast sist — {@code smaabil} på en mellanklassbil eller
+     * {@code suv} på en halvkombi.
+     *
+     * <p><b>Varför den behövdes.</b> Vakten byggdes 2026-09-19 och loggade sitt utfall, men
+     * loggen ligger hos Render och nås varken av mig eller av de två nattrutinerna (ingen
+     * {@code RENDER_API_KEY}). Det skarpa provet samma dag fick därför bevisas genom att läsa
+     * tillbaka raderna via {@code /api/admin/insights} — utslaget självt, med modellnamnet och
+     * motiveringen, gick inte att se alls. En vakt vars utfall inte går att läsa kan inte
+     * skiljas från en vakt som aldrig fäller.
+     *
+     * <p><b>Läs {@code perBil} först.</b> Samlas utslagen hos en modell är det antingen en källa
+     * som upprepar samma fel eller en listrad som tar för brett — och i det senare fallet ska
+     * modellen bort ur {@code InsightTaxonomy}, inte raderna rättas en och en.
+     */
+    @GetMapping("/admin/kategorivakten")
+    public ResponseEntity<?> kategoriVakten(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return ResponseEntity.ok(kategoriVaktStats.rapport());
+    }
+
     @GetMapping("/admin/ai-failures")
     public ResponseEntity<?> aiFailures(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));

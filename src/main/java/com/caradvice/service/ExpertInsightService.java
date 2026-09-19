@@ -31,12 +31,15 @@ public class ExpertInsightService {
     private final ExpertInsightRepository repo;
     private final EvSpecService evSpecService;
     private final UpcomingInsightService upcomingService;
+    private final KategoriVaktStats kategoriVaktStats;
 
     public ExpertInsightService(ExpertInsightRepository repo, EvSpecService evSpecService,
-                                UpcomingInsightService upcomingService) {
+                                UpcomingInsightService upcomingService,
+                                KategoriVaktStats kategoriVaktStats) {
         this.repo = repo;
         this.evSpecService = evSpecService;
         this.upcomingService = upcomingService;
+        this.kategoriVaktStats = kategoriVaktStats;
     }
 
     /**
@@ -776,14 +779,16 @@ ett bilkort.*/
             String category  = blank(f[3]) ? null : f[3];
             if (InsightTaxonomy.isUnknownCategory(category)) { okandaKategorier++; category = null; }
             else category = InsightTaxonomy.canonicalCategory(category);
+            String insight   = f[4];
             String motsagelse = InsightTaxonomy.kategoriMotsagelse(category, carMake, carModel);
             if (motsagelse != null) {
                 log.warn("CSV-import [{}]: kategorin \"{}\" motsägs av bilen ({}) — raden sparas utan kategori",
                         expertName, category, motsagelse);
+                kategoriVaktStats.registrera("CSV-import [" + expertName + "]", category,
+                        carMake + " " + carModel, motsagelse, insight);
                 motsagdaKategorier++;
                 category = null;
             }
-            String insight   = f[4];
             Integer rating   = null;
             if (f.length > 5 && !blank(f[5])) {
                 try { rating = Integer.parseInt(f[5].trim()); } catch (NumberFormatException ignored) {}

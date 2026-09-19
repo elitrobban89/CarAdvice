@@ -31,6 +31,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ExpertInsightServiceTest {
 
+    private final com.caradvice.service.KategoriVaktStats vaktStats =
+            new com.caradvice.service.KategoriVaktStats();
+
     @Mock
     private ExpertInsightRepository repo;
 
@@ -41,7 +44,7 @@ class ExpertInsightServiceTest {
     private UpcomingInsightService upcomingService;
 
     private ExpertInsightService service() {
-        return new ExpertInsightService(repo, evSpecService, upcomingService);
+        return new ExpertInsightService(repo, evSpecService, upcomingService, vaktStats);
     }
 
     private static CarPreferences prefs(String category, String fuelType) {
@@ -828,6 +831,33 @@ class ExpertInsightServiceTest {
         assertThat(sparad.getAllValues().get(1).getCategory()).isNull();
         // Fäller på positivt bevis: en riktig småbil rörs inte
         assertThat(sparad.getAllValues().get(2).getCategory()).isEqualTo("smaabil");
+    }
+
+    /**
+     * Utslaget ska gå att LÄSA, inte bara ha hänt. Loggraden ligger hos Render och nås varken av
+     * mig eller av nattrutinerna, så vakten var i praktiken tyst innan bufferten fanns.
+     */
+    @Test
+    void csvImportRegistrerarUtslagetIVaktbufferten() {
+        savePasserarIgenom();
+        vaktStats.nollstall();
+
+        service().importCsv("Tesla,Model 3,elbil,smaabil,Saknar dragkrok.,", "Vi Bilägare");
+
+        Map<String, Object> rapport = vaktStats.rapport();
+        assertThat(rapport.get("totalt")).isEqualTo(1L);
+        assertThat(rapport.get("perBil")).isEqualTo(Map.of("Tesla Model 3", 1L));
+        assertThat(rapport.get("perKalla")).isEqualTo(Map.of("CSV-import [Vi Bilägare]", 1L));
+    }
+
+    @Test
+    void csvImportUtanUtslagLamnarBuffertenTom() {
+        savePasserarIgenom();
+        vaktStats.nollstall();
+
+        service().importCsv("Toyota,Aygo X,bensin,smaabil,Billig i drift.,", "Vi Bilägare");
+
+        assertThat(vaktStats.rapport().get("totalt")).isEqualTo(0L);
     }
 
     /**

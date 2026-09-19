@@ -726,15 +726,18 @@ public class WebInsightScraperService {
     private final JdbcTemplate jdbc;
     private final JobStatusService jobStatus;
     private final UpcomingInsightService upcomingService;
+    private final com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
     public WebInsightScraperService(ExpertInsightRepository insightRepo, JdbcTemplate jdbc,
-                                    JobStatusService jobStatus, UpcomingInsightService upcomingService) {
+                                    JobStatusService jobStatus, UpcomingInsightService upcomingService,
+                                    com.caradvice.service.KategoriVaktStats kategoriVaktStats) {
         this.insightRepo = insightRepo;
         this.jdbc = jdbc;
         this.jobStatus = jobStatus;
         this.upcomingService = upcomingService;
+        this.kategoriVaktStats = kategoriVaktStats;
     }
 
     public void ensureTable() {
@@ -1465,6 +1468,8 @@ public class WebInsightScraperService {
         if (motsagelse == null) return InsightTaxonomy.canonicalCategory(varde);
         log.warn("Web insights: kategorin \"{}\" motsägs av bilen ({}) — raden sparas utan kategori",
                 InsightTaxonomy.canonicalCategory(varde), motsagelse);
+        kategoriVaktStats.registrera("web-insights", InsightTaxonomy.canonicalCategory(varde),
+                (make + " " + model).trim(), motsagelse, ins.path("insight").asText(""));
         return null;
     }
 

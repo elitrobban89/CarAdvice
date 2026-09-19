@@ -20,9 +20,12 @@ import static org.mockito.Mockito.when;
 
 class WebInsightScraperServiceTest {
 
+    private static final com.caradvice.service.KategoriVaktStats vaktStats =
+            new com.caradvice.service.KategoriVaktStats();
+
     private WebInsightScraperService service() {
         return new WebInsightScraperService(mock(ExpertInsightRepository.class), mock(JdbcTemplate.class),
-                mock(JobStatusService.class), mock(UpcomingInsightService.class));
+                mock(JobStatusService.class), mock(UpcomingInsightService.class), vaktStats);
     }
 
     /**
@@ -298,7 +301,7 @@ class WebInsightScraperServiceTest {
         org.mockito.Mockito.when(repo.findByMakePrefix(
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of(existing));
-        return new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
+        return new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
     }
 
     @Test
@@ -347,7 +350,7 @@ class WebInsightScraperServiceTest {
         // Insikter utan carMake visas aldrig (ExpertInsightService utesluter dem) — SAE-studier
         // och kändisnotiser utan bil kom ändå in i DB via scrapen
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode utanMarke = mapper.readTree("{\"car_make\":\"\",\"insight\":\"Studie om återcirkulation.\"}");
         JsonNode medMarke = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
@@ -365,7 +368,7 @@ class WebInsightScraperServiceTest {
         var sparad = new com.caradvice.model.ExpertInsight("TV", "Mercedes", "GLA", null, null, "Tre varianter.", null);
         org.springframework.test.util.ReflectionTestUtils.setField(sparad, "id", 77L);
         org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any())).thenReturn(sparad);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming, vaktStats);
 
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree("{\"car_make\":\"Mercedes\",\"car_model\":\"GLA\","
@@ -379,7 +382,7 @@ class WebInsightScraperServiceTest {
     void vanligInsiktFlaggasInteSomKommande() throws Exception {
         var repo = mock(ExpertInsightRepository.class);
         var upcoming = mock(UpcomingInsightService.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming, vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode vanlig = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
@@ -397,7 +400,7 @@ class WebInsightScraperServiceTest {
         // i ett småbilssök.
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
-                mock(com.caradvice.service.UpcomingInsightService.class));
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode forStor = mapper.readTree(
                 "{\"car_make\":\"Saab\",\"car_model\":\"9-3\",\"category\":\"smaabil\",\"insight\":\"Takata-krockkudden bör bytas.\"}");
@@ -412,12 +415,31 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void motsagdKategoriRegistrerasIVaktbufferten() throws Exception {
+        // Vakten loggar hos Render, dit varken jag eller nattrutinerna når — bufferten är enda
+        // vägen att se VILKEN bil som föll och varför
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode lagBil = mapper.readTree("{\"car_make\":\"Kia\",\"car_model\":\"Niro\",\"category\":\"suv\",\"insight\":\"Lag crossover.\"}");
+        vaktStats.nollstall();
+
+        service.saveInsights("VB", List.of(lagBil), null);
+
+        var rapport = vaktStats.rapport();
+        assertThat(rapport.get("totalt")).isEqualTo(1L);
+        assertThat(rapport.get("perKalla")).isEqualTo(java.util.Map.of("web-insights", 1L));
+        assertThat(rapport.get("perBil")).isEqualTo(java.util.Map.of("Kia Niro", 1L));
+    }
+
+    @Test
     void riktigSmaabilBehallerSinKategori() throws Exception {
         // Vakten fäller på positivt bevis: en modell utanför listan rörs inte, och aliaset
         // "småbil" skrivs om precis som förut
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
-                mock(com.caradvice.service.UpcomingInsightService.class));
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode smaabil = mapper.readTree(
                 "{\"car_make\":\"Toyota\",\"car_model\":\"Aygo X\",\"category\":\"småbil\",\"insight\":\"Billig i drift.\"}");
@@ -434,7 +456,7 @@ class WebInsightScraperServiceTest {
         // Utan carModel hamnar raden i findForCarTitle:s makeOnly-hink och visas på VARJE bil av
         // märket — CarUps N47-dieselvarning hade annars dykt upp på ett BMW i4-kort
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode utanModell = mapper.readTree(
                 "{\"car_make\":\"BMW\",\"car_model\":\"\",\"insight\":\"N47-dieseln kan få kamkedjebrott.\"}");
@@ -1115,7 +1137,7 @@ class WebInsightScraperServiceTest {
     void striktKallaSparasFortfarandeNarVaktenArPassiv() throws Exception {
         // apiKey är null i testtjänsten → extravakten ska vara passiv, inte blockera CarUp helt
         var repo = mock(ExpertInsightRepository.class);
-        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class));
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree(
                 "{\"car_make\":\"Volkswagen\",\"car_model\":\"Arteon\",\"insight\":\"Mest begagnade är laddhybrider.\"}");
@@ -1266,6 +1288,6 @@ class WebInsightScraperServiceTest {
 
     private WebInsightScraperService serviceWith(JdbcTemplate jdbc) {
         return new WebInsightScraperService(mock(ExpertInsightRepository.class), jdbc,
-                mock(JobStatusService.class), mock(UpcomingInsightService.class));
+                mock(JobStatusService.class), mock(UpcomingInsightService.class), vaktStats);
     }
 }

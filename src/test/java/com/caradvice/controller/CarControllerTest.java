@@ -81,6 +81,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.VpicYearCheckService vpicYearCheckService;
     @MockBean private com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
     @MockBean private com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
+    @MockBean private com.caradvice.service.KategoriVaktStats kategoriVaktStats;
 
     // --- health ---
 
@@ -1143,6 +1144,28 @@ class CarControllerTest {
     }
 
     // --- PATCH /api/admin/insights/{id} ---
+
+    /**
+     * Vaktens utslag loggas hos Render, dit varken jag eller nattrutinerna nar - utan den har
+     * endpointen gar det inte att skilja "vakten har inte fallt" fran "vakten ar trasig".
+     */
+    @Test
+    void kategorivaktenVisarUtslagenBakomNyckeln() throws Exception {
+        org.mockito.Mockito.when(kategoriVaktStats.rapport()).thenReturn(java.util.Map.of(
+                "totalt", 2L, "iBufferten", 2,
+                "perBil", java.util.Map.of("Tesla Model 3", 1L, "Kia Niro", 1L)));
+
+        mvc.perform(get("/api/admin/kategorivakten").header("X-Admin-Key", "test-admin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalt").value(2))
+                .andExpect(jsonPath("$.perBil['Tesla Model 3']").value(1));
+    }
+
+    @Test
+    void kategorivaktenKraverNyckel() throws Exception {
+        mvc.perform(get("/api/admin/kategorivakten"))
+                .andExpect(status().isForbidden());
+    }
 
     @Test
     void adminInsiktspatchKraverNyckel() throws Exception {
