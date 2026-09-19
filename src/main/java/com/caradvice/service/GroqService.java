@@ -4,6 +4,7 @@ import com.caradvice.model.CargoSpecDto;
 import com.caradvice.model.EvSpecDto;
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
+import com.caradvice.model.InsightTaxonomy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -2074,11 +2075,12 @@ public class GroqService {
      *
      * <p>Niro och Kona står med efter användarens uttryckliga besked: de marknadsförs som SUV
      * men är inte de "höga bilar" kategorin ska ge. Gränsen går vid XC40/Kamiq-höjd och uppåt.
+     *
+     * <p><b>Namnen bor i {@link InsightTaxonomy#LAGA_MODELLER}</b> sedan 2026-09-19, för att
+     * skrapans kategorivakt behövde exakt samma lista. Två kopior hade blivit två ställen att
+     * glömma uppdatera — läggs en låg modell till där gäller den båda vakterna.
      */
-    private static final List<String> NON_SUV_MARKERS = List.of(
-            "mg4", "mg 4", "mg5", "mg 5", "id.3", "id3", "model 3", "polestar 2",
-            "zoe", "leaf", "e-golf", "golf", "ioniq 6", "i4", "ë-c4", "e-c4",
-            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat");
+    private static final List<String> NON_SUV_MARKERS = InsightTaxonomy.LAGA_MODELLER;
 
     /**
      * Lanseringsår per modell — spegel av årsmodellregeln i systemprompten ("Rekommendera ALDRIG

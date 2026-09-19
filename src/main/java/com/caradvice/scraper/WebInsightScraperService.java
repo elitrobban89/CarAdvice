@@ -973,7 +973,7 @@ public class WebInsightScraperService {
                     blankToNull(ins.path("car_make").asText("")),
                     blankToNull(ins.path("car_model").asText("")),
                     validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES),
-                    InsightTaxonomy.canonicalCategory(ins.path("category").asText("")),
+                    kategoriFor(ins),
                     insightText,
                     parseRating(ins.path("rating"))));
             if (ins.path(UPCOMING_FIELD).asBoolean(false)) {
@@ -1436,6 +1436,32 @@ public class WebInsightScraperService {
     static boolean isTemplateEcho(JsonNode ins) {
         return "insight".equalsIgnoreCase(ins.path("insight").asText("").trim())
                 || "car_make".equalsIgnoreCase(ins.path("car_make").asText("").trim());
+    }
+
+    /**
+     * Kategorin raden får bära — whitelisten, och sedan bilens eget motbevis.
+     *
+     * <p><b>Promptregeln räckte inte.</b> Den har sagt {@code "smaabil" = liten stadsbil ... ALDRIG
+     * SUV:ar eller mellanklassbilar} sedan 2026-08-10, och natten mot 2026-09-19 kom ändå Saab 9-3
+     * och Cadillac BLS in som småbilar. En genomgång av alla 194 smaabil-rader samma morgon gav nio
+     * sådana (Polestar 2, Tesla Model 3, VW ID.7, två Dacia Jogger, två Dacia Duster Extreme — den
+     * ena med orden "prisvärd kompakt SUV" i sin egen text), och tio rader åt andra hållet:
+     * {@code suv} på Kia Niro, Hyundai Kona, Polestar 2 och Golf Alltrack. Samma lärdom som
+     * växel-, drivmedels- och SUV-vakterna bär: en regel som ska hålla måste stå i kod.
+     *
+     * <p>Vakten sitter HÄR och inte i admin-PATCH:en: den rättar felkategoriserade rader för hand,
+     * och en människa som uttryckligen skriver ett värde ska vinna över en lista. CSV-importen bär
+     * användarens egna kurerade rader och lämnas av samma skäl orörd.
+     */
+    private String kategoriFor(JsonNode ins) {
+        String varde = ins.path("category").asText("");
+        String make = ins.path("car_make").asText("");
+        String model = ins.path("car_model").asText("");
+        String motsagelse = InsightTaxonomy.kategoriMotsagelse(varde, make, model);
+        if (motsagelse == null) return InsightTaxonomy.canonicalCategory(varde);
+        log.warn("Web insights: kategorin \"{}\" motsägs av bilen ({}) — raden sparas utan kategori",
+                InsightTaxonomy.canonicalCategory(varde), motsagelse);
+        return null;
     }
 
     static String validOrNull(String s, Set<String> allowed) {

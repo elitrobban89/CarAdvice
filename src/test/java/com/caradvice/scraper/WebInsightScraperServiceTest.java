@@ -390,6 +390,46 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void motsagdKategoriSparasSomNull() throws Exception {
+        // Natten mot 2026-09-19 sparades Saab 9-3 som "smaabil" trots att promptregeln förbjudit
+        // mellanklassbilar sedan 2026-08-10. buildExpertContext hämtar ALLA rader med kategorin,
+        // oavsett vilken bil sökningen gäller — raden kunde alltså beskriva en mellanklassare
+        // i ett småbilssök.
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode forStor = mapper.readTree(
+                "{\"car_make\":\"Saab\",\"car_model\":\"9-3\",\"category\":\"smaabil\",\"insight\":\"Takata-krockkudden bör bytas.\"}");
+
+        assertThat(service.saveInsights("VB", List.of(forStor), null)).isEqualTo(1);
+
+        var sparad = org.mockito.ArgumentCaptor.forClass(com.caradvice.model.ExpertInsight.class);
+        verify(repo).save(sparad.capture());
+        // Kategorin stryks, raden sparas — bilkortet matchar på märke och modell, inte kategori
+        assertThat(sparad.getValue().getCategory()).isNull();
+        assertThat(sparad.getValue().getCarModel()).isEqualTo("9-3");
+    }
+
+    @Test
+    void riktigSmaabilBehallerSinKategori() throws Exception {
+        // Vakten fäller på positivt bevis: en modell utanför listan rörs inte, och aliaset
+        // "småbil" skrivs om precis som förut
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode smaabil = mapper.readTree(
+                "{\"car_make\":\"Toyota\",\"car_model\":\"Aygo X\",\"category\":\"småbil\",\"insight\":\"Billig i drift.\"}");
+
+        assertThat(service.saveInsights("VB", List.of(smaabil), null)).isEqualTo(1);
+
+        var sparad = org.mockito.ArgumentCaptor.forClass(com.caradvice.model.ExpertInsight.class);
+        verify(repo).save(sparad.capture());
+        assertThat(sparad.getValue().getCategory()).isEqualTo("smaabil");
+    }
+
+    @Test
     void markesbredInsiktUtanModellSparasInte() throws Exception {
         // Utan carModel hamnar raden i findForCarTitle:s makeOnly-hink och visas på VARJE bil av
         // märket — CarUps N47-dieselvarning hade annars dykt upp på ett BMW i4-kort
