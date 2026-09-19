@@ -90,11 +90,45 @@ public final class InsightTaxonomy {
             "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo");
 
     /**
+     * Lyxbilar och sportbilar — modeller som ALDRIG får bära {@code smaabil} eller {@code familjebil}.
+     *
+     * <p>Regeln har stått i skrapans prompt sedan 2026-08-18 ("en sportbil eller lyxbil är ALDRIG
+     * smaabil/familjebil") och rättades då för hand: id 1234 (Golf GTI) och 1248 (RS5 Avant) fick
+     * tom kategori. Den fortsatte ändå läcka — natten mot 2026-09-19 kom två <i>Audi A8</i>-rader in
+     * som {@code familjebil}, och en genomgång av hela tabellen samma dag hittade nio sådana rader:
+     * tre A8, tre Tesla Model S, en Mercedes S-Klass, en EQS 450 och en Maserati Grecale Trofeo,
+     * plus tre sportbilsrader (två Mazda MX-5 som {@code smaabil}, en BMW M5 som {@code familjebil}).
+     * Fjärde promptregeln i rad som behövde kodstöd.
+     *
+     * <p><b>Varför det gör skada:</b> en lyxbil bland familjebilarna är inte bara fel hylla — den är
+     * ett köpråd i en helt annan prisklass än den användaren sökte i.
+     *
+     * <p><b>Listan är medvetet SMAL och innehåller bara namngivna modeller.</b> Märkesbreda
+     * effektbeteckningar som {@code amg} och {@code rs} hade tagit med sig vanliga bilar av samma
+     * familj, och varmhalvkombierna (GTI, GR Yaris, Cooper S, Cupra VZ) är en egen gränsdragning
+     * som användaren äger — mätningen 09-19 visade dessutom att markören {@code cooper s} fångar
+     * eldrivna <i>Mini Cooper SE</i>, som inte är någon sportbil alls.
+     *
+     * <p><b>Två rader står kvar som {@code familjebil} med flit och får INTE in i listan:</b>
+     * id 1239 (Polestar 5) och id 1246 (Audi A6) — de är användarens egna gränsfall.
+     */
+    public static final List<String> LYX_OCH_SPORTMODELLER = List.of(
+            // Lyxflaggskepp
+            "a8", "s8", "s-klass", "s klass", "eqs", "7-serie", "7 serie", "i7", "model s",
+            "panamera", "taycan", "quattroporte", "levante", "maserati", "bentley", "rolls-royce",
+            "ghost", "phantom", "cullinan", "escalade",
+            // Sportbilar
+            "911", "718", "cayman", "boxster", "corvette", "emira", "supra", "gt-r", "f-type",
+            "amg gt", "m4", "m5", "m8", "rs4", "rs5", "rs6", "rs7", "mx-5", "brz", "gr86",
+            "ferrari", "lamborghini", "mclaren");
+
+    /**
      * Kategorin som bilens egen modell motsäger — felets text för loggen, annars {@code null}.
      *
-     * <p>Två håll, inte ett: en {@code suv}-rad om en låg bil och en {@code smaabil}-rad om en
-     * stor. En vakt som bara ser åt ena hållet är halv, och båda felen fanns i tabellen samtidigt
-     * (10 respektive 9 rader den 2026-09-19).
+     * <p>Tre regler, inte en: en {@code suv}-rad om en låg bil, en {@code smaabil}-rad om en stor,
+     * och en {@code smaabil}- eller {@code familjebil}-rad om en lyx- eller sportbil. En vakt som
+     * bara ser åt ena hållet är halv, och alla tre felen fanns i tabellen samtidigt den 2026-09-19
+     * (10, 9 respektive 12 rader).
      *
      * <p><b>Varför det gör skada:</b> {@code buildExpertContext} hämtar rader med
      * {@code findByCategoryIgnoreCaseOrFuelTypeIgnoreCase} — alltså ALLA rader med kategorin,
@@ -109,6 +143,9 @@ public final class InsightTaxonomy {
             return namn + " är ingen SUV";
         if ("smaabil".equals(kanonisk) && traffar(namn, STORA_MODELLER))
             return namn + " är ingen småbil";
+        if (("smaabil".equals(kanonisk) || "familjebil".equals(kanonisk))
+                && traffar(namn, LYX_OCH_SPORTMODELLER))
+            return namn + " är en lyx- eller sportbil";
         return null;
     }
 

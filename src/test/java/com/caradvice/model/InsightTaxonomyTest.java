@@ -54,6 +54,44 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.canonicalCategory("suv", "Volkswagen", "ID.3")).isNull();
     }
 
+    /**
+     * Tredje regeln: en lyx- eller sportbil ar ALDRIG smaabil eller familjebil. Raderna nedan lag
+     * i drift 2026-09-19 - nio lyxrader och tre sportbilsrader.
+     */
+    @Test
+    void lyxOchSportbilarFarVarkenVaraSmaabilEllerFamiljebil() {
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Audi", "A8")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Tesla", "Model S")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Mercedes", "S-Klass")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Mercedes", "EQS 450")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Maserati", "Grecale Trofeo")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "BMW", "M5")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Mazda", "MX-5")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Porsche", "911 Carrera")).isNull();
+    }
+
+    /**
+     * Anvandarens tva medvetna gransfall (id 1239 och 1246) star kvar som familjebil - listan far
+     * inte ata dem, och en SUV-kategori pa en lyxbil ar sann och ska sta kvar.
+     */
+    @Test
+    void lyxvaktenRorInteGransfallenEllerSuvKategorin() {
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Polestar", "5")).isEqualTo("familjebil");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Audi", "A6")).isEqualTo("familjebil");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "Cadillac", "Escalade")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("elbil", "Tesla", "Model S")).isEqualTo("elbil");
+        // Varmhalvkombierna ar en egen gransdragning och ingar INTE i listan
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Toyota", "GR Yaris")).isEqualTo("smaabil");
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Mini", "Cooper SE")).isEqualTo("smaabil");
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Cupra", "Raval VZ")).isEqualTo("smaabil");
+    }
+
+    @Test
+    void lyxvaktensMotsagelseNamnerBilen() {
+        assertThat(InsightTaxonomy.kategoriMotsagelse("familjebil", "Audi", "A8"))
+                .isEqualTo("audi a8 är en lyx- eller sportbil");
+    }
+
     @Test
     void riktigaSmaabilarOchSuvarSlapperIgenom() {
         // Fäller på positivt bevis: en modell utanför listorna rörs aldrig
