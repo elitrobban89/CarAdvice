@@ -596,16 +596,26 @@ public class EvSpecService {
      *
      * <p>{@code gte} står med eftersom det är VW:s egen laddhybridbadge och tabellens rader
      * heter {@code "Volkswagen Golf GTE"} — utan raden hade titeln "Golf Plug-in Hybrid" inte
-     * nått Golfens laddhybridrad. Märkesbadgar som inte betyder laddhybrid för ALLA modeller
-     * ({@code Recharge}, {@code e-Tense}, {@code 4xe}) hör INTE hit: samma avvägning som
-     * {@link #DRIVLINEORD} gör, och av samma skäl — ett för brett filter tystar riktiga kort.
+     * nått Golfens laddhybridrad.
+     *
+     * <p><b>{@code recharge} står med av ett ANNAT skäl, och det är värt att läsa noga.</b>
+     * Volvo använder namnet för både elbil ({@code XC40 Recharge}) och laddhybrid
+     * ({@code V60 Recharge}), så ordet betyder inte "laddhybrid" — det betyder "laddbar". Det
+     * gör ingenting här, eftersom nedkokningen körs på BÅDA sidorna: raden behåller sitt eget
+     * namn, och det enda som händer är att titelns badge och radens badge stavas likadant.
+     * Skyddet {@link #DRIVLINEORD} ger — att en bensin-XC40 aldrig får elbilsradens siffror —
+     * står kvar orört, för en naken titel bär fortfarande ingen badge alls. Utan raden gav
+     * {@code /api/ev-spec?car=Volvo V60 Recharge (2021)} TOMT i drift 2026-09-20, trots att
+     * tabellen har både {@code "Volvo V60 PHEV"} och {@code "Volvo V60 T6"} — och "V60
+     * Recharge" är precis det namn rekommendationerna använder.
      */
     static String phevNormalisera(String normaliserad) {
         return normaliserad
                 .replaceAll("\\bplug[- ]?in hybrid\\b", "phev")
                 .replaceAll("\\bplug[- ]?in\\b", "phev")
                 .replaceAll("\\bladdhybrid\\w*", "phev")
-                .replaceAll("\\bgte\\b", "phev");
+                .replaceAll("\\bgte\\b", "phev")
+                .replaceAll("\\brecharge\\b", "phev");
     }
 
     /**

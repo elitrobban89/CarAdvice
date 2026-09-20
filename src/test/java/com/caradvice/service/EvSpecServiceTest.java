@@ -601,6 +601,25 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void rechargeNarBadeLaddhybridradenOchElbilsraden() {
+        // Volvo använder Recharge för BÅDA drivlinorna, så ordet betyder "laddbar" och inte
+        // "laddhybrid". Skarpt i drift 2026-09-20: /api/ev-spec?car=Volvo V60 Recharge (2021)
+        // gav TOMT trots att tabellen har både "Volvo V60 PHEV" och "Volvo V60 T6" — och det
+        // är just "V60 Recharge" rekommendationerna skriver.
+        EvSpec v60   = new EvSpec("Volvo V60 PHEV",            3.7, 0.0,  11.6,  56, 510_000, "PHEV");
+        EvSpec xc40  = new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 418, 600_000);
+        when(repo.findAll()).thenReturn(List.of(v60, xc40));
+
+        assertThat(service().formatForTitle("Volvo V60 Recharge (2021)", 15000).wltpKm()).isEqualTo(56);
+        // ...och elbilen når fortfarande sin EGEN rad
+        assertThat(service().formatForTitle("Volvo XC40 Recharge (2022)", 15000).wltpKm()).isEqualTo(418);
+        // Spärren som INTE får luckras upp: en naken titel bär ingen badge, och en bensin-XC40
+        // ska aldrig få elbilens siffror (skarpt fel 2026-08-14).
+        assertThat(service().formatForTitle("Volvo XC40 (2022)", 15000)).isNull();
+        assertThat(service().formatForTitle("Volvo V60 (2021)", 15000)).isNull();
+    }
+
+    @Test
     void renElbilFarFortfarandeIngenLaddhybridrad() {
         // Spärren som nedkokningen INTE får luckra upp: "Hyundai Kona Electric" strippas till
         // "hyundai kona", och båda orden ryms i "Hyundai Kona PHEV". Titeln bär ingen
@@ -631,11 +650,18 @@ class EvSpecServiceTest {
         when(repo.findAll()).thenReturn(List.of(phev, t8));
 
         // Annonsens form: T8. Bara T8-raden är möjlig — PHEV-raden kräver ordet i titeln.
-        assertThat(service().formatForTitle("Volvo V90 T8 Recharge AWD (2021)", 15000).wltpKm())
+        assertThat(service().formatForTitle("Volvo V90 T8 AWD (2021)", 15000).wltpKm())
                 .isEqualTo(60);
         // AI:ns form: PHEV. Då är det tvärtom.
         assertThat(service().formatForTitle("Volvo V90 PHEV (2021)", 15000).wltpKm())
                 .isEqualTo(68);
+        // Tredje formen, tillagd 2026-09-20: "Recharge" kokas ner till samma badge som PHEV,
+        // så Volvos eget namn når laddhybridraden. Bär titeln BÅDA formerna ("T8 Recharge")
+        // kvalificerar nu bägge raderna och en av dem vinner — ofarligt, eftersom paren i
+        // drift är identiska (V60, V90, XC60, XC90, S60 speglas alla). Spårämnet ovan är
+        // därför det enda stället där skillnaden ens går att se.
+        assertThat(service().formatForTitle("Volvo V90 Recharge (2021)", 15000)).isNotNull();
+        assertThat(service().formatForTitle("Volvo V90 T8 Recharge AWD (2021)", 15000)).isNotNull();
     }
 
     // ── Årsmodellen väljer generation också i spec-chipsen ──────────────────────
