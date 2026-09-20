@@ -796,6 +796,30 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Cupra Formentor e-Hybrid", 3.6, 0.0, 13.0,  63, 400_000, "PHEV"));
         if (!existing.contains("Kia Niro PHEV"))
             extras.add(new EvSpec("Kia Niro PHEV",            3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
+        // Kia Ceed SW Plug-in Hybrid — TRE namnformer, av samma skäl som Volvos PHEV/T8-par
+        // (se EvSpecServiceTest.laddhybridensTvaNamnTackerVarsinTitelform). AI:n skriver
+        // "Kia Ceed SW PHEV", Kia och Blockets annonser skriver "Ceed Sportswagon Plug-in
+        // Hybrid", och en naken "Kia Ceed Plug-in Hybrid" förekommer också. Ordmatchningen är
+        // ordmängd mot ordmängd, så "sw" i radnamnet stänger ute den form som saknar ordet.
+        //
+        // TALEN ÄR UR KIA SVERIGES EGEN PRODUKTFAKTA (kia-sweden-ceed-sw-plug-in-specification.pdf,
+        // gäller fr.o.m. 2026-10-01): batterikapacitet 8,9 kWh, "Max räckvidd på enbart eldrift
+        // (km) (enligt WLTP): 16" 50 / 17" 47", systemeffekt 141 hk. **50 km, inte 60** — 60 km
+        // är NEDC-erans marknadsföringssiffra och står fortfarande i tredjepartsartiklar.
+        // 16-tummaren är standard på Action och Advance, så 50 är den siffra flest bilar bär.
+        // Laddeffekten står inte som kW i bladet utan som laddtid ("ca 2 tim 15 min" på AC),
+        // vilket ger 3,3 kW — samma laddare som Kia Niro PHEV, som delar drivlina.
+        //
+        // PRISET ÄR SISTA SVENSKA LISTPRISET, inte ett aktuellt: Ceed står INTE längre i Kias
+        // prislista (2026-09-01–09-30 — modellen är ersatt av K4 SW). Bilen är alltså en ren
+        // begagnatmodell nu, och det är ingen uteslutningsgrund: 49 annonser under 10 000 mil,
+        // golv 179 000 kr (se GroqService.PHEV_PRICE_FLOOR_KR).
+        if (!existing.contains("Kia Ceed SW PHEV"))
+            extras.add(new EvSpec("Kia Ceed SW PHEV",         3.3, 0.0,  8.9,  50, 380_000, "PHEV"));
+        if (!existing.contains("Kia Ceed Sportswagon PHEV"))
+            extras.add(new EvSpec("Kia Ceed Sportswagon PHEV", 3.3, 0.0, 8.9,  50, 380_000, "PHEV"));
+        if (!existing.contains("Kia Ceed PHEV"))
+            extras.add(new EvSpec("Kia Ceed PHEV",            3.3, 0.0,  8.9,  50, 380_000, "PHEV"));
         if (!existing.contains("Hyundai Ioniq PHEV"))
             extras.add(new EvSpec("Hyundai Ioniq PHEV",       3.3, 0.0,  8.9,  52, 280_000, "PHEV"));
         if (!existing.contains("Ford Kuga PHEV"))

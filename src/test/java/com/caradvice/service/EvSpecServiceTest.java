@@ -589,6 +589,33 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void kiaCeedSwPhevHittasFranAllaTreNamnformerna() {
+        // Raden lades till 2026-09-20 sedan modellen kommit in i PHEV_PRICE_FLOOR_KR och börjat
+        // föreslås: kortet föll tillbaka på AI:ns fritext ("1.6 GDI 141hk + elmotor 61hk") i
+        // stället för verifierade 8,9 kWh / 50 km. Tre former förekommer i drift, och ordmängd
+        // mot ordmängd kopplar inte ihop dem — "sw" finns inte i Blockets namn.
+        EvSpec sw   = new EvSpec("Kia Ceed SW PHEV",          3.3, 0.0, 8.9, 50, 380_000, "PHEV");
+        EvSpec lang = new EvSpec("Kia Ceed Sportswagon PHEV", 3.3, 0.0, 8.9, 50, 380_000, "PHEV");
+        EvSpec bar  = new EvSpec("Kia Ceed PHEV",             3.3, 0.0, 8.9, 50, 380_000, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(sw, lang, bar));
+
+        for (String titel : List.of("Kia Ceed SW PHEV (2021)",
+                                    "Kia Ceed Sportswagon Plug-in Hybrid (2021)",
+                                    "Kia Ceed Plug-in Hybrid (2020)",
+                                    "Kia Ceed SW laddhybrid (2021)")) {
+            EvSpecDto dto = service().formatForTitle(titel, 15000);
+            assertThat(dto).describedAs(titel).isNotNull();
+            assertThat(dto.batteryKwh()).describedAs(titel).isEqualTo(8.9);
+            assertThat(dto.wltpKm()).describedAs(titel).isEqualTo(50);
+            assertThat(dto.maxAcKw()).describedAs(titel).isEqualTo(3);
+        }
+        // Bensin-Ceeden får INGEN av raderna: titeln bär ingen laddhybridbadge, och alla tre
+        // radnamnen gör det. Samma spärr som skyddar bensin-XC40 från elbilsraden.
+        assertThat(service().formatForTitle("Kia Ceed SW (2021)", 15000)).isNull();
+        assertThat(service().formatForTitle("Kia Ceed (2019)", 15000)).isNull();
+    }
+
+    @Test
     void sjalvladdandeHybridFarInteLaddhybridensSiffror() {
         // Nedkokningen tar BARA laddhybridens ord. Skulle "hybrid" ensamt räknas som markör
         // hade RAV4 Hybrid (självladdande, inget eluttag) fått laddhybridens 18,1 kWh och
