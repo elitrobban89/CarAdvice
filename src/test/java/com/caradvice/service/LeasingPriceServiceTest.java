@@ -107,6 +107,84 @@ class LeasingPriceServiceTest {
         assertThat(LeasingPriceService.bestMatch(utbud, "skoda", List.of("octavia"))).isNull();
     }
 
+    // --- phevUrUtbud: vilka laddhybrider som faktiskt går att privatleasa ---
+
+    /**
+     * Ordagranna erbjudandenamn ur de fem VWFS-kanalerna 2026-09-20. Blandningen är hela
+     * poängen: laddhybriderna ligger bland elbilar, mildhybrider och rena bensinbilar, och det
+     * är DEM sållningen ska skilja ut.
+     */
+    private static List<LeasingPriceService.LeasingOffer> katalogen() {
+        return List.of(
+                offer("Kodiaq Selection Explore Edition iV", 5_280, "skoda"),
+                offer("Kodiaq Sportline Explore Edition iV", 5_645, "skoda"),
+                offer("Kodiaq Selection Explore", 4_430, "skoda"),          // bensin
+                offer("Superb Combi Selection Explore Edition iV", 4_995, "skoda"),
+                offer("Superb Combi L&K Explore Edition iV", 5_350, "skoda"),
+                offer("Superb Combi Selection Explore", 5_325, "skoda"),    // bensin
+                offer("Octavia Combi Selection", 3_480, "skoda"),           // ingen iV langre
+                offer("Enyaq 85 Selection Solid Edition", 5_295, "skoda"),  // elbil
+                offer("Passat Sportscombi Edition eHybrid", 4_995, "vw"),
+                offer("Passat R-Line SWE Edition eHybrid", 5_295, "vw"),
+                offer("Tiguan R-Line SWE Edition eHybrid", 4_995, "vw"),
+                offer("Tiguan Life Edition", 3_495, "vw"),                  // bensin
+                offer("Golf Life Edition", 3_495, "vw"),                    // ingen GTE langre
+                offer("ID.4 Pro Edition", 4_995, "vw"),                     // elbil
+                offer("A3 40 TFSI e Proline", 4_995, "audi"),
+                offer("A3 35 TFSI S line", 3_595, "audi"),                  // bensin
+                offer("A3 Sportback e-hybrid Proline", 4_995, "audi"),
+                offer("A5 Avant e-hybrid quattro Proline Edition", 5_395, "audi"),
+                offer("A2 e-tron Proline", 4_995, "audi"),                  // elbil
+                offer("Q6 e-tron quattro Proline Edition", 8_895, "audi"),  // elbil
+                offer("CUPRA Leon Sportstourer Swedish Edition e-HYBRID", 4_395, "cupra"),
+                offer("CUPRA Formentor Swedish Edition e-HYBRID", 4_695, "cupra"),
+                offer("CUPRA Formentor eTSI 150hk DSG", 3_495, "cupra"),    // mildhybrid
+                offer("Ibiza Style Edition", 2_845, "seat"));               // bensin
+    }
+
+    @Test
+    void bara_laddhybriderna_kommer_med() {
+        var phev = LeasingPriceService.phevUrUtbud(katalogen());
+        var namn = phev.stream().map(LeasingPriceService.LeasingOffer::model).toList();
+
+        // Elbilarna faller korrekt: "e-tron" och "ID.4" ar inga laddhybridbadgar
+        assertThat(namn).noneMatch(n -> n.contains("e-tron") || n.contains("ID.4") || n.contains("Enyaq"));
+        // Mildhybriden och bensinbilarna likasa - "eTSI" och "35 TFSI" ar inte "TFSI e"
+        assertThat(namn).noneMatch(n -> n.contains("eTSI") || n.contains("35 TFSI") || n.contains("Ibiza"));
+        // ...och alla fyra badgarna fangas: iV, eHybrid, TFSI e och e-HYBRID
+        assertThat(namn).anyMatch(n -> n.contains("Superb Combi Selection Explore Edition iV"));
+        assertThat(namn).anyMatch(n -> n.contains("eHybrid"));
+        assertThat(namn).anyMatch(n -> n.contains("TFSI e"));
+        assertThat(namn).anyMatch(n -> n.contains("e-HYBRID"));
+    }
+
+    @Test
+    void en_rad_per_modell_den_billigaste() {
+        var phev = LeasingPriceService.phevUrUtbud(katalogen());
+
+        // Superb iV ligger som tre trimnivaer i katalogen; bara den billigaste ska med
+        assertThat(phev).filteredOn(o -> o.model().startsWith("Superb")).hasSize(1);
+        assertThat(phev).filteredOn(o -> o.model().startsWith("Superb"))
+                .allMatch(o -> o.monthlyKr() == 4_995);
+        assertThat(phev).filteredOn(o -> o.model().startsWith("Kodiaq"))
+                .singleElement().matches(o -> o.monthlyKr() == 5_280);
+        // Cupra listar market i sitt eget modellnamn - det far inte bli nyckeln, annars hade
+        // ALLA cupror slagits ihop till en rad
+        assertThat(phev).filteredOn(o -> "cupra".equals(o.brand())).hasSize(2);
+    }
+
+    @Test
+    void billigast_forst_och_tomt_utbud_ger_tom_lista() {
+        var phev = LeasingPriceService.phevUrUtbud(katalogen());
+
+        assertThat(phev).isNotEmpty();
+        assertThat(phev.get(0).monthlyKr()).isEqualTo(4_395);   // Cupra Leon Sportstourer
+        assertThat(phev).isSortedAccordingTo(
+                java.util.Comparator.comparingInt(LeasingPriceService.LeasingOffer::monthlyKr));
+        // Svarar katalogerna inte alls ska raden tiga, inte gissa
+        assertThat(LeasingPriceService.phevUrUtbud(List.of())).isEmpty();
+    }
+
     @Test
     void okantMarkeGerIngenTraff() {
         // Toyota, Kia, Tesla har egna sajter med egna strukturer — de tacks inte

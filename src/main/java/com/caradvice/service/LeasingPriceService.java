@@ -268,6 +268,74 @@ public class LeasingPriceService {
         return rensad.isEmpty() ? List.of() : new ArrayList<>(List.of(rensad.split(" ")));
     }
 
+    /**
+     * Laddhybridsmarkörer i märkenas EGNA erbjudandenamn — en annan värld än insikternas.
+     *
+     * <p><b>Varför en egen lista och inte {@code ExpertInsightService.PHEV_MARKER} eller
+     * {@code GroqService.PHEV_TRIMKOD}:</b> de två läser löptext och annonsrubriker, det här
+     * läser märkenas erbjudandekataloger, där drivlinan är en BADGE och inte ett ord. Mätt mot
+     * de 117 erbjudanden de fem VWFS-kanalerna svarade med 2026-09-20 fångar ingen av de två
+     * befintliga listorna Škodas {@code iV}, VW:s {@code eHybrid} eller Audis {@code 40 TFSI e}.
+     *
+     * <p><b>Mätningen:</b> 16 av 117 erbjudanden är laddhybrider, och kontrollistan — varje namn
+     * som INTE träffade men bär {@code hybrid}, {@code iv} eller ett ensamt {@code e} — innehöll
+     * noll laddhybrider. Audis elbilar ({@code A2/Q4/A6/Q6 e-tron}) och {@code A3 35 TFSI} faller
+     * alltså korrekt utanför.
+     *
+     * <p><b>{@code iv} är Škodas badge och bärs inte av deras nuvarande elbilar</b> (Enyaq, Elroq,
+     * Epiq står utan suffix). Historiskt hette elbilen {@code Enyaq iV}, så dyker ett sådant namn
+     * upp igen i katalogen blir det en falsk träff — kontrollera listan om Škoda byter tillbaka.
+     */
+    private static final Pattern LEASING_PHEV = Pattern.compile(
+            "\\biv\\b|e-?hybrid|\\btfsi\\s+e\\b|\\bgte\\b|\\bphev\\b|plug-?in|\\brecharge\\b|\\bt8\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Laddhybriderna som faktiskt GÅR att privatleasa just nu, billigast först — en per modell.
+     *
+     * <p><b>Felet den lagar (rapporterat 2026-09-20).</b> Ett laddhybridssök i leasingläge
+     * (5 000 kr/mån) gav <i>Volvo V60 Recharge (2026)</i>, <i>Škoda Octavia iV (2026)</i> och
+     * <i>Audi A3 Sportback e-tron (2027)</i> med prisintervallen "4 800–5 200", "4 600–5 000" och
+     * "4 900–5 300 kr/mån". Alla tre talen var AI:ns egna, och <b>Octavia iV finns inte i Škodas
+     * privatleasingutbud</b> (bara Octavia Combi Selection/Sportline, utan laddhybrid) medan
+     * <i>A3 Sportback e-tron</i> är namnet på 2014–2018 års modell — dagens heter
+     * {@code A3 40 TFSI e} eller {@code A3 Sportback e-hybrid} och kostar 4 995 kr/mån.
+     * Prompten namngav inga leasingbara laddhybrider alls, så modellen fyllde luckan själv.
+     *
+     * <p><b>Live, inte hårdkodat — och det är skillnaden mot begagnatgolven.</b>
+     * {@code GroqService.PHEV_PRICE_FLOOR_KR} måste mätas för hand eftersom ingen publicerar
+     * begagnatgolv; leasingutbudet publicerar märkena själva och det roterar i kampanjcykler.
+     * En hårdkodad tabell hade åldrats precis som Octavia iV gjorde. Cachen är 12 h, så en
+     * sökning kostar normalt inget nätverk.
+     *
+     * <p><b>En rad per modell, den billigaste.</b> Škodas Superb iV ligger som tre trimnivåer
+     * (4 995 / 5 165 / 5 350) och tre rader om samma bil säger inte mer än en. Namnet behålls
+     * ORDAGRANT från katalogen — det är det namn som går att teckna.
+     */
+    public List<LeasingOffer> phevOffers() {
+        List<LeasingOffer> alla = new ArrayList<>(volvoOffers());
+        for (String channel : new java.util.TreeSet<>(CHANNELS.values())) alla.addAll(offers(channel));
+        return phevUrUtbud(alla);
+    }
+
+    /** Sållningen och hopslagningen, utan HTTP — samma skäl som {@link #parse} och {@link #bestMatch}. */
+    static List<LeasingOffer> phevUrUtbud(List<LeasingOffer> alla) {
+        Map<String, LeasingOffer> billigastPerModell = new java.util.LinkedHashMap<>();
+        for (LeasingOffer offer : alla) {
+            if (!LEASING_PHEV.matcher(offer.model()).find()) continue;
+            List<String> ord = utanMarke(words(offer.model()), offer.brand());
+            if (ord.isEmpty()) continue;
+            String nyckel = offer.brand() + "|" + ord.get(0);
+            LeasingOffer nuvarande = billigastPerModell.get(nyckel);
+            if (nuvarande == null || offer.monthlyKr() < nuvarande.monthlyKr())
+                billigastPerModell.put(nyckel, offer);
+        }
+        return billigastPerModell.values().stream()
+                .sorted(java.util.Comparator.comparingInt(LeasingOffer::monthlyKr)
+                        .thenComparing(LeasingOffer::model))
+                .toList();
+    }
+
     /** Alla märken vi täcker, för admin/diagnostik. */
     public Map<String, Integer> coverage() {
         Map<String, Integer> out = new HashMap<>();

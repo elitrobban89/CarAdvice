@@ -21,6 +21,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -994,6 +996,100 @@ class GroqServiceTest {
                 .containsExactly("ren elbil", "SUV (hög bil)", "automat", "högst 430 000 kr");
     }
 
+    // --- leasingPhevLine (laddhybriderna som GÅR att privatleasa) ---
+
+    private static CarPreferences leasingSok(int krPerMan, String kategori) {
+        return new CarPreferences(krPerMan, kategori, true, 15_000, "familj", 5, false,
+                "spelar ingen roll", "automat", "leasing", null, null);
+    }
+
+    private static LeasingPriceService.LeasingOffer erbjudande(String modell, int kr, String marke) {
+        return new LeasingPriceService.LeasingOffer(modell, kr, marke);
+    }
+
+    @Test
+    void leasingradenNamnerBaraLaddhybriderSomGarAttTeckna() {
+        // Skarpt 2026-09-20: ett laddhybridssok pa 5 000 kr/man gav Volvo V60 Recharge,
+        // Skoda Octavia iV och Audi A3 Sportback e-tron med prisintervall AI:n hittat pa.
+        // Octavia iV finns inte i Skodas privatleasingutbud, och "A3 Sportback e-tron" ar
+        // namnet pa 2014-2018 ars modell. Prompten namngav inga leasingbara laddhybrider alls.
+        when(leasingPriceService.phevOffers()).thenReturn(List.of(
+                erbjudande("CUPRA Leon Sportstourer Swedish Edition e-HYBRID", 4_395, "cupra"),
+                erbjudande("Superb Combi Selection Explore Edition iV", 4_995, "skoda"),
+                erbjudande("A3 40 TFSI e Proline", 4_995, "audi"),
+                erbjudande("Kodiaq Selection Explore Edition iV", 5_280, "skoda")));
+
+        String rad = service().leasingPhevLine(leasingSok(5_000, "laddhybrid"));
+
+        assertThat(rad).contains("Cupra CUPRA Leon Sportstourer Swedish Edition e-HYBRID (fr. 4 395 kr/man)");
+        assertThat(rad).contains("Audi A3 40 TFSI e Proline (fr. 4 995 kr/man)");
+        assertThat(rad).contains("rakna aldrig fram ett manadspris sjalv");
+        // 5 500 i tak (budget + LEASING_CEILING_MARGIN_KR): Kodiaq 5 280 ryms
+        assertThat(rad).contains("Kodiaq");
+        // Raden far inte lasas som hela marknaden
+        assertThat(rad).contains("Volvo, VW, Skoda, Audi, Cupra och Seat");
+    }
+
+    @Test
+    void leasingradenFoljerManadsbudgeten() {
+        when(leasingPriceService.phevOffers()).thenReturn(List.of(
+                erbjudande("CUPRA Leon Sportstourer Swedish Edition e-HYBRID", 4_395, "cupra"),
+                erbjudande("Kodiaq Selection Explore Edition iV", 5_280, "skoda")));
+
+        String rad = service().leasingPhevLine(leasingSok(4_000, "laddhybrid"));
+
+        // Tak 4 500: bara Cupran ryms
+        assertThat(rad).contains("CUPRA Leon").doesNotContain("Kodiaq");
+    }
+
+    @Test
+    void leasingradenSagerIfranNarIngenRyms() {
+        when(leasingPriceService.phevOffers()).thenReturn(List.of(
+                erbjudande("Kodiaq Selection Explore Edition iV", 5_280, "skoda")));
+
+        String rad = service().leasingPhevLine(leasingSok(3_000, "laddhybrid"));
+
+        assertThat(rad).contains("ingen av de laddhybrider vi kan se priset pa");
+        assertThat(rad).contains("Skoda Kodiaq Selection Explore Edition iV fran 5 280 kr/man");
+        assertThat(rad).contains("hitta pa ett lagre manadspris");
+    }
+
+    @Test
+    void leasingradenTigerVidNatfelOchTomtUtbud() {
+        // Fail-soft: ett natfel far kosta styrningen, aldrig sokningen
+        when(leasingPriceService.phevOffers()).thenThrow(new RuntimeException("katalogen svarade inte"));
+        assertThat(service().leasingPhevLine(leasingSok(5_000, "laddhybrid"))).isEmpty();
+
+        reset(leasingPriceService);
+        when(leasingPriceService.phevOffers()).thenReturn(List.of());
+        assertThat(service().leasingPhevLine(leasingSok(5_000, "laddhybrid"))).isEmpty();
+    }
+
+    @Test
+    void leasingradenGallerBaraLeasingOchBaraLaddhybrid() {
+        // Kopsok: golvtabellen ager fragan, inte katalogen
+        assertThat(service().leasingPhevLine(new CarPreferences(300_000, "laddhybrid", true, 15_000,
+                "familj", 5, false, "spelar ingen roll", null, "kop", null, null))).isEmpty();
+        // Elbil och bensin i leasingläge ror inte laddhybridraden
+        assertThat(service().leasingPhevLine(leasingSok(5_000, "elbil"))).isEmpty();
+        assertThat(service().leasingPhevLine(new CarPreferences(5_000, "familjebil", false, 15_000,
+                "familj", 5, false, "bensin", null, "leasing", null, null))).isEmpty();
+        verifyNoInteractions(leasingPriceService);
+    }
+
+    @Test
+    void begagnattabellerna_tiger_i_leasinglage() {
+        // HALVA PHEV_PRICE_FLOOR_KR gar inte att privatleasa - Kia Ceed SW PHEV och Toyota
+        // Prius Plug-in tillverkas inte langre, Golf GTE och Octavia iV har lamnat katalogerna.
+        // Att namnge dem i ett leasingsvar ar precis det fel leasingraden finns for att laga.
+        assertThat(GroqService.phevModelsLine(leasingSok(5_000, "laddhybrid"))).isEmpty();
+        assertThat(GroqService.suvModelsLine(new CarPreferences(5_000, "suv", true, 15_000,
+                "familj", 5, false, "laddhybrid", null, "leasing", null, null))).isEmpty();
+        // ...men EL-SUV:en i leasingläge rors INTE av undantaget
+        assertThat(GroqService.suvModelsLine(new CarPreferences(5_000, "suv", true, 15_000,
+                "familj", 5, false, "el", null, "leasing", null, null))).contains("EL-SUV");
+    }
+
     // --- phevModelsLine (laddhybridkandidaterna när sökningen inte gäller en SUV) ---
 
     @Test
@@ -1049,12 +1145,22 @@ class GroqServiceTest {
     }
 
     @Test
-    void laddhybridradenAnvanderIngaBegagnatgolvILeasingläge() {
+    void laddhybridradenTigerHeltILeasingläge() {
+        // Raden gav forst modellnamnen utan priser, med motiveringen att bara TALEN var fel
+        // prisvarld. Matt samma dag: det racker inte. Halva tabellen gar inte att privatleasa
+        // alls - Kia Ceed SW PHEV och Toyota Prius Plug-in tillverkas inte langre, och Golf
+        // GTE, Octavia iV och Kia Niro PHEV har lamnat markenas privatleasingkataloger.
+        // leasingPhevLine tar over hela fragan i det laget.
         String rad = GroqService.phevModelsLine(new CarPreferences(4_000, "laddhybrid", true,
                 15_000, "pendling", 5, false, "spelar ingen roll", null, "leasing", null, null));
 
-        assertThat(rad).contains("LADDHYBRIDER ATT UTGÅ FRÅN").contains("Volvo S60 Recharge");
-        assertThat(rad).doesNotContain("fr. ");   // inga begagnatgolv i kr/mån-världen
+        assertThat(rad).isEmpty();
+        // ...men i NYBILSLAGE star modellnamnen kvar: de gar att kopa nya, bara inte till
+        // begagnatgolvens priser.
+        String nybil = GroqService.phevModelsLine(new CarPreferences(400_000, "laddhybrid", true,
+                15_000, "pendling", 5, true, "spelar ingen roll", null, "kop", null, null));
+        assertThat(nybil).contains("LADDHYBRIDER ATT UTGÅ FRÅN").contains("Volvo S60 Recharge");
+        assertThat(nybil).doesNotContain("fr. ");   // inga begagnatgolv i nybilsvarlden
     }
 
     // --- suvModelsLine (SUV-kandidaterna i FÖRSTA prompten) ---

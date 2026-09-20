@@ -2360,6 +2360,12 @@ public class GroqService {
         FuelIntent avsikt = fuelIntent(prefs.fuelType(), prefs.carCategory());
         boolean el = avsikt.pureEv();
         boolean laddhybrid = !el && avsikt.phev();
+        // Samma undantag som phevModelsLine gör, och av samma skäl: laddhybridtabellen är mätt
+        // på begagnatmarknaden, och i leasingläge tar leasingPhevLine över med märkenas egna
+        // katalogpriser. Två listor för samma sökning hade satt begagnatnamnen mot de namn som
+        // faktiskt går att teckna. EL- och bensin-SUV:arna berörs INTE.
+        if (laddhybrid && "leasing".equals(prefs.budgetType())) return "";
+
         Map<String, Integer> golv = el ? SUV_EV_PRICE_FLOOR_KR
                 : laddhybrid ? SUV_PHEV_PRICE_FLOOR_KR : SUV_ICE_PRICE_FLOOR_KR;
         String rubrik = el ? "EL-SUV" : laddhybrid ? "LADDHYBRID-SUV" : "SUV";
@@ -2413,9 +2419,16 @@ public class GroqService {
         FuelIntent avsikt = fuelIntent(prefs.fuelType(), prefs.carCategory());
         if (avsikt.pureEv() || !avsikt.phev()) return "";
         if (requiresSuvShapedCar(prefs)) return "";
+        // I LEASINGLÄGE tiger tabellen helt och {@link #leasingPhevLine} tar över. Det är inte
+        // bara priserna som är fel värld: HALVA tabellen går inte att privatleasa alls, för den
+        // är mätt på begagnatmarknaden. Kia Ceed SW PHEV och Toyota Prius Plug-in tillverkas
+        // inte längre, och Golf GTE, Octavia iV och Kia Niro PHEV har lämnat märkenas
+        // privatleasingkataloger. Att namnge dem i ett leasingsvar är att peka på bilar som
+        // inte går att teckna - precis det fel raden skulle laga.
+        if ("leasing".equals(prefs.budgetType())) return "";
 
-        // Golven är begagnatpriser: i leasing- och nybilsläge är de fel prisvärld helt och
-        // hållet, precis som för SUV-raden — då namnges modellerna utan tal.
+        // Golven är begagnatpriser: i nybilsläge är de fel prisvärld — då namnges modellerna
+        // utan tal, precis som för SUV-raden.
         if (!harGolvvakt(prefs)) return " LADDHYBRIDER ATT UTGÅ FRÅN: "
                 + String.join(", ", PHEV_PRICE_FLOOR_KR.keySet()) + ".";
 
@@ -2441,6 +2454,69 @@ public class GroqService {
                 .collect(java.util.stream.Collectors.joining(", "));
         return " LADDHYBRIDER SOM RYMS I BUDGETEN (uppmätta begagnatgolv, billigast först): " + lista
                 + ". Minst TVÅ av tre förslag ska väljas härifrån.";
+    }
+
+    /**
+     * Laddhybriderna som går att privatleasa i dag, med märkenas egna från-priser.
+     *
+     * <p>Systerraden till {@link #phevModelsLine}, men i den ANDRA prisvärlden.
+     * {@code phevModelsLine} bygger på uppmätta begagnatgolv och lämnar därför leasingläget med
+     * bara modellnamn; den här raden fyller luckan med tal som gäller — hämtade live ur
+     * {@link LeasingPriceService#phevOffers()}, se den för mätningen och för de tre påhittade
+     * bilar som gjorde raden nödvändig.
+     *
+     * <p><b>Bara de fem VWFS-märkena och Volvo täcks.</b> Raden säger det rakt ut i stället för
+     * att låtsas vara hela marknaden — annars hade den läst som ett förbud mot Toyota och Kia,
+     * och en tom lista hade varit värre än ingen rad alls.
+     *
+     * <p><b>Fail-soft:</b> svarar katalogerna inte skrivs ingen rad. Ett nätfel får kosta
+     * styrningen, aldrig sökningen — samma avvägning som {@code expertContext} gör.
+     */
+    String leasingPhevLine(CarPreferences prefs) {
+        if (!"leasing".equals(prefs.budgetType())) return "";
+        FuelIntent avsikt = fuelIntent(prefs.fuelType(), prefs.carCategory());
+        if (avsikt.pureEv() || !avsikt.phev()) return "";
+
+        List<LeasingPriceService.LeasingOffer> utbud;
+        try {
+            utbud = leasingPriceService.phevOffers();
+        } catch (Exception e) {
+            log.warn("Leasingutbudet for laddhybrider kunde inte hamtas: {}", e.getMessage());
+            return "";
+        }
+        if (utbud == null || utbud.isEmpty()) return "";
+
+        int tak = prefs.budget() + LEASING_CEILING_MARGIN_KR;
+        List<LeasingPriceService.LeasingOffer> ryms = utbud.stream()
+                .filter(o -> o.monthlyKr() <= tak)
+                .toList();
+        String kalla = " Listan tacker Volvo, VW, Skoda, Audi, Cupra och Seat - andra marken kan ha"
+                + " laddhybrider pa privatleasing utan att synas har, sa den ar ett underlag och"
+                + " ingen uttommande lista.";
+
+        if (ryms.isEmpty()) {
+            LeasingPriceService.LeasingOffer billigast = utbud.get(0);
+            return " LADDHYBRID OCH LEASINGBUDGET: ingen av de laddhybrider vi kan se priset pa"
+                    + " ligger under " + kr(tak) + " kr/man. Billigast ar "
+                    + marke(billigast) + " " + billigast.model() + " fran "
+                    + kr(billigast.monthlyKr()) + " kr/man - sag det rakt ut i fitSummary i stallet"
+                    + " for att hitta pa ett lagre manadspris." + kalla;
+        }
+        String lista = ryms.stream()
+                .map(o -> marke(o) + " " + o.model() + " (fr. " + kr(o.monthlyKr()) + " kr/man)")
+                .collect(java.util.stream.Collectors.joining(", "));
+        return " LADDHYBRIDER SOM GAR ATT PRIVATLEASA I DAG, med markets egna fran-priser"
+                + " (billigast forst): " + lista + ". Talen ar hamtade ur markenas egna"
+                + " leasingkataloger i dag - anvand DEM, rakna aldrig fram ett manadspris sjalv,"
+                + " och foresla ingen laddhybrid som inte gar att teckna." + kalla;
+    }
+
+    /** Märkesnamnet med versal, som det står i en biltitel. */
+    private static String marke(LeasingPriceService.LeasingOffer offer) {
+        String m = offer.brand();
+        if (m == null || m.isBlank()) return "";
+        if ("vw".equals(m)) return "Volkswagen";
+        return Character.toUpperCase(m.charAt(0)) + m.substring(1);
     }
 
     /** Tusentalsavgränsare med mellanslag, Locale.ROOT — svensk locale ger hårt mellanslag. */
@@ -4734,6 +4810,7 @@ public class GroqService {
                 km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
                 leasingPrisLine, cargoLine,
                 affordableModelsLine(prefs) + suvModelsLine(prefs) + phevModelsLine(prefs)
+                        + leasingPhevLine(prefs)
         );
     }
 }
