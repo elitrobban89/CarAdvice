@@ -994,6 +994,69 @@ class GroqServiceTest {
                 .containsExactly("ren elbil", "SUV (hög bil)", "automat", "högst 430 000 kr");
     }
 
+    // --- phevModelsLine (laddhybridkandidaterna när sökningen inte gäller en SUV) ---
+
+    @Test
+    void laddhybridradenNamnerDeVanligasteModellerna() {
+        // Användarens rapport 2026-09-20: "verkar ha lite svårt att föreslå laddhybrider".
+        // Skarpt prov samma dag (laddhybrid, familj, 250 000 kr) gav tre riktiga laddhybrider
+        // men INTE marknadens två mest sålda — V60 Recharge och XC60 Recharge. Orsaken var att
+        // ingen rad i hela prompten namngav en laddhybrid som inte var SUV.
+        String rad = GroqService.phevModelsLine(new CarPreferences(300_000, "laddhybrid", true,
+                15_000, "familj", 5, false, "spelar ingen roll", "automat", "köp", null, null));
+
+        assertThat(rad).contains("Volvo V60 Recharge (fr. 288 900)");
+        assertThat(rad).contains("Kia Ceed SW PHEV");
+        assertThat(rad).contains("Minst TVÅ av tre");
+        // 330 000 i tak: V90 (319 000) ryms, S60 Recharge (359 800) gör det inte
+        assertThat(rad).contains("Volvo V90 Recharge").doesNotContain("Volvo S60 Recharge");
+    }
+
+    @Test
+    void laddhybridradenFoljerBudgetenNedat() {
+        String rad = GroqService.phevModelsLine(new CarPreferences(150_000, "laddhybrid", true,
+                15_000, "pendling", 5, false, "spelar ingen roll", null, "köp", null, null));
+
+        // 180 000 i tak: Ceed SW (179 000) är dyrast som ryms, V60 Recharge långt över
+        assertThat(rad).contains("Kia Ceed SW PHEV").contains("Kia Niro PHEV");
+        assertThat(rad).doesNotContain("Volvo V60 Recharge").doesNotContain("Škoda Superb iV");
+    }
+
+    @Test
+    void laddhybridradenSagerIfranNarIngenRyms() {
+        String rad = GroqService.phevModelsLine(new CarPreferences(60_000, "laddhybrid", true,
+                15_000, "pendling", 5, false, "spelar ingen roll", null, "köp", null, null));
+
+        assertThat(rad).contains("ingen laddhybrid").contains("Toyota Prius Plug-in från 149 900");
+    }
+
+    @Test
+    void laddhybridradenLamnarSuvsokningenIfred() {
+        // SUV-vägen har sin EGEN laddhybridtabell (SUV_PHEV_PRICE_FLOOR_KR). Två listor för
+        // samma bil i samma prompt hade satt kombitabellen mot karossen användaren bad om.
+        CarPreferences suvSok = new CarPreferences(400_000, "suv", true, 15_000,
+                "familj", 5, false, "laddhybrid", null, "köp", null, null);
+        assertThat(GroqService.phevModelsLine(suvSok)).isEmpty();
+        assertThat(GroqService.suvModelsLine(suvSok)).contains("LADDHYBRID-SUV");
+    }
+
+    @Test
+    void laddhybridradenLamnarElOchBensinIfred() {
+        assertThat(GroqService.phevModelsLine(new CarPreferences(400_000, "elbil", true, 15_000,
+                "pendling", 4, false, "el", null, "köp", null, null))).isEmpty();
+        assertThat(GroqService.phevModelsLine(new CarPreferences(400_000, "familjebil", false,
+                15_000, "familj", 5, false, "bensin", null, "köp", null, null))).isEmpty();
+    }
+
+    @Test
+    void laddhybridradenAnvanderIngaBegagnatgolvILeasingläge() {
+        String rad = GroqService.phevModelsLine(new CarPreferences(4_000, "laddhybrid", true,
+                15_000, "pendling", 5, false, "spelar ingen roll", null, "leasing", null, null));
+
+        assertThat(rad).contains("LADDHYBRIDER ATT UTGÅ FRÅN").contains("Volvo S60 Recharge");
+        assertThat(rad).doesNotContain("fr. ");   // inga begagnatgolv i kr/mån-världen
+    }
+
     // --- suvModelsLine (SUV-kandidaterna i FÖRSTA prompten) ---
 
     @Test

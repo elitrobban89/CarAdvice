@@ -2396,6 +2396,53 @@ public class GroqService {
                 + " budgeten når, och en billigare bil är fel svar när dessa finns.";
     }
 
+    /**
+     * Laddhybridkandidaterna i användarprompten när sökningen INTE kräver en SUV.
+     *
+     * <p>Systerraden till {@link #suvModelsLine} och {@link #affordableModelsLine}, och den
+     * tredje sidan av samma triangel: elbilssök får {@code affordableModelsLine}, SUV-sök får
+     * {@code suvModelsLine} (som HAR en laddhybridtabell), och laddhybridssök efter en kombi
+     * eller halvkombi fick <b>ingenting</b> — se {@link #PHEV_PRICE_FLOOR_KR} för mätningen.
+     *
+     * <p><b>SUV-sökningen lämnas ifred med flit.</b> Krockar de två raderna får modellen två
+     * listor för samma bil, och den som gäller karossen användaren bad om är
+     * {@code suvModelsLine}:s. Villkoret är därför samma predikat som den raden läser
+     * ({@code requiresSuvShapedCar}), inte en egen tolkning av kategorin.
+     */
+    static String phevModelsLine(CarPreferences prefs) {
+        FuelIntent avsikt = fuelIntent(prefs.fuelType(), prefs.carCategory());
+        if (avsikt.pureEv() || !avsikt.phev()) return "";
+        if (requiresSuvShapedCar(prefs)) return "";
+
+        // Golven är begagnatpriser: i leasing- och nybilsläge är de fel prisvärld helt och
+        // hållet, precis som för SUV-raden — då namnges modellerna utan tal.
+        if (!harGolvvakt(prefs)) return " LADDHYBRIDER ATT UTGÅ FRÅN: "
+                + String.join(", ", PHEV_PRICE_FLOOR_KR.keySet()) + ".";
+
+        // HELA listan som ryms, inte ett urval: till skillnad från SUV-raden, där priset följer
+        // storleken och de största är svaret, är laddhybridens billigaste modeller (Kia Ceed SW,
+        // Kia Niro) de mest sålda. Ett tak hade klippt bort just dem — samma fälla som
+        // affordableModelsLine hade när RYMS HELA TABELLEN fick raden falla bort helt.
+        int tak = prefs.budget() + BUDGET_CEILING_MARGIN_KR;
+        List<Map.Entry<String, Integer>> ryms = PHEV_PRICE_FLOOR_KR.entrySet().stream()
+                .filter(e -> e.getValue() <= tak)
+                .toList();
+        if (ryms.isEmpty()) {
+            Map.Entry<String, Integer> billigast = PHEV_PRICE_FLOOR_KR.entrySet().stream()
+                    .min(Map.Entry.comparingByValue())
+                    .orElseThrow();
+            return " LADDHYBRID OCH BUDGET: ingen laddhybrid har ett uppmätt begagnatgolv under "
+                    + kr(tak) + " kr. Billigast är " + billigast.getKey() + " från "
+                    + kr(billigast.getValue()) + " kr — säg det rakt ut i fitSummary i stället för"
+                    + " att hitta på en billigare bil.";
+        }
+        String lista = ryms.stream()
+                .map(e -> e.getKey() + " (fr. " + kr(e.getValue()) + ")")
+                .collect(java.util.stream.Collectors.joining(", "));
+        return " LADDHYBRIDER SOM RYMS I BUDGETEN (uppmätta begagnatgolv, billigast först): " + lista
+                + ". Minst TVÅ av tre förslag ska väljas härifrån.";
+    }
+
     /** Tusentalsavgränsare med mellanslag, Locale.ROOT — svensk locale ger hårt mellanslag. */
     private static String kr(int belopp) {
         return String.format(java.util.Locale.ROOT, "%,d", belopp).replace(',', ' ');
@@ -4324,8 +4371,69 @@ public class GroqService {
             "SMÅBIL (kategori \"smaabil\"): bensin/diesel t.ex. Toyota Aygo, Škoda Fabia, VW Polo, Hyundai i20, Kia Picanto, Ford Fiesta, Dacia Sandero; hybrid t.ex. Toyota Yaris Hybrid; elbil t.ex. Renault Zoe, Renault 5 E-Tech.\n";
     private static final String DRIVMEDEL_REGEL =
             "DRIVMEDLET ÄR ETT VAL, INTE ETT UNGEFÄR: väljer användaren \"bensin\" eller \"diesel\" ska ALLA tre bilar ha ren förbränningsmotor. En hybrid är ett EGET val i formuläret (\"Hybrid (ej laddhybrid)\"), så ett bensinsök som svarar med Toyota Corolla Hybrid, Honda Jazz Hybrid eller Kia Niro Hybrid har svarat på fel fråga. Kontrolleras i kod efteråt; en bil som bryter mot det kastas.\n";
+    /**
+     * Laddhybrider som INTE är SUV:ar — kombi, halvkombi och sedan — med uppmätta begagnatgolv.
+     *
+     * <p><b>Varför tabellen måste finnas (rapporterat av användaren 2026-09-20: "verkar ha lite
+     * svårt att föreslå laddhybrider").</b> {@link #SUV_PHEV_PRICE_FLOOR_KR} har täckt
+     * laddhybrid-SUV:arna sedan 2026-09-17, men {@code suvModelsLine} skriver bara ut den när
+     * sökningen kräver en SUV-formad bil. Ett laddhybridssök efter en KOMBI hade därför noll
+     * namngivna modeller i hela prompten: {@code affordableModelsLine} lämnar direkt om
+     * drivmedlet inte är ren el, och kategoriblocken räknar bara upp bensin-, diesel-, hybrid-
+     * och elbilsexempel ("Volvo V60/V90, Škoda Octavia Combi, Kia Ceed SW" står som
+     * FAMILJEBIL-exempel — men som bensinbilar). Skarpt prov samma dag (laddhybrid, familj,
+     * 250 000 kr) gav Škoda Octavia iV, Kia Niro PHEV och VW Passat GTE — riktiga laddhybrider,
+     * men marknadens två mest sålda, <i>Volvo V60 Recharge</i> och <i>Volvo XC60 Recharge</i>,
+     * fanns inte med. Samma lärdom som elbilsgolven och SUV-tabellen gav: <b>exemplen blir
+     * definitionen</b>, och det som inte står i prompten finns inte för modellen.
+     *
+     * <p><b>Golven är mätta 2026-09-20</b> mot Blockets sökning med samma underlag som
+     * {@link #EV_PRICE_FLOOR_KR} och kortens prisrad: billigaste annons med högst 10 000 mil,
+     * bara annonser vars {@code fuel} är "Plug-in". Antalet annonser i parentes är underlaget —
+     * en modell med tre annonser är ett tunnare golv än en med femtio, och det syns då direkt.
+     *
+     * <p><b>SUV:arna står INTE här.</b> XC60 Recharge, Kuga PHEV, Tucson PHEV och Sportage PHEV
+     * hör hemma i {@link #SUV_PHEV_PRICE_FLOOR_KR} — två tabeller för samma drivlina är med
+     * flit, eftersom det är karossen och inte drivlinan som avgör vilken lista sökningen ska få.
+     */
+    static final Map<String, Integer> PHEV_PRICE_FLOOR_KR = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry("Toyota Prius Plug-in",     149_900),   // (3)
+            Map.entry("Hyundai Ioniq PHEV",       159_500),   // (6)
+            Map.entry("Kia Niro PHEV",            169_900),   // (48)
+            Map.entry("Volkswagen Golf GTE",      174_900),   // (38)
+            Map.entry("Kia Ceed SW PHEV",         179_000),   // (49)
+            Map.entry("Volkswagen Passat GTE",    189_700),   // (49)
+            Map.entry("BMW 330e",                 189_900),   // (50)
+            Map.entry("Peugeot 308 PHEV",         218_900),   // (19)
+            Map.entry("Škoda Octavia iV",         238_900),   // (25)
+            Map.entry("Cupra Leon PHEV",          249_900),   // (15)
+            Map.entry("Škoda Superb iV",          254_800),   // (47)
+            Map.entry("Volvo V60 Recharge",       288_900),   // (49)
+            Map.entry("Mercedes C 300e",          299_000),   // (44)
+            Map.entry("Volvo V90 Recharge",       319_000),   // (48)
+            Map.entry("Volvo S60 Recharge",       359_800))   // (19)
+            // Samma sortering och samma skäl som EV_PRICE_FLOOR_KR: Map.ofEntries är OORDNAD,
+            // så utan det här steget hade promptraden bytt ordning mellan byggen.
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Integer>comparingByValue().thenComparing(Map.Entry::getKey))
+            .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                    (a, b) -> a, LinkedHashMap::new)));
+
+    /** Promptraden byggs UR tabellen — annars glider text och tal isär vid nästa mätning. */
+    private static final String PHEV_MODELLER_TABELL =
+            PHEV_PRICE_FLOOR_KR.entrySet().stream()
+                    .map(e -> e.getKey() + " fr. ca "
+                            + String.format(java.util.Locale.ROOT, "%,d", e.getValue()).replace(',', ' '))
+                    .collect(java.util.stream.Collectors.joining(", "));
+
     private static final String PHEV_REGEL =
-            "PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).\n";
+            "PHEV: rekommendera ALDRIG en årsmodell äldre än modellens faktiska PHEV-lansering (Golf GTE 2014+, Outlander PHEV 2013+, Passat GTE 2015+).\n"
+            + "LADDHYBRID — VANLIGASTE MODELLERNA på svenska begagnatmarknaden med UPPMÄTTA GOLV"
+            + " (billigaste annons med högst 10 000 mil, september 2026), kombi/halvkombi/sedan: "
+            + PHEV_MODELLER_TABELL + ". Laddhybrid-SUV:ar står i SUV-blocket när sökningen gäller"
+            + " en SUV. Utgå från de här modellerna i stället för att räkna fram ett pris ur"
+            + " nypriset. Volvo V60/XC60 Recharge är Sveriges mest sålda laddhybrider och hör till"
+            + " de första du väger in när budgeten når dem.\n";
 
     /**
      * Alla kategori- och drivmedelsblock i sökningens egen ordning.
@@ -4620,7 +4728,8 @@ public class GroqService {
                 """.formatted(
                 budgetInfo, prefs.carCategory(), laddning,
                 km, milprofil, usageText, prefs.passengers(), fuelLine, transmissionLine, maxAgeLine,
-                leasingPrisLine, cargoLine, affordableModelsLine(prefs) + suvModelsLine(prefs)
+                leasingPrisLine, cargoLine,
+                affordableModelsLine(prefs) + suvModelsLine(prefs) + phevModelsLine(prefs)
         );
     }
 }
