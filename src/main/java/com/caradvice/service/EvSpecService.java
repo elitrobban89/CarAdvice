@@ -429,7 +429,10 @@ public class EvSpecService {
      * inte kunnat hitta sin egen rad.
      */
     private static boolean drivlinekrock(String carName, java.util.Set<String> titelnsEgnaOrd) {
-        for (String w : normalize(carName).split("\\s+")) {
+        // Namnet kokas ner på samma sätt som titelns ord ({@link #rawWords}) — annars jämförs
+        // "gte"/"plug-in" i ett lagrat namn mot "phev" i titeln och spärren fäller raden mot
+        // en rubrik som säger EXAKT samma drivlina med andra ord.
+        for (String w : phevNormalisera(normalize(carName)).split("\\s+")) {
             if (DRIVLINEORD.contains(w) && !titelnsEgnaOrd.contains(w)) return true;
         }
         return false;
@@ -565,9 +568,44 @@ public class EvSpecService {
      * påverkas inte.
      */
     private static String matchningsNamn(String carName) {
-        return normalize(carName
+        return phevNormalisera(normalize(carName
                 .replaceAll("(?i)\\bElectric\\b", "")
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", ""));
+                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")));
+    }
+
+    /**
+     * Laddhybridens alla stavningar nedkokta till ETT ord: {@code phev}.
+     *
+     * <p><b>Felet den lagar (rapporterat av användaren 2026-09-20).</b> Tabellen bär 37
+     * laddhybridrader under namnkonventionen {@code "Kia Niro PHEV"}, {@code "Hyundai Tucson
+     * PHEV"} — alla med batteri, elräckvidd och laddeffekt ifyllda. AI:n döper däremot kortet
+     * till det kunden känner igen: <i>Kia Niro Plug-in Hybrid</i>, <i>Hyundai Tucson
+     * laddhybrid</i>. Ordmatchningen är ordmängd mot ordmängd, så {@code plug-in} kunde aldrig
+     * bli {@code phev}: pass 1 föll på att titelordet saknades i radnamnet, pass 2 på att
+     * radens {@code phev} saknades i titeln, och {@link #drivlinekrock} filtrerade bort raden
+     * en tredje gång. Kortet tappade alltså batteristorlek, laddhastighet OCH raden
+     * "ladda var N:e dag" — och föll tyst tillbaka på AI:ns fritext. Samma tysta bortfall som
+     * U+2011 i {@code Toyota C‑HR} gav 2026-08-14.
+     *
+     * <p><b>Bara laddhybridens ord, aldrig {@code hybrid} ensamt.</b> En självladdande hybrid
+     * ({@code Toyota RAV4 Hybrid}) är en ANNAN bil än laddhybriden ({@code RAV4 Plug-in}), och
+     * skulle {@code hybrid} räknas som laddhybridmarkör hade HEV-titlar börjat plocka
+     * laddhybridens elräckvidd — precis det fel som {@code requirePhevCars} finns för. Därför
+     * konsumeras {@code hybrid} bara när det står EFTER {@code plug-in}: "plug-in hybrid" är
+     * ett ord, inte två.
+     *
+     * <p>{@code gte} står med eftersom det är VW:s egen laddhybridbadge och tabellens rader
+     * heter {@code "Volkswagen Golf GTE"} — utan raden hade titeln "Golf Plug-in Hybrid" inte
+     * nått Golfens laddhybridrad. Märkesbadgar som inte betyder laddhybrid för ALLA modeller
+     * ({@code Recharge}, {@code e-Tense}, {@code 4xe}) hör INTE hit: samma avvägning som
+     * {@link #DRIVLINEORD} gör, och av samma skäl — ett för brett filter tystar riktiga kort.
+     */
+    static String phevNormalisera(String normaliserad) {
+        return normaliserad
+                .replaceAll("\\bplug[- ]?in hybrid\\b", "phev")
+                .replaceAll("\\bplug[- ]?in\\b", "phev")
+                .replaceAll("\\bladdhybrid\\w*", "phev")
+                .replaceAll("\\bgte\\b", "phev");
     }
 
     /**
@@ -585,11 +623,11 @@ public class EvSpecService {
      * skräpordet "(tu" i titeln, varpå raden inte kunde matcha ens sitt EGET namn.
      */
     private static String rensadTitel(String title) {
-        return normalize(title
+        return phevNormalisera(normalize(title
                 .replaceAll("\\s*(?<!\\w)\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
                 .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
                 .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
-                .trim());
+                .trim()));
     }
 
     /**
@@ -781,9 +819,19 @@ public class EvSpecService {
         return new java.util.HashSet<>(java.util.Arrays.asList(s.split("\\s+")));
     }
 
-    /** Titelns ord som de står, utan årsstrippning eller drivlinestrippning. */
+    /**
+     * Titelns ord som de står, utan årsstrippning eller {@code Electric}/{@code e-}-strippning.
+     *
+     * <p>Laddhybridens stavningar kokas däremot ner ({@link #phevNormalisera}), och det MÅSTE
+     * ske här och inte bara i {@link #rensadTitel}: mängden är {@link #drivlinekrock}:s enda
+     * underlag, och utan nedkokningen fälldes {@code "Kia Niro PHEV"} mot titeln
+     * <i>Kia Niro Plug-in Hybrid</i> — raden filtrerades bort innan ordmatchningen ens fick
+     * pröva den. Strippningarna ovan står kvar utanför just för att spärren ska kunna se
+     * skillnad på {@code "Hyundai Kona Electric"} och {@code "Hyundai Kona PHEV"}.
+     */
     private static java.util.Set<String> rawWords(String title) {
-        return new java.util.HashSet<>(java.util.Arrays.asList(normalize(title).split("\\s+")));
+        return new java.util.HashSet<>(
+                java.util.Arrays.asList(phevNormalisera(normalize(title)).split("\\s+")));
     }
 
     /**
@@ -799,11 +847,10 @@ public class EvSpecService {
      */
     public String verifiedEngineOptions(String title) {
         if (title == null) return null;
-        String cleaned = normalize(title
-                .replaceAll("\\s*\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")
-                .replaceAll("(?i)\\bElectric\\b", "")
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")
-                .trim());
+        // Samma rensning som matchByTitle, via den delade metoden: kopian som stod här saknade
+        // både (?<!\w)-skyddet mot "(TU2025)" och laddhybridens ordnedkokning, så spec-chipsen
+        // och motoralternativen kunde ge olika svar på samma titel.
+        String cleaned = rensadTitel(title);
         String[] titleWords = cleaned.split("\\s+");
         java.util.Set<String> titleSet = titleSetOf(titleWords);
         java.util.Set<String> raw = rawWords(title);

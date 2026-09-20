@@ -561,6 +561,58 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void laddhybridensAllaStavningarHittarSammaRad() {
+        /*
+         * Användarens rapport 2026-09-20: "kia niro plug in hybrid och hyundai tucson
+         * laddhybrid saknar batteristorlekar och laddhastighet". Båda raderna FANNS i ev_spec
+         * med batteri, räckvidd och laddeffekt ifyllda — men tabellen stavar drivlinan PHEV
+         * medan AI:n döper kortet till det kunden känner igen. Ordmängd mot ordmängd kunde
+         * aldrig koppla ihop dem, och kortet föll tyst tillbaka på AI:ns fritext: ingen
+         * batteristorlek, ingen laddhastighet, ingen "ladda var N:e dag".
+         */
+        EvSpec niro   = new EvSpec("Kia Niro PHEV",       3.3, 0.0,  8.9, 58, 290_000, "PHEV");
+        EvSpec tucson = new EvSpec("Hyundai Tucson PHEV", 7.2, 0.0, 13.8, 62, 430_000, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(niro, tucson));
+
+        for (String titel : List.of("Kia Niro PHEV (2022)", "Kia Niro Plug-in Hybrid (2022)",
+                                    "Kia Niro Plug in Hybrid (2022)", "Kia Niro laddhybrid (2022)")) {
+            EvSpecDto dto = service().formatForTitle(titel, 15000);
+            assertThat(dto).describedAs(titel).isNotNull();
+            assertThat(dto.batteryKwh()).describedAs(titel).isEqualTo(8.9);
+            assertThat(dto.wltpKm()).describedAs(titel).isEqualTo(58);
+            assertThat(dto.maxAcKw()).describedAs(titel).isEqualTo(3);
+            // Hela poängen för användaren: laddraden går bara att räkna ut med en räckvidd.
+            assertThat(dto.daysLabel()).describedAs(titel).isNotBlank();
+        }
+        assertThat(service().formatForTitle("Hyundai Tucson laddhybrid (2023)", 15000).wltpKm())
+                .isEqualTo(62);
+    }
+
+    @Test
+    void sjalvladdandeHybridFarInteLaddhybridensSiffror() {
+        // Nedkokningen tar BARA laddhybridens ord. Skulle "hybrid" ensamt räknas som markör
+        // hade RAV4 Hybrid (självladdande, inget eluttag) fått laddhybridens 18,1 kWh och
+        // 7,5 mil elräckvidd — och "ladda var tredje dag" på en bil som inte går att ladda.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Toyota RAV4 Plug-in", 6.6, 0.0, 18.1, 75, 480_000, "PHEV")));
+        assertThat(service().formatForTitle("Toyota RAV4 Hybrid (2022)", 15000)).isNull();
+        assertThat(service().formatForTitle("Toyota RAV4 Plug-in Hybrid (2022)", 15000).wltpKm())
+                .isEqualTo(75);
+    }
+
+    @Test
+    void renElbilFarFortfarandeIngenLaddhybridrad() {
+        // Spärren som nedkokningen INTE får luckra upp: "Hyundai Kona Electric" strippas till
+        // "hyundai kona", och båda orden ryms i "Hyundai Kona PHEV". Titeln bär ingen
+        // laddhybridmarkör, så raden ska fortsatt filtreras bort (live-felet 2026-08-11).
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Hyundai Kona PHEV", 3.3, 0.0, 8.9, 58, 290_000, "PHEV")));
+        assertThat(service().formatForTitle("Hyundai Kona Electric (2021)", 15000)).isNull();
+        assertThat(service().formatForTitle("Hyundai Kona Plug-in Hybrid (2021)", 15000).wltpKm())
+                .isEqualTo(58);
+    }
+
+    @Test
     void laddhybridensTvaNamnTackerVarsinTitelform() {
         /*
          * Volvos laddhybrider ligger under två namn med IDENTISKA siffror, och det ser ut som
