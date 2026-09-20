@@ -947,8 +947,8 @@ public class GroqService {
             // Märkets eget listpris går före handlarannonserna i leasingläge: det är siffran
             // kunden möter på märkets sajt. Saknas modellen i utbudet betyder det att den inte
             // går att privatleasa — då står Blocket-annonserna kvar som enda uppgift.
+            LeasingPriceService.LeasingOffer officiellt = null;
             if (leasing) {
-                LeasingPriceService.LeasingOffer officiellt = null;
                 try { officiellt = leasingPriceService.offerForTitle(r.title()); } catch (Exception ignored) {}
                 if (officiellt != null) {
                     blocketRange = new BlocketPriceService.PriceRange(officiellt.monthlyKr(),
@@ -962,6 +962,28 @@ public class GroqService {
             // Samma jämförelse i båda lägena, men aldrig över prislägena: i leasingläge är
             // både AI:ns siffra och annonsintervallet kr/mån
             String price = correctedPrice(r.price(), blocketRange, r.title(), leasing);
+
+            // MÄRKETS EGET PRIS VINNER ALLTID, utan omväg via correctedPrice.
+            //
+            // Felet, uppmätt skarpt 2026-09-20 efter att leasingPhevLine börjat namnge rätt
+            // bilar: korten sa fortfarande "4 800–5 200 kr/mån" för både Audi A3 40 TFSI e och
+            // Škoda Superb iV, fast katalogen säger 4 995 kr/mån för båda. Orsaken är
+            // correctedPrice första rad — den kräver **minst två annonser** innan den vågar
+            // säga emot AI:n, och det officiella erbjudandet läggs in med count = 1.
+            // Tvåannonsregeln finns för att en enstaka fel- eller scamannons inte ska skriva
+            // över ett rimligt pris. **Ett katalogpris är ingen annons**: det är listpriset
+            // märket självt publicerar, och det har inget behov av det skyddet. AI:ns intervall
+            // låg dessutom OMKRING rätt tal, så ingen av correctedPrice-grenarna hade fällt det
+            // ens med två annonser — ett påhittat spann som råkar innehålla sanningen är
+            // fortfarande påhittat, och det är just spannet kunden läser som sitt pris.
+            if (officiellt != null) {
+                String friskt = "fr. " + formatSekSpace(officiellt.monthlyKr()) + " kr/mån";
+                if (!friskt.equals(price)) {
+                    log.info("Leasingpris for {}: AI:ns \"{}\" ersatt med {} ur {}s egen katalog",
+                            r.title(), price, friskt, officiellt.brand());
+                    price = friskt;
+                }
+            }
 
             // Utan annonser kan correctedPrice inte säga emot — då räknas priset ur nypriset
             // i stället för att AI:ns gissning får stå oemotsagd (Kia EV3: "170 000–190 000 kr"

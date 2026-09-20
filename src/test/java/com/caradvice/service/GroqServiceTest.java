@@ -1907,6 +1907,46 @@ class GroqServiceTest {
     }
 
     @Test
+    void markatsEgetLeasingprisSlarUtAiPrisetAvenUtanAnnonser() throws Exception {
+        /*
+         * Skarpt 2026-09-20, EFTER att leasingPhevLine borjat namnge ratt bilar: korten sa
+         * anda "4 800-5 200 kr/man" for Audi A3 40 TFSI e och Skoda Superb iV, fast bada
+         * katalogpriserna ar 4 995. Orsaken var correctedPrice forsta rad - den kraver minst
+         * TVA annonser innan den vagar saga emot AI:n, och ett officiellt erbjudande laggs in
+         * med count = 1. Tvaannonsregeln skyddar mot en enstaka scamannons; ett katalogpris ar
+         * ingen annons. AI:ns spann lag dessutom OMKRING ratt tal, sa ingen gren i
+         * correctedPrice hade fallt det ens med tva annonser.
+         */
+        GroqService s = service();
+        when(leasingPriceService.offerForTitle(anyString())).thenReturn(
+                new LeasingPriceService.LeasingOffer("A3 40 TFSI e Proline", 4_995, "audi"));
+
+        String bil = GILTIG_BIL.replace("\"price\":\"300 000–350 000 kr\"", "\"price\":\"4 800–5 200 kr/mån\"");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + bil + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>) ReflectionTestUtils.invokeMethod(
+                s, "enrichRecommendations", parsed, 15000, "spelar ingen roll", true);
+        assertThat(result.get(0).price()).isEqualTo("fr. 4 995 kr/mån");
+    }
+
+    @Test
+    void utanKatalogtraffStarAiPrisetKvarILeasinglage() throws Exception {
+        // Saknas modellen i markets utbud betyder det att den inte gar att privatleasa dar -
+        // da far AI:ns siffra sta, precis som forut. Overstyrningen galler bara en TRAFF.
+        GroqService s = service();
+        when(leasingPriceService.offerForTitle(anyString())).thenReturn(null);
+
+        String bil = GILTIG_BIL.replace("\"price\":\"300 000–350 000 kr\"", "\"price\":\"4 800–5 200 kr/mån\"");
+        List<CarRecommendation> parsed = s.parseRecommendations("{\"recommendations\":[" + bil + "]}");
+
+        @SuppressWarnings("unchecked")
+        List<CarRecommendation> result = (List<CarRecommendation>) ReflectionTestUtils.invokeMethod(
+                s, "enrichRecommendations", parsed, 15000, "spelar ingen roll", true);
+        assertThat(result.get(0).price()).isEqualTo("4 800–5 200 kr/mån");
+    }
+
+    @Test
     void aiFritextBehallsUtanEvSpecTraff() throws Exception {
         GroqService s = service();
         when(evSpecService.formatForTitle(anyString(), anyInt())).thenReturn(null);
