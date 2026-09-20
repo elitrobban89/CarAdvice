@@ -57,6 +57,44 @@ class EvSpecServiceTest {
         assertThat(service().formatForTitle("Volvo EX30", 15000)).isNotNull();
     }
 
+    /**
+     * EX60 sals i tre versioner med 190 km mellan botten och toppen: P6 80 kWh/620 km,
+     * P10 AWD 91/660, P12 AWD 112/810. Tabellen hade EN rad for hela modellen, och den bar
+     * toppversionens siffror — en P6-annons fick alltsa 810 km. Raderna finns nu, och de
+     * har tva testerna bevakar bada halvorna av matchningen.
+     */
+    @Test
+    void ex60VersionenITitelnVinnerOverModellraden() {
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX60",          22.0, 370.0, 112.0, 810, 809_000),
+                new EvSpec("Volvo EX60 P6",       22.0, 320.0,  80.0, 620, 689_000),
+                new EvSpec("Volvo EX60 P10 AWD",  22.0, 370.0,  91.0, 660, 729_000),
+                new EvSpec("Volvo EX60 P12 AWD",  22.0, 370.0, 112.0, 810, 809_000)));
+
+        EvSpecDto p6 = service().formatForTitle("Volvo EX60 P6 (2026)", 15000);
+        assertThat(p6.wltpKm()).isEqualTo(620);
+        assertThat(p6.batteryKwh()).isEqualTo(80.0);
+        assertThat(p6.maxDcKw()).isEqualTo(320);
+
+        EvSpecDto p10 = service().formatForTitle("Volvo EX60 P10 AWD (2026)", 15000);
+        assertThat(p10.wltpKm()).isEqualTo(660);
+        assertThat(p10.batteryKwh()).isEqualTo(91.0);
+    }
+
+    @Test
+    void naketEx60NamnFastnarPaModellraden() {
+        // Utan exakta namnet forst hade den nakna titeln fallit pa "langsta namnet vinner"
+        // och slumpmassigt hamnat pa P10 AWD — den langsta av de fyra.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Volvo EX60",          22.0, 370.0, 112.0, 810, 809_000),
+                new EvSpec("Volvo EX60 P6",       22.0, 320.0,  80.0, 620, 689_000),
+                new EvSpec("Volvo EX60 P10 AWD",  22.0, 370.0,  91.0, 660, 729_000)));
+
+        EvSpecDto dto = service().formatForTitle("Volvo EX60 (2026)", 15000);
+        assertThat(dto.wltpKm()).isEqualTo(810);
+        assertThat(dto.priceKr()).isEqualTo(809_000);
+    }
+
     @Test
     void langreTitelMatcharKortareLagratNamn() {
         // Pass 2: "Tesla Model 3 Long Range" ska hitta lagrade "Tesla Model 3"
@@ -269,7 +307,7 @@ class EvSpecServiceTest {
         // laddhybrid, DS "E-Tense" likaså, och Jeeps "4xe" sitter på en 96 kWh-elbil.
         // Alla tre är riktiga elbilar i tabellen och deras kort ska fungera.
         when(repo.findAll()).thenReturn(List.of(
-                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 75.0, 530, 465_000),
+                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 79.0, 530, 465_000),
                 new EvSpec("DS Automobiles DS 3 E-Tense", 11.0, 100.0, 50.8, 404, 0),
                 new EvSpec("Jeep Compass Electric 4xe", 11.0, 160.0, 96.1, 606, 0)));
 
@@ -1001,7 +1039,7 @@ class EvSpecServiceTest {
         // B4 197 hk / 0,8 l per mil. "Recharge" var medvetet undantagen ur spärren för att
         // elbilskorten skulle fungera — men undantaget skyddade inte bensinbilen.
         when(repo.findAll()).thenReturn(List.of(
-                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 75.0, 530, 465_000),
+                new EvSpec("Volvo XC40 Recharge", 11.0, 150.0, 79.0, 530, 465_000),
                 new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 424, 0)));
 
         assertThat(service().formatForTitle("Volvo XC40 (2022)", 15000)).isNull();

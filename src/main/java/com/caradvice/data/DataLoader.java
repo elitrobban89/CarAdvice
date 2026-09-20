@@ -156,7 +156,9 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Volvo EX40 Twin Motor",             11.0, 150.0,  75.0, 508, 500_000),
             new EvSpec("Volvo C40 Single Motor",            11.0, 150.0,  75.0, 530, 475_000),
             new EvSpec("Volvo C40 Twin Motor",              11.0, 150.0,  75.0, 502, 515_000),
-            new EvSpec("Volvo EX60",                        22.0, 250.0, 100.0, 600, 620_000),
+            // P12 AWD, toppversionen — samma tal som raden bar i drift. Seeden gissade
+            // 100/600/250 innan bilen var visad; se rattelsen i seedEvSpecExtras.
+            new EvSpec("Volvo EX60",                        22.0, 370.0, 112.0, 810, 809_000),
             new EvSpec("Volvo EX90 Twin Motor",             11.0, 250.0, 111.0, 580, 890_000),
             // Tesla
             new EvSpec("Tesla Model Y",                     11.0, 250.0,  75.0, 533, 499_000),
@@ -564,6 +566,65 @@ public class DataLoader implements CommandLineRunner {
                         toUpdate.add(spec);
                     }
                 }
+                case "Volvo EX90 Single Motor" -> {
+                    // Priserna stod UPP OCH NER: enmotorsbilen 954 000 och tvamotorsbilen
+                    // 890 000 - 64 000 kr billigare for mer bil. Volvos svenska listpriser ar
+                    // 899 000 (Single Motor) och 990 000 (Twin Motor).
+                    //
+                    // BARA PRISET rattas har, och det ar ett medvetet val: batteri, rackvidd,
+                    // DC och AC ags av nattsynken, som skriver om dem sa fort de skiljer sig
+                    // fran ev-database. En rattelse dar hade varit overskriven inom ett dygn.
+                    // Priset daremot ror synken ENBART nar det saknas (villkoret i
+                    // EvDatabaseScraperService ar `getPriceKr() == null || == 0`), sa det vi
+                    // satter har star kvar. Samma gransdragning galler EX60-raden nedan.
+                    if (spec.getPriceKr() == null || spec.getPriceKr() != 899_000) {
+                        spec.setPriceKr(899_000);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo EX90 Twin Motor" -> {
+                    if (spec.getPriceKr() == null || spec.getPriceKr() != 990_000) {
+                        spec.setPriceKr(990_000);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo EX60" -> {
+                    // 620 000 var ett platshallarpris ur seeden, satt innan bilen fanns och
+                    // fel for samtliga versioner. Volvo visade EX60 den 21 januari 2026:
+                    // P6 fran 689 000, P10 AWD fran 729 000, P12 AWD fran 809 000.
+                    //
+                    // Raden bar numera P12:ans siffror (112 kWh/810 km/370 kW) - synken har
+                    // skrivit om seedens gissning 100/600/250 - sa P12:ans pris ar det som hor
+                    // till talen bredvid. Raden skrivs medvetet INTE ner till P6: batteri och
+                    // rackvidd ags av synken och hade atergatt nasta natt. P6 och P10 laggs i
+                    // stallet till som egna rader nedan, sa en titel som namner versionen far
+                    // ratt bil. Kant pris: en naken "Volvo EX60" far toppversionens rackvidd.
+                    if (spec.getPriceKr() == null || spec.getPriceKr() != 809_000) {
+                        spec.setPriceKr(809_000);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo XC40 Recharge" -> {
+                    // 75 kWh + 530 km ar en kombination som aldrig har funnits. 75 kWh ar Twin
+                    // Motors paket - och star ratt pa "Volvo XC40 Recharge Twin" med sina
+                    // 424 km - medan 530 km hor till Single Motor Extended Range. Raden bar
+                    // alltsa ena bilens batteri och den andras rackvidd.
+                    //
+                    // Extended Range ar ratt bil for det nakna namnet: volymbilen efter 2022
+                    // och direkt foregangare till EX40 Single Motor. Den har 79 kWh netto
+                    // (82 brutto) och DC 150 kW fore faceliftet, sa 530 och 150 star redan
+                    // ratt - bara batteriet ar fel.
+                    //
+                    // Till skillnad fran EX90 och EX60 nar nattsynken INTE den har raden:
+                    // ev-database listar bilen under sitt nya namn, "Volvo EX40". Beviset star
+                    // i tabellen - EX40-raderna har uppdaterats till 79/576/207 medan den har
+                    // ligger kvar pa seedens 75/530/150. DataLoader ager raden, och darfor
+                    // gar det att ratta batteriet utan att sla mot synken.
+                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() != 79.0) {
+                        spec.setBatteryKwh(79.0);
+                        toUpdate.add(spec);
+                    }
+                }
                 case "Kia EV6" -> {
                     // Seedens rad var Long Range (77,4 kWh/528 km) men nattsynken har skrivit om
                     // den till facelift Standard Range med NETTOkapacitet (60 kWh/428 km). Kortet
@@ -627,6 +688,20 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volvo EX30 Single Motor Extended Range", 11.0, 153.0, 69.0, 480, 370_000));
         if (!existing.contains("Volvo EX30 Twin Motor Performance"))
             extras.add(new EvSpec("Volvo EX30 Twin Motor Performance",      11.0, 200.0, 69.0, 460, 430_000));
+
+        // EX60:ans tva ovriga versioner. Tabellen hade EN rad for hela modellen, och den bar
+        // toppversionens siffror - en "Volvo EX60 P6"-annons fick darfor 810 km i stallet for
+        // 620. Talen ar Volvos egna fran visningen den 21 januari 2026 (nettokapacitet, WLTP),
+        // priserna ar svenska listpriser for Plus-nivan. AC 22 kW ar standard pa alla tre.
+        //
+        // Priset satts har och lamnas inte till synken: den skriver pris bara nar faltet ar
+        // tomt, sa en ny rad utan pris hade statt prislos tills ev-database listar bilen.
+        if (!existing.contains("Volvo EX60 P6"))
+            extras.add(new EvSpec("Volvo EX60 P6",      22.0, 320.0,  80.0, 620, 689_000));
+        if (!existing.contains("Volvo EX60 P10 AWD"))
+            extras.add(new EvSpec("Volvo EX60 P10 AWD", 22.0, 370.0,  91.0, 660, 729_000));
+        if (!existing.contains("Volvo EX60 P12 AWD"))
+            extras.add(new EvSpec("Volvo EX60 P12 AWD", 22.0, 370.0, 112.0, 810, 809_000));
 
         // MG4 andra generationen (2025+). ev-database listar sex MG4-poster och ALLA är den nya
         // bilen — den första generationen finns inte kvar där. Utan egna rader matchade varje
