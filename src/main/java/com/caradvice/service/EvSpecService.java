@@ -1184,6 +1184,24 @@ public class EvSpecService {
     private static final Generation PASSAT_GEN2 = new Generation("Passat eHybrid (B9)", 2024, "volkswagen passat");
     private static final Generation TIGUAN_GEN2 = new Generation("Tiguan eHybrid (2024)", 2024, "volkswagen tiguan");
 
+    /**
+     * Audi A3 har TRE laddhybridgenerationer, och bara de tva nyaste har rader.
+     *
+     * <p>{@code A3 40 TFSI e} (2020–2024) bar 13,0 kWh och 67 km; {@code A3 Sportback TFSI e}
+     * (2025–) fick 1.5 TFSI evo2 och koncernens 25,7 kWh-paket med upp till 143 km. Skillnaden
+     * ar mer an en fordubbling, sa arsmodellen maste valja.
+     *
+     * <p><b>Bada taggas har, till skillnad fran Passat/Tiguan.</b> Skalet ar att en TREDJE
+     * generation finns i verkligheten men INTE som rad — {@code A3 Sportback e-tron} (2014–2018,
+     * 8,8 kWh). Lamnades {@code Audi A3 PHEV} otaggad skulle den raknas som fromYear 0 och
+     * darmed svara for e-tron-aren ocksa, med 67 km pa en bil som gick 50. Med taggen 2020
+     * hamnar en 2017-titel utanfor bada generationerna, och {@code specsForYear} lamnar da
+     * listan orord i stallet for att valja fel — samma "ror inget hellre an gissa fel" som
+     * metoden bygger pa.
+     */
+    private static final Generation A3_GEN2 = new Generation("A3 40 TFSI e", 2020, "audi a3");
+    private static final Generation A3_GEN3 = new Generation("A3 Sportback TFSI e", 2025, "audi a3");
+
     private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020, "volkswagen id.3");
     private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026, "volkswagen id.3");
     private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013, "bmw i3");
@@ -1209,6 +1227,9 @@ public class EvSpecService {
             // och raknas darmed som aldst, vilket de ar. Se PASSAT_GEN2.
             Map.entry("volkswagen passat ehybrid",    PASSAT_GEN2),
             Map.entry("volkswagen tiguan ehybrid",    TIGUAN_GEN2),
+            // A3 taggas i BADA andar - se A3_GEN2 for varfor den aldre raden inte far vara otaggad.
+            Map.entry("audi a3 phev",                 A3_GEN2),
+            Map.entry("audi a3 e-hybrid",             A3_GEN3),
             Map.entry("skoda enyaq iv 60",            ENYAQ_GEN1),
             Map.entry("skoda enyaq iv 80",            ENYAQ_GEN1),
             Map.entry("skoda enyaq iv 85",            ENYAQ_GEN1),

@@ -487,6 +487,22 @@ public class DataLoader implements CommandLineRunner {
                     toDelete.add(spec);
                     existing.remove(spec.getCarName());
                 }
+                case "Audi A3 PHEV" -> {
+                    // Raden bar 48 km, och det talet horde inte till nagon A3-generation.
+                    // Audis egen siffra for A3 40 TFSI e (2020-2024) ar **67 km WLTP** med
+                    // samma 13,0 kWh-batteri som raden redan har; foregangaren A3 Sportback
+                    // e-tron (2014-2018) hade 8,8 kWh och ca 50 km. 48 var alltsa varken det
+                    // ena eller det andra - en siffra utan hemvist, och kortet visade den som
+                    // VERIFIERAD bredvid AI:ns fritext.
+                    //
+                    // Rattas har och inte i extras-listan nedan: raden FINNS redan i drift, sa
+                    // `existing.contains` hade hoppat over den och 48 hade legat kvar for alltid.
+                    // Samma mekanik som EX30- och Kia EV6-rattelserna ovan.
+                    if (spec.getRangeKm() == null || spec.getRangeKm() != 67) {
+                        spec.setRangeKm(67);
+                        toUpdate.add(spec);
+                    }
+                }
                 case "Kia EV6" -> {
                     // Seedens rad var Long Range (77,4 kWh/528 km) men nattsynken har skrivit om
                     // den till facelift Standard Range med NETTOkapacitet (60 kWh/428 km). Kortet
@@ -856,6 +872,19 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Volkswagen Passat eHybrid", 11.0, 50.0, 25.7, 123, 529_900, "PHEV"));
         if (!existing.contains("Volkswagen Tiguan eHybrid"))
             extras.add(new EvSpec("Volkswagen Tiguan eHybrid", 11.0, 50.0, 25.7, 118, 514_900, "PHEV"));
+        // Audi A3:s TREDJE laddhybridgeneration (2025+), vid sidan av "Audi A3 PHEV" som ar
+        // 40 TFSI e 2020-2024. Audi bytte till 1.5 TFSI evo2 och samma 25,7 kWh-paket som
+        // resten av koncernen: "gross capacity 25.7 kWh, net 19.7 kWh" och "electric range
+        // increased to up to 143 kilometers in the WLTP cycle". Audi Sverige anger DC upp till
+        // 50 kW och 498 000 kr for 40 TFSI e Proline.
+        //
+        // A3:s FORSTA generation (A3 Sportback e-tron 2014-2018, 8,8 kWh / ca 50 km) far
+        // MEDVETET ingen rad: dess namn bar inget drivlineord som DRIVLINEORD kanner igen, sa
+        // raden hade matchat en vanlig bensin-"Audi A3 Sportback" och gett den ett batteri -
+        // samma hal som bensin-Formentor hade. Det ar den bil golvet 179 900 kr i
+        // PHEV_PRICE_FLOOR_KR gar pa, sa ett 2017-kort far tills vidare 40 TFSI e:s siffror.
+        if (!existing.contains("Audi A3 e-hybrid"))
+            extras.add(new EvSpec("Audi A3 e-hybrid",        11.0, 50.0, 25.7, 143, 498_000, "PHEV"));
         if (!existing.contains("Kia Niro PHEV"))
             extras.add(new EvSpec("Kia Niro PHEV",            3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
         // Kia Ceed SW Plug-in Hybrid — TRE namnformer, av samma skäl som Volvos PHEV/T8-par

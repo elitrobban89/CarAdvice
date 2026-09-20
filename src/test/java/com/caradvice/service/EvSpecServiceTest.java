@@ -664,6 +664,47 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void motorlistanFoljerMedNarBadgenKokasNer() {
+        // Kortet ska inte kunna saga TVA saker om samma bil: spec-chipsen kommer ur
+        // formatForTitle och motorlistan ur verifiedEngineOptions, och gar de isar visar
+        // kortet verifierade siffror bredvid AI:ns fritext. Skarpt i drift 2026-09-20 sa
+        // "Audi A3 40 TFSI e Proline" chipsen 13 kWh / 48 km medan motorlistan stod kvar pa
+        // AI:ns "45 TFSI e PHEV 245 hk" - fel utforande dessutom.
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Audi A3 PHEV", 3.7, 0.0, 13.0, 67, 420_000, "PHEV")));
+
+        assertThat(service().formatForTitle("Audi A3 40 TFSI e Proline (2023)", 15000).wltpKm())
+                .isEqualTo(67);
+        assertThat(service().verifiedEngineOptions("Audi A3 40 TFSI e Proline (2023)"))
+                .isEqualTo("13 kWh (67 km)");
+    }
+
+    @Test
+    void audiA3TreGenerationerMenBaraTvaRader() {
+        /*
+         * Raden bar 48 km, och det talet horde inte till nagon A3-generation: 40 TFSI e
+         * (2020-2024) gar 67 km pa samma 13,0 kWh, och foregangaren A3 Sportback e-tron
+         * (2014-2018) hade 8,8 kWh och ca 50 km. Kortet visade 48 som VERIFIERAT.
+         *
+         * Fran 2025 bytte Audi till 25,7 kWh och upp till 143 km - mer an en fordubbling, sa
+         * arsmodellen maste valja. Bada raderna ar taggade, for e-tron-generationen saknar rad
+         * och en otaggad 40 TFSI e hade svarat for hennes ar ocksa.
+         */
+        EvSpec gen2 = new EvSpec("Audi A3 PHEV",      3.7,  0.0, 13.0,  67, 420_000, "PHEV");
+        EvSpec gen3 = new EvSpec("Audi A3 e-hybrid", 11.0, 50.0, 25.7, 143, 498_000, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(gen2, gen3));
+
+        assertThat(service().formatForTitle("Audi A3 40 TFSI e Proline (2026)", 15000).wltpKm())
+                .isEqualTo(143);
+        assertThat(service().formatForTitle("Audi A3 Sportback e-hybrid (2025)", 15000).batteryKwh())
+                .isEqualTo(25.7);
+        assertThat(service().formatForTitle("Audi A3 40 TFSI e (2022)", 15000).wltpKm())
+                .isEqualTo(67);
+        // Bensin-A3:an ror ingen av dem - titeln bar ingen laddhybridbadge
+        assertThat(service().formatForTitle("Audi A3 35 TFSI S line (2023)", 15000)).isNull();
+    }
+
+    @Test
     void bensinsyskonetNarInteLaddhybridensRad() {
         // Regressionen som flytten av e--strippningen lagade: "Cupra Formentor e-Hybrid" blev
         // "cupra formentor hybrid" när prefixet ströks FÖRST, och då fanns inget drivlineord
