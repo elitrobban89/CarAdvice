@@ -4402,6 +4402,10 @@ public class GroqService {
             Map.entry("Kia Niro PHEV",            169_900),   // (48)
             Map.entry("Volkswagen Golf GTE",      174_900),   // (38)
             Map.entry("Kia Ceed SW PHEV",         179_000),   // (49)
+            // Audi A3 PHEV: golvet sätts av den FÖRRA generationen, A3 Sportback e-tron
+            // (2014–2018) — det är den som är prisvärd, och den heter e-tron trots att Audi
+            // i dag stavar laddhybriden "TFSI e". Nuvarande 40 TFSI e börjar på 255 000 kr.
+            Map.entry("Audi A3 PHEV",             179_900),   // (30)
             Map.entry("Volkswagen Passat GTE",    189_700),   // (49)
             Map.entry("BMW 330e",                 189_900),   // (50)
             Map.entry("Peugeot 308 PHEV",         218_900),   // (19)
