@@ -172,7 +172,7 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Volkswagen ID.7",                   11.0, 200.0,  82.0, 640, 600_000),
             new EvSpec("Volkswagen ID.Buzz",                11.0, 200.0,  82.0, 459, 570_000),
             // BMW
-            new EvSpec("BMW i4 eDrive40",                   11.0, 210.0,  84.0, 590, 660_000),
+            new EvSpec("BMW i4 eDrive40",                   11.0, 210.0,  84.0, 590, 599_900),
             new EvSpec("BMW i5 eDrive40",                   11.0, 205.0,  81.0, 582, 810_000),
             new EvSpec("BMW iX xDrive50",                   11.0, 200.0, 105.0, 630, 920_000),
             new EvSpec("BMW iX3",                           11.0, 150.0,  74.0, 460, 610_000),
@@ -182,11 +182,11 @@ public class DataLoader implements CommandLineRunner {
             new EvSpec("Audi Q6 e-tron",                    22.0, 270.0, 100.0, 636, 620_000),
             new EvSpec("Audi Q8 e-tron",                    22.0, 170.0,  95.0, 582, 860_000),
             // Hyundai / Kia
-            new EvSpec("Hyundai IONIQ 5",                   11.0, 220.0,  77.4, 507, 480_000),
+            new EvSpec("Hyundai IONIQ 5",                   11.0, 220.0,  77.4, 507, 603_800),
             new EvSpec("Hyundai IONIQ 6",                   11.0, 233.0,  77.4, 614, 480_000),
             new EvSpec("Kia EV6",                           11.0, 233.0,  77.4, 528, 460_000),
             new EvSpec("Kia EV9",                           11.0, 240.0,  99.8, 563, 760_000),
-            new EvSpec("Kia EV3 Long Range",                11.0, 101.0,  81.4, 605, 370_000),
+            new EvSpec("Kia EV3 Long Range",                11.0, 101.0,  81.4, 605, 508_300),
             new EvSpec("Kia EV4",                           11.0, 101.0,  58.3, 410, 390_000),
             new EvSpec("Kia EV4 Long Range",                11.0, 128.0,  81.4, 590, 435_000),
             new EvSpec("Kia Niro EV",                       11.0,  80.0,  64.8, 463, 390_000),
@@ -421,6 +421,76 @@ public class DataLoader implements CommandLineRunner {
      */
     static final java.util.Map<String, double[]> FELSKRIVNA_AV_SYNKEN = java.util.Map.of(
             "Tesla Model S", new double[]{95.0, 649});
+
+    /**
+     * Svenska listpriser som ersatter synkens EUR x 11,5.
+     *
+     * <p><b>Varfor tabellen finns.</b> Prisspalten blandar tva valutakonventioner: rader som star
+     * i DataLoader bar svenska listpriser, medan synken skriver EUR x 11,5 pa dem den nar
+     * ({@code EUR_TO_SEK} i EvDatabaseScraperService, avrundat till tusental). Glappet ar kant
+     * sedan {@link #EV6_PRISER}, men det ar storre an den javadocen sager, och det syns som
+     * PRISINVERSIONER: en mindre batteriversion star dyrare an en storre inom samma modell.
+     * En skanning av alla 595 rader 2026-09-20 hittade monstret hos fem modellfamiljer.
+     *
+     * <p><b>Att satta priset har biter, till skillnad fran batteri och rackvidd.</b> Synken
+     * skriver pris ENBART nar faltet ar tomt ({@code getPriceKr() == null || == 0}), sa det som
+     * star har overlever natten. Darfor duger det INTE att nolla ett pris man inte vet: nasta
+     * synk fyller i EUR-vardet igen.
+     *
+     * <p><b>Talen och deras kallor</b> (alla hamtade 2026-09-20):
+     * <ul>
+     *   <li>Kia EV3 Standard Range 429 900 och Long Range 508 300 - Kias officiella svenska
+     *       prislista, gallande fran 30 januari 2026. Long Range stod pa 370 000, alltsa
+     *       138 300 kr UNDER sitt listpris och 55 000 under den mindre Standard Range.</li>
+     *   <li>Hyundai IONIQ 5 603 800 - Hyundai Sverige, RWD 84 kWh Essential MY27, ORDINARIE
+     *       pris (kampanjpriset 531 344 ar dagsfarskt och hor inte hemma i en nyprisspalt).</li>
+     *   <li>BMW i4 eDrive40 599 900 - BMW Sverige, Active Edition, instegsbilen i dagens utbud.
+     *       Se {@link #PRISER_UTAN_SVENSK_KALLA}: eDrive35 lamnas medvetet.</li>
+     *   <li>Subaru Solterra AWD 579 900 - svenskt lanseringspris for 64 kWh-bilen (2023).</li>
+     *   <li>Subaru Solterra AWD 73.1 kWh 534 900 - Subaru Sverige, Limited 26MY (Touring
+     *       564 900, Touring+ 574 900). <b>Att den NYA bilen ar billigare an den gamla ar
+     *       SANT</b> - Subaru sankte priset med faceliftet. Den inversionen ska sta kvar.</li>
+     * </ul>
+     */
+    static final java.util.Map<String, Integer> SVENSKA_LISTPRISER = java.util.Map.of(
+            "Kia EV3 Standard Range",       429_900,
+            "Kia EV3 Long Range",           508_300,
+            "Hyundai IONIQ 5",              603_800,
+            "BMW i4 eDrive40",              599_900,
+            "Subaru Solterra AWD",          579_900,
+            "Subaru Solterra AWD 73.1 kWh", 534_900);
+
+    /**
+     * Rader vars pris ser fel ut men INTE rattas, och varfor. Listan finns for att nasta
+     * genomgang inte ska "laga" dem igen - och for att tva av de fem misstankta inversionerna
+     * 2026-09-20 visade sig inte vara fel alls.
+     *
+     * <ul>
+     *   <li><b>BMW i4 eDrive35</b> (698 000, mot eDrive40:s 599 900). Bilen <b>sals inte i
+     *       Sverige</b> - BMW erbjod den i Danmark (469 500 DKK) och har inte tagit hit den.
+     *       Det finns alltsa inget svenskt listpris att satta, och att harleda ett ur den danska
+     *       kvoten vore precis den sortens siffra utan hemvist som Audi A3:s 48 km var. Talet
+     *       som star ar synkens EUR-omrakning. <b>Inversionen ar darfor akta men oatgardbar
+     *       har</b> - den ratta atgarden ar att avgora om en bil som aldrig salts i Sverige ska
+     *       ligga i en tabell kurerad for Sverige, och det ar ett beslut, inte en datarattelse.</li>
+     *   <li><b>Subaru Solterra</b>: 64 kWh-bilen (579 900) ar dyrare an den nyare 73,1 kWh-bilen
+     *       (534 900). <b>Det ar SANT</b> - Subaru sankte priset med faceliftet. Bada talen ar
+     *       nu svenska listpriser, och ordningen ska sta kvar.</li>
+     *   <li><b>CUPRA Tavascan 140 kW - 58 kWh</b> (574 000) sags forst vara en spokrad, eftersom
+     *       Tavascan lange bara fanns med 77 kWh. <b>Den finns pa riktigt</b>: 2026 ars facelift
+     *       gav en ny insteg med 58 kWh LFP och 190 hk. Raden ar dyrare an "CUPRA Tavascan
+     *       Endurance" (494 000) darfor att den ar FACELIFT och den andra ar forfacelift - tva
+     *       generationer, inte en inversion. Jamfor i stallet mot syskonraden
+     *       "CUPRA Tavascan 210 kW - 77 kWh Endurance" (626 000), och da stammer ordningen.</li>
+     * </ul>
+     *
+     * <p><b>Lardomen for nasta skanning:</b> en gruppering pa modellnamnets forsta ord staller
+     * olika GENERATIONER och olika MARKNADER bredvid varandra, och da ser bada ut som fel. Tre
+     * av fem traffar var akta; skanna garna igen, men verifiera varje traff mot en kalla innan
+     * du kallar den ett fel.
+     */
+    static final java.util.List<String> PRISER_UTAN_SVENSK_KALLA = java.util.List.of(
+            "BMW i4 eDrive35");
 
     /** EV6-variant med pris ur EV6_PRISER. AC är 11 kW på samtliga. */
     private static EvSpec ev6(String namn, double dcKw, double batteryKwh, int rangeKm) {
@@ -666,6 +736,17 @@ public class DataLoader implements CommandLineRunner {
                             spec.setRangeKm((int) egen[1]);
                             toUpdate.add(spec);
                         }
+                    }
+
+                    // Svenska listpriser over synkens EUR-omrakning. Ligger i default-grenen
+                    // och inte i extras-listan av samma skal som Audi A3 PHEV: raderna FINNS
+                    // redan i drift, sa `existing.contains` hade hoppat over dem.
+                    Integer listpris = SVENSKA_LISTPRISER.get(spec.getCarName());
+                    if (listpris != null && !listpris.equals(spec.getPriceKr())) {
+                        log.warn("ev_spec: {} hade priset {} — satter svenskt listpris {}",
+                                spec.getCarName(), spec.getPriceKr(), listpris);
+                        spec.setPriceKr(listpris);
+                        if (!toUpdate.contains(spec)) toUpdate.add(spec);
                     }
                 }
             }
