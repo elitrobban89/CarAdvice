@@ -985,6 +985,19 @@ class GroqServiceTest {
 
 
     @Test
+    void kravlistanRaknarLeasingtaketIKrPerManad() {
+        // Skarpt 2026-09-20: ett laddhybridssok pa 5 000 kr/man gav tva kort, och banderollen
+        // forklarade det med "hogst 35 000 kr" - kopmarginalen (30 000) pa en manadsbudget,
+        // och fel enhet. Talet var varken budgeten, taket eller ratt sort. Taket ska vara
+        // SAMMA tak som exceedsBudgetCeiling mater mot: budget + 500 kr/man.
+        CarPreferences leasingsok = new CarPreferences(5_000, "laddhybrid", true, 15_000,
+                "familj", 5, false, "spelar ingen roll", "automat", "leasing", null, null);
+
+        assertThat(GroqService.activeConstraints(leasingsok))
+                .containsExactly("familjestor bil", "automat", "högst 5 500 kr/mån");
+    }
+
+    @Test
     void suvkravetStarMedIKravlistan() {
         // Live 2026-08-22, direkt efter deploy: SUV + elbil + 400 000 kr gav TVÅ kort och
         // banderollen räknade upp "ren elbil, automat, högst 430 000 kr" — det var SUV-spärren
@@ -3190,6 +3203,38 @@ class GroqServiceTest {
                 "{\"recommendations\":[" + t8 + "," + niro + "," + tyst + "]}");
         GroqService.requirePhevCars(parsed);
         assertThat(parsed).hasSize(3);
+    }
+
+    @Test
+    void ehybridBadgenAvvisasInteSomSjalvladdandeHybrid() throws Exception {
+        /*
+         * ANVANDARRAPPORT 2026-09-20: "jag marker ofta far jag bara tva bilar pa laddhybrider".
+         *
+         * Orsaken: HEV_MARKER ar `\bhybrid\w*\b`, och i "e-hybrid" star ett bindestreck fore
+         * ordet - alltsa en ordgrans, alltsa traff. drivetrainOf provar PHEV fore HEV, men
+         * PHEV_MARKER kande inte igen "e-hybrid", sa hela VW-koncernens laddhybridbadge lastes
+         * som en SJALVLADDANDE hybrid och requirePhevCars kastade bilen. Audis och Cupras
+         * kompletta laddhybridutbud heter just sa - A3/A5 e-hybrid, Formentor/Leon/Terramar
+         * e-HYBRID - sa ett laddhybridssok tappade en bil sa fort AI:n foreslog nagon av dem.
+         *
+         * VW:s egen stavning "eHybrid" (utan bindestreck) foll DAREMOT igenom bada markorerna
+         * och slapptes fram av en slump - ingen ordgrans mellan "e" och "hybrid". Samma badge,
+         * tva olika utfall, beroende pa ett bindestreck.
+         */
+        String audi = GILTIG_BIL.replace("Volvo EX30 (2024)", "Audi A3 Sportback e-hybrid (2026)");
+        String cupra = GILTIG_BIL.replace("Volvo EX30 (2024)", "Cupra Formentor e-HYBRID (2026)");
+        String vw = GILTIG_BIL.replace("Volvo EX30 (2024)", "Volkswagen Passat eHybrid (2026)");
+        List<CarRecommendation> parsed = service().parseRecommendations(
+                "{\"recommendations\":[" + audi + "," + cupra + "," + vw + "]}");
+
+        GroqService.requirePhevCars(parsed);
+        assertThat(parsed).hasSize(3);
+        // ...och badgen ska laggas ratt, inte bara slippa igenom
+        assertThat(ExpertInsightService.drivetrainOf("audi a3 sportback e-hybrid")).isEqualTo("phev");
+        assertThat(ExpertInsightService.drivetrainOf("volkswagen passat ehybrid")).isEqualTo("phev");
+        // Den sjalvladdande hybriden faller fortfarande - det ar hela poangen med spärren
+        assertThat(ExpertInsightService.drivetrainOf("toyota rav4 hybrid")).isEqualTo("hev");
+        assertThat(ExpertInsightService.drivetrainOf("honda civic e:hev")).isEqualTo("hev");
     }
 
     @Test

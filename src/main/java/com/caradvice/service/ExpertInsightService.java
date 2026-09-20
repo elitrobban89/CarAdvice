@@ -170,9 +170,27 @@ public class ExpertInsightService {
      *
      * <p>Mellanslagsvarianten {@code "dm i"} är medvetet UTELÄMNAD: {@code dm} är också
      * decimeter, och markörerna prövas mot insiktstexter och inte bara annonsrubriker.
+     *
+     * <p><b>{@code e-hybrid} tillkom 2026-09-20 och lagade ett fel användaren såg varje vecka:
+     * "jag märker ofta får jag bara två bilar på laddhybrider".</b> Badgen är hela VW-koncernens
+     * namn på laddhybriden — Audi {@code A3/A5 e-hybrid}, Cupra {@code Formentor/Leon/Terramar
+     * e-HYBRID}, VW {@code Passat/Tiguan eHybrid} — men den satt inte här, och
+     * {@link #HEV_MARKER} bär {@code \bhybrid\w*}. I "e-hybrid" står ett BINDESTRECK före ordet,
+     * alltså en ordgräns, alltså träff: badgen lästes som en SJÄLVLADDANDE hybrid och
+     * {@code GroqService.requirePhevCars} kastade bilen ur ett laddhybridssök. Audis och Cupras
+     * kompletta laddhybridutbud föll på det.
+     *
+     * <p><b>Bindestrecket ensamt avgjorde utfallet</b>, vilket är värt att minnas nästa gång en
+     * markör skrivs: VW:s egen stavning {@code eHybrid} har ingen ordgräns mellan {@code e} och
+     * {@code hybrid} och föll därför igenom BÅDA markörerna — samma badge, samma bil, men den
+     * slapp igenom av en slump i stället för av en regel. {@code e-?hybrid} täcker båda.
+     *
+     * <p>{@code elhybrid} rörs INTE: "e" följt av "l" matchar varken bindestrecket eller
+     * {@code hybrid}, så det svenska ordet för självladdande hybrid ligger kvar i HEV-ledet där
+     * det hör hemma. Samma sak med Hondas {@code e:HEV}.
      */
     private static final java.util.regex.Pattern PHEV_MARKER =
-            java.util.regex.Pattern.compile("\\b(phev|laddhybrid\\w*|plug[- ]?in|dm-?[ip])\\b");
+            java.util.regex.Pattern.compile("\\b(phev|laddhybrid\\w*|plug[- ]?in|e-?hybrid|dm-?[ip])\\b");
     private static final java.util.regex.Pattern HEV_MARKER =
             java.util.regex.Pattern.compile("\\b(hev|elhybrid\\w*|self[- ]?charging|hybrid\\w*)\\b");
     private static final java.util.regex.Pattern EV_MARKER =

@@ -3280,8 +3280,17 @@ public class GroqService {
             krav.add(prefs.transmission());
         // Tusentalsavgränsare som överallt annars i appen — "230000 kr" läser som ett fel.
         // Locale.ROOT av samma skäl som i golvlistan: svensk locale ger hårt mellanslag.
-        krav.add("högst " + String.format(java.util.Locale.ROOT, "%,d",
-                prefs.budget() + BUDGET_CEILING_MARGIN_KR).replace(',', ' ') + " kr");
+        //
+        // TAKET MÅSTE VARA SAMMA TAK SOM exceedsBudgetCeiling MÄTER MOT, och i leasingläge är
+        // det ett ANNAT: marginalen är 500 kr/mån, inte 30 000 kr, och enheten är kr/mån.
+        // Raden hade bara köpvarianten, och skarpt 2026-09-20 sa banderollen därför
+        // "högst 35 000 kr" till en användare som sökt laddhybrid för 5 000 kr/mån. Talet var
+        // varken budgeten, taket eller ens rätt enhet — en förklaring som ljuger om siffran gör
+        // ett tunt svar obegripligt i stället för begripligt, vilket är hela radens uppgift.
+        boolean leasing = "leasing".equals(prefs.budgetType());
+        int tak = prefs.budget() + (leasing ? LEASING_CEILING_MARGIN_KR : BUDGET_CEILING_MARGIN_KR);
+        krav.add("högst " + String.format(java.util.Locale.ROOT, "%,d", tak).replace(',', ' ')
+                + (leasing ? " kr/mån" : " kr"));
         return krav;
     }
 
