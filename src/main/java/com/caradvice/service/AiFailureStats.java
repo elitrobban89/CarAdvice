@@ -23,6 +23,8 @@ import java.util.TreeMap;
  * <p><b>Ingen databas</b>, av samma skäl som {@link TokenUsageStats}: det här är underlag för
  * felsökning i timmar, inte historik i månader. En omstart nollställer, och det är i sin
  * ordning — men se då upp för fällan att läsa en tom rapport som "inga fel".
+ *
+ * @author Robert Andersson Kopler
  */
 public class AiFailureStats {
 

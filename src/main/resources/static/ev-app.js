@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 (function () {
   const API = window.EV_API_URL || "https://elbilsladdning.onrender.com";
 

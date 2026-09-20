@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Enhetstester för CSV-parsern. Ren funktion utan beroenden —
  * inga mocks behövs, bara indata och förväntat resultat.
+ *
+ * @author Robert Andersson Kopler
  */
 class SafetyRatingServiceCsvTest {
 

@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Nyprisuppslaget per bil, mot H2 (samma SQL körs mot Postgres i prod).
  * Tabellnamnen bär generation som årsspann, vilket matchningen måste klara.
+ *
+ * @author Robert Andersson Kopler
  */
 class NewCarPriceServiceTest {
 

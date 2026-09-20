@@ -23,6 +23,8 @@ import java.util.TreeMap;
  * <p><b>Ingen databas.</b> Det här är underlag för tuning, inte historik: siffrorna är
  * intressanta i timmar, inte i månader, och en tabell till hade kostat mer än den gav. En
  * omstart nollställer, och det är i sin ordning — mätningen görs om på minuter.
+ *
+ * @author Robert Andersson Kopler
  */
 public class TokenUsageStats {
 

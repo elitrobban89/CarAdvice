@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // EV Laddningsassistent — uppstartssplash (el-tema, Groq-driven boot-sekvens)
 // Extern fil (WordPress blockerar inline <script>). Injiceras av ev-app.js så den
 // live-inbäddade WP-sidan får den utan att markupen behöver klistras om.

@@ -12,6 +12,8 @@ import java.util.Map;
  * Tumme upp/ner på rekommenderade bilar. Ren JdbcTemplate utan JPA-entitet
  * (samma mönster som new_car_price) — nya JPA-entiteter kraschar prod-boot
  * eftersom ddl-auto=validate inte skapar tabeller.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class FeedbackService {

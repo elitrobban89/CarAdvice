@@ -24,6 +24,8 @@ import java.util.Map;
  * kvoter, inte för statistik, och städas av {@code CarController.cleanupRateLimitLogs}.
  * Fönstret nedan får därför aldrig vara längre än städningens gräns — annars ser siffran
  * ut att falla när det i själva verket är raderna som försvunnit.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class UsageStatsService {

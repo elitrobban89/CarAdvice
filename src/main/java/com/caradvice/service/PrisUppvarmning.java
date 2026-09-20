@@ -25,6 +25,8 @@ import org.springframework.stereotype.Component;
  *
  * <p>Trådan är en daemon: den får aldrig hålla JVM:en vid liv, och ett misslyckat försök
  * ändrar ingenting - det lata beteendet i tjänsterna står kvar oförändrat som sista utväg.
+ *
+ * @author Robert Andersson Kopler
  */
 @Component
 public class PrisUppvarmning {

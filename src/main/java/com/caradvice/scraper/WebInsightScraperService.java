@@ -39,6 +39,8 @@ import java.util.regex.Pattern;
  * Hämtar bilinsikter från svenska motorsajter, extraherar dem med Groq och sparar
  * i expert_insight. Inkrementell: processade artikel-URL:er och sedda ägaromdömen
  * lagras i web_insight_seen så nattliga körningar aldrig skapar dubbletter.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class WebInsightScraperService {

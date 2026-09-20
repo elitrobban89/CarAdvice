@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // BilRådgivning — main form logic
 // Loaded as external script to bypass WordPress inline-script restrictions
 

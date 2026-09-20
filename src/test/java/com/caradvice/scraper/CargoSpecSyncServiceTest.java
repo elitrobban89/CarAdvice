@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
  * gamla källan {@code /sok/bilar} visade sig svara 404 och nattjobbet tyst slutade hämta märken.
  * Märkessidorna är hämtade 2026-09-17, morgonen efter att sajten lagt till filter- och
  * stadsavsnitten längst ned. Fixturerna är sidornas egen markup (länkblocken, utan annonslistorna).
+ *
+ * @author Robert Andersson Kopler
  */
 class CargoSpecSyncServiceTest {
 

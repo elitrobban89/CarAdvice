@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 public interface SavedSearchRepository extends JpaRepository<SavedSearch, Long> {
     List<SavedSearch> findByUserOrderByCreatedAtDesc(User user);
     long countByUser(User user);

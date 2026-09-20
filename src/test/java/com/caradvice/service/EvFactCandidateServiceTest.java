@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/** @author Robert Andersson Kopler */
 class EvFactCandidateServiceTest {
 
     private ExpertInsightRepository repo;

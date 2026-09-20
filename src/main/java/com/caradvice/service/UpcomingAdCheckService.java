@@ -46,6 +46,8 @@ import java.util.regex.Pattern;
  * <p><b>Varför den inte är ett nattjobb.</b> Samma skäl som vPIC-vakten: {@code GRANSKA} kommer
  * att stå kvar natt efter natt för Tucson, Santa Fe och NX 450h+, och ett larm som är falskt varje
  * dag gör att rapporten slutar läsas. Den körs när någon frågar.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class UpcomingAdCheckService {

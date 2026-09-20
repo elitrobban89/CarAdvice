@@ -25,6 +25,8 @@ import static org.mockito.Mockito.when;
 /**
  * Tester för Mobility Sweden-månadssynken: xlsx-parsning av rankingarken,
  * namnnormalisering, rapportupptäckt i HTML och ersättningslogiken.
+ *
+ * @author Robert Andersson Kopler
  */
 @ExtendWith(MockitoExtension.class)
 class MobilityStatsSyncServiceTest {

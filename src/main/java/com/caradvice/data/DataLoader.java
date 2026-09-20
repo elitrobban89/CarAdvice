@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 @Component
 public class DataLoader implements CommandLineRunner {
 

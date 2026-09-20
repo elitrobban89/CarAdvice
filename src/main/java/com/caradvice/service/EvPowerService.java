@@ -34,6 +34,8 @@ import java.util.Map;
  * dess årsmodellfilter. Det är också vad som gör svaret generationsrätt utan egen årslogik: en
  * 2019 års MG ZS EV matchar raden {@code MG ZS EV 44.5 kWh} och får 143 hk, medan en 2023:a
  * matchar {@code MG ZS EV} och får 156.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class EvPowerService {

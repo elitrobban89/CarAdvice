@@ -41,6 +41,8 @@ import java.util.regex.Pattern;
  * <p>Parsningen är skild från hämtningen så den kan provas mot sparade sidor utan HTTP — samma
  * mönster som {@code EvDatabaseScraperServiceMatchTest}, och av samma skäl: när sidstrukturen
  * ändras ska testet säga det, inte nattkörningen.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class AutoDataScraperService {

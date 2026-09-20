@@ -3,6 +3,7 @@ package com.caradvice.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/** @author Robert Andersson Kopler */
 @Entity
 @Table(name = "saved_search")
 public class SavedSearch {

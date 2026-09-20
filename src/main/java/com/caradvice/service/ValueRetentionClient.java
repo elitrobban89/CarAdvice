@@ -30,6 +30,8 @@ import java.time.Duration;
  *
  * <p><b>Cachen är lång med flit.</b> Datat uppdateras en gång i veckan, så en sextimmarscache
  * kostar ingen färskhet men gör att en chattkonversation aldrig triggar mer än ett anrop.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class ValueRetentionClient {

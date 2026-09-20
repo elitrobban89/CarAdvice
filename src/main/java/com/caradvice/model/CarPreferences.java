@@ -1,5 +1,6 @@
 package com.caradvice.model;
 
+/** @author Robert Andersson Kopler */
 public record CarPreferences(
         int budget,
         String carCategory,

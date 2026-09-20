@@ -25,6 +25,8 @@ import static org.mockito.Mockito.when;
  * rader BLANDAR nyhetsord och ren fakta (Volvo EX40 09-11), en GRANSKA-bil som säljs men vars
  * rader gäller nästa generation (Hyundai Tucson, korrekt parkerad sedan 08-22), och ett uppslag
  * som inte svarade. Poängen med tjänsten är gränsen mellan dem.
+ *
+ * @author Robert Andersson Kopler
  */
 class UpcomingAutoReleaseServiceTest {
 

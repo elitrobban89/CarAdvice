@@ -48,6 +48,8 @@ import java.util.regex.Pattern;
  * ett nattjobb som slutat skriva. Rapporten säger det rakt ut i {@code varning} i stället för
  * att svara med en tom lista som ser frisk ut — ett tomt jobb som inte kan larma är precis det
  * som lät cargo-parsern ligga död bakom 602/602/0.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class EvFactCandidateService {

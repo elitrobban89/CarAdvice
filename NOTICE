@@ -1,0 +1,22 @@
+CarAdvice
+Copyright (c) 2026 Robert Andersson Kopler. Alla rättigheter förbehållna.
+
+Upphovsman: Robert Andersson Kopler
+
+Denna fil är upphovsrättsnotisen för CarAdvice. Samma namn står också:
+
+  - som @author i javadoc-huvudet på varje Java-klass i src/
+  - som upphovshuvud överst i varje JS- och HTML-fil som serveras
+  - i konstanten com.caradvice.config.Authorship.AUTHOR
+  - i HTTP-huvudet X-Author på varje svar från tjänsten
+  - i fältet "author" i GET /api/version
+  - i projektets git-historik, som är den daterade källan
+
+Authorship kontrollerar vid uppstart att konstanten inte har ändrats och
+loggar ett fel om den har det. Kontrollen stänger aldrig av tjänsten — en
+vakt som fäller en bil i drift för att en textsträng ändrats gör mer skada
+än den förhindrar.
+
+Att ta bort markeringen ur källkoden är tekniskt möjligt för den som har
+koden. Det som skyddar upphovet är upphovsrätten och git-historiken; lagren
+ovan finns för att göra ett intrång arbetsamt och synligt, inte omöjligt.

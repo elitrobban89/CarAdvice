@@ -2,6 +2,7 @@ package com.caradvice.model;
 
 import jakarta.persistence.*;
 
+/** @author Robert Andersson Kopler */
 @Entity
 @Table(name = "safety_rating")
 public class SafetyRating {

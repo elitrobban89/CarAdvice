@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Flaggan ligger i en egen tabell i stället för en kolumn på expert_insight: prod kör
  * ddl-auto=validate, så en ny mappad kolumn hade fällt uppstarten tills schemat ändrats
  * för hand. Samma mönster som web_insight_seen och recommendation_feedback.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class UpcomingInsightService {

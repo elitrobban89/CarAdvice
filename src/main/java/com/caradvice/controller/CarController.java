@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** @author Robert Andersson Kopler */
 @RestController
 @RequestMapping("/api")
 public class CarController {
@@ -875,6 +876,7 @@ public class CarController {
     public ResponseEntity<?> version() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("version", appVersion);
+        out.put("author", com.caradvice.config.Authorship.AUTHOR);
         out.put("commit", shortCommit());
         out.put("commitFull", appCommit.isBlank() ? "unknown" : appCommit);
         out.put("branch", appBranch.isBlank() ? "local" : appBranch);

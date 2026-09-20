@@ -13,6 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tester mot en riktig H2 in-memory-databas (ingen Spring-kontext) — verifierar
  * att tabellskapandet och SQL:en är portabel (samma SQL körs mot Postgres i prod).
+ *
+ * @author Robert Andersson Kopler
  */
 class FeedbackServiceTest {
 

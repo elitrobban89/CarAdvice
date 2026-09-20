@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 public interface ExpertInsightRepository extends JpaRepository<ExpertInsight, Long> {
     List<ExpertInsight> findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(String category, String fuelType);
     void deleteByExpertName(String expertName);

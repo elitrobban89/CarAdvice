@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 public interface CargoSpecRepository extends JpaRepository<CargoSpec, Long> {
 
     @Query("SELECT c.carName FROM CargoSpec c WHERE c.carName IS NOT NULL")

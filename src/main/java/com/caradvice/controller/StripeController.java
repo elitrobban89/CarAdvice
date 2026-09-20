@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.Optional;
 
+/** @author Robert Andersson Kopler */
 @RestController
 @RequestMapping("/api/stripe")
 public class StripeController {

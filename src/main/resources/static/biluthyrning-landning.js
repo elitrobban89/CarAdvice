@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // ── Biluthyrningssidan: landa i appkortet, inte i säljtexten ────────────────────────────
 //
 //   https://elitrobban.se/biluthyrning/

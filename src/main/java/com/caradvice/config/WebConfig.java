@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/** @author Robert Andersson Kopler */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -35,6 +36,10 @@ public class WebConfig implements WebMvcConfigurer {
             res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
             res.setHeader("X-XSS-Protection", "0");
             res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+            // Upphovsmarkering pa varje svar, aven statiska filer: den foljer med tjansten ut
+            // pa natet och gar inte att tvatta bort genom att bara redigera kallkodshuvudena.
+            // Se Authorship for vad markeringen skyddar och vad den inte gor.
+            res.setHeader("X-Author", Authorship.AUTHOR);
             chain.doFilter(request, response);
         });
         bean.addUrlPatterns("/*");

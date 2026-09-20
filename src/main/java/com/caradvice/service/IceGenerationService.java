@@ -37,6 +37,8 @@ import java.util.Map;
  * {@code (brand, variant)} och samma beteckning återkommer äkta mellan generationer
  * ("2.0 TDI 150 hk" finns i både Golf 7 och 8), så ett årtal där hade spräckt nyckeln. Samma
  * skäl som {@code car_video_sentiment} och {@code insight_upcoming} ligger i egna tabeller.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class IceGenerationService {

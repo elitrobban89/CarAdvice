@@ -32,6 +32,8 @@ import java.util.TreeMap;
  * <p><b>Ingen databas</b>, som {@link AiFailureStats} och {@code TokenUsageStats}: det här är
  * underlag för felsökning i timmar, inte historik i månader. En omstart nollställer, och det är
  * i sin ordning — men se då upp för fällan att läsa en tom rapport som "vakten fäller aldrig".
+ *
+ * @author Robert Andersson Kopler
  */
 @Component
 public class KategoriVaktStats {

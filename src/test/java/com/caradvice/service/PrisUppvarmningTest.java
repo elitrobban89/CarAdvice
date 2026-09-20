@@ -8,6 +8,8 @@ import static org.mockito.Mockito.*;
 /**
  * Uppvärmningens hela poäng är att den försöker IGEN när källan sover - och att den slutar
  * försöka när den lyckats. Båda halvorna mäts här; nätet rörs aldrig.
+ *
+ * @author Robert Andersson Kopler
  */
 class PrisUppvarmningTest {
 

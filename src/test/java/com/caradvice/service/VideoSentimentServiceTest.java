@@ -13,6 +13,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** H2 in-memory, inga nätanrop — nycklarna lämnas tomma så tjänsten aldrig går ut. */
+/** @author Robert Andersson Kopler */
 class VideoSentimentServiceTest {
 
     private JdbcTemplate jdbc;

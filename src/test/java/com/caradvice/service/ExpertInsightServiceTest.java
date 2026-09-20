@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 /**
  * Tester för RAG-kontextbygget: vilka expertinsikter som väljs ut
  * och hur de formateras innan de skickas med i AI-prompten.
+ *
+ * @author Robert Andersson Kopler
  */
 @ExtendWith(MockitoExtension.class)
 class ExpertInsightServiceTest {

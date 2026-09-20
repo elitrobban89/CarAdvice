@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/** @author Robert Andersson Kopler */
 @Service
 public class SafetyRatingService {
 

@@ -46,6 +46,8 @@ import java.util.List;
  * utfallet säger varför. Ett släpp är i sig reversibelt ({@code POST
  * /api/admin/insights/{id}/upcoming} parkerar igen), men bara så länge någon vet vilka id:n det
  * gällde.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class UpcomingAutoReleaseService {

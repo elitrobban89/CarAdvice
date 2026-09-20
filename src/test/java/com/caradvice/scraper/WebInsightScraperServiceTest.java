@@ -18,6 +18,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/** @author Robert Andersson Kopler */
 class WebInsightScraperServiceTest {
 
     private static final com.caradvice.service.KategoriVaktStats vaktStats =

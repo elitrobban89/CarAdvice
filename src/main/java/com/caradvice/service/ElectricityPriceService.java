@@ -22,6 +22,8 @@ import java.util.Locale;
  * FuelPriceService mot Bilresa. 6 h cache, nytt försök efter 5 min vid hämtfel.
  * Går snabbladdningspriset inte att hämta faller raden tillbaka på enbart
  * hemmaladdning, så prompten aldrig står helt utan elpris.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class ElectricityPriceService {

@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Parsern körs mot sparade sidor från auto-data.net, hämtade 2026-08-12. Siffrorna nedan är
  * sidornas egna — ändras strukturen ska testet säga det, inte nattkörningen.
+ *
+ * @author Robert Andersson Kopler
  */
 class AutoDataScraperServiceTest {
 

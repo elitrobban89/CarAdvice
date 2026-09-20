@@ -16,6 +16,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/** @author Robert Andersson Kopler */
 class UpcomingInsightServiceTest {
 
     private JdbcTemplate jdbc;

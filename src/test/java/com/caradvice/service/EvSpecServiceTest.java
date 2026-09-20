@@ -19,6 +19,8 @@ import static org.mockito.Mockito.when;
  * Tester för fuzzy-matchningen mellan AI:ns biltitlar och databasens EV-specar.
  * Repositoryt mockas med Mockito — testerna kör utan databas och verifierar
  * enbart matchningslogiken (pass 1–3) och DTO-beräkningarna.
+ *
+ * @author Robert Andersson Kopler
  */
 @ExtendWith(MockitoExtension.class)
 class EvSpecServiceTest {

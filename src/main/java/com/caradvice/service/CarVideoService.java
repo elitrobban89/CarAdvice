@@ -41,6 +41,8 @@ import java.util.Map;
  *
  * <p>Utan {@code YOUTUBE_API_KEY} är tjänsten helt passiv och svarar tomt — bilkortet
  * renderar då ingen videorad alls i stället för en trasig.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class CarVideoService {

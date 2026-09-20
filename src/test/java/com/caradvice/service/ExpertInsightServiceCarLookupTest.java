@@ -14,6 +14,8 @@ import static org.mockito.Mockito.when;
 /**
  * Tester för findForCarTitle — den publika insiktslistan per bilkort
  * (konsumeras av GET /api/insights). Repo mockas.
+ *
+ * @author Robert Andersson Kopler
  */
 class ExpertInsightServiceCarLookupTest {
 

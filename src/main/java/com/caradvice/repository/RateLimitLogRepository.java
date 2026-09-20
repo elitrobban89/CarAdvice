@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 public interface RateLimitLogRepository extends JpaRepository<RateLimitLog, Long> {
 
     @Query("SELECT r FROM RateLimitLog r WHERE r.requestTime > :cutoff AND r.endpointType = 'recommend'")

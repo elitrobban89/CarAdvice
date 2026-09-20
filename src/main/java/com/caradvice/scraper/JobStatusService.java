@@ -16,6 +16,8 @@ import java.util.Map;
  * Körstatus för de schemalagda jobben, sparad i DB så den överlever omstart/omdeploy.
  * Renders loggar rullar bort — den här tabellen svarar på "gick nattjobbet?" utan dashboarden.
  * Läses av GET /api/admin/scrape-status.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class JobStatusService {

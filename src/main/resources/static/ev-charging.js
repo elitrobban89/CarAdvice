@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // EV Laddning — access guard & status bar
 // Loaded as external script to bypass WordPress CSP restrictions
 //

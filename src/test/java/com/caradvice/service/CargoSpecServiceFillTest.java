@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
  *
  * <p>Siffran 679 som stod här tidigare kom från {@code /api/cars}, som är UNIONEN av cargo_spec
  * och ev_spec — misstaget dolde att {@code utanVolym} redan var 0.
+ *
+ * @author Robert Andersson Kopler
  */
 class CargoSpecServiceFillTest {
 

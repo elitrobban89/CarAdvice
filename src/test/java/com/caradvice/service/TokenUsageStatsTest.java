@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tokenmätningen som gör Groq-budgeten tunbar. Utan den syntes promptstorleken bara i
  * 413-felen, alltså först när minuttaket redan sprängts.
+ *
+ * @author Robert Andersson Kopler
  */
 class TokenUsageStatsTest {
 

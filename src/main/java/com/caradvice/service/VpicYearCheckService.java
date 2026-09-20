@@ -64,6 +64,8 @@ import java.util.Set;
  * på de ~100 modeller vPIC inte känner till. En avvikelse som är falsk varje dag gör att
  * rapporten slutar läsas — samma skäl som {@code SourceResult} medvetet saknar varning på
  * "0 av N lästa". Den körs när någon frågar, och svarar då på en fråga som ställts med flit.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class VpicYearCheckService {

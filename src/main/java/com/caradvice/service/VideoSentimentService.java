@@ -39,6 +39,8 @@ import java.util.Map;
  *       alls. Ett "Dåligt" byggt på tre kommentarer är sämre än ingen ruta, och
  *       kommentarsfält är hur som helst inget representativt ägarurval.</li>
  * </ul>
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class VideoSentimentService {

@@ -18,6 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Inget test går ut på nätet. Utan API-nyckel är tjänsten passiv, vilket är exakt det
  * läge som ska verifieras: kvoten får aldrig kunna brännas av en cachemiss.
+ *
+ * @author Robert Andersson Kopler
  */
 class CarVideoServiceTest {
 

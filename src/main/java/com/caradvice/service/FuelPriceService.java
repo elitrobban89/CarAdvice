@@ -19,6 +19,8 @@ import java.util.Locale;
  * chatt/rekommendationer räknar bränslekostnad på verkligt pris i stället för
  * modellens gissning. 6 h cache; vid hämtfel returneras tom sträng (prompten
  * klarar sig utan raden) och nytt försök görs efter 5 min.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class FuelPriceService {

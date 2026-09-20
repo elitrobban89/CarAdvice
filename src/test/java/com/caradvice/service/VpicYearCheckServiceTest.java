@@ -19,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Alla årsserier nedan är <b>uppmätta mot det skarpa API:t 2026-08-18</b>, inte påhittade —
  * det är hela poängen med en vakt vars värde står och faller med att en avvikelse betyder något.
  * Testerna går aldrig ut på nätet: {@link #vakt} byter ut hämtningen mot serierna.
+ *
+ * @author Robert Andersson Kopler
  */
 class VpicYearCheckServiceTest {
 

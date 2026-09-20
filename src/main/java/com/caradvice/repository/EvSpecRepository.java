@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
+/** @author Robert Andersson Kopler */
 public interface EvSpecRepository extends JpaRepository<EvSpec, Long> {
 
     @Query("SELECT e.carName FROM EvSpec e WHERE e.carName IS NOT NULL")

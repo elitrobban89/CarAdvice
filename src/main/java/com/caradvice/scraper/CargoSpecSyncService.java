@@ -14,6 +14,7 @@ import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/** @author Robert Andersson Kopler */
 @Service
 public class CargoSpecSyncService {
 

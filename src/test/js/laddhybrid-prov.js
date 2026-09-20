@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 /*
  * Prov för laddhybrid som DRIVMEDEL i formuläret.
  *

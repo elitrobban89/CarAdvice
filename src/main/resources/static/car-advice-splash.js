@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // BilRådgivning — uppstartssplash (AI-boot-sekvens, Groq-inspirerad)
 // Extern fil (WordPress blockerar inline <script>). Lägger ett laddlager över #ca-hero:
 // en pulserande AI-kärna + Groq-korall-accenter, en typewriter-bootrad, och statusrader

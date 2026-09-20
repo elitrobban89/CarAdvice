@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Provet 2026-09-19 kunde bara bevisa vaktens EFFEKT (raden fick null) genom att läsa tillbaka
  * insikterna — utslaget självt, med modellnamnet och motiveringen, gick inte att se någonstans.
+ *
+ * @author Robert Andersson Kopler
  */
 class KategoriVaktStatsTest {
 

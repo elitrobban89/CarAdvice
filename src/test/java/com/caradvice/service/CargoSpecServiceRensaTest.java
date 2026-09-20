@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
  * <p>Provet låser den enda regel som gör en handskriven städlista ofarlig: <b>en rad med uppmätt
  * volym raderas aldrig</b>. Volymen är det enda i tabellen som inte går att skapa om ur källan,
  * och ett felskrivet namn ska synas i svaret i stället för att tyst ta med sig mätdata.
+ *
+ * @author Robert Andersson Kopler
  */
 class CargoSpecServiceRensaTest {
 

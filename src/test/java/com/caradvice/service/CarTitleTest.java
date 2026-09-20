@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Årsmodellen i AI-titlar, med och utan parentes. */
+/** @author Robert Andersson Kopler */
 class CarTitleTest {
 
     @Test

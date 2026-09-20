@@ -15,6 +15,8 @@ import static org.mockito.Mockito.mock;
  * findMatch är den funktion som avgör om nattsynken uppdaterar en befintlig rad eller skapar
  * en ny. Missar den skapas en parallell rad för samma bil — så uppstod EV6-tvillingarna.
  * Steg 3 (DB-namnet mer specifikt än det skrapade) är den riskabla riktningen och testas hårdast.
+ *
+ * @author Robert Andersson Kopler
  */
 class EvDatabaseScraperServiceMatchTest {
 

@@ -46,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * HTTP-lagertester för CarController: X-Admin-Key-skyddet, valideringsfel,
  * rate limits (sök/feedback), cachemarkering och Groq-hälsokollens statuskoder.
  * Alla tjänster mockas — inga externa anrop, ingen databas.
+ *
+ * @author Robert Andersson Kopler
  */
 @WebMvcTest(controllers = CarController.class, properties = "admin.key=test-admin")
 class CarControllerTest {

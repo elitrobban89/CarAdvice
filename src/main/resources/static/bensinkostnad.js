@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // ── Bränslekostnadsberäkningen — frontend för WordPress-sidan
 //    https://elitrobban.se/branslekostnad-berakning/
 //

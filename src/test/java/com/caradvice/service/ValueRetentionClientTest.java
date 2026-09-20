@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * BÅDA källorna skrivs ut, och att ett tomt eller trasigt svar ger tom sträng i stället för ett
  * halvt block — en prompt med "VÄRDETAPP:" och inga rader hade bjudit in modellen att fylla i
  * själv, vilket är precis det vi vill undvika.
+ *
+ * @author Robert Andersson Kopler
  */
 class ValueRetentionClientTest {
 

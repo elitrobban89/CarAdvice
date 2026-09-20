@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Officiella privatleasingpriser. Testdatan är formen som källorna faktiskt svarar med,
  * mätt 2026-08-07: VW Financial Services JSON för koncernmärkena, Volvos sidmarkup för Volvo.
+ *
+ * @author Robert Andersson Kopler
  */
 class LeasingPriceServiceTest {
 

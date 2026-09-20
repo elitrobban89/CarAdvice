@@ -31,6 +31,8 @@ import java.util.regex.Pattern;
  * hela koncernen genom {@code Channel}-headern — utan den svarar det 500. Märken utanför
  * VW-gruppen (Toyota, Kia, Volvo, Tesla …) har egna sajter med egna strukturer och täcks inte;
  * där får Blocket-annonserna fortsätta gälla.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class LeasingPriceService {

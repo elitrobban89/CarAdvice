@@ -17,6 +17,8 @@ import static org.mockito.Mockito.when;
  * Tester mot riktig H2 in-memory-databas — verifierar att seeden från
  * ice-consumption.csv (Bilresa-datat) laddas och att titelmatchningen
  * hittar rätt variant. Seeden görs en gång för hela klassen (957 rader).
+ *
+ * @author Robert Andersson Kopler
  */
 class IceConsumptionServiceTest {
 

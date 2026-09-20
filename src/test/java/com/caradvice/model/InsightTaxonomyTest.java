@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code smaabil} trots att promptregeln uttryckligen förbjudit mellanklassbilar sedan
  * 2026-08-10. Genomgången samma morgon visade att felet fanns åt BÅDA håll i tabellen:
  * nio för stora bilar som {@code smaabil} och tio låga bilar som {@code suv}.
+ *
+ * @author Robert Andersson Kopler
  */
 class InsightTaxonomyTest {
 

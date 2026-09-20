@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/** @author Robert Andersson Kopler */
 @Service
 public class ExpertInsightService {
 

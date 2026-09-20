@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/** @author Robert Andersson Kopler */
 @RestController
 @RequestMapping("/api/user")
 public class UserController {

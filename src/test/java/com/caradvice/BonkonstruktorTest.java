@@ -26,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * CI. Den har kontrollen ar regeln sjalv, last i reflektion: <b>en bona maste ha antingen exakt
  * en konstruktor eller exakt en markt med {@code @Autowired}.</b> Den kostar millisekunder och
  * galler hela repot, inte bara klassen som tappade fotfastet.
+ *
+ * @author Robert Andersson Kopler
  */
 class BonkonstruktorTest {
 

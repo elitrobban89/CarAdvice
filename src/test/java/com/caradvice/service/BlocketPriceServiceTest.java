@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Prisspannet räknas på riktiga träfflistor. Siffrorna nedan är mätta mot Blockets API
  * 2026-08-07 — de kommer från de faktiska annonserna, inte påhittade exempel.
+ *
+ * @author Robert Andersson Kopler
  */
 class BlocketPriceServiceTest {
 

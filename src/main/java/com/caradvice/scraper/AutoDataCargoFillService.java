@@ -28,6 +28,8 @@ import java.util.Set;
  * {@link CargoSpecService#fillFromScrape} skriver aldrig över en rad som redan bär volym. Det
  * gör auto-data till komplettering, inte konkurrent, och de kurerade raderna i DataLoader står
  * kvar orörda.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class AutoDataCargoFillService {

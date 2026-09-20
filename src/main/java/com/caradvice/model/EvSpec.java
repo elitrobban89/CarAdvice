@@ -2,6 +2,7 @@ package com.caradvice.model;
 
 import jakarta.persistence.*;
 
+/** @author Robert Andersson Kopler */
 @Entity
 @Table(name = "ev_spec")
 public class EvSpec {

@@ -19,6 +19,8 @@ import static org.mockito.Mockito.when;
  * {@code MG4} 363 l ar forsta generationen (4 287 mm), medan {@code MG4 Urban} 577 l ar
  * MY26-bilen pa 4 395 mm — en annan bil. Utan arsmodell valde matchningen den forsta raden i
  * tabellordningen, och "MG4 (2026)" fick 363 l.
+ *
+ * @author Robert Andersson Kopler
  */
 class CargoSpecServiceYearTest {
 

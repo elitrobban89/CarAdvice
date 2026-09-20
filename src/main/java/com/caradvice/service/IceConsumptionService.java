@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
  * ~950 motorvarianter) och används dels av GET /api/ice-consumption (Bilresas kalkylator),
  * dels för att ersätta AI:ns gissade consumptionLiterPerMil med verifierade värden.
  * Ren JdbcTemplate utan JPA-entitet — samma mönster som new_car_price (validate-fällan).
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class IceConsumptionService {

@@ -13,6 +13,8 @@ import static org.mockito.Mockito.when;
 /**
  * Tester för formatForTitle — Euro NCAP-radens titelmatchning. Modellnamn måste
  * väljas så att contains-matchningen inte träffar fel bil (därför "MG4", inte "4").
+ *
+ * @author Robert Andersson Kopler
  */
 class SafetyRatingServiceMatchTest {
 

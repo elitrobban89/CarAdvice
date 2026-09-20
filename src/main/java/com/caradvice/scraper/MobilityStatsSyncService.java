@@ -43,6 +43,8 @@ import java.util.stream.Collectors;
  *
  * Insikterna skrivs under ett eget källnamn och ERSÄTTS varje körning — de årsvisa
  * kuraterade raderna under "Mobility Sweden" rörs aldrig.
+ *
+ * @author Robert Andersson Kopler
  */
 @Service
 public class MobilityStatsSyncService {

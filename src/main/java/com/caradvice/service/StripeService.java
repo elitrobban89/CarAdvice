@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
 
+/** @author Robert Andersson Kopler */
 @Service
 public class StripeService {
 

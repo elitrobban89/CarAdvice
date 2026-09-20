@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tester för promptradens format — själva HTTP-hämtningen mockas inte (ren stränglogik). */
+/** @author Robert Andersson Kopler */
 class ElectricityPriceServiceTest {
 
     @Test

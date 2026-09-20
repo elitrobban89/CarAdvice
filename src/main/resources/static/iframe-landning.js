@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // ── Landa i appen på sidorna där den ligger i ett <iframe> ──────────────────────────────
 //
 //   https://elitrobban.se/minipristaget/   (tågappen)

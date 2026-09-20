@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
  * <p>Ett bart årtal måste vara 2010 eller senare. Annars äter regeln modellnamn: Peugeot 2008
  * och BMW 2002 är bilar, inte årsmodeller. Peugeot 3008 och 5008 skyddas redan av att årtal
  * börjar på 19 eller 20.
+ *
+ * @author Robert Andersson Kopler
  */
 public final class CarTitle {
 

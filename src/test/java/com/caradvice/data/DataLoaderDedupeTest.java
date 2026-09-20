@@ -19,6 +19,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+/** @author Robert Andersson Kopler */
 class DataLoaderDedupeTest {
 
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);

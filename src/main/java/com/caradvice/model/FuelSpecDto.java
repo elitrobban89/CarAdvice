@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *             hållen. Värdet fanns hela tiden i raden förbrukningssiffran hämtas ur, det
  *             skickades bara inte med. Är fältet {@code null} faller frontenden tillbaka på
  *             den gamla tröskeln.
+ *
+ * @author Robert Andersson Kopler
  */
 public record FuelSpecDto(
         @JsonProperty("consumptionLiterPerMil") Double  consumptionLiterPerMil,

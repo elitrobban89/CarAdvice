@@ -1,3 +1,4 @@
+/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 (function () {
   var CA_CHAT_API = window.CA_API_URL || (typeof CA_API_BASE !== 'undefined' ? CA_API_BASE : "https://caradvice.onrender.com");
   var caChatHistory = (function(){ try{ return JSON.parse(localStorage.getItem('ca-chat')||'[]'); }catch(e){ return []; } })();

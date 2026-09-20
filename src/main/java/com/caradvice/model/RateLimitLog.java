@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Table(name = "rate_limit_log", indexes = {
         @Index(name = "idx_rl_time", columnList = "request_time")
 })
+/** @author Robert Andersson Kopler */
 public class RateLimitLog {
 
     @Id

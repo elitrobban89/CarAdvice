@@ -30,6 +30,8 @@ import static org.mockito.Mockito.when;
  * Tester för GroqServices rena logik: promptbygget, JSON-parsningen av AI-svaret,
  * cachenyckeln och felmeddelandena. Inga HTTP-anrop görs — allt som testas är
  * strängar in, strängar/objekt ut. Kringservicarna mockas med Mockito.
+ *
+ * @author Robert Andersson Kopler
  */
 @ExtendWith(MockitoExtension.class)
 class GroqServiceTest {

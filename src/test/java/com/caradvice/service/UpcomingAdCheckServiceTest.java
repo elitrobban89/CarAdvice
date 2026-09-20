@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * hela värdet i kollen ligger i att den skiljer "Hyundai IONIQ / 3 Standard Range Select" från
  * "Hyundai IONIQ / Standard Range Select", och den skillnaden går inte att uppfinna vid
  * skrivbordet. Testerna går aldrig ut på nätet: uppslaget skickas in som en söm.
+ *
+ * @author Robert Andersson Kopler
  */
 class UpcomingAdCheckServiceTest {
 

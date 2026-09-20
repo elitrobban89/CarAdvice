@@ -24,6 +24,8 @@ import java.util.Set;
  * ({@link CarPreferences#canonicalCategory()} gör samma sak åt sökvägen), medan {@code crossover}
  * och {@code sportbil} medvetet INTE mappas vidare — att tysta döpa om en sportbil till småbil
  * vore att ljuga i datan för att komma runt en saknad knapp.
+ *
+ * @author Robert Andersson Kopler
  */
 public final class InsightTaxonomy {
 

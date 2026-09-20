@@ -20,6 +20,8 @@ import static org.mockito.Mockito.when;
 /**
  * Generationsifyllningens arbetslista. Taket räknar FÖRSÖK, inte träffar, så vad listan
  * innehåller avgör hur långt fronten hinner — se {@link IceGenerationService#noteraMiss}.
+ *
+ * @author Robert Andersson Kopler
  */
 class AutoDataCargoFillServiceTest {
 
