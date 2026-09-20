@@ -834,6 +834,28 @@ public class DataLoader implements CommandLineRunner {
         // det som storleksordning, inte som dagspris.
         if (!existing.contains("Mercedes C 300e"))
             extras.add(new EvSpec("Mercedes C 300e",         11.0, 55.0, 25.4, 105, 527_900, "PHEV"));
+        // ── VW:s laddhybrider bytte generation 2024, och siffrorna nastan FORDUBBLADES ──
+        //
+        // Raderna "Volkswagen Passat GTE" (13 kWh / 67 km) och "Volkswagen Tiguan PHEV"
+        // (13 / 63) ar B8- respektive forra Tiguan-generationen. Skarpt i drift 2026-09-20 fick
+        // ett 2026-kort for "Passat Sportscombi Edition eHybrid" chipsen 13 kWh (67 km) - forra
+        // bilens halva rackvidd pa en ny bil.
+        //
+        // De GAMLA raderna star kvar och rors inte: begagnatmarknaden ar full av dem, och de ar
+        // ratt svar for en 2019-annons. Arsmodellen skiljer generationerna at via
+        // EvSpecService.GENERATION (PASSAT_GEN2 / TIGUAN_GEN2, fromYear 2024) - se den for varfor
+        // bara den nya raden behover en tagg.
+        //
+        // Kallor: Volkswagen Sveriges egna pressmeddelanden. Passat eHybrid (2024-03): 19,7 kWh
+        // netto, "upp till 131 km" WLTP med Business 131 / Elegance 130 / R-Line 123, 11 kW AC
+        // (tidigare 3,6) och 50 kW DC, fran 529 900 kr. Tiguan eHybrid (2024-03): samma paket,
+        // 127 km for 204 hk och 118 km for 272 hk, fran 514 900 kr.
+        // RACKVIDDEN AR DEN LAGSTA MARKET LISTAR, samma regel som for Kia Ceed och Terramar:
+        // kortet ska inte lova mer an det svagaste utforandet haller.
+        if (!existing.contains("Volkswagen Passat eHybrid"))
+            extras.add(new EvSpec("Volkswagen Passat eHybrid", 11.0, 50.0, 25.7, 123, 529_900, "PHEV"));
+        if (!existing.contains("Volkswagen Tiguan eHybrid"))
+            extras.add(new EvSpec("Volkswagen Tiguan eHybrid", 11.0, 50.0, 25.7, 118, 514_900, "PHEV"));
         if (!existing.contains("Kia Niro PHEV"))
             extras.add(new EvSpec("Kia Niro PHEV",            3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
         // Kia Ceed SW Plug-in Hybrid — TRE namnformer, av samma skäl som Volvos PHEV/T8-par

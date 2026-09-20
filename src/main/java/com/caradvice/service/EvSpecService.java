@@ -1160,6 +1160,30 @@ public class EvSpecService {
     private static final Generation ECMP_GEN1 = new Generation("e-CMP 50 kWh", 2020, "e-cmp (delad plattform)");
     private static final Generation ECMP_GEN2 = new Generation("e-CMP 54 kWh", 2024, "e-cmp (delad plattform)");
 
+    /**
+     * VW:s laddhybrider bytte generation 2024, och siffrorna FÖRDUBBLADES nästan.
+     *
+     * <p><b>Felet det lagar, sett i drift 2026-09-20:</b> ett leasingsök gav
+     * <i>Volkswagen Passat Sportscombi Edition eHybrid (2026)</i> med chipsen <b>13 kWh
+     * (67 km)</b>. Det är B8-generationens GTE. Dagens B9 har 19,7 kWh netto (25,7 brutto) och
+     * <b>123–131 km</b> WLTP, laddar 11 kW AC mot tidigare 3,6, och tar dessutom 50 kW DC.
+     * Kortet visade alltså förra bilens halva räckvidd på en ny bil.
+     *
+     * <p><b>Varför taggen och inte en overskrivning:</b> begagnatmarknaden ar full av B8-GTE:n,
+     * och den ar fortfarande ratt svar for en 2019-annons. Bada generationerna behovs, och
+     * arsmodellen ar det enda som skiljer dem at — precis som for MG4, Leaf och Enyaq.
+     *
+     * <p><b>Bara den NYA raden taggas.</b> En otaggad rad raknas som {@code fromYear = 0}, alltsa
+     * aldst, och det ar exakt vad GTE- och Tiguan PHEV-raderna ar. Det ar MG4-fallet, inte
+     * Leaf-fallet (dar den otaggade raden tvartom var den nyaste och alla tre maste taggas).
+     *
+     * <p>Raderna heter olika ({@code Passat GTE} mot {@code Passat eHybrid}) men kokas ner till
+     * samma namn av {@link #phevNormalisera} — de ar alltsa utbytbara for namnmatchningen, och
+     * det ar generationen som avgor vilken som vinner. Det ar hela poangen med paret.
+     */
+    private static final Generation PASSAT_GEN2 = new Generation("Passat eHybrid (B9)", 2024, "volkswagen passat");
+    private static final Generation TIGUAN_GEN2 = new Generation("Tiguan eHybrid (2024)", 2024, "volkswagen tiguan");
+
     private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020, "volkswagen id.3");
     private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026, "volkswagen id.3");
     private static final Generation I3_GEN1  = new Generation("i3 hatchback", 2013, "bmw i3");
@@ -1181,6 +1205,10 @@ public class EvSpecService {
             Map.entry("mg zs ev",                     ZS_GEN2),
             Map.entry("volkswagen e-golf 24.2 kwh",   EGOLF_GEN1),
             Map.entry("volkswagen e-golf 35.8 kwh",   EGOLF_GEN2),
+            // Bara den nya generationen taggas - "Passat GTE" och "Tiguan PHEV" ar otaggade
+            // och raknas darmed som aldst, vilket de ar. Se PASSAT_GEN2.
+            Map.entry("volkswagen passat ehybrid",    PASSAT_GEN2),
+            Map.entry("volkswagen tiguan ehybrid",    TIGUAN_GEN2),
             Map.entry("skoda enyaq iv 60",            ENYAQ_GEN1),
             Map.entry("skoda enyaq iv 80",            ENYAQ_GEN1),
             Map.entry("skoda enyaq iv 85",            ENYAQ_GEN1),

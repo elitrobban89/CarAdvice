@@ -637,6 +637,33 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void vwLaddhybridernaValjerGenerationPaArsmodellen() {
+        /*
+         * Skarpt i drift 2026-09-20: ett 2026-kort for "Passat Sportscombi Edition eHybrid" fick
+         * chipsen 13 kWh (67 km) - B8-generationens GTE. Dagens B9 har 25,7 kWh och 123 km.
+         * Kortet visade alltsa forra bilens halva rackvidd pa en ny bil.
+         *
+         * Raderna heter olika men kokas ner till samma namn av phevNormalisera, sa bada ar
+         * kandidater for varje Passat-laddhybridstitel - det ar ARSMODELLEN som valjer.
+         */
+        EvSpec gte     = new EvSpec("Volkswagen Passat GTE",     3.6,  0.0, 13.0,  67, 440_000, "PHEV");
+        EvSpec eHybrid = new EvSpec("Volkswagen Passat eHybrid", 11.0, 50.0, 25.7, 123, 529_900, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(gte, eHybrid));
+
+        // Nya bilen far nya siffror...
+        assertThat(service().formatForTitle("Volkswagen Passat Sportscombi Edition eHybrid (2026)", 15000)
+                .wltpKm()).isEqualTo(123);
+        assertThat(service().formatForTitle("Volkswagen Passat eHybrid (2024)", 15000).batteryKwh())
+                .isEqualTo(25.7);
+        // ...och den begagnade B8:an behaller sina. Den raden far INTE skrivas over: marknaden
+        // ar full av dem, och for en 2019-annons ar 13 kWh det ratta svaret.
+        assertThat(service().formatForTitle("Volkswagen Passat GTE (2019)", 15000).wltpKm())
+                .isEqualTo(67);
+        assertThat(service().formatForTitle("Volkswagen Passat GTE (2023)", 15000).batteryKwh())
+                .isEqualTo(13.0);
+    }
+
+    @Test
     void bensinsyskonetNarInteLaddhybridensRad() {
         // Regressionen som flytten av e--strippningen lagade: "Cupra Formentor e-Hybrid" blev
         // "cupra formentor hybrid" när prefixet ströks FÖRST, och då fanns inget drivlineord
