@@ -568,9 +568,26 @@ public class EvSpecService {
      * påverkas inte.
      */
     private static String matchningsNamn(String carName) {
-        return phevNormalisera(normalize(carName
-                .replaceAll("(?i)\\bElectric\\b", "")
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")));
+        return utanEPrefix(phevNormalisera(normalize(
+                carName.replaceAll("(?i)\\bElectric\\b", ""))));
+    }
+
+    /**
+     * {@code e-}-prefixet bort — men EFTER {@link #phevNormalisera}, och ordningen är inte fri.
+     *
+     * <p><b>Körs strippningen först försvinner badgen.</b> {@code "Cupra Formentor e-Hybrid"} blev
+     * {@code "cupra formentor hybrid"}, alltså samma ord som en självladdande hybrid bär, och
+     * {@link #DRIVLINEORD} kunde därför inte skydda raden: en bensin-Formentor matchade
+     * laddhybridens batteri. Med nedkokningen först blir namnet {@code "cupra formentor phev"},
+     * och {@code phev} ÄR ett drivlineord — titeln måste bära badgen för att nå raden.
+     *
+     * <p><b>Bonus av samma flytt:</b> strippningen ser nu en normaliserad sträng, så
+     * {@code e‑tron} med U+2011 (icke-brytande bindestreck) strippas likadant som med vanligt
+     * bindestreck. Förut kördes den på råtexten och missade varje sådan titel — samma familj av
+     * fälla som {@link #normalize} redan bär en varning om.
+     */
+    private static String utanEPrefix(String normaliserad) {
+        return normaliserad.replaceAll("\\be-(?=[a-z0-9])", "");
     }
 
     /**
@@ -614,6 +631,8 @@ public class EvSpecService {
                 .replaceAll("\\bplug[- ]?in hybrid\\b", "phev")
                 .replaceAll("\\bplug[- ]?in\\b", "phev")
                 .replaceAll("\\bladdhybrid\\w*", "phev")
+                .replaceAll("\\be-?hybrid\\b", "phev")
+                .replaceAll("\\btfsi\\s+e\\b", "phev")
                 .replaceAll("\\bgte\\b", "phev")
                 .replaceAll("\\brecharge\\b", "phev");
     }
@@ -633,11 +652,11 @@ public class EvSpecService {
      * skräpordet "(tu" i titeln, varpå raden inte kunde matcha ens sitt EGET namn.
      */
     private static String rensadTitel(String title) {
-        return phevNormalisera(normalize(title
+        // Samma ordning som matchningsNamn, och den är inte fri — se utanEPrefix.
+        return utanEPrefix(phevNormalisera(normalize(title
                 .replaceAll("\\s*(?<!\\w)\\(?(19|20)\\d{2}\\+?\\)?\\s*$", "")   // strip year
                 .replaceAll("(?i)\\bElectric\\b", "")         // "MG4 Electric" → "MG4"
-                .replaceAll("(?i)\\be-(?=[A-Za-z])", "")      // "e-Niro" → "Niro", "e-C3" → "C3"
-                .trim()));
+                .trim())));                                   // "e-Niro" → "Niro" sker sist
     }
 
     /**

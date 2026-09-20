@@ -616,6 +616,44 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void katalogernasBadgenamnHittarSinaRader() {
+        // Namnen är ORDAGRANNA ur märkenas privatleasingkataloger 2026-09-20 - det är dem AI:n
+        // skriver i titeln sedan leasingPhevLine börjat namnge leasingbara bilar. Ingen av dem
+        // hade nått sin rad förut: "iV", "eHybrid" och "TFSI e" är badgar, inte drivlineord.
+        EvSpec superb  = new EvSpec("Skoda Superb iV",       11.0, 50.0, 25.7, 100, 569_300, "PHEV");
+        EvSpec leon    = new EvSpec("Cupra Leon e-Hybrid",   11.0, 50.0, 25.7, 124, 458_900, "PHEV");
+        EvSpec passat  = new EvSpec("Volkswagen Passat GTE",  3.6,  0.0, 13.0,  67, 440_000, "PHEV");
+        EvSpec a3      = new EvSpec("Audi A3 PHEV",           3.7,  0.0, 13.0,  48, 420_000, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(superb, leon, passat, a3));
+
+        assertThat(service().formatForTitle(
+                "Skoda Superb Combi Selection Explore Edition iV (2026)", 15000).wltpKm()).isEqualTo(100);
+        assertThat(service().formatForTitle(
+                "Cupra Leon Sportstourer Swedish Edition e-HYBRID (2026)", 15000).wltpKm()).isEqualTo(124);
+        assertThat(service().formatForTitle(
+                "Volkswagen Passat Sportscombi Edition eHybrid (2026)", 15000).wltpKm()).isEqualTo(67);
+        assertThat(service().formatForTitle(
+                "Audi A3 40 TFSI e Proline (2026)", 15000).wltpKm()).isEqualTo(48);
+    }
+
+    @Test
+    void bensinsyskonetNarInteLaddhybridensRad() {
+        // Regressionen som flytten av e--strippningen lagade: "Cupra Formentor e-Hybrid" blev
+        // "cupra formentor hybrid" när prefixet ströks FÖRST, och då fanns inget drivlineord
+        // kvar som kunde kräva badgen i titeln - en bensin-Formentor fick laddhybridens
+        // batteri. Med nedkokningen först heter raden "cupra formentor phev".
+        when(repo.findAll()).thenReturn(List.of(
+                new EvSpec("Cupra Formentor e-Hybrid", 3.6, 0.0, 13.0, 63, 400_000, "PHEV"),
+                new EvSpec("Cupra Leon e-Hybrid",     11.0, 50.0, 25.7, 124, 458_900, "PHEV")));
+
+        assertThat(service().formatForTitle("Cupra Formentor (2023)", 15000)).isNull();
+        assertThat(service().formatForTitle("Cupra Leon eTSI 150hk DSG (2026)", 15000)).isNull();
+        // ...medan laddhybriderna själva fortfarande hittar hem
+        assertThat(service().formatForTitle("Cupra Formentor e-Hybrid (2023)", 15000).wltpKm())
+                .isEqualTo(63);
+    }
+
+    @Test
     void sjalvladdandeHybridFarInteLaddhybridensSiffror() {
         // Nedkokningen tar BARA laddhybridens ord. Skulle "hybrid" ensamt räknas som markör
         // hade RAV4 Hybrid (självladdande, inget eluttag) fått laddhybridens 18,1 kWh och

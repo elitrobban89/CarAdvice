@@ -794,6 +794,46 @@ public class DataLoader implements CommandLineRunner {
             extras.add(new EvSpec("Skoda Octavia iV",         3.6, 0.0, 13.0,  67, 360_000, "PHEV"));
         if (!existing.contains("Cupra Formentor e-Hybrid"))
             extras.add(new EvSpec("Cupra Formentor e-Hybrid", 3.6, 0.0, 13.0,  63, 400_000, "PHEV"));
+        // ── VW-koncernens NYA laddhybridgeneration + två premiumkombier, tillagda 2026-09-20 ──
+        //
+        // Alla sex saknade rad, och alla sex ligger i märkenas privatleasingkatalog eller i
+        // GroqService.PHEV_PRICE_FLOOR_KR — alltså bilar tjänsten aktivt föreslår. Utan rad
+        // faller kortet tillbaka på AI:ns fritext, och den ljuger mätbart: Cupra Leon visade
+        // "1.4 150hk automat" i drift, vilket är MILDHYBRIDENS siffra på en laddhybrid.
+        //
+        // BATTERIET ÄR BRUTTO, som resten av tabellen (GLC 300e 31,2 och X5 45e 24,5 är också
+        // brutto). De fyra VW-koncernbilarna delar exakt samma paket: Škoda skriver ut det som
+        // 25,7 kWh, medan Cupras svenska material anger NETTOsiffran 19,7 för samma pack.
+        // Skillnaden är alltså ingen felskrivning — men en kolumn som blandar brutto och netto
+        // går inte att jämföra i, så hela kolumnen är brutto.
+        //
+        // DC-LADDNING ÄR NYTT för laddhybrider: tabellens 37 äldre PHEV-rader står alla på 0,
+        // för deras generation kunde bara AC. Den här generationen tar 50 kW DC (Mercedes 55),
+        // och det är en riktig skillnad för köparen — inte ett skrivfel att städa bort.
+        //
+        // Källor: Škoda Sverige (skoda.se, Superb Combi iV och Kodiaq iV: 25,7 kWh, 11 kW AC,
+        // 50 kW DC, 204 hk), Cupra Sverige (cupraofficial.se, Leon Sportstourer e-Hybrid:
+        // 124 km WLTP, 50 kW DC), Audi (25,9 kWh, 110 km WLTP kombinerat, 11 kW AC) och
+        // Mercedes-Benz Sverige (25,4 kWh, 105 km, 11 kW AC, 55 kW DC).
+        if (!existing.contains("Skoda Superb iV"))
+            extras.add(new EvSpec("Skoda Superb iV",         11.0, 50.0, 25.7, 100, 569_300, "PHEV"));
+        if (!existing.contains("Skoda Kodiaq iV"))
+            extras.add(new EvSpec("Skoda Kodiaq iV",         11.0, 50.0, 25.7, 100, 506_400, "PHEV"));
+        // Cupra Leon: "Seat Leon PHEV" fanns redan, men märket i titeln är Cupra och
+        // matchningen börjar på märkesordet — Seat-raden kunde alltså aldrig nå ett Cupra-kort.
+        if (!existing.contains("Cupra Leon e-Hybrid"))
+            extras.add(new EvSpec("Cupra Leon e-Hybrid",     11.0, 50.0, 25.7, 124, 458_900, "PHEV"));
+        // Terramar uppges till 110-121 km beroende på effektsteg (204/272 hk). Det LÄGRE talet
+        // står här: kortet ska inte lova mer räckvidd än det svagaste utförandet håller.
+        if (!existing.contains("Cupra Terramar e-Hybrid"))
+            extras.add(new EvSpec("Cupra Terramar e-Hybrid", 11.0, 50.0, 25.7, 110, 467_900, "PHEV"));
+        // Audi A5 e-hybrid laddar bara AC - ingen DC, till skillnad från VW-koncernens övriga.
+        if (!existing.contains("Audi A5 e-hybrid"))
+            extras.add(new EvSpec("Audi A5 e-hybrid",        11.0,  0.0, 25.9, 110, 599_000, "PHEV"));
+        // Priset är Mercedes svenska säljstartspris för kombin och det äldsta i listan - använd
+        // det som storleksordning, inte som dagspris.
+        if (!existing.contains("Mercedes C 300e"))
+            extras.add(new EvSpec("Mercedes C 300e",         11.0, 55.0, 25.4, 105, 527_900, "PHEV"));
         if (!existing.contains("Kia Niro PHEV"))
             extras.add(new EvSpec("Kia Niro PHEV",            3.3, 0.0,  8.9,  58, 290_000, "PHEV"));
         // Kia Ceed SW Plug-in Hybrid — TRE namnformer, av samma skäl som Volvos PHEV/T8-par
