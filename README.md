@@ -1417,3 +1417,25 @@ kriterier är inte problemet", just för att felet annars läses som att söknin
 | Nattsynken skrev andra generationens MG4 över den första | ev-database listar sex MG4-poster, alla andra generationen (`Urban Standard Range`, `Premium Long Range`, …). `findMatch` steg 2 kräver bara att DB-namnets ord *finns i* det skrapade namnet, så "MG4 Standard Range" matchade "MG MG4 Urban Standard Range" och fick 41.9 kWh / 325 km i stället för sina 51 kWh / 350 km. **Tvetydigheten låg mellan anropen, inte inuti dem**: varje skrapat namn pekade var för sig entydigt ut en rad, men tre "Long Range"-sidor pekade på *samma* rad och den sist processade vann — vilken bils siffror raden fick berodde på cheatsheetens ordning. Åtgärdat med `claimRow`: första bilen får raden, följande blockeras och loggas som `SCRAPER ALERT`, och antalet kollisioner rapporteras i slutsummeringen. Steg 2 fick samtidigt samma oavgjort-spärr som steg 3 (latent hål: två lika långa DB-namn avgjordes av iterationsordningen). `Standard Range` och `Extended Range` hade bara en anspråkstagare var, så ingen spärr kunde se att det var fel generation — de fick i stället egna andragenerationsrader, se nästa rad |
 | Andra generationens MG4 som egna rader | `seedEvSpecExtras` skapar fem gen 2-rader (`MG4 Urban Standard Range` 41,9/325, `Urban Comfort Long Range` 52,8/416, `Urban Premium Long Range` 52,8/405, `Premium Long Range` 61,7/452, `Premium Extended Range` 74,4/545 — avlästa på ev-database.org 2026-08-10, pris lämnas till synken). Namnen är längre än gen 1-namnen, så de vinner i `findMatch` steg 2 och synken uppdaterar rätt bil. `MG4_GEN1` återställer samtidigt de tre gen 1-raderna till 51/350, 64/450 och 77/520 vid varje uppstart — ev-database har inte kvar första generationen, så DataLoader är enda källan och skriver därför över befintligt värde (som `EV6_PRISER`, till skillnad från EX30-korrigeringarna). **Följdändring:** `groupByBattery` slår inte längre ihop rader över en generationsgräns. Gen 1:s 51 kWh/350 km och gen 2:s 52,8 kWh/416 km ligger 3,5 % isär, alltså inom 8 %-toleransen, och blev raden "52.8 kWh (350–416 km)" — andra generationens batteri med första generationens räckvidd. Ingen siffra kan skilja fallen åt (EV6 GT och Long Range delar batteri men går 424 mot 528 km och *ska* slås ihop), så generationen är uppgiven i `EvSpecService.GENERATION`. Den ligger i servicelagret och inte som en kolumn på `ev_spec` eftersom `ddl-auto=validate`: ett nytt entitetsfält hade fällt uppstarten innan någon migrering hann köra. **Kvarstår:** MG4-kortet visar nu sju rader — alla sanna, men en modell med två generationer i samma kort är fortfarande mycket att läsa |
 | Årsmodellen i annonsen väljer MG4-generation | Med båda generationerna i tabellen listade kortet alla sju batterierna oavsett vilken bil annonsen gällde — sant men obrukbart, och för en begagnatannons vilseledande (siffror för en bil som inte fanns när annonsbilen tillverkades). `verifiedEngineOptions` behåller nu bara den generation som såldes annonsens årsmodell: "MG4 (2023)" ger 51/64/77 kWh, "MG4 (2025)" ger 41,9/52,8/61,7/74,4. Året läses med `modelYear` ur samma mönster som strippningen redan använde. Filtret slår bara till när det finns något att välja mellan — saknas årsmodell, eller bär ingen av modellens rader en generation (alla modeller utom MG4 i dag), lämnas listan orörd, och väljer året bort precis allt behålls den också (hellre för mycket information än ett tomt fält) |
+## Upphovsrätt och användning
+
+Copyright © 2026 Robert Andersson Kopler. Alla rättigheter förbehållna.
+
+Koden är märkt med upphovsmannens namn i flera lager: som `@author` i varje Java-klass,
+överst i varje serverad JS- och HTML-fil, i `NOTICE`, i konstanten `Authorship.AUTHOR`,
+i HTTP-huvudet `X-Author` på varje svar och i fältet `author` i `GET /api/version`.
+`Authorship` kontrollerar vid uppstart att konstanten inte ändrats och loggar ett fel om
+den har det. Kontrollen stänger **aldrig** av tjänsten — en vakt som fäller en tjänst i
+drift för att en textsträng ändrats gör mer skada än den förhindrar.
+
+**Du får** läsa koden, köra den lokalt, lära av den och låta dig inspireras av den i egna
+studie- och portföljprojekt.
+
+**Du får inte** sprida den vidare som din egen, publicera kopior av den, eller använda den —
+helt eller delvis — i kommersiellt syfte eller i en tjänst som konkurrerar med denna.
+
+Vill du använda något härifrån utanför de ramarna går det ofta bra — fråga först.
+
+Att ta bort märkningen ur källkoden är tekniskt möjligt för den som har koden. Det som
+skyddar upphovet är upphovsrätten och git-historiken; lagren ovan finns för att göra ett
+intrång arbetsamt och synligt, inte omöjligt.
