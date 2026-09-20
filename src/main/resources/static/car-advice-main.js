@@ -1099,7 +1099,12 @@ function caRenderEvBudgetHint() {
       'color:rgba(255,255,255,.68)');
     var ticks = slider.closest('.ca-field');
     ticks = ticks ? ticks.querySelector('.ca-slider-ticks') : null;
-    if (ticks && ticks.parentNode) ticks.parentNode.insertBefore(hint, ticks.nextSibling);
+    // Ankaret är takraden när den finns, annars skalstrecken. Båda elementen sätter sig
+    // "direkt efter skalstrecken", så utan den här regeln avgjorde RENDERINGSORDNINGEN vem
+    // som hamnade närmast skalan — och exempelrutan la sig mellan skalan och "Högre budget",
+    // med ett dött glapp på mobilen som följd.
+    var ankare = document.getElementById('ca-budget-takrad') || ticks;
+    if (ankare && ankare.parentNode) ankare.parentNode.insertBefore(hint, ankare.nextSibling);
     else slider.parentNode.parentNode.appendChild(hint);
   }
   var val = parseInt(slider.value) || 0;
@@ -1135,19 +1140,22 @@ function caRenderEvBudgetHint() {
  * lägga över en halv miljon, så nio av tio fick kämpa i en femtedel av reglaget för att
  * resten skulle rymmas.
  *
- * Tre grepp, alla med kronor kvar som reglagets värde (allt annat i appen läser
+ * Två grepp, båda med kronor kvar som reglagets värde (allt annat i appen läser
  * #ca-budget-slider.value direkt, och en omräknad skala hade brutit varenda läsare):
  *   1. Taket är 600 000 kr som standard. Då får 100–300k 36 % av skenan i stället för 21 %.
  *      Knappen "Högre budget" fäller ut skalan till en miljon för den som vill dit, och en
  *      sparad sökning eller delningslänk över taket fäller ut den automatiskt.
  *   2. Steget är 10 000 kr under 300 000 (25 000 därutöver, 50 000 över 600 000) — finare
  *      där valet står, grövre där det inte gör det.
- *   3. Snabbknappar för 100k–300k: ett tryck i stället för ett dragande.
+ *
+ * Snabbknapparna för 100k–300k togs bort 2026-09-20: reglaget ensamt är hela valet, och
+ * "Högre budget →" är kvar eftersom den är enda vägen förbi 600 000 kr.
  */
 var CA_BUDGET_TAK_NORMAL = 600000;
 var CA_BUDGET_TAK_HOGT   = 1000000;
-var CA_BUDGET_SNABBVAL   = [100000, 150000, 200000, 250000, 300000];
 var caBudgetTak = CA_BUDGET_TAK_NORMAL;
+/** Reglagets värde FÖRE den pågående ändringen — bär riktningen åt snäppningen. */
+var caForraBudget = 0;
 
 /** Finare steg där valet står, grövre där det inte gör det. */
 function caBudgetSteg(v) {
@@ -1156,9 +1164,19 @@ function caBudgetSteg(v) {
   return 50000;
 }
 
-function caSnapBudget(v) {
+/**
+ * Snäpper ett värde till zonens stege — uppåt när reglaget dras uppåt, nedåt när det dras
+ * nedåt, närmast när riktningen är okänd.
+ *
+ * <p>Riktningen är inte pynt: vid zongränsen låg närmaste tal BAKÅT. Ett steg upp från
+ * 300 000 gav 310 000, som hör till 25 000-zonen och rundades tillbaka till 300 000 —
+ * reglaget satt fast på gränsen och gick inte att köra förbi med tangenterna.
+ */
+function caSnapBudget(v, uppat) {
   var steg = caBudgetSteg(v);
-  return Math.max(50000, Math.round(v / steg) * steg);
+  var n = v / steg;
+  var tal = (uppat === true ? Math.ceil(n) : (uppat === false ? Math.floor(n) : Math.round(n))) * steg;
+  return Math.max(50000, tal);
 }
 
 /** Ett värde över taket fäller ut skalan i stället för att klippas ned till taket. */
@@ -1210,9 +1228,12 @@ function caUpdateSliderFill() {
   var max = parseInt(slider.max) || (caIsLeasing ? 15000 : caBudgetTak);
   var pct = (val - min) / (max - min) * 100;
   document.getElementById('ca-slider-fill').style.width = pct + '%';
-  document.getElementById('ca-budget-display').textContent = caIsLeasing
+  var text = caIsLeasing
     ? val.toLocaleString('sv-SE') + '\xa0kr/m\xe5n'
     : val.toLocaleString('sv-SE') + '\xa0kr';
+  document.getElementById('ca-budget-display').textContent = text;
+  // Samma text till skärmläsaren som till ögat — annars läses "200000" upp som ett naket tal.
+  slider.setAttribute('aria-valuetext', text);
   caRenderEvBudgetHint();
 }
 
@@ -1226,9 +1247,13 @@ function caSetBudgetMode(mode, value) {
   } else {
     // Ett sparat värde över taket fäller ut skalan i stället för att klippas ned till den.
     caSakraBudgetTak((value !== undefined) ? value : caKopBudget);
-    s.min = 50000; s.max = caBudgetTak; s.step = 5000;
+    s.min = 50000; s.max = caBudgetTak;
     s.value = (value !== undefined) ? value : caKopBudget;
+    // Steget följer zonen värdet HAMNADE i, annars kan första piltrycket efter ett lägesbyte
+    // röra sig på fel stege.
+    s.step = caBudgetSteg(parseInt(s.value) || 0);
   }
+  caForraBudget = parseInt(s.value) || 0;
   caRenderBudgetTicks();
   caVisaBudgetTakKnapp();
   caUpdateSliderFill();
@@ -1241,42 +1266,93 @@ function caSetBudgetMode(mode, value) {
 }
 
 /**
- * Snabbknappar för det spann de flesta handlar i, plus knappen som fäller ut skalan.
+ * Reglagets utseende och träffyta.
+ *
+ * <p>Injiceras i KOD av samma skäl som mobil-CSS:en: WP-sidan bär en manuell kopia av
+ * snippeten, så en ändring i dess &lt;style&gt; syns inte förrän någon klistrar in den på
+ * nytt. Selektorerna är #ca-wrap-prefixade så id-specificiteten vinner över snippetens
+ * egna reglar oavsett i vilken ordning de hamnar i dokumentet.
+ *
+ * <p>Vad som ändras mot snippetens grundstil, och varför:
+ *   • Spåret 4 → 8 px. Fyllnaden är hela återkopplingen på hur mycket av skalan som är
+ *     förbrukad, och på fyra pixlar syntes den knappt på en telefon.
+ *   • Tummen 22 → 24 px med en ljus kärna, så den syns mot den fyllda delen av spåret.
+ *   • touch-action:pan-y. Reglaget ligger i ett formulär man skrollar förbi: utan den
+ *     tolkade webbläsaren en snedställd dragning som en skrollning och tummen släppte.
+ *   • :focus-visible-ring. Snippeten satte outline:none utan att ge något i stället —
+ *     den som kör på tangentbord såg inte var fokus låg.
+ *   • Talet blir ett piller i stället för lös text: det är reglagets svar och ska läsas
+ *     som ett värde, inte som en del av etiketten.
+ * Tummens LODRÄTA läge räknas ur elementets höjd: den centreras i inmatningsrutan, så
+ * top måste flytta med när spåret blir tjockare (-10 → -8 ger mitten 4 px = nya spårets
+ * mitt). Mobilens margin-top:-10px i caMobilTouchCss bygger på 44 px höjd och går ihop
+ * med det nya top-värdet — rör inte det ena utan att räkna om det andra.
+ */
+function caBudgetReglageCss() {
+  if (document.getElementById('ca-reglage-css')) return;
+  var s = document.createElement('style');
+  s.id = 'ca-reglage-css';
+  s.textContent =
+    '#ca-wrap .ca-slider-track{height:8px;border-radius:999px;background:rgba(255,255,255,.10);' +
+      'box-shadow:inset 0 1px 2px rgba(0,0,0,.35);margin-top:14px;margin-bottom:6px;}' +
+    '#ca-wrap #ca-slider-fill{border-radius:999px;box-shadow:0 0 12px rgba(99,102,241,.40);}' +
+    '#ca-wrap #ca-budget-slider{top:-8px;height:24px;touch-action:pan-y;}' +
+    '#ca-wrap #ca-budget-slider::-webkit-slider-thumb{width:24px;height:24px;' +
+      'background:radial-gradient(circle,#fff 0 3.5px,rgba(255,255,255,0) 4px),' +
+      'linear-gradient(135deg,#a78bfa,#6366f1);' +
+      'border:2px solid rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(79,70,229,.55);}' +
+    '#ca-wrap #ca-budget-slider::-moz-range-thumb{width:24px;height:24px;' +
+      'background:radial-gradient(circle,#fff 0 3.5px,rgba(255,255,255,0) 4px),' +
+      'linear-gradient(135deg,#a78bfa,#6366f1);' +
+      'border:2px solid rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(79,70,229,.55);}' +
+    '#ca-wrap #ca-budget-slider:active::-webkit-slider-thumb{transform:scale(1.15);' +
+      'box-shadow:0 3px 18px rgba(99,102,241,.85);}' +
+    '#ca-wrap #ca-budget-slider:active::-moz-range-thumb{transform:scale(1.15);' +
+      'box-shadow:0 3px 18px rgba(99,102,241,.85);}' +
+    '#ca-wrap #ca-budget-slider:focus-visible::-webkit-slider-thumb{' +
+      'box-shadow:0 0 0 4px rgba(167,139,250,.45),0 2px 10px rgba(79,70,229,.55);}' +
+    '#ca-wrap #ca-budget-slider:focus-visible::-moz-range-thumb{' +
+      'box-shadow:0 0 0 4px rgba(167,139,250,.45),0 2px 10px rgba(79,70,229,.55);}' +
+    '#ca-wrap .ca-budget-val{display:inline-block;padding:3px 11px;border-radius:999px;' +
+      'font-size:1.02rem;line-height:1.35;background:rgba(139,92,246,.16);' +
+      'border:1px solid rgba(139,92,246,.38);color:#ddd2ff;font-variant-numeric:tabular-nums;}' +
+    '#ca-wrap .ca-slider-ticks span{color:rgba(255,255,255,.42);font-variant-numeric:tabular-nums;}' +
+    '@media(max-width:520px){' +
+      '#ca-wrap #ca-budget-slider::-webkit-slider-thumb{width:26px;height:26px;}' +
+      '#ca-wrap #ca-budget-slider::-moz-range-thumb{width:26px;height:26px;}' +
+    '}';
+  (document.head || document.documentElement).appendChild(s);
+}
+
+/**
+ * Raden under reglaget: bara knappen som fäller ut skalan till en miljon.
  *
  * <p>Byggs i KOD och inte i markupen: WP-blocket är en manuell kopia, och en ändring där
  * syns inte förrän någon klistrar in det på nytt (samma grepp som caGomUndanSmaval).
  * Finns raden redan görs ingenting.
  */
-function caBudgetSnabbval() {
+function caBudgetTakRad() {
   var slider = document.getElementById('ca-budget-slider');
-  if (!slider || document.getElementById('ca-budget-snabb')) return;
+  if (!slider || document.getElementById('ca-budget-takrad')) return;
   var ticks = caTicksEl();
   if (!ticks || !ticks.parentNode) return;
 
-  if (!document.getElementById('ca-budget-snabb-style')) {
+  if (!document.getElementById('ca-budget-takrad-style')) {
     var st = document.createElement('style');
-    st.id = 'ca-budget-snabb-style';
+    st.id = 'ca-budget-takrad-style';
     st.textContent =
-      '#ca-budget-snabb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;}' +
-      '#ca-budget-snabb .ca-bsnabb{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);' +
-        'color:rgba(255,255,255,.62);border-radius:20px;padding:6px 12px;font-family:inherit;' +
-        'font-size:.76rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}' +
-      '#ca-budget-snabb .ca-bsnabb:hover{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.5);color:#fff;}' +
-      '#ca-budget-snabb .ca-bsnabb.ca-bsnabb-aktiv{background:linear-gradient(135deg,#8b5cf6,#6366f1);' +
-        'border-color:transparent;color:#fff;box-shadow:0 2px 12px rgba(99,102,241,.45);}' +
+      '#ca-budget-takrad{display:flex;align-items:center;margin-top:10px;}' +
       '#ca-budget-tak{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.42);' +
         'font-family:inherit;font-size:.76rem;padding:6px 2px;cursor:pointer;text-decoration:underline;' +
         'text-decoration-color:rgba(255,255,255,.2);text-underline-offset:3px;white-space:nowrap;}' +
       '#ca-budget-tak:hover{color:rgba(255,255,255,.85);}' +
-      // Telefon: knapparna mättes till 30 px höga, vilket är i minsta laget för en tumme.
-      // Vadd tog dem till 37 — nu sätts höjden i stället, till de 44 px som är vedertaget
-      // fingermål. Höjden får INTE komma från mer vadd: knapparna står på en rad som redan
-      // radbryter, och vadd växer även i sidled. min-height + centrering håller bredden.
-      // box-sizing sätts här också så de 44 blir hela knappen, oberoende av sidans reset.
+      // Telefon: 44 px är vedertaget fingermål, och höjden sätts i stället för att komma ur
+      // mer vadd — vadd växer även i sidled. box-sizing här så de 44 blir hela knappen,
+      // oberoende av sidans reset. Radens egen marginal går bort samtidigt: knappen bär
+      // redan 44 px luft kring sin text, och med marginalen kvar flöt länken loss från
+      // skalan den hör ihop med.
       '@media (max-width:520px){' +
-        '#ca-budget-snabb{gap:7px;}' +
-        '#ca-budget-snabb .ca-bsnabb{box-sizing:border-box;min-height:44px;padding:0 15px;' +
-          'font-size:.8rem;display:inline-flex;align-items:center;justify-content:center;}' +
+        '#ca-budget-takrad{margin-top:0;}' +
         '#ca-budget-tak{box-sizing:border-box;min-height:44px;padding:0 2px;font-size:.8rem;' +
           'display:inline-flex;align-items:center;}' +
       '}';
@@ -1284,22 +1360,7 @@ function caBudgetSnabbval() {
   }
 
   var rad = document.createElement('div');
-  rad.id = 'ca-budget-snabb';
-  CA_BUDGET_SNABBVAL.forEach(function (v) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'ca-bsnabb';
-    b.dataset.varde = String(v);
-    b.textContent = Math.round(v / 1000) + 'k';
-    b.addEventListener('click', function () {
-      caSetBudgetMode(caIsLeasing ? 'leasing' : 'köp', v);
-      // Ett tryck ÄR ett eget val — kategorins budgetförval ska inte skriva över det sedan.
-      slider.dataset.rord = '1';
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-      slider.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    rad.appendChild(b);
-  });
+  rad.id = 'ca-budget-takrad';
   var tak = document.createElement('button');
   tak.type = 'button';
   tak.id = 'ca-budget-tak';
@@ -1310,47 +1371,58 @@ function caBudgetSnabbval() {
   });
   rad.appendChild(tak);
   ticks.parentNode.insertBefore(rad, ticks.nextSibling);
-  caSynkaBudgetSnabb();
-}
-
-/** Markerar det snabbval som matchar reglaget, och göm raden i leasingläget (andra tal). */
-function caSynkaBudgetSnabb() {
-  var rad = document.getElementById('ca-budget-snabb');
-  var slider = document.getElementById('ca-budget-slider');
-  if (!rad || !slider) return;
-  rad.style.display = caIsLeasing ? 'none' : 'flex';
-  var v = parseInt(slider.value) || 0;
-  Array.prototype.forEach.call(rad.querySelectorAll('.ca-bsnabb'), function (b) {
-    b.classList.toggle('ca-bsnabb-aktiv', parseInt(b.dataset.varde) === v);
-  });
-}
-
-function caVisaBudgetTakKnapp() {
-  var t = document.getElementById('ca-budget-tak');
-  if (t) t.style.display = (caIsLeasing || caBudgetTak === CA_BUDGET_TAK_HOGT) ? 'none' : '';
-  caSynkaBudgetSnabb();
 }
 
 /**
- * Snäpper reglaget till ett jämnt tal medan man drar — 10 000 kr under 300 000, grövre
- * därutöver. Elementets eget step ligger på 10 000 så att webbläsaren släpper fram de
- * finare lägena; snäppningen här tar hand om de grövre.
+ * Göm knappen när den inte har något att göra — och RADEN med den, annars står en tom
+ * flexrad kvar med sin marginal och knuffar ned resten av formuläret.
+ */
+function caVisaBudgetTakKnapp() {
+  var dold = caIsLeasing || caBudgetTak === CA_BUDGET_TAK_HOGT;
+  var rad = document.getElementById('ca-budget-takrad');
+  if (rad) rad.style.display = dold ? 'none' : 'flex';
+  var t = document.getElementById('ca-budget-tak');
+  if (t) t.style.display = dold ? 'none' : '';
+}
+
+/**
+ * Snäpper reglaget till ett jämnt tal — 10 000 kr under 300 000, grövre därutöver.
+ *
+ * <p>Elementets EGET step följer numera samma zoner. Förut låg det fast på 5 000 medan
+ * snäppningen gick på 10 000: ett piltryck nedåt från 200 000 gav 195 000, som rundades
+ * tillbaka till 200 000, och reglaget stod stilla fast tangenten tryckte. Med step = zonens
+ * steg landar tangenter och drag på samma stege som snäppningen, och snäppningen behöver
+ * bara gripa in vid zongränserna och vid värden som satts programmatiskt.
+ *
+ * <p>caForraBudget bär riktningen. Den läses om vid varje ny beröring (pointerdown/keydown/
+ * focus) så att ett värde som satts av en sparad sökning eller en delningslänk inte lämnar
+ * kvar en gammal riktning.
  */
 function caInitBudgetReglage() {
   var s = document.getElementById('ca-budget-slider');
   if (!s || s.dataset.reglageKlart) return;
   s.dataset.reglageKlart = '1';
   caSakraBudgetTak(parseInt(s.value) || 0);
-  s.min = 50000; s.max = caBudgetTak; s.step = 5000;
-  s.addEventListener('input', function () {
-    if (caIsLeasing) return;
-    var v = parseInt(s.value) || 0;
-    var snappat = caSnapBudget(v);
-    if (snappat !== v) s.value = snappat;
-    caSynkaBudgetSnabb();
+  s.min = 50000; s.max = caBudgetTak; s.step = caBudgetSteg(parseInt(s.value) || 0);
+  // Skärmläsaren läste "200000" som ett naket tal. aria-valuetext ger den samma text som
+  // rutan visar, och etiketten säger vad reglaget styr.
+  if (!s.getAttribute('aria-label')) s.setAttribute('aria-label', 'Budget');
+  caForraBudget = parseInt(s.value) || 0;
+  ['pointerdown', 'keydown', 'focus'].forEach(function (ev) {
+    s.addEventListener(ev, function () { caForraBudget = parseInt(s.value) || 0; });
   });
-  s.addEventListener('change', caSynkaBudgetSnabb);
-  caBudgetSnabbval();
+  s.addEventListener('input', function () {
+    if (caIsLeasing) { caForraBudget = parseInt(s.value) || 0; return; }
+    var v = parseInt(s.value) || 0;
+    var snappat = caSnapBudget(v, v >= caForraBudget);
+    var tak = parseInt(s.max) || caBudgetTak;
+    if (snappat > tak) snappat = caSnapBudget(tak, false);
+    if (snappat !== v) s.value = snappat;
+    s.step = caBudgetSteg(snappat);
+    caForraBudget = snappat;
+  });
+  caBudgetReglageCss();
+  caBudgetTakRad();
   caRenderBudgetTicks();
   caVisaBudgetTakKnapp();
 }
@@ -1655,8 +1727,10 @@ var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '5', suv:
  * får den nivå där segmentets normala bilar faktiskt börjar: familjebil 300 000 (Enyaq från
  * 279 000 som elbil), SUV 350 000 (XC60 från 308 000), elbil 300 000, laddhybrid 250 000
  * (Passat GTE 199 000, V60 T8 209 000) och småbil 125 000 (Picanto 84 000, Yaris 125 000).
- * Alla ligger dessutom på reglagets steg om 25 000 från 50 000 — ett förval som inte går att
- * ställa in för hand hade sett ut som ett fel.
+ * Alla ligger dessutom på reglagets rutnät — ett förval som inte går att ställa in för hand
+ * hade sett ut som ett fel. Rutnätet är 10 000 kr under 300 000 och 25 000 därutöver, och
+ * småbilens 125 000 låg mellan två steg: reglaget snäppte tyst till ett annat tal än det
+ * knappen lovade. 130 000 är samma tal som snäppningen ändå landade på.
  *
  * <p>Kortformen "300k" är inte kosmetik. Fem lika breda knappar i heroens spalt ger 49 px
  * innanför kanterna, och "el · 300 000 kr" mätte 65 px — den spillde ut ur knappen medan de
@@ -1672,7 +1746,7 @@ var CA_KAT_FORVAL = {
   suv:        { budget: 350000,                  hint: '350k' },
   elbil:      { budget: 300000,                  hint: '300k' },
   laddhybrid: { budget: 250000,                  hint: '250k' },
-  smaabil:    { budget: 125000,                  hint: '125k' }
+  smaabil:    { budget: 130000,                  hint: '130k' }
 };
 
 /**
