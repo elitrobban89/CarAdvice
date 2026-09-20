@@ -434,6 +434,59 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void veteranbilSparasUtanKategoriOchDrivmedel() throws Exception {
+        // Natten mot 2026-09-20 kom Saab 9000 från 1987 in som familjebil/bensin — en bil som
+        // stått stilla i 40 år och gått 24 mil. BÅDA fälten måste tömmas: buildExpertContext
+        // hämtar på kategori ELLER fuel_type, så bensinraden hade nått varje bensinsökning
+        // även utan kategori.
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode veteran = mapper.readTree(
+                "{\"car_make\":\"Saab\",\"car_model\":\"9000 Turbo\",\"category\":\"familjebil\","
+                + "\"fuel_type\":\"bensin\",\"insight\":\"Saab 9000 Turbo från 1987 har endast"
+                + " gått 24 mil och är mycket välbevarad utan rost.\"}");
+        vaktStats.nollstall();
+
+        assertThat(service.saveInsights("CarUp", List.of(veteran), null)).isEqualTo(1);
+
+        var sparad = org.mockito.ArgumentCaptor.forClass(com.caradvice.model.ExpertInsight.class);
+        verify(repo).save(sparad.capture());
+        assertThat(sparad.getValue().getCategory()).isNull();
+        assertThat(sparad.getValue().getFuelType()).isNull();
+        // Raden SPARAS — texten är bilhistoria, och bilkortet matchar på märke och modell
+        assertThat(sparad.getValue().getCarModel()).isEqualTo("9000 Turbo");
+        assertThat(sparad.getValue().getInsight()).contains("1987");
+
+        var rapport = vaktStats.rapport();
+        assertThat(rapport.get("totalt")).isEqualTo(1L);
+        assertThat(rapport.get("perKalla")).isEqualTo(java.util.Map.of("web-insights [veteran]", 1L));
+        assertThat(rapport.get("perBil")).isEqualTo(java.util.Map.of("Saab 9000 Turbo", 1L));
+    }
+
+    @Test
+    void vanligBegagnadBilBehallerBadeKategoriOchDrivmedel() throws Exception {
+        // Veteranvakten fäller på positivt bevis. En rostvarning för en 2008:a är precis det
+        // köpråd tjänsten finns för och får inte tappa sin plats i rekommendationspoolen.
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        JsonNode vanlig = mapper.readTree(
+                "{\"car_make\":\"Mazda\",\"car_model\":\"6\",\"category\":\"familjebil\","
+                + "\"fuel_type\":\"bensin\",\"insight\":\"Mazda 6 (2002-2012) lider av rostproblem"
+                + " på bakre subframe.\"}");
+
+        assertThat(service.saveInsights("CarUp", List.of(vanlig), null)).isEqualTo(1);
+
+        var sparad = org.mockito.ArgumentCaptor.forClass(com.caradvice.model.ExpertInsight.class);
+        verify(repo).save(sparad.capture());
+        assertThat(sparad.getValue().getCategory()).isEqualTo("familjebil");
+        assertThat(sparad.getValue().getFuelType()).isEqualTo("bensin");
+    }
+
+    @Test
     void riktigSmaabilBehallerSinKategori() throws Exception {
         // Vakten fäller på positivt bevis: en modell utanför listan rörs inte, och aliaset
         // "småbil" skrivs om precis som förut

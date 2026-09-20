@@ -123,6 +123,82 @@ public final class InsightTaxonomy {
             "ferrari", "lamborghini", "mclaren");
 
     /**
+     * Så gammal ska en bil vara för att räknas som veteran: Transportstyrelsens egen gräns.
+     *
+     * <p><b>Rullande med flit.</b> Ett fast årtal hade åldrats som varje annan hårdkodad
+     * baslinje i det här projektet; 30 år är definitionen som gäller i Sverige (skattebefrielse
+     * och besiktning vartannat år), och den flyttar sig ett steg varje nyår av sig själv.
+     */
+    public static final int VETERANALDER_AR = 30;
+
+    /**
+     * Ord som ensamma bevisar att texten handlar om ett samlar- eller auktionsobjekt.
+     *
+     * <p>Listan är inventerad ur de 1 159 raderna i drift 2026-09-20, inte gissad: den träffar
+     * fyra rader som årsregeln missar (VW Bubbla som "unikt samlarobjekt", Volvo 240 "gömd i
+     * 44 år", Volvo 240 GL såld efter budkrig, Volvo V70 såld på auktion) och noll rader som
+     * hör hemma i ett köpråd. Prövad mot repots fyra kurerade CSV:er (240 rader): noll träffar,
+     * samma utfall som kategorivakten fick.
+     *
+     * <p><b>Medvetet UTELÄMNADE:</b> {@code klassisk} (sex rader, de flesta om bilar man
+     * faktiskt kan köpa), {@code välbevarad} och {@code stillestånd} — alla tre är vanliga ord
+     * i en begagnattext, och de rader som verkligen var veteranbilar fälls redan av årtalet.
+     * Ett för brett filter tystar riktiga köpråd, precis som {@code LYX_OCH_SPORTMODELLER}
+     * lärde när {@code amg} och {@code rs} prövades som markörer.
+     */
+    private static final java.util.regex.Pattern SAMLARORD = java.util.regex.Pattern.compile(
+            "samlarobjekt|samlarbil|veteranbil|veteranfordon|renoveringsobjekt|entusiastprojekt"
+            + "|budkrig|på auktion|auktionerades|klubbades|gömd i \\d+ år");
+
+    /**
+     * Årtalet i en MODELLÅRSPOSITION — "från 1987", "1972 års", "levererades 1977".
+     *
+     * <p>Positionen är hela poängen. Ett naket fyrsiffrigt tal i texten kan vara vad som helst
+     * ("Euro NCAP-testet 2017", "Bilprovningens 2025-statistik", "tillverkats sedan 1974" om en
+     * modell som säljs ny i dag), och en regel som läste varje årtal hade fällt dem. Mätt över
+     * hela tabellen 2026-09-20: mönstret träffar nio rader, och alla nio handlar om en bil från
+     * det årtalet.
+     */
+    private static final java.util.regex.Pattern MODELLAR = java.util.regex.Pattern.compile(
+            "(?:från|årsmodell|modellår|levererades|tillverkad|tillverkades|byggd|byggdes)"
+            + "\\s+(?:omkring\\s+|cirka\\s+|ca\\s+)?(\\d{4})|(\\d{4})\\s*års\\b");
+
+    /**
+     * Är insikten en veteran-/samlarbil i stället för ett köpråd? Motiveringen, annars {@code null}.
+     *
+     * <p><b>Femte promptregeln som behövde kodstöd.</b> Skrapans prompt har uteslutit
+     * "renoveringsobjekt … ett entusiastprojekt är ingen köpvägledning" sedan 2026-08-10 och
+     * läckte ändå: natten mot 2026-09-20 kom tre rader in på en gång — två Saab 9000 ur en
+     * annons där bilen stått stilla i nästan 40 år (24 respektive 61 mil på mätaren) och en
+     * fabriksny VW Bubbla från 1964. Nattrapporten kallade det tredje gången på tio dagar.
+     * Samma lärdom som kategori-, växel-, drivmedels- och SUV-vakterna gav.
+     *
+     * <p><b>Raden sparas, men tas ur rekommendationspoolen.</b> Anropssidan tömmer BÅDE
+     * {@code category} och {@code fuel_type}, och båda behövs:
+     * {@code buildExpertContext} hämtar med {@code findByCategoryIgnoreCaseOrFuelTypeIgnoreCase},
+     * så en bensinrad når varje bensinsökning även utan kategori. Texten står kvar på bilkortet
+     * och i chatten, som matchar på märke och modell — en veteranbil är sann och intressant men
+     * inget köpråd, och användarens linje sedan Fisker Ocean 2026-08-19 är att fakta ska finnas
+     * kvar som bilhistoria.
+     */
+    public static String veteranInnehall(String insight) {
+        if (insight == null || insight.isBlank()) return null;
+        String text = insight.toLowerCase(Locale.ROOT);
+        java.util.regex.Matcher samlare = SAMLARORD.matcher(text);
+        if (samlare.find()) return "samlarobjekt (\"" + samlare.group() + "\")";
+
+        int gransar = java.time.Year.now().getValue() - VETERANALDER_AR;
+        java.util.regex.Matcher ar = MODELLAR.matcher(text);
+        while (ar.find()) {
+            String funnet = ar.group(1) != null ? ar.group(1) : ar.group(2);
+            int arsmodell = Integer.parseInt(funnet);
+            if (arsmodell >= 1900 && arsmodell <= gransar)
+                return "årsmodell " + arsmodell + " är " + VETERANALDER_AR + " år eller äldre";
+        }
+        return null;
+    }
+
+    /**
      * Kategorin som bilens egen modell motsäger — felets text för loggen, annars {@code null}.
      *
      * <p>Tre regler, inte en: en {@code suv}-rad om en låg bil, en {@code smaabil}-rad om en stor,

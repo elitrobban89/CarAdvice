@@ -246,6 +246,24 @@ class ExpertInsightServiceTest {
     }
 
     @Test
+    void importVeteranbilSparasUtanKategoriOchDrivmedel() {
+        // Samma skäl som kategorivakten står på importvägen: en import är masskrivning, och
+        // skadan beror inte på vem som skrev raden. Mätt mot repots fyra kurerade CSV:er
+        // (240 rader) 2026-09-20 — noll träffar, alltså rörs inget kurerat.
+        ArgumentCaptor<ExpertInsight> captor = ArgumentCaptor.forClass(ExpertInsight.class);
+
+        service().importCsv("Volvo,240,bensin,familjebil,"
+                + "En välbevarad Volvo 240 GL från 1987 såldes efter ett budkrig,7", "Vaktprov");
+
+        verify(repo).save(captor.capture());
+        assertThat(captor.getValue().getCategory()).isNull();
+        assertThat(captor.getValue().getFuelType()).isNull();
+        // Raden sparas ändå — betyg och text är kvar, den är bara ute ur rekommendationspoolen
+        assertThat(captor.getValue().getRating()).isEqualTo(7);
+        assertThat(captor.getValue().getCarModel()).isEqualTo("240");
+    }
+
+    @Test
     void importMedOgiltigtBetygGerNullRating() {
         ArgumentCaptor<ExpertInsight> captor = ArgumentCaptor.forClass(ExpertInsight.class);
 

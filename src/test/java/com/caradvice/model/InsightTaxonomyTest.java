@@ -151,4 +151,70 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.canonicalCategory("", "Toyota", "Yaris")).isNull();
         assertThat(InsightTaxonomy.canonicalCategory(null, "Toyota", "Yaris")).isNull();
     }
+
+    // ── Veteranvakten ────────────────────────────────────────────────────────────
+
+    @Test
+    void veteranbilarnaSomKomInNattenMot0920() {
+        // De tre raderna natten mot 2026-09-20, ordagrant ur drift. Promptregeln mot
+        // renoveringsobjekt har funnits sedan 2026-08-10 och läckte för tredje gången på
+        // tio dagar — femte regeln i rad som behövde kodstöd.
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Saab 9000 Turbo från 1987 har endast gått 24 mil och är mycket välbevarad utan"
+                + " rost, men elektroniken har försämrats av att ha stått stilla i nästan 40 år."))
+                .contains("1987");
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Saab 9000 CD Turbo från 1988 har endast gått 61 kilometer, är rostfri och i gott"
+                + " skick, men likt sin syster lider den av elektronikproblem."))
+                .contains("1988");
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Den fabriksnya Volkswagen Bubbla från 1964 har en fyrcylindrig boxermotor på 40"
+                + " hästkrafter och 87 Nm i vridmoment."))
+                .contains("1964");
+    }
+
+    @Test
+    void samlarordenFallerRaderSomArtaletMissar() {
+        // Fyra rader i drift bär inget årsmodellsårtal alls men är lika mycket samlarobjekt.
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Bilen säljs för mellan 195 000 och 215 000 kronor och anses vara ett unikt"
+                + " samlarobjekt med en ovanlig elstyrd sufflett.")).isNotNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "En fabriksny Volvo 240 med endast 114 mil på mätaren, gömd i 44 år, annonserades"
+                + " för 300 000 kr.")).isNotNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "En välbevarad Volvo 240 GL såldes för 138 000 kr efter ett budkrig på nätet."))
+                .isNotNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "En Volvo V70 såldes på auktion för cirka 90 000 kr.")).isNotNull();
+    }
+
+    @Test
+    void vanligaKopradSlappsIgenom() {
+        // Noll falska träffar över hela tabellen (1 159 rader) och repots fyra kurerade
+        // CSV:er (240 rader), mätt 2026-09-20. De tre nedan är de riskabla formerna: ett
+        // årtal som INTE är en årsmodell, och ett generationsspann inom parentes.
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Volvo XC60 fick 98 % vuxenskydd i Euro NCAP-testet 2017 och utsågs till årets"
+                + " bästa bil.")).isNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Bilprovningens 2025-statistik: hjullager underkänns på 1,4 % av besiktningar."))
+                .isNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Mazda 6 (2002-2012) lider av legendariska rostproblem på bakre subframe."))
+                .isNull();
+        assertThat(InsightTaxonomy.veteranInnehall("")).isNull();
+        assertThat(InsightTaxonomy.veteranInnehall(null)).isNull();
+    }
+
+    @Test
+    void gransenRullarMedKalendern() {
+        // 30-årsgränsen är Transportstyrelsens och flyttar sig ett steg varje nyår. Provet
+        // räknar den själv i stället för att skriva ett årtal som blir fel nästa år.
+        int iAr = java.time.Year.now().getValue();
+        assertThat(InsightTaxonomy.veteranInnehall("Bilen från " + (iAr - 31) + " gick bra."))
+                .isNotNull();
+        assertThat(InsightTaxonomy.veteranInnehall("Bilen från " + (iAr - 29) + " gick bra."))
+                .isNull();
+    }
 }

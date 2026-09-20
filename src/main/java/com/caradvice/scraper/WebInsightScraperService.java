@@ -971,12 +971,18 @@ public class WebInsightScraperService {
                 markSeen(key);
             }
 
+            // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda.
+            String veteran = InsightTaxonomy.veteranInnehall(insightText);
+            String fuelType = veteran == null
+                    ? validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES) : null;
+            String category = veteran == null ? kategoriFor(ins) : veteranUtanPool(ins, veteran);
+
             ExpertInsight stored = insightRepo.save(new ExpertInsight(
                     expert,
                     blankToNull(ins.path("car_make").asText("")),
                     blankToNull(ins.path("car_model").asText("")),
-                    validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES),
-                    kategoriFor(ins),
+                    fuelType,
+                    category,
                     insightText,
                     parseRating(ins.path("rating"))));
             if (ins.path(UPCOMING_FIELD).asBoolean(false)) {
@@ -1460,6 +1466,27 @@ public class WebInsightScraperService {
      * sökningen gäller, och en import skriver många rader på en gång (se
      * {@link com.caradvice.service.ExpertInsightService#importCsv(String, String)}).
      */
+    /**
+     * Veteranraden loggas och registreras i samma buffert som kategorivakten — och returnerar
+     * alltid {@code null}, för den ska inte bära någon kategori.
+     *
+     * <p>Ingen egen endpoint: {@code GET /api/admin/kategorivakten} är redan den plats där
+     * nattrapporten läser vad vakterna strukit, och ett andra ställe hade blivit ett till att
+     * glömma läsa. Fältet {@code kategori} bär därför BÅDA de strukna värdena, så det syns i
+     * rapporten att det var mer än kategorin som föll.
+     */
+    private String veteranUtanPool(JsonNode ins, String motivering) {
+        String kategori = InsightTaxonomy.canonicalCategory(ins.path("category").asText(""));
+        String drivmedel = validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES);
+        String bil = (ins.path("car_make").asText("") + " " + ins.path("car_model").asText("")).trim();
+        log.warn("Web insights: veteran-/samlarbil ({}) — {} sparas utan kategori och drivmedel",
+                motivering, bil);
+        kategoriVaktStats.registrera("web-insights [veteran]",
+                (kategori == null ? "-" : kategori) + " + " + (drivmedel == null ? "-" : drivmedel),
+                bil, motivering, ins.path("insight").asText(""));
+        return null;
+    }
+
     private String kategoriFor(JsonNode ins) {
         String varde = ins.path("category").asText("");
         String make = ins.path("car_make").asText("");

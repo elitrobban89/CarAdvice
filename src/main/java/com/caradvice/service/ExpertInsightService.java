@@ -768,6 +768,7 @@ ett bilkort.*/
         int count = 0;
         int okandaKategorier = 0;
         int motsagdaKategorier = 0;
+        int veteranrader = 0;
         for (String line : csv.split("\\R")) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#") || line.startsWith("car_make")) continue;
@@ -793,6 +794,20 @@ ett bilkort.*/
             if (f.length > 5 && !blank(f[5])) {
                 try { rating = Integer.parseInt(f[5].trim()); } catch (NumberFormatException ignored) {}
             }
+            // Veteranvakten, samma skäl som kategorivakten står här: en import är masskrivning,
+            // och skadan beror inte på vem som skrev raden. Prövad mot repots fyra kurerade
+            // CSV:er (240 rader) 2026-09-20 — noll träffar, alltså rörs inget kurerat.
+            String veteran = InsightTaxonomy.veteranInnehall(insight);
+            if (veteran != null) {
+                log.warn("CSV-import [{}]: veteran-/samlarbil ({}) — {} {} sparas utan kategori"
+                        + " och drivmedel", expertName, veteran, carMake, carModel);
+                kategoriVaktStats.registrera("CSV-import [" + expertName + "] [veteran]",
+                        (category == null ? "-" : category) + " + " + (fuelType == null ? "-" : fuelType),
+                        carMake + " " + carModel, veteran, insight);
+                veteranrader++;
+                category = null;
+                fuelType = null;
+            }
             repo.save(new ExpertInsight(expertName, carMake, carModel, fuelType, category, insight, rating));
             count++;
         }
@@ -803,6 +818,8 @@ ett bilkort.*/
             log.warn("CSV-import [{}]: {} rader hade en kategori utanför formuläret och sparades utan kategori", expertName, okandaKategorier);
         if (motsagdaKategorier > 0)
             log.warn("CSV-import [{}]: {} rader bar en kategori som bilens egen modell motsade", expertName, motsagdaKategorier);
+        if (veteranrader > 0)
+            log.warn("CSV-import [{}]: {} rader var veteran-/samlarbilar och sparades utan kategori och drivmedel", expertName, veteranrader);
         return count;
     }
 
