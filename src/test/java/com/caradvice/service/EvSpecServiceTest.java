@@ -705,6 +705,31 @@ class EvSpecServiceTest {
     }
 
     @Test
+    void volvosLaddhybriderValjerBatterigeneration() {
+        /*
+         * Volvo gick fran 11,6 till 18,8 kWh 2022 och rackvidden mer an fordubblades: S60 90 km,
+         * V60 88, V90 85, XC60 76, XC90 68 enligt Volvos egna tal. Tabellen bar 11,6/56-57 for
+         * S60 och V60 - ratt for 2020 ars bil, halva sanningen for en 2023:a. Och det ar just
+         * V60 Recharge som ligger i PHEV_PRICE_FLOOR_KR och foreslas i varje laddhybridssok.
+         */
+        EvSpec t6   = new EvSpec("Volvo V60 T6",   3.7, 0.0, 18.8, 88, 510_000, "PHEV");
+        EvSpec phev = new EvSpec("Volvo V60 PHEV", 3.7, 0.0, 18.8, 88, 510_000, "PHEV");
+        when(repo.findAll()).thenReturn(List.of(t6, phev));
+
+        // ALLA titelformer ska ge samma, ratta siffror - det var 11,6 / 56 km fore rattelsen
+        for (String titel : List.of("Volvo V60 Recharge (2023)", "Volvo V60 T6 (2024)",
+                                    "Volvo V60 PHEV (2023)", "Volvo V60 laddhybrid (2023)")) {
+            EvSpecDto dto = service().formatForTitle(titel, 15000);
+            assertThat(dto).describedAs(titel).isNotNull();
+            assertThat(dto.batteryKwh()).describedAs(titel).isEqualTo(18.8);
+            assertThat(dto.wltpKm()).describedAs(titel).isEqualTo(88);
+        }
+        // Bensin-V60:an ror ingen av dem - titeln bar ingen laddhybridbadge
+        assertThat(service().formatForTitle("Volvo V60 B4 (2022)", 15000)).isNull();
+        assertThat(service().formatForTitle("Volvo V60 (2022)", 15000)).isNull();
+    }
+
+    @Test
     void bensinsyskonetNarInteLaddhybridensRad() {
         // Regressionen som flytten av e--strippningen lagade: "Cupra Formentor e-Hybrid" blev
         // "cupra formentor hybrid" när prefixet ströks FÖRST, och då fanns inget drivlineord

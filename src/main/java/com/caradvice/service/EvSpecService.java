@@ -542,7 +542,17 @@ public class EvSpecService {
     private static final java.util.Set<String> DRIVLINEORD = java.util.Set.of(
             "phev", "hev", "gte", "plug-in",
             "e-golf", "e-rifter", "e-tourneo", "e-caravelle", "e-transporter",
-            "recharge");
+            "recharge",
+            // t6/t8 tillkom 2026-09-20, hittade av ett prov som skulle bevisa nagot annat.
+            // "Volvo XC60" mot "Volvo XC60 PHEV" var redan tatat av ordet phev, men
+            // SYSKONRADERNA "Volvo V60 T6" och "Volvo V90 T8" bar ingen markor alls - en naken
+            // "Volvo V60 (2022)" matchade alltsa T6-raden i pass 1 (titelns ord ryms i
+            // radnamnet) och en bensin-V60 fick laddhybridens 18,8 kWh. Samma hal som
+            // bensin-Formentor hade, en vaning ner.
+            //
+            // Ofarligt for elbilarna: ingen ev_spec-rad heter nagot med t6/t8, sa ordet kan
+            // bara fella de fem Volvo-laddhybridernas aliasrader - vilket ar precis avsikten.
+            "t6", "t8");
 
     /**
      * Lagrat namn med samma {@code e-}-strippning som titeln får, för ordjämförelserna.
@@ -1201,6 +1211,25 @@ public class EvSpecService {
      */
     private static final Generation A3_GEN2 = new Generation("A3 40 TFSI e", 2020, "audi a3");
     private static final Generation A3_GEN3 = new Generation("A3 Sportback TFSI e", 2025, "audi a3");
+
+    /**
+     * <b>Volvos laddhybrider har INGA generationstaggar, och det ar ett medvetet val — men en
+     * kand lucka.</b> Lamnas har som varning at nasta lasare.
+     *
+     * <p>Volvo bytte batteri 2022: 11,6 kWh blev 18,8 och rackvidden mer an fordubblades
+     * (S60 90 km, V60 88, V90 85, XC60 76, XC90 68). Alla fem modellernas rader bar nu den NYA
+     * generationen, sa en 2020-annons far 2023 ars siffror.
+     *
+     * <p><b>Varfor inte ett generationspar som Passat och A3 fick?</b> Ett prov tvingade fram
+     * svaret: {@code T6}- och {@code T8}-raderna finns for att tacka en TITELFORM
+     * ({@code "Volvo V60 T6"}), inte for att beteckna en generation. Pass 1 kraver att titelns
+     * ord finns i radnamnet, sa en T6-titel nas BARA av T6-raden — en ny 18,8-rad vid sidan av
+     * hade aldrig natts av {@code "Volvo V60 T6 (2024)"}. Ratt fix ar darfor att lagga in
+     * 11,6-generationen for alla fem modellerna under SINA EGNA titelformer, inte att tagga de
+     * befintliga. Det kraver matt underlag per modell (XC60 T8 2019-2021 gick ca 45 km), och
+     * det saknas.
+     */
+    private static final String VOLVO_PHEV_UTAN_GENERATIONSTAGG = "se javadoc ovan";
 
     private static final Generation ID3_GEN1 = new Generation("ID.3 pre-Neo", 2020, "volkswagen id.3");
     private static final Generation ID3_GEN2 = new Generation("ID.3 Neo", 2026, "volkswagen id.3");

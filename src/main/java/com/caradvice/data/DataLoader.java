@@ -487,6 +487,67 @@ public class DataLoader implements CommandLineRunner {
                     toDelete.add(spec);
                     existing.remove(spec.getCarName());
                 }
+                // ── VOLVOS LADDHYBRIDER HADE FEL RACKVIDD PA ALLA TRE 18,8-RADERNA ──
+                //
+                // Nar Volvo gick fran 11,6 till 18,8 kWh (SPA-plattformen, 2022) angav de nya
+                // WLTP-tal per modell: S60 90, V60 88, V90 85-86, XC60 76-77, XC90 68 km.
+                // Vara rader bar 68 / 68 / 65 - alltsa ratt BATTERI men gamla RACKVIDDER, och
+                // for V90 och XC60 med 17 respektive 8 km for lite. Kortet lovade mindre an
+                // bilen gor, vilket ar lika fel som att lova for mycket.
+                //
+                // Talet ar det LAGSTA market listar for modellen (T8 dar bade T6 och T8 finns),
+                // samma regel som Kia Ceed, Terramar och Passat foljer.
+                // S60 och V60 bar dessutom fel BATTERI: 11,6 kWh, alltsa 2019-2021 ars pack,
+                // medan XC60/XC90/V90-raderna redan hade 18,8. Fem modeller pa samma plattform,
+                // tre uppdaterade och tva inte - och det ar just V60 Recharge som ligger i
+                // GroqService.PHEV_PRICE_FLOOR_KR och foreslas i varje laddhybridssok.
+                //
+                // **RADERNA FLYTTAS TILL NYA GENERATIONEN i stallet for att paras ihop med en
+                // ny rad, och det ar ett medvetet val som ett prov tvingade fram.** T6/T8-raderna
+                // finns for att TACKA EN TITELFORM ("Volvo V60 T6"), inte for att beteckna en
+                // generation: pass 1 kraver att titelns ord finns i radnamnet, sa en T6-titel
+                // nars BARA av T6-raden. En ny 18,8-rad vid sidan av hade darfor aldrig natts av
+                // "Volvo V60 T6 (2024)" - den hade fastnat pa 11,6 anda. Tabellens konvention ar
+                // att aliasraderna bar NUVARANDE bil, precis som XC60/XC90/V90 redan gor.
+                //
+                // **KANT PRIS:** en 2020-annons far nu nya siffror. Det galler redan XC60, XC90
+                // och V90, sa begransningen blir enhetlig i stallet for godtycklig - men den ar
+                // verklig. Rattas genom att lagga in 11,6-generationen for ALLA FEM modellerna
+                // som egna rader med egna titelformer, nar talen gar att belagga.
+                case "Volvo S60 PHEV", "Volvo S60 T8" -> {
+                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() != 18.8
+                            || spec.getRangeKm() == null || spec.getRangeKm() != 90) {
+                        spec.setBatteryKwh(18.8);
+                        spec.setRangeKm(90);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo V60 PHEV", "Volvo V60 T6" -> {
+                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() != 18.8
+                            || spec.getRangeKm() == null || spec.getRangeKm() != 88) {
+                        spec.setBatteryKwh(18.8);
+                        spec.setRangeKm(88);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo V90 PHEV", "Volvo V90 T8" -> {
+                    if (spec.getRangeKm() == null || spec.getRangeKm() != 85) {
+                        spec.setRangeKm(85);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo XC60 PHEV", "Volvo XC60 T8" -> {
+                    if (spec.getRangeKm() == null || spec.getRangeKm() != 76) {
+                        spec.setRangeKm(76);
+                        toUpdate.add(spec);
+                    }
+                }
+                case "Volvo XC90 PHEV", "Volvo XC90 T8" -> {
+                    if (spec.getRangeKm() == null || spec.getRangeKm() != 68) {
+                        spec.setRangeKm(68);
+                        toUpdate.add(spec);
+                    }
+                }
                 case "Audi A3 PHEV" -> {
                     // Raden bar 48 km, och det talet horde inte till nagon A3-generation.
                     // Audis egen siffra for A3 40 TFSI e (2020-2024) ar **67 km WLTP** med
