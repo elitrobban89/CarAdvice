@@ -99,10 +99,23 @@ public class LeasingPriceService {
 
     /** Egen metod för att gå att testa utan HTTP. */
     static LeasingOffer bestMatch(List<LeasingOffer> utbud, String marke, List<String> modelWords) {
+        // DRIVLINAN MÅSTE STÄMMA, annars prissätts bilen som en annan bil.
+        //
+        // Skarpt i drift 2026-09-20: kortet "Cupra Leon Sportstourer e-Hybrid" fick
+        // **3 595 kr/mån** — priset på "CUPRA Leon Sportstourer eTSI 150hk DSG", alltså
+        // MILDHYBRIDEN. Laddhybriden kostar 4 395. Ordmatchningen är drivlineblind: titelns
+        // [leon, sportstourer, e-hybrid] har den generiska "Leon Sportstourer" som inledning,
+        // och bland lika specifika träffar vinner det LÄGSTA priset — som är fel bils.
+        //
+        // Ett felaktigt pris är värre än inget pris: AI:ns gissning är åtminstone märkt som en
+        // uppskattning, medan katalogpriset skrivs ut som märkets eget. Vi matchar därför bara
+        // inom samma drivlina, och en laddhybrid utan laddhybridserbjudande får hellre stå utan.
+        boolean titelnArPhev = titelnBarLaddhybridsbadge(modelWords);
         LeasingOffer bast = null;
         int bastaLangd = 0;
         for (LeasingOffer offer : utbud) {
             List<String> offerWords = utanMarke(words(offer.model()), marke);
+            if (LEASING_PHEV.matcher(offer.model()).find() != titelnArPhev) continue;
             if (!matches(modelWords, offerWords)) continue;
             // Mest specifika modellen vinner: "Enyaq Coupé" ska inte få "Enyaq":s pris bara för
             // att det är lägre. Bland lika specifika är "från"-priset det lägsta, som märket
@@ -114,7 +127,56 @@ public class LeasingPriceService {
                 bastaLangd = langd;
             }
         }
+        if (bast != null || !titelnArPhev || modelWords.isEmpty()) return bast;
+
+        // LADDHYBRIDENS FALLBACK: samma modellfamilj, billigaste laddhybridserbjudandet.
+        //
+        // Katalogen namnger laddhybriden med en HEL trimrad — "Superb Combi Selection Explore
+        // Edition iV" — medan AI:n skriver "Superb iV Combi". Ordmatchningen kräver att den ena
+        // är en INLEDNING av den andra, och det är de inte: orden kommer i olika ordning och
+        // trimnivån ligger emellan. Bada kort stod därför utan katalogpris i drift 2026-09-20,
+        // trots att erbjudandet fanns.
+        //
+        // Familjen (första modellordet) plus drivlinan räcker för ett FRÅN-pris, som är vad
+        // katalogen ger: "billigaste laddhybrid-Superb". <b>Medveten gräns:</b> delar två
+        // karosser familjenamn — Leon och Leon Sportstourer — får hatchbacken kombins från-pris
+        // när bara den ena finns som laddhybrid. Det är samma modell och samma drivlina, och
+        // alternativet är AI:ns gissning.
+        String familj = modelWords.get(0);
+        for (LeasingOffer offer : utbud) {
+            if (!LEASING_PHEV.matcher(offer.model()).find()) continue;
+            List<String> offerWords = utanMarke(words(offer.model()), marke);
+            if (offerWords.isEmpty() || !offerWords.get(0).equals(familj)) continue;
+            if (bast == null || offer.monthlyKr() < bast.monthlyKr()) bast = offer;
+        }
         return bast;
+    }
+
+    /**
+     * Säger TITELN att bilen är laddhybrid? Nästan {@link #LEASING_PHEV}, men inte riktigt.
+     *
+     * <p><b>{@code iV} betyder olika saker på de två sidorna.</b> I KATALOGEN är badgen entydig:
+     * Škodas nuvarande elbilar heter Enyaq, Elroq och Epiq utan suffix, så {@code iV} där alltid
+     * är en laddhybrid (mätt: 16 av 117 erbjudanden, noll falska). I en TITEL är den det inte —
+     * Škoda kallade elbilen {@code Enyaq iV} i flera år, och de annonserna lever kvar. Med
+     * {@code iV} som laddhybridsbevis blev {@code "Škoda Enyaq iV 80"} plötsligt en laddhybrid
+     * och tappade sitt leasingpris helt (fångat av det befintliga provet, inte i drift).
+     *
+     * <p>Undantaget är därför skrivet som en EXCEPTION-lista över Škodas iV-döpta ELBILAR, inte
+     * som en lista över iV-laddhybriderna: nästa laddhybrid får rätt svar automatiskt, och en ny
+     * elbil med iV i namnet kostar bara ett UTEBLIVET pris — aldrig ett felaktigt, eftersom en
+     * laddhybridstitel utan laddhybridserbjudande ger {@code null}. Det är åt rätt håll.
+     */
+    private static final Pattern SKODA_IV_ELBILAR =
+            Pattern.compile("\\b(enyaq|elroq|epiq)\\b", Pattern.CASE_INSENSITIVE);
+
+    static boolean titelnBarLaddhybridsbadge(List<String> modelWords) {
+        String text = String.join(" ", modelWords);
+        if (!LEASING_PHEV.matcher(text).find()) return false;
+        boolean baraIv = !Pattern.compile(
+                "e-?hybrid|\\btfsi\\s+e\\b|\\bgte\\b|\\bphev\\b|plug-?in|\\brecharge\\b|\\bt8\\b",
+                Pattern.CASE_INSENSITIVE).matcher(text).find();
+        return !(baraIv && SKODA_IV_ELBILAR.matcher(text).find());
     }
 
     /** Cupra listar sina modeller som "CUPRA Born" medan titeln redan bär märket. */

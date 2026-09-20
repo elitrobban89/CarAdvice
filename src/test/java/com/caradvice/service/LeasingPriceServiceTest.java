@@ -186,6 +186,70 @@ class LeasingPriceServiceTest {
     }
 
     @Test
+    void laddhybridFarAldrigMildhybridensPris() {
+        // Skarpt i drift 2026-09-20: kortet "Cupra Leon Sportstourer e-Hybrid" fick 3 595
+        // kr/man - priset pa "Leon Sportstourer eTSI 150hk DSG", alltsa MILDHYBRIDEN.
+        // Laddhybriden kostar 4 395. Ordmatchningen var drivlineblind, och bland lika
+        // specifika traffar vinner lagsta priset - som var fel bils.
+        var utbud = List.of(
+                offer("CUPRA Leon Sportstourer", 3_595, "cupra"),
+                offer("CUPRA Leon Sportstourer eTSI 150hk DSG", 3_595, "cupra"),
+                offer("CUPRA Leon Sportstourer Swedish Edition e-HYBRID", 4_395, "cupra"));
+
+        var traff = LeasingPriceService.bestMatch(utbud, "cupra",
+                List.of("leon", "sportstourer", "e-hybrid"));
+        assertThat(traff).isNotNull();
+        assertThat(traff.monthlyKr()).isEqualTo(4_395);
+
+        // ...och at andra hallet: mildhybriden ska inte fa laddhybridens pris heller
+        var mild = LeasingPriceService.bestMatch(utbud, "cupra", List.of("leon", "sportstourer"));
+        assertThat(mild.monthlyKr()).isEqualTo(3_595);
+    }
+
+    @Test
+    void laddhybridenHittarSinFamiljAvenNarTrimraderaSkiljerSig() {
+        // Katalogen: "Superb Combi Selection Explore Edition iV". AI:n: "Superb iV Combi".
+        // Ingen ar en INLEDNING av den andra - orden kommer i olika ordning och trimnivan
+        // ligger emellan - sa bada korten stod utan katalogpris i drift. Familjen plus
+        // drivlinan racker for ett FRAN-pris, och det billigaste vinner.
+        var utbud = List.of(
+                offer("Superb Combi Selection Explore", 5_325, "skoda"),          // bensin
+                offer("Superb Combi Selection Explore Edition iV", 4_995, "skoda"),
+                offer("Superb Combi L&K Explore Edition iV", 5_350, "skoda"));
+
+        var traff = LeasingPriceService.bestMatch(utbud, "skoda", List.of("superb", "iv", "combi"));
+        assertThat(traff).isNotNull();
+        assertThat(traff.monthlyKr()).isEqualTo(4_995);
+    }
+
+    @Test
+    void skodasIvBetyderOlikaSakerITitelnOchIKatalogen() {
+        // I katalogen ar iV entydigt en laddhybrid (Enyaq/Elroq/Epiq star utan suffix). I en
+        // TITEL ar den det inte - Skoda kallade elbilen "Enyaq iV" i flera ar. Utan undantaget
+        // blev elbilstiteln en laddhybrid och tappade sitt leasingpris helt.
+        assertThat(LeasingPriceService.titelnBarLaddhybridsbadge(List.of("enyaq", "iv", "80")))
+                .isFalse();
+        assertThat(LeasingPriceService.titelnBarLaddhybridsbadge(List.of("superb", "iv", "combi")))
+                .isTrue();
+        // ...och en Skoda-elbil som OCKSA bar en riktig laddhybridbadge ar fortfarande laddhybrid
+        assertThat(LeasingPriceService.titelnBarLaddhybridsbadge(List.of("kodiaq", "iv"))).isTrue();
+        assertThat(LeasingPriceService.titelnBarLaddhybridsbadge(List.of("leon", "e-hybrid"))).isTrue();
+        assertThat(LeasingPriceService.titelnBarLaddhybridsbadge(List.of("enyaq", "coupe"))).isFalse();
+    }
+
+    @Test
+    void utanLaddhybridIUtbudetGesIngetPrisAlls() {
+        // Ett FELAKTIGT pris ar varre an inget: AI:ns gissning ar atminstone markt som en
+        // uppskattning, medan katalogpriset skrivs ut som markets eget.
+        var utbud = List.of(
+                offer("Octavia Combi Selection", 3_480, "skoda"),
+                offer("Octavia Combi Sportline", 4_550, "skoda"));
+
+        assertThat(LeasingPriceService.bestMatch(utbud, "skoda", List.of("octavia", "iv")))
+                .isNull();
+    }
+
+    @Test
     void okantMarkeGerIngenTraff() {
         // Toyota, Kia, Tesla har egna sajter med egna strukturer — de tacks inte
         assertThat(service.offerForTitle("Toyota Yaris (2024)")).isNull();
