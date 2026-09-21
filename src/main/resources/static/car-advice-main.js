@@ -1854,7 +1854,7 @@ function caUtanForval(fn) {
 function caForvalStartlage() {
   var chg = document.getElementById('ca-charger');
   if (!chg) return;
-  try { if (localStorage.getItem('ca-prefs')) return; } catch (e) {}
+  try { if (localStorage.getItem(CA_PREFS_NYCKEL)) return; } catch (e) {}
   try {
     var p = new URLSearchParams(window.location.search);
     if (p.has('charger') || p.has('fuelType') || p.has('category') || p.has('budget')) return;
@@ -2040,7 +2040,7 @@ function caSavePrefs() {
   try {
     var t = document.getElementById('ca-transmission');
     var maEl = document.getElementById('ca-maxage');
-    localStorage.setItem('ca-prefs', JSON.stringify({
+    localStorage.setItem(CA_PREFS_NYCKEL, JSON.stringify({
       category:     document.getElementById('ca-category').value,
       budget:       document.getElementById('ca-budget-slider').value,
       budgetMode:   caIsLeasing ? 'leasing' : 'köp',
@@ -2220,7 +2220,7 @@ function caFyllKvotrutan(serverMeddelande) {
 
 function caLoadPrefs() {
   try {
-    var raw = localStorage.getItem('ca-prefs');
+    var raw = localStorage.getItem(CA_PREFS_NYCKEL);
     if (!raw) return;
     var d = JSON.parse(raw);
     if (d.category)   document.getElementById('ca-category').value   = caCanonCat(d.category);
@@ -2720,7 +2720,7 @@ function caResetForm() {
   caUpdateFuelVisibility();
   caCheckMismatch();
   if (caHasSearched) caCheckChanges();
-  try { localStorage.removeItem('ca-prefs'); } catch(e) {}
+  try { localStorage.removeItem(CA_PREFS_NYCKEL); } catch(e) {}
 }
 
 function caSkeletonHTML() {
@@ -4480,6 +4480,26 @@ function caOpenSubscribe() {
    kostnadsbroms mot skript, inte ett erbjudande, och en besökare når det aldrig. */
 var CA_SEARCHES_PER_HOUR = 30;
 
+/**
+ * Nyckeln till "senast använda inställningar" — med en GENERATION i namnet.
+ *
+ * <p>{@code caForvalStartlage} avstår helt när ett sparat läge finns, och det är rätt: ett
+ * eget val ska vinna över ett förval. Men ett sparat läge som skrevs INNAN förvalen ändrades
+ * bär inget eget val — det bär det gamla förvalet. En telefon som använt appen förut möttes
+ * därför av 200 000 kr och "spelar ingen roll" dagen efter att förvalen blev 250 000 och el,
+ * och det läser som att förvalen försvunnit.
+ *
+ * <p><b>Bumpa den här när förvalen ändras.</b> Alla börjar då en gång från de nya förvalen,
+ * och därefter sticker deras egna val igen. Sparade sökningar och historiken har egna
+ * nycklar och rörs inte — det här är bara "senast använda".
+ */
+var CA_PREFS_NYCKEL = 'ca-prefs-v2';
+
+// Den gamla nyckeln städas bort så den inte ligger kvar som död data i alla webbläsare.
+(function caStadaGamlaPrefs() {
+  try { localStorage.removeItem('ca-prefs'); } catch (e) {}
+})();
+
 function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
   var bar = document.getElementById('ca-sub-bar');
   var title = document.getElementById('ca-sub-title');
@@ -4490,7 +4510,11 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
   var caEmail = localStorage.getItem('ca_email');
 
   if (!bar || !title || !desc || !prenBtn) return;
+  // Tva lagen, inte ett: "borjar ta slut" och "ar slut" maste se olika ut, annars sager
+  // signalen samma sak i bada och slutar betyda nagot.
   bar.classList.remove('ca-sub-bar-limited');
+  bar.classList.remove('ca-sub-bar-slut');
+  var slut = remaining === 0;
   if (isSubscriber) {
     title.textContent = '✓ Prenumerant';
     desc.textContent = ' – obegr\xe4nsade s\xf6kningar';
@@ -4506,6 +4530,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
     var inPer = (period === 'day') ? 'i dag' : 'denna timme';
     desc.textContent = remaining !== null ? ' – ' + remaining + ' av ' + inLim + ' s\xf6kningar kvar ' + inPer : ' – ' + inLim + ' s\xf6kningar per timme';
     if (remaining !== null && remaining <= 5) bar.classList.add('ca-sub-bar-limited');
+    if (slut) bar.classList.add('ca-sub-bar-slut');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera – 49\xa0kr/m\xe5n';
     loginLink.style.display = 'inline';
@@ -4525,6 +4550,7 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
       : ' – ' + anonLim + ' gratis s\xf6kningar per timme';
     desc.textContent = anonKvar + ' \xb7 prenumerant: obegr\xe4nsat';
     if (remaining !== null && remaining <= 2) bar.classList.add('ca-sub-bar-limited');
+    if (slut) bar.classList.add('ca-sub-bar-slut');
     prenBtn.style.display = 'inline-block';
     prenBtn.textContent = 'Prenumerera / Logga in';
     loginLink.style.display = 'none';
@@ -5015,10 +5041,24 @@ function caFcRenderResult(recs) {
       'box-shadow:0 6px 20px -10px rgba(16,185,129,.9);}',
     '.ca-rundknapp.ca-rund-ev:hover{border-color:rgba(52,211,153,.8);',
       'box-shadow:0 11px 28px -10px rgba(52,211,153,1);}',
-    // Bärnsten när sökningarna tar slut — samma signal som den breda raden bar, så den
-    // inte försvinner med raden.
+    // Bärnsten när sökningarna BÖRJAR ta slut — samma signal som den breda raden bar, så
+    // den inte försvinner med raden.
     '.ca-rundknapp.ca-rund-larm{border-color:rgba(251,191,36,.8);',
       'box-shadow:0 6px 22px -9px rgba(251,191,36,.95);}',
+    // Och ett EGET läge när kvoten är slut: knappen lyser och pulsar. Ringen ligger i ett
+    // pseudo-element och animeras med opacity och transform — en pulsande box-shadow hade
+    // ritat om knappen varje bildruta, och det är precis den fällan heroens hue-rotate gick
+    // i en gång.
+    '.ca-rundknapp.ca-rund-slut{border-color:rgba(248,113,113,.9);',
+      'background:rgba(69,10,10,.55);}',
+    '.ca-rundknapp.ca-rund-slut::after{content:"";position:absolute;inset:-5px;',
+      'border-radius:50%;pointer-events:none;',
+      'box-shadow:0 0 20px 5px rgba(248,113,113,.75),0 0 40px 10px rgba(239,68,68,.35);',
+      'animation:ca-rund-puls 1.9s ease-in-out infinite;}',
+    '@keyframes ca-rund-puls{0%,100%{opacity:.45;transform:scale(.94)}',
+      '50%{opacity:1;transform:scale(1.06)}}',
+    // Knappen måste vara ett eget rum för ringen, annars läggs den relativt heron.
+    '.ca-rundknapp{position:relative;}',
     '#ca-sub-bar,#ca-ev-promo{display:none!important;}',
     // Bäraren: glöden och mobilens nedskalning bor HÄR och inte på .ca-vag, eftersom
     // remsans egen mask gäller även dess pseudo-element — en glöd där hade klippts bort i
@@ -5343,7 +5383,8 @@ function caFcRenderResult(recs) {
       '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken,.ca-vag-skum,',
       '.ca-vag-skum-bak{animation:none!important;}',
       '.ca-vag-fart{opacity:.5;}',
-      '.ca-vagram::before,.ca-vagram::after{animation:none!important;}}'
+      '.ca-vagram::before,.ca-vagram::after{animation:none!important;}',
+      '.ca-rundknapp.ca-rund-slut::after{animation:none!important;opacity:.9;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
@@ -5410,6 +5451,7 @@ function caRundaKnappar() {
         pren.setAttribute('aria-label', txt);
       }
       pren.classList.toggle('ca-rund-larm', bar.classList.contains('ca-sub-bar-limited'));
+      pren.classList.toggle('ca-rund-slut', bar.classList.contains('ca-sub-bar-slut'));
     }
     synka();
     if ('MutationObserver' in window) {

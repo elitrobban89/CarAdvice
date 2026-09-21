@@ -2561,6 +2561,24 @@ class GroqServiceTest {
     }
 
     @Test
+    void olikaStavningAvMarketArSammaModell() {
+        // Skarpt fall 2026-09-21: SUV, laddbox hemma, el, 250 000 kr gav Skoda Enyaq TVA ganger
+        // (2021 och 2022). Dedupen kordes och struntar redan i arsmodellen - men AI:n stavade
+        // market olika i de tva titlarna, och en ren strangjamforelse ser "S" och "S-med-karon"
+        // som olika bokstaver. Uppmatt fore fixen: bada med samma stavning gav SAMMA, blandad
+        // stavning gav OLIKA.
+        //
+        // Provet bar BADA riktningarna: hade bara den ena stavats med diakrit hade en
+        // normalisering som gick at fel hall sett gron ut.
+        assertThat(GroqService.sameModel("Škoda Enyaq (2021)", "Skoda Enyaq (2022)")).isTrue();
+        assertThat(GroqService.sameModel("Skoda Enyaq (2021)", "Škoda Enyaq (2022)")).isTrue();
+        assertThat(GroqService.sameModel("Skoda Enyaq iV (2021)", "Škoda Enyaq (2022)")).isTrue();
+        // Diakriten far inte gora tva OLIKA modeller till en: normaliseringen tar bort tecken,
+        // den ska inte tappa bokstaver.
+        assertThat(GroqService.sameModel("Škoda Enyaq (2021)", "Skoda Kodiaq (2022)")).isFalse();
+    }
+
+    @Test
     void olikaModellerFarInteSlasIhop() {
         assertThat(GroqService.sameModel("Tesla Model Y (2022)", "Tesla Model 3 (2022)")).isFalse();
         assertThat(GroqService.sameModel("Volvo EX30 (2023)", "Volvo EX40 (2023)")).isFalse();

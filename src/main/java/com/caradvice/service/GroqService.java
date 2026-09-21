@@ -1390,9 +1390,28 @@ public class GroqService {
         return out;
     }
 
-    /** Titel utan årtalsparentes, gemener — "Volkswagen ID.4 (2021)" och "(2022)" blir samma nyckel. */
+    /**
+     * Titel utan årtalsparentes, gemener och UTAN diakriter — "Volkswagen ID.4 (2021)" och
+     * "(2022)" blir samma nyckel, och det gör "Škoda Enyaq" och "Skoda Enyaq" också.
+     *
+     * <p><b>Normaliseringen är inte kosmetik.</b> Skarpt fall 2026-09-21: en SUV-sökning på
+     * 250 000 kr med laddbox hemma gav Škoda Enyaq två gånger, 2021 och 2022. Dedupen kördes,
+     * och den struntar redan i årsmodellen — men AI:n stavade märket olika i de två titlarna,
+     * och en ren strängjämförelse ser "S" och "Š" som olika bokstäver. Uppmätt före fixen:
+     * "Skoda Enyaq" mot "Skoda Enyaq" gav samma modell, "Škoda Enyaq" mot "Skoda Enyaq" gav
+     * olika.
+     *
+     * <p>Samma familj som de smala mellanslagen i {@link CarTitle}: AI:ns titlar bär tecken
+     * som ser lika ut men inte är det, och varje jämförelse som inte normaliserar först har
+     * ett hål.
+     */
     private static String modelKey(String title) {
-        return title == null ? "" : CarTitle.stripYear(title).toLowerCase();
+        if (title == null) return "";
+        String utanAr = CarTitle.stripYear(title);
+        // NFD delar upp "Š" i "S" + ring, och sedan kastas de kombinerande tecknen.
+        return java.text.Normalizer.normalize(utanAr, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase();
     }
 
     /** Modellnyckelns ord i ordning. (Egen metod: modelTokens är upptagen av modellverifieringen.) */
