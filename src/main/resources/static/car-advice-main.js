@@ -1763,13 +1763,16 @@ var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '5', suv:
  * på frågan. Chipset lovade alltså "350k" medan sökningen blev en elbilssökning. Nu står
  * det som det är.
  *
- * <p>Beloppen följer den svenska begagnatmarknaden 2026: familjebil 250 000, SUV 230 000.
+ * <p>Beloppen följer den svenska begagnatmarknaden 2026. Medianen för en begagnad SUV ligger
+ * runt 230 000, men förvalet pekar på 250 000: med el på SUV namngav prisgolvstabellen bara
+ * fyra modeller under 230 000, och en av dem låg 100 kr under taket. Ett förval ska peka på
+ * ett belopp där det finns något att välja på, inte på medianen.
  * El-SUV:arna från 2022–2023 års företags- och leasingavtal har nått begagnatmarknaden i
  * stora volymer, och det är därför en SUV numera bär el i stället för inget alls.
  */
 var CA_KAT_FORVAL = {
   familjebil: { budget: 250000, drivmedel: 'el', hint: 'el · 250k' },
-  suv:        { budget: 230000, drivmedel: 'el', hint: 'el · 230k' },
+  suv:        { budget: 250000, drivmedel: 'el', hint: 'el · 250k' },
   elbil:      { budget: 300000,                  hint: '300k' },
   laddhybrid: { budget: 250000,                  hint: '250k' },
   smaabil:    { budget: 130000,                  hint: '130k' }
