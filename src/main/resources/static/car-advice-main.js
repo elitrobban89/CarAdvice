@@ -4991,14 +4991,39 @@ function caFcRenderResult(recs) {
     // Rubrikraden: h2:an tar sin plats, vägen resten
     // Remsan ar hogre an rubriken, sa raden far sin egen bottenmarginal: h2:ns egen
     // marginal ligger INNE i flexraden och ger noll luft ned till underrubriken.
-    '.ca-rubrikrad{display:flex;align-items:center;gap:16px;margin-bottom:7px;}',
-    '.ca-rubrikrad h2{margin-bottom:0!important;flex:0 0 auto;}',
-    // Bäraren: ram, glöd och mobilens nedskalning bor HÄR och inte på .ca-vag, eftersom
-    // remsans egen mask annars hade tonat bort ramen i precis de kanter den ska rita.
-    // Glöden är två skuggor: en mörk för djup, och en varm som ekar soluppgången i scenen.
-    '.ca-vagram{position:relative;flex:1 1 auto;min-width:70px;border-radius:14px;',
-      'box-shadow:0 10px 30px -12px rgba(0,0,0,.6),0 0 42px -16px rgba(251,146,60,.75),',
-        '0 0 30px -14px rgba(167,139,250,.6);}',
+    // En KOLUMN, inte en rad: rubriken uppe till vänster, remsan i full bredd under den.
+    // Som rad fick remsan dela bredden med rubriken — därav min-width och mobilens
+    // nedskalning. Ensam på sin rad behöver den ingetdera.
+    '.ca-rubrikrad{display:flex;flex-direction:column;align-items:stretch;gap:12px;',
+      'margin-bottom:14px;}',
+    '.ca-rubrikrad h2{margin-bottom:0!important;align-self:flex-start;text-align:left;}',
+    // Underrubriken centreras under remsan.
+    '#ca-hero p.ca-sub{text-align:center;margin-bottom:16px;}',
+    // Två runda ikonknappar i stället för de två breda raderna. 44 px är fingermålet —
+    // samma mått som resten av appens knappar fick när de mättes på telefon.
+    '.ca-hero-knappar{display:flex;justify-content:center;gap:13px;margin:0 0 28px;}',
+    '.ca-rundknapp{width:44px;height:44px;border-radius:50%;display:inline-flex;',
+      'align-items:center;justify-content:center;font-size:1.15rem;line-height:1;',
+      'text-decoration:none;background:rgba(15,12,41,.55);',
+      'border:1px solid rgba(167,139,250,.38);',
+      'box-shadow:0 6px 20px -10px rgba(139,92,246,.85);',
+      'transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;}',
+    '.ca-rundknapp:hover{transform:translateY(-2px) scale(1.07);',
+      'border-color:rgba(167,139,250,.75);box-shadow:0 11px 28px -10px rgba(167,139,250,1);}',
+    '.ca-rundknapp:focus-visible{outline:2px solid rgba(167,139,250,.85);outline-offset:3px;}',
+    '.ca-rundknapp.ca-rund-ev{border-color:rgba(52,211,153,.45);',
+      'box-shadow:0 6px 20px -10px rgba(16,185,129,.9);}',
+    '.ca-rundknapp.ca-rund-ev:hover{border-color:rgba(52,211,153,.8);',
+      'box-shadow:0 11px 28px -10px rgba(52,211,153,1);}',
+    // Bärnsten när sökningarna tar slut — samma signal som den breda raden bar, så den
+    // inte försvinner med raden.
+    '.ca-rundknapp.ca-rund-larm{border-color:rgba(251,191,36,.8);',
+      'box-shadow:0 6px 22px -9px rgba(251,191,36,.95);}',
+    '#ca-sub-bar,#ca-ev-promo{display:none!important;}',
+    // Bäraren: glöden och mobilens nedskalning bor HÄR och inte på .ca-vag, eftersom
+    // remsans egen mask gäller även dess pseudo-element — en glöd där hade klippts bort i
+    // precis de kanter den ska lysa runt.
+    '.ca-vagram{position:relative;width:100%;border-radius:14px;}',
     // Masken åt båda håll är hela poängen: utan den slutar vägen tvärt i två kanter, och
     // en väg med synliga ändar tar per definition slut.
     // --vagskala ar remsans enda storleksratt. Scenen ritas alltid i sitt egna 72 px hoga
@@ -5010,19 +5035,29 @@ function caFcRenderResult(recs) {
       // snittet, och 16 % lämnade en tredjedel av remsan tom innanför ramen.
       '-webkit-mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);',
       'mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);}',
-    // Den vandrande färgkanten, samma recept som heron och korten: conic-gradient klippt
-    // till en ring med mask-composite, roterad via den registrerade --ca-rim-ang. Färgerna
-    // följer scenen — bärnsten och orange ur solen, rosa och violett ur skymningen, cyan ur
-    // havet. z-index lyfter ringen ÖVER scenen: en ram under det den ramar in syns inte
-    // alls när barnet fyller hela rutan.
-    '.ca-vagram::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;',
-      'border-radius:inherit;padding:1.5px;',
-      'background:conic-gradient(from var(--ca-rim-ang),#fbbf24,#f97316,#f472b6,#a78bfa,#38bdf8,#fbbf24);',
-      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
-      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
-      '-webkit-mask-composite:xor;mask-composite:exclude;',
-      'opacity:.9;filter:saturate(150%);animation:ca-rim 11s linear infinite;',
-      'animation-delay:-6.2s;}',
+    // Glöden: två suddiga lager BAKOM scenen som kretsar åt var sitt håll i olika takt.
+    // Ett varmt ur solen, ett svalt ur havet. Att de går olika fort och olika väg är hela
+    // poängen — två lager i takt läser som ett enda pulserande sken, medan två ur fas gör
+    // att ljuset tycks komma från olika håll över tid.
+    //
+    // Bara transform animeras. Suddet räknas EN gång på en stillastående gradient och
+    // lagret flyttas sedan av kompositorn; en animerad box-shadow hade krävt en ny ritning
+    // av hela ytan varje bildruta — samma fälla som heroens hue-rotate gick i (31,4 mot
+    // 43,9 fps, och togs bort).
+    '.ca-vagram::before,.ca-vagram::after{content:"";position:absolute;z-index:-1;',
+      'inset:-24px;border-radius:34px;pointer-events:none;will-change:transform;}',
+    '.ca-vagram::before{background:radial-gradient(60% 120% at 72% 40%,rgba(251,146,60,.85),',
+      'rgba(244,63,94,.4) 45%,transparent 72%);filter:blur(22px);opacity:.78;',
+      'animation:ca-vagglod-varm 17s ease-in-out infinite;}',
+    '.ca-vagram::after{background:radial-gradient(62% 120% at 26% 62%,rgba(56,189,248,.8),',
+      'rgba(167,139,250,.5) 48%,transparent 74%);filter:blur(24px);opacity:.7;',
+      'animation:ca-vagglod-sval 23s ease-in-out infinite;}',
+    '@keyframes ca-vagglod-varm{0%{transform:translate(-17px,-10px)}',
+      '25%{transform:translate(12px,-15px)}50%{transform:translate(20px,10px)}',
+      '75%{transform:translate(-9px,15px)}100%{transform:translate(-17px,-10px)}}',
+    '@keyframes ca-vagglod-sval{0%{transform:translate(19px,12px)}',
+      '25%{transform:translate(-14px,14px)}50%{transform:translate(-20px,-12px)}',
+      '75%{transform:translate(10px,-15px)}100%{transform:translate(19px,12px)}}',
     // Bredden kompenseras sa den SKALADE scenen blir exakt full bredd, och origo ligger i
     // nedre vanstra hornet - annars vaxer havet ned ur remsan i stallet for himlen upp.
     // Solens x-led. Den star pa 72 % i oskalat lage och glider at hoger i takt med skalan:
@@ -5295,14 +5330,11 @@ function caFcRenderResult(recs) {
     // kopia av alla hade blivit två sanningar som glider isär vid nästa ändring. Bredden sätts
     // till 1/0,74 så att den skalade bredden landar på exakt 100 %, och den negativa
     // marginalen tar bort luften som den outnyttjade höjden annars lämnar.
-    '@media(max-width:560px){.ca-rubrikrad{flex-wrap:wrap;gap:0;}',
-      // Nedskalningen sitter på bäraren så RAMEN krymper med scenen — låg den på .ca-vag
-      // skulle en fullstor ram rita runt en nedskalad remsa.
-      '.ca-vagram{display:block;flex:0 0 135.1%;min-width:0;',
-        'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}',
-      // Ingen uppskalning har: mobilen har redan en egen nedskalning ovan, och tva
-      // skalor pa varandra hade gjort remsan storst pa den skarm som har minst plats.
-      '.ca-vag{--vagskala:1;height:72px;}}',
+    // Mobilen behöver varken nedskalning eller överbredd längre. Båda fanns för att remsan
+    // delade rad med rubriken; i en kolumn får den hela bredden, och då räcker det att
+    // rita scenen i sitt eget mått.
+    '@media(max-width:560px){.ca-vag{--vagskala:1;}',
+      '.ca-rubrikrad{gap:9px;margin-bottom:11px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
       '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
@@ -5311,17 +5343,93 @@ function caFcRenderResult(recs) {
       '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken,.ca-vag-skum,',
       '.ca-vag-skum-bak{animation:none!important;}',
       '.ca-vag-fart{opacity:.5;}',
-      '.ca-vagram::after{animation:none!important;}}'
+      '.ca-vagram::before,.ca-vagram::after{animation:none!important;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
 
 /**
- * Sätter vägen bredvid rubriken.
+ * Bygger de två runda ikonknapparna som ersätter kvotraden och elbilspromon.
+ *
+ * <p>Raderna GOMS, de tas inte bort: {@code caUpdateSubBar} returnerar tidigt om något av
+ * dess fält saknas, och kvotraden bär tre lägen plus en larmklass när sökningarna tar
+ * slut. En MutationObserver flyttar radens text till knappens {@code title} och speglar
+ * larmklassen, så både siffran och varningen finns kvar åt den som håller kvar pekaren.
+ *
+ * <p>Utloggning fanns bara i den dolda raden. Knappen går till subscribe.html, som bär
+ * inloggning, utloggning och avslut — ingen väg försvinner, den blir ett klick längre.
+ */
+function caRundaKnappar() {
+  try {
+    if (document.querySelector('.ca-hero-knappar')) return;
+    var sub = document.querySelector('#ca-hero p.ca-sub');
+    var bar = document.getElementById('ca-sub-bar');
+    var promo = document.getElementById('ca-ev-promo');
+    if (!sub) return;
+
+    var rad = document.createElement('div');
+    rad.className = 'ca-hero-knappar';
+
+    function knapp(klass, ikon, href, etikett) {
+      var a = document.createElement('a');
+      a.className = 'ca-rundknapp' + (klass ? ' ' + klass : '');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = ikon;
+      a.title = etikett;
+      a.setAttribute('aria-label', etikett);
+      return a;
+    }
+
+    var pren = knapp('', '\uD83D\uDCB3', CA_API_BASE + '/subscribe.html', 'Prenumeration och konto');
+    pren.id = 'ca-rund-pren';
+    rad.appendChild(pren);
+
+    var evLank = promo ? promo.querySelector('a') : null;
+    var ev = knapp('ca-rund-ev', '\u26A1',
+      evLank ? evLank.href : 'https://elitrobban.se/elbilsladdning/',
+      'AI EV Laddassistent — prova gratis');
+    ev.id = 'ca-rund-ev';
+    rad.appendChild(ev);
+
+    sub.parentNode.insertBefore(rad, sub.nextSibling);
+
+    // Titeln följer kvotraden. Utan det här står det "Prenumeration och konto" även när
+    // raden säger "2 av 30 sökningar kvar" — och just då är siffran det enda som betyder
+    // något.
+    if (!bar) return;
+    function synka() {
+      // Bara VÄNSTRA halvan: högra halvan är radens egna knappar ("Logga in",
+      // "Prenumerera"), och de hamnade i tooltipen som "… Logga in Prenumerera / Logga in"
+      // — brus framför den siffra som är hela anledningen att titta.
+      var kalla = document.getElementById('ca-sub-left') || bar;
+      var txt = (kalla.textContent || '').replace(/\s+/g, ' ').trim();
+      if (txt) {
+        pren.title = txt;
+        pren.setAttribute('aria-label', txt);
+      }
+      pren.classList.toggle('ca-rund-larm', bar.classList.contains('ca-sub-bar-limited'));
+    }
+    synka();
+    if ('MutationObserver' in window) {
+      new MutationObserver(synka).observe(bar, {
+        childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class']
+      });
+    }
+  } catch (e) {
+    try { console.warn('CarAdvice: de runda knapparna kunde inte byggas', e); } catch (x) {}
+  }
+}
+
+/**
+ * Sätter vägen under rubriken.
  *
  * <p>Idempotent: körs om utan att dubblera, eftersom WP-sidan kan ladda skriptet en gång till
  * vid mjuka sidbyten. Saknas rubriken händer ingenting — hellre ingen väg än ett undantag som
  * stoppar resten av initieringen.
+ *
+ * <p>Raden är en KOLUMN: rubriken överst till vänster, remsan i full bredd under.
  */
 function caByggVag() {
   try {
@@ -5476,6 +5584,9 @@ function caInit() {
   };
 
   caByggVag();
+  // Efter caByggVag: knapparna laggs efter underrubriken, och underrubriken far sin plats
+  // under remsan forst nar vagen ar monterad.
+  caRundaKnappar();
   caGroqBadge();
   caResultatradIhop();
   caGomUndanSmaval();
