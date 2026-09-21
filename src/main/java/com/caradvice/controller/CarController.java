@@ -85,6 +85,7 @@ public class CarController {
     private final com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
     private final com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
     private final com.caradvice.service.KategoriVaktStats kategoriVaktStats;
+    private final com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -177,8 +178,10 @@ public class CarController {
                          com.caradvice.service.EvFactCandidateService evFactCandidateService,
                          com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService,
                          com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService,
-                         com.caradvice.service.KategoriVaktStats kategoriVaktStats) {
+                         com.caradvice.service.KategoriVaktStats kategoriVaktStats,
+                         com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill) {
         this.kategoriVaktStats = kategoriVaktStats;
+        this.autoDataCargoFill = autoDataCargoFill;
         this.upcomingAutoReleaseService = upcomingAutoReleaseService;
         this.upcomingAdCheckService = upcomingAdCheckService;
         this.evFactCandidateService = evFactCandidateService;
@@ -1019,6 +1022,35 @@ public class CarController {
         int borttagna = cargoSpecService.rensaMissar();
         log.info("cargo_spec_miss tömd på begäran — {} rader borta, 03:00-jobbet prövar om dem", borttagna);
         return ResponseEntity.ok(Map.of("deleted", borttagna));
+    }
+
+    /**
+     * Kör bagageifyllningen på begäran — 03:00-jobbets andra steg, utan att vänta till natten.
+     *
+     * <p>{@code POST /admin/sync-cargo-specs} kallar bara {@code syncCarNames}, alltså bara
+     * namnhämtningen från Bilweb. Steget som fyller volymer och skriver {@code cargo_spec_miss}
+     * satt bara i {@code CargoSpecSyncScheduler}, och gick därför inte att prova annat än genom
+     * att vänta ett dygn på nästa natt — ett jobb som bara kan provas i drift kan inte provas alls.
+     *
+     * <p>Körningen trackas medvetet INTE som {@code JOB_CARGO_SPECS}: scrape-status ska bära
+     * NATTENS utfall, och en manuell körning som skrev över den raden hade fått 08:00-auditen
+     * att läsa mitt handpåläggande som nattens resultat.
+     */
+    @PostMapping("/admin/fill-cargo-volumes")
+    public ResponseEntity<?> fillCargoVolumes(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        Thread.ofVirtual().start(() -> {
+            try {
+                int fyllda = autoDataCargoFill.fyllSaknadeVolymer();
+                log.info("Manuell bagageifyllning klar — {} volymer ifyllda, {} parkerade missar",
+                        fyllda, cargoSpecService.antalMissar());
+            } catch (Exception e) {
+                log.warn("Manuell bagageifyllning misslyckades: {}", e.getMessage());
+            }
+        });
+        return ResponseEntity.accepted().body(Map.of(
+                "status", "bagageifyllning startad — följ medVolym och bagageMissar i /api/admin/cargo-coverage"));
     }
 
 

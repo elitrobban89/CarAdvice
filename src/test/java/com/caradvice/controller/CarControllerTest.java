@@ -84,6 +84,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService;
     @MockBean private com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
     @MockBean private com.caradvice.service.KategoriVaktStats kategoriVaktStats;
+    @MockBean private com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
 
     // --- health ---
 
@@ -747,6 +748,28 @@ class CarControllerTest {
            .andExpect(jsonPath("$.cargoSpecs[0].carName").value("Volvo V60"))
            .andExpect(jsonPath("$.cargoSpecs[0].cargoLiters").value(529));
     }
+    // --- POST /api/admin/fill-cargo-volumes ---
+
+    @Test
+    void bagageifyllningenKraverNyckel() throws Exception {
+        mvc.perform(post("/api/admin/fill-cargo-volumes"))
+           .andExpect(status().isForbidden());
+        verify(autoDataCargoFill, never()).fyllSaknadeVolymer();
+    }
+
+    @Test
+    void bagageifyllningenStartarStegetSomSkriverMissarna() throws Exception {
+        // sync-cargo-specs kör bara syncCarNames, alltså namnhämtningen. Steget som fyller
+        // volymer och parkerar kända nej satt bara i 03:00-schemat, så hela bagagelarmet gick
+        // inte att prova annat än genom att vänta ett dygn — och då säger ett grepp om att
+        // det är RÄTT steg som startas mer än statuskoden gör.
+        mvc.perform(post("/api/admin/fill-cargo-volumes").header("X-Admin-Key", "test-admin"))
+           .andExpect(status().isAccepted());
+
+        // Körningen ligger på en virtuell tråd, så verifieringen måste få vänta på den.
+        verify(autoDataCargoFill, org.mockito.Mockito.timeout(3000)).fyllSaknadeVolymer();
+    }
+
     // --- GET /api/admin/ice-generations/missar ---
 
     @Test
