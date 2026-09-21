@@ -236,7 +236,11 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-field select,.ca-field input[type="number"]{backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border-color:rgba(167,139,250,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}',
     '.ca-field input[type="number"]:focus,.ca-field select:focus{border-color:rgba(167,139,250,.7);box-shadow:0 0 0 3px rgba(139,92,246,.28),0 0 34px rgba(167,139,250,.4),inset 0 1px 0 rgba(255,255,255,.1);}',
     // Sök-knapp: ljusare skiftande lila, pulserande glöd + vandrande sheen
-    '#ca-btn{position:relative;overflow:hidden;background:linear-gradient(135deg,#a855f7 0%,#8b5cf6 45%,#6366f1 100%);text-shadow:0 1px 8px rgba(30,10,60,.45);animation:ca-btn-glow 2.8s ease-in-out infinite alternate,ca-hue 16s ease-in-out infinite;}',
+    // ca-hue ar BORTTAGEN har, av samma skal som den togs bort fran heron (se kommentaren
+    // langre ned): animerad filter:hue-rotate tvingar fram en ny ritning varje bildruta.
+    // Uppmatt med 4x strypt CPU: att pausa den ensam gav 32,3 -> 36,5 fps. Knappen behaller
+    // sin glod och sitt svep - fargskiftet var det ingen sag men alla betalade for.
+    '#ca-btn{position:relative;overflow:hidden;background:linear-gradient(135deg,#a855f7 0%,#8b5cf6 45%,#6366f1 100%);text-shadow:0 1px 8px rgba(30,10,60,.45);animation:ca-btn-glow 2.8s ease-in-out infinite alternate;}',
     '#ca-btn::after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);pointer-events:none;animation:ca-sheen 5s ease-in-out infinite;}',
     '#ca-btn:hover{box-shadow:0 12px 40px rgba(167,139,250,.7),0 0 80px rgba(139,92,246,.4),inset 0 1px 0 rgba(255,255,255,.3);}',
     // Kort: glasigare + topp-highlight; starkare lila hover-glow på Bil 1
@@ -248,6 +252,11 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // Ringen ritas med conic-gradient + mask-composite och roteras via en registrerad
     // vinkelvariabel. Utan @property går vinkeln inte att animera och kanten står stilla
     // som en statisk färgring — degraderar alltså snyggt i äldre webbläsare.
+    // Allt dekorativt pausas nar heron rullat ur bild. Ringar, aurora, vagscen och glod
+    // snurrade vidare medan besokaren laste resultaten langre ned - alltsa under den del
+    // av besoket som betyder nagot. Uppmatt med 4x strypt CPU: ringar, glod och hue
+    // tillsammans kostade 20 fps (32,3 -> 52,6) medan de syntes.
+    '.ca-vilar,.ca-vilar *{animation-play-state:paused!important;}',
     '@property --ca-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false;}',
     '@keyframes ca-rim{to{--ca-rim-ang:360deg;}}',
     // Hero: hela färgskalan, som chattpanelen. ::before är upptaget av auroran, så ::after.
@@ -4235,6 +4244,35 @@ function caKnappNedrakning(btn, sekunder, etikett) {
  * <p>Faller tillbaka på att bara sätta klassen direkt om {@code IntersectionObserver} saknas,
  * och hoppar över hela effekten vid reduced motion.
  */
+/**
+ * Pausar allt dekorativt när heron rullat ur bild.
+ *
+ * <p>Ringarna, auroran, vägscenen och glöden snurrade vidare medan besökaren läste
+ * resultaten längre ned. Uppmätt med 4x strypt CPU kostade ringar + glöd + hue 20 fps
+ * (32,3 mot 52,6) medan de syntes — och exakt lika mycket när ingen såg dem.
+ *
+ * <p>Marginalen gör att de vaknar strax INNAN heron kommer tillbaka i bild: en ring som
+ * startar mitt i bilden läser som ett hack, inte som liv.
+ *
+ * <p>Saknas {@code IntersectionObserver} händer ingenting — då är allt igang som förut,
+ * vilket är rätt fallback för en ren optimering.
+ */
+function caVilaUtanforBild() {
+  try {
+    if (!('IntersectionObserver' in window)) return;
+    var hero = document.getElementById('ca-hero');
+    if (!hero) return;
+    var obs = new IntersectionObserver(function (poster) {
+      poster.forEach(function (p) {
+        p.target.classList.toggle('ca-vilar', !p.isIntersecting);
+      });
+    }, { rootMargin: '150px' });
+    obs.observe(hero);
+  } catch (e) {
+    try { console.warn('CarAdvice: vilolaget kunde inte kopplas', e); } catch (x) {}
+  }
+}
+
 function caSvepVidSyn() {
   try {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5636,6 +5674,7 @@ function caInit() {
   caHopfallbar(document.getElementById('ca-freecompare'),
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
+  caVilaUtanforBild();
   // Före caUpdateSliderFill: reglaget får sitt tak och sina steg, och fyllnaden räknas på
   // den skalan.
   caInitBudgetReglage();
