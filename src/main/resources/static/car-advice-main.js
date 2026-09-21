@@ -4993,15 +4993,36 @@ function caFcRenderResult(recs) {
     // marginal ligger INNE i flexraden och ger noll luft ned till underrubriken.
     '.ca-rubrikrad{display:flex;align-items:center;gap:16px;margin-bottom:7px;}',
     '.ca-rubrikrad h2{margin-bottom:0!important;flex:0 0 auto;}',
+    // Bäraren: ram, glöd och mobilens nedskalning bor HÄR och inte på .ca-vag, eftersom
+    // remsans egen mask annars hade tonat bort ramen i precis de kanter den ska rita.
+    // Glöden är två skuggor: en mörk för djup, och en varm som ekar soluppgången i scenen.
+    '.ca-vagram{position:relative;flex:1 1 auto;min-width:70px;border-radius:14px;',
+      'box-shadow:0 10px 30px -12px rgba(0,0,0,.6),0 0 42px -16px rgba(251,146,60,.75),',
+        '0 0 30px -14px rgba(167,139,250,.6);}',
     // Masken åt båda håll är hela poängen: utan den slutar vägen tvärt i två kanter, och
     // en väg med synliga ändar tar per definition slut.
     // --vagskala ar remsans enda storleksratt. Scenen ritas alltid i sitt egna 72 px hoga
     // rum och skalas darifran, sa alla inre matt - horisonten pa 51, asfalten pa 36, havet
     // pa 28 - behaller sitt inbordes forhallande oavsett vad skalan sats till.
-    '.ca-vag{--vagskala:1.5;position:relative;flex:1 1 auto;min-width:70px;',
-      'height:calc(72px * var(--vagskala));overflow:hidden;',
-      '-webkit-mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);',
-      'mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
+    '.ca-vag{--vagskala:1.5;position:relative;display:block;width:100%;',
+      'height:calc(72px * var(--vagskala));overflow:hidden;border-radius:inherit;',
+      // 7 % och inte 16 %: inne i en ram räcker ett andetag av toning för att dölja
+      // snittet, och 16 % lämnade en tredjedel av remsan tom innanför ramen.
+      '-webkit-mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);',
+      'mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);}',
+    // Den vandrande färgkanten, samma recept som heron och korten: conic-gradient klippt
+    // till en ring med mask-composite, roterad via den registrerade --ca-rim-ang. Färgerna
+    // följer scenen — bärnsten och orange ur solen, rosa och violett ur skymningen, cyan ur
+    // havet. z-index lyfter ringen ÖVER scenen: en ram under det den ramar in syns inte
+    // alls när barnet fyller hela rutan.
+    '.ca-vagram::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;',
+      'border-radius:inherit;padding:1.5px;',
+      'background:conic-gradient(from var(--ca-rim-ang),#fbbf24,#f97316,#f472b6,#a78bfa,#38bdf8,#fbbf24);',
+      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      '-webkit-mask-composite:xor;mask-composite:exclude;',
+      'opacity:.9;filter:saturate(150%);animation:ca-rim 11s linear infinite;',
+      'animation-delay:-6.2s;}',
     // Bredden kompenseras sa den SKALADE scenen blir exakt full bredd, och origo ligger i
     // nedre vanstra hornet - annars vaxer havet ned ur remsan i stallet for himlen upp.
     // Solens x-led. Den star pa 72 % i oskalat lage och glider at hoger i takt med skalan:
@@ -5275,10 +5296,13 @@ function caFcRenderResult(recs) {
     // till 1/0,74 så att den skalade bredden landar på exakt 100 %, och den negativa
     // marginalen tar bort luften som den outnyttjade höjden annars lämnar.
     '@media(max-width:560px){.ca-rubrikrad{flex-wrap:wrap;gap:0;}',
-      // Ingen uppskalning har: mobilen har redan en egen nedskalning nedan, och tva
+      // Nedskalningen sitter på bäraren så RAMEN krymper med scenen — låg den på .ca-vag
+      // skulle en fullstor ram rita runt en nedskalad remsa.
+      '.ca-vagram{display:block;flex:0 0 135.1%;min-width:0;',
+        'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}',
+      // Ingen uppskalning har: mobilen har redan en egen nedskalning ovan, och tva
       // skalor pa varandra hade gjort remsan storst pa den skarm som har minst plats.
-      '.ca-vag{--vagskala:1;display:block;flex:0 0 135.1%;min-width:0;height:72px;',
-        'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}}',
+      '.ca-vag{--vagskala:1;height:72px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
       '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
@@ -5286,7 +5310,8 @@ function caFcRenderResult(recs) {
       '.ca-vag-stad,.ca-vag-kullar-bort,.ca-vag-moln,.ca-vag-vagor,',
       '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken,.ca-vag-skum,',
       '.ca-vag-skum-bak{animation:none!important;}',
-      '.ca-vag-fart{opacity:.5;}}'
+      '.ca-vag-fart{opacity:.5;}',
+      '.ca-vagram::after{animation:none!important;}}'
   ].join('');
   (document.body || document.documentElement).appendChild(s);
 })();
@@ -5310,9 +5335,14 @@ function caByggVag() {
     h2.parentNode.insertBefore(rad, h2);
     rad.appendChild(h2);
 
+    // Bäraren tar aria-hidden för hela stycket: ramen och scenen är en dekoration, och en
+    // skärmläsare ska inte hitta två tomma lådor i stället för en.
+    var ram = document.createElement('div');
+    ram.className = 'ca-vagram';
+    ram.setAttribute('aria-hidden', 'true');
+
     var vag = document.createElement('div');
     vag.className = 'ca-vag';
-    vag.setAttribute('aria-hidden', 'true');
     vag.innerHTML =
       // Allt ligger i en inre scen med fast 72 px hojd som skalas som en enhet - se
       // --vagskala i stilarna. Lagren nedan positioneras alltsa mot SCENEN, inte mot
@@ -5392,7 +5422,8 @@ function caByggVag() {
       '</svg>' +
       '<div class="ca-vag-solsken"></div>' +
       '</div>';
-    rad.appendChild(vag);
+    ram.appendChild(vag);
+    rad.appendChild(ram);
   } catch (e) {
     try { console.warn('CarAdvice: vägen vid rubriken kunde inte byggas', e); } catch (x) {}
   }
