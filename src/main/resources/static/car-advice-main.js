@@ -4940,9 +4940,22 @@ function caFcRenderResult(recs) {
     '.ca-rubrikrad h2{margin-bottom:0!important;flex:0 0 auto;}',
     // Masken åt båda håll är hela poängen: utan den slutar vägen tvärt i två kanter, och
     // en väg med synliga ändar tar per definition slut.
-    '.ca-vag{position:relative;flex:1 1 auto;min-width:70px;height:72px;overflow:hidden;',
+    // --vagskala ar remsans enda storleksratt. Scenen ritas alltid i sitt egna 72 px hoga
+    // rum och skalas darifran, sa alla inre matt - horisonten pa 51, asfalten pa 36, havet
+    // pa 28 - behaller sitt inbordes forhallande oavsett vad skalan sats till.
+    '.ca-vag{--vagskala:1.5;position:relative;flex:1 1 auto;min-width:70px;',
+      'height:calc(72px * var(--vagskala));overflow:hidden;',
       '-webkit-mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);',
       'mask:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
+    // Bredden kompenseras sa den SKALADE scenen blir exakt full bredd, och origo ligger i
+    // nedre vanstra hornet - annars vaxer havet ned ur remsan i stallet for himlen upp.
+    // Solens x-led. Den star pa 72 % i oskalat lage och glider at hoger i takt med skalan:
+    // scenens synliga utsnitt blir smalare nar den skalas upp, sa utan det steget sveper
+    // solen in over bilen. Taket ar 84 % - dar borjar masken tona ut remsans hogra kant.
+    '.ca-vag{--solx:calc(72% + (var(--vagskala) - 1) * 16%);}',
+    '.ca-vag-scen{position:absolute;left:0;bottom:0;height:72px;',
+      'width:calc(100% / var(--vagskala));',
+      'transform:scale(var(--vagskala));transform-origin:left bottom;}',
     // ── Soluppgången framför bilen ──────────────────────────────────────────
     // Bilens nos och strålkastare pekar åt höger, så solen ligger åt höger: man kör MOT den.
     // Horisonten är asfaltens överkant (24 px från nederkant), och eftersom vägbanan ritas
@@ -5012,10 +5025,11 @@ function caFcRenderResult(recs) {
     // aldrig når stripens överkant — 42 px hög remsa, horisonten 24 px upp, och en 19 px sol
     // som toppar 9 px över horisonten slutar 1,5 px innanför kanten. Toppar den högre klipps
     // den av ramen och ser trasig ut i stället för hög.
-    '.ca-vag-solvagn{position:absolute;left:72%;bottom:51px;width:0;height:0;pointer-events:none;',
+    '.ca-vag-solvagn{position:absolute;left:var(--solx);bottom:51px;width:0;height:0;pointer-events:none;',
       'animation:ca-vag-bana 96s ease-in-out infinite alternate;}',
-    '@keyframes ca-vag-bana{0%{transform:translate(-52px,5px)}50%{transform:translate(0,-9px)}',
-      '100%{transform:translate(52px,5px)}}',
+    '@keyframes ca-vag-bana{0%{transform:translate(calc(-52px / var(--vagskala)),5px)}',
+      '50%{transform:translate(0,-9px)}',
+      '100%{transform:translate(calc(52px / var(--vagskala)),5px)}}',
     '.ca-vag-sol{position:absolute;left:0;bottom:0;width:19px;height:19px;margin-left:-9.5px;',
       'margin-bottom:-9.5px;border-radius:50%;pointer-events:none;',
       'background:radial-gradient(circle,#fffbeb 0 28%,#fde68a 48%,#fbbf24 68%,rgba(251,146,60,.85) 88%,rgba(251,146,60,0) 100%);',
@@ -5055,12 +5069,13 @@ function caFcRenderResult(recs) {
     '@keyframes ca-vag-snurr-bak{to{transform:rotate(-360deg)}}',
     // Ljusstrimman på asfalten följer solen i sidled — utan den ligger solen bakom vägen i
     // stället för att lysa på den, och står den still avslöjar den att solen rört sig.
-    '.ca-vag-glans{position:absolute;left:72%;bottom:36px;width:74px;height:15px;margin-left:-37px;',
+    '.ca-vag-glans{position:absolute;left:var(--solx);bottom:36px;width:74px;height:15px;margin-left:-37px;',
       'pointer-events:none;border-radius:2px;',
       'background:radial-gradient(ellipse 50% 120% at 50% 0%,rgba(253,224,71,.3),transparent 70%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
-    '@keyframes ca-vag-glans{0%{transform:translateX(-52px);opacity:.5}',
-      '50%{transform:translateX(0);opacity:1}100%{transform:translateX(52px);opacity:.5}}',
+    '@keyframes ca-vag-glans{0%{transform:translateX(calc(-52px / var(--vagskala)));opacity:.5}',
+      '50%{transform:translateX(0);opacity:1}',
+      '100%{transform:translateX(calc(52px / var(--vagskala)));opacity:.5}}',
     // ── Havet under vagbanan ────────────────────────────────────────────────
     // Vagen gar pa en bank med vatten nedanfor. De nio pixlarna under asfalten stod tomma och
     // visade heron bakgrund; nu ligger havet dar, med solens vag i sig.
@@ -5086,14 +5101,14 @@ function caFcRenderResult(recs) {
     // Solvägen på vattnet följer solen i sidled, precis som glansen på asfalten. Utan den lyser
     // solen på vägen men inte på havet, och då ligger de i två olika världar. Den går hela vägen
     // ned genom vattnet och smalnar av — en solväg är bred vid betraktaren och spetsig vid solen.
-    '.ca-vag-solvag{position:absolute;left:72%;bottom:0;width:54px;height:28px;margin-left:-27px;',
+    '.ca-vag-solvag{position:absolute;left:var(--solx);bottom:0;width:54px;height:28px;margin-left:-27px;',
       'pointer-events:none;',
       'background:radial-gradient(ellipse 26% 108% at 50% 0%,rgba(255,247,214,.85),rgba(253,224,71,.5) 34%,',
         'rgba(103,232,249,.34) 62%,transparent 84%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
     // Glittret: enstaka gnistor i solvägen som tänds och slocknar. Tre punkter räcker — det är
     // oregelbundenheten som läser som glitter, inte antalet.
-    '.ca-vag-glitter{position:absolute;left:72%;bottom:0;width:64px;height:28px;margin-left:-32px;',
+    '.ca-vag-glitter{position:absolute;left:var(--solx);bottom:0;width:64px;height:28px;margin-left:-32px;',
       'pointer-events:none;',
       'background-image:radial-gradient(circle,rgba(255,255,255,.95) 0 .7px,transparent 1.2px),',
         'radial-gradient(circle,rgba(224,252,255,.85) 0 .6px,transparent 1.1px),',
@@ -5106,7 +5121,7 @@ function caFcRenderResult(recs) {
     // gor att det ADDERAR ljus i stallet for att lagga en gul hinna over motivet - en vanlig
     // genomskinlig ruta hade grumlat den roda lacken i stallet for att fa den att glodga.
     // Ritas sist i markupen sa det hamnar ovanpa bilarna, och foljer solen i sidled.
-    '.ca-vag-solsken{position:absolute;left:72%;bottom:0;width:170px;height:58px;margin-left:-85px;',
+    '.ca-vag-solsken{position:absolute;left:var(--solx);bottom:0;width:170px;height:58px;margin-left:-85px;',
       'pointer-events:none;z-index:3;mix-blend-mode:screen;',
       'background:radial-gradient(ellipse 46% 64% at 50% 74%,rgba(253,224,71,.34),rgba(251,146,60,.18) 42%,transparent 74%);',
       'animation:ca-vag-glans 96s ease-in-out infinite alternate;}',
@@ -5205,7 +5220,9 @@ function caFcRenderResult(recs) {
     // till 1/0,74 så att den skalade bredden landar på exakt 100 %, och den negativa
     // marginalen tar bort luften som den outnyttjade höjden annars lämnar.
     '@media(max-width:560px){.ca-rubrikrad{flex-wrap:wrap;gap:0;}',
-      '.ca-vag{display:block;flex:0 0 135.1%;min-width:0;height:72px;',
+      // Ingen uppskalning har: mobilen har redan en egen nedskalning nedan, och tva
+      // skalor pa varandra hade gjort remsan storst pa den skarm som har minst plats.
+      '.ca-vag{--vagskala:1;display:block;flex:0 0 135.1%;min-width:0;height:72px;',
         'transform:scale(.74);transform-origin:left top;margin:-2px 0 -7px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
@@ -5242,6 +5259,10 @@ function caByggVag() {
     vag.className = 'ca-vag';
     vag.setAttribute('aria-hidden', 'true');
     vag.innerHTML =
+      // Allt ligger i en inre scen med fast 72 px hojd som skalas som en enhet - se
+      // --vagskala i stilarna. Lagren nedan positioneras alltsa mot SCENEN, inte mot
+      // remsan, och deras procentmatt foljer med skalningen av sig sjalva.
+      '<div class="ca-vag-scen">' +
       // Solen först: allt som ritas efter den skär av den vid horisonten.
       '<div class="ca-vag-himmel"></div>' +
       '<div class="ca-vag-moln"></div>' +
@@ -5314,7 +5335,8 @@ function caByggVag() {
           '<circle cx="33.5" cy="15.4" r="1.7" fill="#cbd5e1"/>' +
           '<rect x="33.1" y="11.9" width=".8" height="7" fill="#94a3b8" opacity=".85"/></g>' +
       '</svg>' +
-      '<div class="ca-vag-solsken"></div>';
+      '<div class="ca-vag-solsken"></div>' +
+      '</div>';
     rad.appendChild(vag);
   } catch (e) {
     try { console.warn('CarAdvice: vägen vid rubriken kunde inte byggas', e); } catch (x) {}
