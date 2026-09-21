@@ -39,6 +39,19 @@ public class CargoSpecService {
     private static final long ARSMODELL_TTL_MS = 10 * 60 * 1000L;
 
     /**
+     * Hur länge ett känt nej får hindra ett nytt försök. Samma 30 dagar som
+     * {@code IceGenerationService.MISS_GILTIG_DAGAR}, och av samma skäl: en död parser hade
+     * annars frusit arbetslistan permanent.
+     */
+    static final int MISS_GILTIG_DAGAR = 30;
+
+    /** Enda orsaken bagageuppslaget kan skilja på: sidan svarade, men gav ingen volym. */
+    public static final String ORSAK_EJ_HITTAD = "ej-hittad";
+
+    /** Missarna i minnet — tabellen är liten och läses bara av nattjobbet. */
+    private volatile Map<String, Integer> missCache = null;
+
+    /**
      * Kurerad generationsmarkör: ordet i RADENS namn som pekar ut den generation en modell säljs
      * som ny från ett visst år, för de fall där vår egen data inte kan skilja generationerna åt.
      *
@@ -92,6 +105,13 @@ public class CargoSpecService {
                     + "source VARCHAR(16) NOT NULL DEFAULT 'skrapad'");
         } catch (Exception e) {
             log.warn("cargo_spec_fuel kunde inte skapas: {}", e.getMessage());
+        }
+        try {
+            jdbc.execute("CREATE TABLE IF NOT EXISTS cargo_spec_miss ("
+                    + "car_name VARCHAR(200) PRIMARY KEY, visningsnamn VARCHAR(200), "
+                    + "forsokt_dag INT NOT NULL, orsak VARCHAR(40))");
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss kunde inte skapas: {}", e.getMessage());
         }
     }
 
@@ -375,6 +395,170 @@ public class CargoSpecService {
                 "total", total,
                 "medVolym", medVolym,
                 "utanVolym", total - medVolym));
+    }
+
+    /**
+     * Antecknar att bilen prövats mot auto-data utan att ge en volym, så att nattens försök går
+     * till bilar vi inte testat i stället för till kända nej.
+     *
+     * <p><b>Varför det behövdes — mätt i drift 2026-09-21.</b> Arbetslistan
+     * ({@code AutoDataCargoFillService.arbetslista}) sorteras {@code ORDER BY car_name} och betas
+     * uppifrån med ett tak på 150 <i>försök</i> per natt. En bil som missade lämnade inget spår,
+     * låg kvar på sin plats i alfabetet och åt ett försök varje natt — för alltid. Huvudet är
+     * dessutom fullt av bilar auto-data omöjligt kan ha: AC Cobra, Alpina B5, Aston Martin DB9,
+     * Austin Mini, Bentley S2, BMW 1502, BMW 2002, Chrysler Royal. De 150 försöken räckte den
+     * 2026-09-21 från {@code Abarth 124 Spider} till ungefär {@code Citroen C1}, och
+     * <b>826 av de 976 namnen hade aldrig prövats en enda gång</b>. Kurvan bakåt visar
+     * kvävningen: +25, +2, +1, +1, 0 fyllda per natt.
+     *
+     * <p>Exakt samma fel, samma orsak och samma fix som {@code IceGenerationService.noteraMiss}
+     * fick 2026-08-16 — lärdomen drogs då för generationsåren men aldrig för bagaget.
+     *
+     * <p><b>Bara ett svar vi förstått parkeras.</b> Ett undantag är ett nätverksfel eller en
+     * tillfälligt trasig sida och antecknas aldrig; se catch-grenen i
+     * {@code AutoDataCargoFillService.fyllSaknadeVolymer}.
+     */
+    public void noteraMiss(String carName, String orsak) {
+        if (carName == null || carName.isBlank() || jdbc == null) return;
+        try {
+            long dag = java.time.LocalDate.now().toEpochDay();
+            String nyckel = normalize(carName);
+            jdbc.update("DELETE FROM cargo_spec_miss WHERE car_name = ?", nyckel);
+            jdbc.update("INSERT INTO cargo_spec_miss(car_name, visningsnamn, forsokt_dag, orsak) "
+                    + "VALUES (?, ?, ?, ?)", nyckel, carName, (int) dag, orsak);
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss: kunde inte skriva {}: {}", carName, e.getMessage());
+        }
+    }
+
+    /**
+     * Sant när bilen prövats utan träff inom fönstret — arbetslistan hoppar över den.
+     *
+     * <p>Fail-open vid läsfel: hellre ett bortkastat försök än en bil som aldrig prövas.
+     */
+    public boolean harFarskMiss(String carName) {
+        if (carName == null || carName.isBlank()) return false;
+        Map<String, Integer> m = missCache;
+        if (m == null) {
+            m = new HashMap<>();
+            if (jdbc != null) {
+                try {
+                    for (Map<String, Object> r : jdbc.queryForList(
+                            "SELECT car_name, forsokt_dag FROM cargo_spec_miss")) {
+                        m.put((String) r.get("car_name"), ((Number) r.get("forsokt_dag")).intValue());
+                    }
+                } catch (Exception e) {
+                    log.warn("cargo_spec_miss: kunde inte läsas: {}", e.getMessage());
+                }
+            }
+            missCache = m;
+        }
+        Integer dag = m.get(normalize(carName));
+        if (dag == null) return false;
+        return java.time.LocalDate.now().toEpochDay() - dag < MISS_GILTIG_DAGAR;
+    }
+
+    /**
+     * Glömmer EN bils miss, så nattjobbet prövar om just den.
+     *
+     * <p>Anropas när volymen väl kommit in: träffen är färskare än anteckningen, och en
+     * kvarglömd rad hade räknats i {@link #antalMissar} utan att betyda något. Samma skäl som
+     * {@code IceGenerationService.spara} rensar sin miss.
+     */
+    public void rensaMiss(String carName) {
+        if (carName == null || carName.isBlank() || jdbc == null) return;
+        try {
+            jdbc.update("DELETE FROM cargo_spec_miss WHERE car_name = ?", normalize(carName));
+            missCache = null;
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss: kunde inte rensas för {}: {}", carName, e.getMessage());
+        }
+    }
+
+    /**
+     * Glömmer alla parkerade missar så nattjobbet prövar om dem redan i natt.
+     *
+     * <p>Hör ihop med varje rättning i uppslaget: en miss är ett nej på frågan vi ställde, och
+     * rättar vi frågan är gamla nej inte längre svar utan obesvarade. Utan den här överlever ett
+     * felaktigt nej sin rättning i upp till {@link #MISS_GILTIG_DAGAR} dagar — precis det som
+     * hände generationsåren i augusti, där 139 rader låg parkerade genom hela rättningen.
+     */
+    public int rensaMissar() {
+        if (jdbc == null) return 0;
+        try {
+            int n = jdbc.update("DELETE FROM cargo_spec_miss");
+            missCache = null;
+            return n;
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss: kunde inte tömmas: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Antal bilar som ligger som känt nej just nu.
+     *
+     * <p>Talet står i {@code GET /api/admin/cargo-coverage} och inte bara i loggen, av samma skäl
+     * som {@code iceGenerations} gör det: nattkontrollrutinerna kan inte läsa Render-loggen, och
+     * en siffra som bara finns där går aldrig att bevaka. Det är dessutom den <b>andra halvan</b>
+     * av bagagelarmet: står {@code medVolym} still ska det här talet ha vuxit. Rör sig ingetdera
+     * har jobbet slutat nå källan — en vakt som bara larmar åt ett håll är halv.
+     */
+    public long antalMissar() {
+        if (jdbc == null) return 0;
+        try {
+            Long n = jdbc.queryForObject("SELECT COUNT(*) FROM cargo_spec_miss", Long.class);
+            return n == null ? 0 : n;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** Antal parkerade missar per orsak — i dag bara {@code ej-hittad}, men formen är densamma. */
+    public Map<String, Long> missarPerOrsak() {
+        Map<String, Long> ut = new LinkedHashMap<>();
+        if (jdbc == null) return ut;
+        try {
+            for (Map<String, Object> r : jdbc.queryForList(
+                    "SELECT COALESCE(orsak, 'okand') AS orsak, COUNT(*) AS antal "
+                            + "FROM cargo_spec_miss GROUP BY COALESCE(orsak, 'okand') ORDER BY 2 DESC")) {
+                ut.put((String) r.get("orsak"), ((Number) r.get("antal")).longValue());
+            }
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss: kunde inte räknas per orsak: {}", e.getMessage());
+        }
+        return ut;
+    }
+
+    /**
+     * De parkerade bilarna, äldsta försöket först — underlaget för
+     * {@code GET /api/admin/cargo-specs/missar}.
+     *
+     * <p>Räknaren säger hur MÅNGA som är parkerade, aldrig VILKA. Just den skillnaden avgör om
+     * listan är frisk: ligger Volvo XC60 och Volkswagen Golf som nej är det uppslaget som är
+     * trasigt, medan AC Cobra och Bentley S2 är precis vad auto-data ska sakna.
+     */
+    public List<Map<String, Object>> listaMissar() {
+        if (jdbc == null) return List.of();
+        try {
+            return jdbc.queryForList("SELECT car_name, visningsnamn, forsokt_dag, orsak "
+                            + "FROM cargo_spec_miss ORDER BY forsokt_dag, car_name")
+                    .stream()
+                    .map(r -> {
+                        Map<String, Object> rad = new LinkedHashMap<String, Object>();
+                        String visning = (String) r.get("visningsnamn");
+                        rad.put("bil", visning != null ? visning : r.get("car_name"));
+                        rad.put("provadDag", java.time.LocalDate.ofEpochDay(
+                                ((Number) r.get("forsokt_dag")).longValue()).toString());
+                        rad.put("orsak", r.get("orsak"));
+                        return rad;
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.warn("cargo_spec_miss: kunde inte listas: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     /**

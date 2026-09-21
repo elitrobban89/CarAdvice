@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -221,5 +222,90 @@ class AutoDataCargoFillServiceTest {
         service.fyllSaknadeVolymer();
 
         verify(cargoSpecs).fillFromScrape("Volvo v60", 529, 1441, 0, "ice");
+    }
+
+    /**
+     * Bagagelistans egen variant av felet 2026-08-15 — mätt i drift 2026-09-21.
+     *
+     * <p>Listan kommer sorterad på bilnamn och taket räknar FÖRSÖK. Utan spår efter ett nej
+     * provades samma bilar om varje natt, före varje bil vi aldrig testat: de 150 försöken
+     * räckte från {@code Abarth 124 Spider} till ungefär {@code Citroen C1}, 826 av 976 namn
+     * hade aldrig prövats en enda gång, och medVolym stod still på 722 medan jobbet ändå
+     * rapporterade OK.
+     */
+    @Test
+    void kantNejIBagagelistanKostarIngetForsok() {
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("AC Cobra", "Volvo XC60"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(cargoSpecs.harFarskMiss("AC Cobra")).thenReturn(true);
+        when(autoData.bagageForBil(eq("Volvo XC60"), any(), any()))
+                .thenReturn(new AutoDataScraperService.Bagagevolym(483, 1410));
+
+        service.fyllSaknadeVolymer();
+
+        // det kända nejet hämtas inte om — hela budgeten går vidare i alfabetet
+        verify(autoData, never()).bagageForBil(eq("AC Cobra"), any(), any());
+        verify(cargoSpecs).fillFromScrape("Volvo XC60", 483, 1410, 0, null);
+    }
+
+    @Test
+    void utebliviVolymAntecknasSomMiss() {
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("Bentley S2"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("Bentley S2"), any(), any())).thenReturn(null);
+
+        service.fyllSaknadeVolymer();
+
+        verify(cargoSpecs).noteraMiss("Bentley S2", CargoSpecService.ORSAK_EJ_HITTAD);
+    }
+
+    @Test
+    void nollVolymAntecknasOcksaSomMiss() {
+        // En nolla är ett omätt fält, inte en bil utan bagage — men sidan svarade, och det är
+        // ett svar vi förstått. Samma parkering som ett uteblivet svar.
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("Abarth 595C"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("Abarth 595C"), any(), any()))
+                .thenReturn(new AutoDataScraperService.Bagagevolym(0, 0));
+
+        service.fyllSaknadeVolymer();
+
+        verify(cargoSpecs).noteraMiss("Abarth 595C", CargoSpecService.ORSAK_EJ_HITTAD);
+        verify(cargoSpecs, never()).fillFromScrape(anyString(), anyInt(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void natverksfelIBagagehamtningenParkerarInteBilen() {
+        // Samma gräns som generationsifyllningen drar: bara ett svar vi förstått är ett nej.
+        // Parkerades undantag hade ett avbrott mitt i natten låst ute bilen i 30 dagar, och en
+        // död sajt hela listan — precis den frysning missfiltret finns för att undvika.
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("Volkswagen Golf"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("Volkswagen Golf"), any(), any()))
+                .thenThrow(new AutoDataScraperService.HamtningsFel("/en/volkswagen-golf", new RuntimeException("429")));
+
+        service.fyllSaknadeVolymer();
+
+        verify(cargoSpecs, never()).noteraMiss(anyString(), anyString());
+    }
+
+    @Test
+    void traffGlommerBilensGamlaNej() {
+        // Träffen är färskare än anteckningen. Ligger nejet kvar räknas det i antalMissar, och
+        // just det talet är bagagelarmets andra halva.
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("Citroen C1"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(autoData.bagageForBil(eq("Citroen C1"), any(), any()))
+                .thenReturn(new AutoDataScraperService.Bagagevolym(196, 780));
+        when(cargoSpecs.fillFromScrape("Citroen C1", 196, 780, 0, null)).thenReturn(true);
+
+        service.fyllSaknadeVolymer();
+
+        verify(cargoSpecs).rensaMiss("Citroen C1");
     }
 }

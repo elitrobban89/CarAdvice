@@ -75,6 +75,14 @@ public class AutoDataCargoFillService {
      * <p>Redan täckta bilar filtreras bort på {@code formatForTitle}, alltså samma fuzzy-matchning
      * som kortet använder. {@code fillFromScrape} hade ändå vägrat skriva över dem, men varje
      * onödig bil kostar upp till fyra sidhämtningar.
+     *
+     * <p><b>Och kända nej filtreras bort på samma sätt — utan det står fronten still.</b> Listan
+     * kommer sorterad ({@code ORDER BY car_name}) och taket räknar FÖRSÖK, så en bil som missar
+     * och inte lämnar spår provas om varje natt före varje bil vi aldrig testat. Mätt i drift
+     * 2026-09-21: de 150 försöken nådde från {@code Abarth 124 Spider} till ungefär
+     * {@code Citroen C1}, 826 av 976 namn hade aldrig prövats, och {@code medVolym} hade stannat
+     * på 722. Samma fel som generationsåren hade i augusti, samma fix — se
+     * {@link CargoSpecService#noteraMiss}.
      */
     List<String> arbetslista() {
         java.util.LinkedHashSet<String> ut = new java.util.LinkedHashSet<>(cargoSpecs.namnUtanVolym());
@@ -85,6 +93,7 @@ public class AutoDataCargoFillService {
             try {
                 if (cargoSpecs.formatForTitle(namn) != null) continue;   // redan täckt
             } catch (Exception ignored) { /* hellre ett extra försök än en tappad bil */ }
+            if (cargoSpecs.harFarskMiss(namn)) continue;                 // känt nej, kostar inget försök
             kvar.add(namn);
         }
         return kvar;
@@ -118,7 +127,7 @@ public class AutoDataCargoFillService {
         Set<String> iceNamn = new HashSet<>();
         for (String n : iceConsumption.allModelNames()) iceNamn.add(normaliseratNamn(n));
 
-        int fyllda = 0, forsokta = 0, utanTraff = 0, iceStamplade = 0;
+        int fyllda = 0, forsokta = 0, utanTraff = 0, iceStamplade = 0, hamtningsfel = 0;
         for (String bilnamn : namn) {
             if (forsokta >= MAX_PER_KORNING) break;
             forsokta++;
@@ -129,6 +138,10 @@ public class AutoDataCargoFillService {
                 String kaross = iceConsumption.karossForModell(bilnamn);
                 var vol = autoData.bagageForBil(bilnamn, CarTitle.year(bilnamn), kaross);
                 if (vol == null || vol.minLiter() == null || vol.minLiter() <= 0) {
+                    // Ett svar vi förstått: sidan gick att läsa men gav ingen volym. Parkeras i
+                    // 30 dagar så nattens budget går vidare i alfabetet i stället för att
+                    // mala om samma nej. Se CargoSpecService.noteraMiss.
+                    cargoSpecs.noteraMiss(bilnamn, CargoSpecService.ORSAK_EJ_HITTAD);
                     utanTraff++;
                     continue;
                 }
@@ -141,17 +154,28 @@ public class AutoDataCargoFillService {
                 if (drivmedel != null) iceStamplade++;
                 if (cargoSpecs.fillFromScrape(bilnamn, vol.minLiter(), max, 0, drivmedel)) {
                     fyllda++;
+                    // Träffen är färskare än ett eventuellt gammalt nej, och en kvarglömd rad
+                    // hade räknats i antalMissar utan att betyda något.
+                    cargoSpecs.rensaMiss(bilnamn);
                     log.info("auto-data bagage: {} → {} l (max {} l)", bilnamn, vol.minLiter(), max);
                 }
             } catch (Exception e) {
-                // En bil som strular får aldrig fälla hela nattjobbet.
+                // En bil som strular får aldrig fälla hela nattjobbet — och antecknas ALDRIG som
+                // nej: ett undantag är ett nätverksfel eller en tillfälligt trasig sida, och den
+                // bilen ska prövas igen redan nästa natt. Parkerades den hade ett avbrott mitt i
+                // natten låst ute bilen i 30 dagar, och en död sajt hela listan. Samma gräns som
+                // generationsifyllningen drar nedan.
                 log.warn("auto-data bagage: {} misslyckades — {}", bilnamn, e.getMessage());
-                utanTraff++;
+                hamtningsfel++;
             }
         }
-        log.info("auto-data bagage: {} fyllda, {} utan träff, {} försökta av {} saknade, "
-                        + "{} drivmedelsstämplade ice",
-                fyllda, utanTraff, forsokta, namn.size(), iceStamplade);
+        // "kvar att pröva" är listan EFTER att kända nej sållats bort, och de räknas därför
+        // separat: står fyllda på 0 medan kvar också är 0 har jobbet betat av allt det når —
+        // står fyllda på 0 medan kvar är stort är det hämtningen som är trasig.
+        log.info("auto-data bagage: {} fyllda, {} utan träff, {} hämtningsfel, {} försökta av {} "
+                        + "kvar att pröva, {} drivmedelsstämplade ice ({} kända nej parkerade)",
+                fyllda, utanTraff, hamtningsfel, forsokta, namn.size(), iceStamplade,
+                cargoSpecs.antalMissar());
         return fyllda;
     }
 

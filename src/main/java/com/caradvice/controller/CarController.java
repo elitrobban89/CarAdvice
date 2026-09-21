@@ -976,7 +976,49 @@ public class CarController {
         // iceGenerations: en siffra som bara står i loggen går aldrig att bevaka.
         try { ut.put("evPowers", evPowerService.antal()); }
         catch (Exception e) { log.warn("cargo-coverage: ev_power kunde inte räknas: {}", e.getMessage()); }
+        // Bagagelarmets andra halva. Står medVolym still ska bagageMissar ha VUXIT — då betade
+        // jobbet av bilar auto-data inte har. Står båda talen still har jobbet slutat nå källan,
+        // och det är avvikelsen. Utan det här talet såg de två fallen likadana ut utifrån, och
+        // 2026-09-21 stod medVolym still på 722 i tysthet medan 826 namn aldrig ens prövats.
+        try { ut.put("bagageMissar", cargoSpecService.antalMissar()); }
+        catch (Exception e) { log.warn("cargo-coverage: cargo_spec_miss kunde inte räknas: {}", e.getMessage()); }
         return ResponseEntity.ok(ut);
+    }
+
+    /**
+     * De bilar bagageifyllningen parkerat som kända nej, äldsta försöket först.
+     *
+     * <p>Räknaren i {@code cargo-coverage} säger hur många som är parkerade, aldrig VILKA — och
+     * det är listan som avgör om parkeringen är frisk. AC Cobra, Bentley S2 och Chrysler Royal
+     * är precis vad auto-data ska sakna; dyker Volvo XC60 eller Volkswagen Golf upp här är det
+     * uppslaget som är trasigt, inte källan som är tom.
+     */
+    @GetMapping("/admin/cargo-specs/missar")
+    public ResponseEntity<?> listaCargoMissar(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = cargoSpecService.listaMissar();
+        return ResponseEntity.ok(Map.of(
+                "totalt", cargoSpecService.antalMissar(),
+                "perOrsak", cargoSpecService.missarPerOrsak(),
+                "missar", rader));
+    }
+
+    /**
+     * Glömmer de parkerade bagagemissarna så 03:00-jobbet prövar om dem redan i natt.
+     *
+     * <p>Samma skäl som motsvarigheten för generationsåren: en miss är ett nej på frågan vi
+     * ställde, och rättas uppslaget är gamla nej inte längre svar utan obesvarade. Raderingsvägen
+     * byggs samtidigt som skrivvägen — utan den överlever ett felaktigt nej sin rättning i 30
+     * dagar.
+     */
+    @DeleteMapping("/admin/cargo-specs/missar")
+    public ResponseEntity<?> rensaCargoMissar(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        int borttagna = cargoSpecService.rensaMissar();
+        log.info("cargo_spec_miss tömd på begäran — {} rader borta, 03:00-jobbet prövar om dem", borttagna);
+        return ResponseEntity.ok(Map.of("deleted", borttagna));
     }
 
 
