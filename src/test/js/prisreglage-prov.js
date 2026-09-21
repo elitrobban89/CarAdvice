@@ -170,5 +170,65 @@ prov("takknappen är kvar — den är enda vägen förbi 600 000 kr", () => {
   if (kalla.indexOf("CA_BUDGET_TAK_HOGT") < 0) throw new Error("det höga taket borta");
 });
 
+/**
+ * Koden utan kommentarer.
+ *
+ * Vakterna nedan letar efter ANROP, och ett funktionsnamn står nästan alltid också i
+ * kommentaren som förklarar varför anropet finns. Utan den här tvätten var två av dem
+ * gröna även när anropet var bortkommenterat — uppmätt, inte befarat.
+ */
+function utanKommentarer(kod) {
+  return kod.split("\n")
+    .map(r => r.replace(/\/\/.*$/, ""))
+    .join("\n")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+// ── Kategoriförvalet får inte flagga sig självt som ett eget val ────────
+// Förvalet sätter reglagets värde och skickar input så fyllnaden ritas om. Lyssnaren som
+// märker "användaren drog själv" lyssnar på SAMMA event, så utan caForvalPaus runt
+// utskicket flaggade förvalet sig självt — och avstod sedan för alltid. Uppmätt i
+// webbläsaren: klick på SUV gav 230 000, och därefter stod reglaget kvar på 230 000 för
+// varje annan kategori medan Småbil-knappen lovade 130k.
+//
+// Felet syns BARA vid andra klicket. Ett prov som klickar en kategori en gång är grönt.
+prov("kategoriförvalet skickar reglagets event utan att flagga ett eget val", () => {
+  const f = utanKommentarer(klippUt("caKategoriForval"));
+  if (f.indexOf("dispatchEvent") < 0) throw new Error("caKategoriForval skickar inget event längre");
+  if (!/caUtanForval\s*\(/.test(f))
+    throw new Error("utskicket ligger inte i caUtanForval — förvalet flaggar sig självt igen");
+
+  const lyss = kalla.indexOf("id === 'ca-budget-slider'");
+  if (lyss < 0) throw new Error("hittade inte reglagets input-lyssnare");
+  const block = utanKommentarer(kalla.slice(lyss, lyss + 600));
+  if (block.indexOf("caForvalPaus") < 0)
+    throw new Error("lyssnaren sätter rord utan att fråga om det är ett mänskligt val");
+});
+
+// ── Startläget ska gälla från första bildrutan ──────────────────────────
+// caForvalStartlage returnerade förut på `chg.value === "true"` — och markupen bär Ja,
+// så den hoppade över precis det den fanns till för. En ny besökare möttes av 200 000 kr
+// och "spelar ingen roll" medan Familjebil-knappen lovade "el · 250k".
+prov("startläget sätter kategorins förval, inte bara laddboxen", () => {
+  const f = utanKommentarer(klippUt("caForvalStartlage"));
+  if (!/caKategoriForval\s*\(\s*\)\s*;/.test(f))
+    throw new Error("caForvalStartlage sätter inte kategorins förval — reglaget står kvar på markupens tal");
+  if (!/caUpdateFuelVisibility\s*\(\s*\)\s*;/.test(f))
+    throw new Error("regeln laddbox → el körs inte vid start");
+  if (/if \(chg\.value === .true.\) return/.test(f))
+    throw new Error("returen på chg.value === true är tillbaka — då hoppas hela startläget över");
+});
+
+// ── Nollställ ska ge SAMMA läge som en ny besökare möter ────────────────
+// Beloppet stod hårdkodat på två ställen i caResetForm. När nybesökarläget flyttades till
+// kategorins belopp blev Nollställ kvar på 200 000 — två sanningar om vad förvalet är.
+prov("Nollställ läser budgeten ur CA_KAT_FORVAL", () => {
+  const f = utanKommentarer(klippUt("caResetForm"));
+  if (f.indexOf("CA_KAT_FORVAL") < 0)
+    throw new Error("caResetForm läser inte förvalet ur tabellen");
+  if (/200000/.test(f.replace(/\|\| 200000/g, "")))
+    throw new Error("ett hårdkodat 200000 är kvar i caResetForm");
+});
+
 console.log(fel ? "\n" + fel + " prov FÖLL\n" : "\nAlla prov gröna\n");
 process.exit(fel ? 1 : 0);

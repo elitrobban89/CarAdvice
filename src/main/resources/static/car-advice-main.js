@@ -1631,6 +1631,16 @@ var CA_IKONER = {
   'ca-charger':      { 'true': '\uD83C\uDFE0', 'false': '\uD83D\uDEAB' }
 };
 
+// Kategoriknapparnas ordning, minsta bil först. Den står HÄR och inte i HTML:ens
+// option-ordning, eftersom selecten finns i två HTML-kopior varav en klistras in för hand
+// i WordPress — en omordning där hade krävt en omklistring för en ren ordningsfråga.
+// Selecten behåller Familjebil först, och det är den ordningen som avgör vad som är valt
+// när sidan öppnas.
+//
+// En kategori som saknas här hamnar sist i stället för att försvinna: listan är en önskad
+// ordning, inte ett filter.
+var CA_KAT_ORDNING = ['smaabil', 'familjebil', 'suv', 'elbil', 'laddhybrid'];
+
 /** Bygger en knapprad ur en selects egna options. Idempotent. */
 function caChips(id) {
   var sel = document.getElementById(id);
@@ -1641,7 +1651,15 @@ function caChips(id) {
 
   var rad = document.createElement('div');
   rad.className = 'ca-chips';
-  Array.prototype.forEach.call(sel.options, function (o) {
+  var ordning = Array.prototype.slice.call(sel.options);
+  if (id === 'ca-category') {
+    ordning.sort(function (a, b) {
+      var ia = CA_KAT_ORDNING.indexOf(caCanonCat(a.value));
+      var ib = CA_KAT_ORDNING.indexOf(caCanonCat(b.value));
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+  }
+  ordning.forEach(function (o) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'ca-chip';
@@ -1737,13 +1755,21 @@ var CA_ALDER_PER_KATEGORI = { elbil: '5', laddhybrid: '5', familjebil: '5', suv:
  * andra låg på 48 av 49. Utskrivet belopp fick alltså plats bara så länge inget drivmedel stod
  * före det.
  *
- * <p>Bara familjebil bär ett drivmedel, och det är arvet från snabbstartens "Barnfamilj":
- * el förutsätter laddbox och är ett verkligt val, medan "bensin" på småbil hade varit en
- * gissning om en köpare vi inte vet något om.
+ * <p>Familjebil och SUV bär el, småbilen inget: "bensin" på småbil hade varit en gissning
+ * om en köpare vi inte vet något om.
+ *
+ * <p>SUV:en bar inget drivmedel förut men fick el ändå, eftersom laddbox hemma står på Ja
+ * som förval och regeln "laddbox ⇒ el" gäller alla kategorier utom de två som redan svarat
+ * på frågan. Chipset lovade alltså "350k" medan sökningen blev en elbilssökning. Nu står
+ * det som det är.
+ *
+ * <p>Beloppen följer den svenska begagnatmarknaden 2026: familjebil 250 000, SUV 230 000.
+ * El-SUV:arna från 2022–2023 års företags- och leasingavtal har nått begagnatmarknaden i
+ * stora volymer, och det är därför en SUV numera bär el i stället för inget alls.
  */
 var CA_KAT_FORVAL = {
-  familjebil: { budget: 300000, drivmedel: 'el', hint: 'el · 300k' },
-  suv:        { budget: 350000,                  hint: '350k' },
+  familjebil: { budget: 250000, drivmedel: 'el', hint: 'el · 250k' },
+  suv:        { budget: 230000, drivmedel: 'el', hint: 'el · 230k' },
   elbil:      { budget: 300000,                  hint: '300k' },
   laddhybrid: { budget: 250000,                  hint: '250k' },
   smaabil:    { budget: 130000,                  hint: '130k' }
@@ -1766,7 +1792,13 @@ function caKategoriForval() {
   var slider = document.getElementById('ca-budget-slider');
   if (slider && !slider.dataset.rord && String(slider.value) !== String(f.budget)) {
     slider.value = f.budget;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    // Eventet MÅSTE skickas under caUtanForval. Lyssnaren som märker "användaren drog
+    // reglaget själv" lyssnar på input, så förvalet flaggade annars sig självt som ett eget
+    // val och avstod för alltid efteråt: bara det FÖRSTA kategoriklicket flyttade budgeten,
+    // och Småbil lovade 130k medan reglaget stod kvar på SUV:ens 230 000.
+    caUtanForval(function () {
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    });
   }
   var fuel = document.getElementById('ca-fuel');
   if (f.drivmedel && fuel && !fuel.dataset.rord && fuel.value !== f.drivmedel) {
@@ -1801,11 +1833,14 @@ function caUtanForval(fn) {
  * Startläget en NY besökare möter: Familjebil, laddare hemma <b>Ja</b> och 200 000 kr.
  *
  * <p><b>Varför Ja.</b> Laddarfrågan svarar på drivmedelsfrågan (se caUpdateFuelVisibility):
- * Ja ger El i alla kategorier. Med Familjebil som kategori är "Familjebil · El · 200 000 kr"
+ * Ja ger El i alla kategorier. Med Familjebil som kategori är "Familjebil · El · 250 000 kr"
  * alltså färdigt att söka på direkt — ett klick mindre för den som inte vill ställa in något.
- * Budgeten låg redan på 200 000 och står kvar: 46 % av bilköparna siktar på 100 000–299 999 kr
- * och bara 10 % på över en halv miljon, så mitten av det spannet är det förval som passar
- * flest. Formuläret söker dessutom begagnat, vilket är vad 47 % planerar att köpa.
+ *
+ * <p><b>Beloppet kommer ur kategorin</b> (CA_KAT_FORVAL), inte ur markupens 200 000. Förut
+ * gällde kategoriförvalet först när man BYTTE kategori, så den som inte rörde något möttes
+ * av 200 000 medan Familjebil-knappen lovade 250k. 46 % av bilköparna siktar på
+ * 100 000–299 999 kr och bara 10 % på över en halv miljon, så förvalet ligger kvar i mitten
+ * av det spannet. Formuläret söker dessutom begagnat, vilket är vad 47 % planerar att köpa.
  *
  * <p><b>Rör bara den som inte har något eget.</b> Sparade inställningar, delningslänkar och
  * historikposter sätts EFTER det här anropet och vinner därför alltid. Finns det redan ett
@@ -1821,10 +1856,17 @@ function caForvalStartlage() {
     var p = new URLSearchParams(window.location.search);
     if (p.has('charger') || p.has('fuelType') || p.has('category') || p.has('budget')) return;
   } catch (e) {}
-  if (chg.value === 'true') return;   // markupen är redan omklistrad — inget att göra
   chg.value = 'true';
+  // Kategorins förval gäller från FÖRSTA bildrutan, inte först när man byter kategori.
+  // Annars står reglaget på markupens 200 000 medan Familjebil-knappen lovar 250k, och
+  // knappen ljuger för den som inte rör något.
+  caKategoriForval();
   // Utan det här anropet står drivmedlet kvar på "spelar ingen roll": en tilldelning i JS
   // utlöser inget change-event, och det är lyssnaren som kör regeln laddbox → el.
+  //
+  // Anropet låg förut efter en retur på `chg.value === "true"` med motiveringen "markupen
+  // är redan omklistrad — inget att göra". Men det fanns något att göra, och sedan sidan
+  // klistrades om med Ja förvalt hoppade funktionen över precis det den fanns till för.
   caUpdateFuelVisibility();
 }
 
@@ -2270,7 +2312,11 @@ function caBindChangeListeners() {
     // växellådan, och samma flagga.
     if (id === 'ca-maxage') el.addEventListener('change', function () { el.dataset.rord = '1'; });
     // Ett draget reglage ar ett eget val: kategoriforvalet ska inte kasta om det efterat.
-    if (id === 'ca-budget-slider') el.addEventListener('input', function () { el.dataset.rord = '1'; });
+    // Men BARA ett draget: förvalet skickar samma event för att rita om fyllnaden, och utan
+    // caForvalPaus-villkoret flaggade det sig självt som ett mänskligt val.
+    if (id === 'ca-budget-slider') el.addEventListener('input', function () {
+      if (!caForvalPaus) el.dataset.rord = '1';
+    });
     el.addEventListener('change', caCheckChanges);
     el.addEventListener('input', caCheckChanges);
   });
@@ -2650,8 +2696,14 @@ function caBytbilUrl(title) {
 function caResetForm() {
   // Samma läge som en ny besökare möter (se caForvalStartlage) — Nollställ ska ge appens
   // förval, inte ett tredje läge som varken är förvalet eller det man hade.
-  document.getElementById('ca-category').value   = 'familjebil';
-  document.getElementById('ca-budget-slider').value = 200000;
+  //
+  // Beloppet läses ur CA_KAT_FORVAL och står inte hårdkodat här. Det gjorde det förut, på
+  // två ställen, och när nybesökarläget flyttades till kategorins belopp blev Nollställ
+  // kvar på 200 000 medan Familjebil-knappen lovade 250k. Två sanningar om vad förvalet är.
+  var startKat = 'familjebil';
+  var startBudget = (CA_KAT_FORVAL[startKat] || {}).budget || 200000;
+  document.getElementById('ca-category').value   = startKat;
+  document.getElementById('ca-budget-slider').value = startBudget;
   document.getElementById('ca-charger').value    = 'true';
   document.getElementById('ca-km').value         = CA_KM_FORVAL;
   document.getElementById('ca-usage').value      = 'pendling';
@@ -2661,7 +2713,7 @@ function caResetForm() {
   var tEl = document.getElementById('ca-transmission'); if (tEl) tEl.value = 'spelar ingen roll';
   var maEl = document.getElementById('ca-maxage'); if (maEl) maEl.value = CA_MAXAGE_FORVAL;
   caSlappEgnaVal();
-  caSetBudgetMode('köp', 200000);
+  caSetBudgetMode('köp', startBudget);
   caUpdateFuelVisibility();
   caCheckMismatch();
   if (caHasSearched) caCheckChanges();
