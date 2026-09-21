@@ -3009,13 +3009,13 @@ if (document.readyState === 'loading') {
   var FORCE = /[?&]splash=1/.test(location.search);
 
   var ROWS = [
-    { ic: '⛽', t: 'Br\xe4nslepriser',  s: 'Dagsaktuella bensin &amp; diesel', tag: 'ONLINE' },
-    { ic: '🚗', t: 'Bildatabas',  kind: 'cars' },
-    { ic: '⚡', t: 'Elpriser',        s: 'elprisetjustnu.se \xb7 SE1–SE4 spotpris', tag: 'LIVE' },
-    { ic: '🔋', t: 'Elf\xf6rbrukning', s: 'kWh/mil f\xf6r elbilar \xb7 CarAdvice' },
-    { ic: '🛢️', t: 'F\xf6rbrukning', s: 'l/mil bensin, diesel &amp; hybrid' },
-    { ic: '🗺️', t: 'Ruttber\xe4kning', s: 'Verklig str\xe4cka via v\xe4gn\xe4tet' },
-    { ic: '💰', t: 'Sparkalkyl',   s: 'J\xe4mf\xf6r bensin, diesel &amp; el' }
+    { ic: '⛽', t: 'Br\xe4nslepriser',  s: 'Dagsaktuella bensin &amp; diesel', tag: 'ONLINE', an: 'pump' },
+    { ic: '🚗', t: 'Bildatabas',  kind: 'cars', an: 'kor' },
+    { ic: '⚡', t: 'Elpriser',        s: 'elprisetjustnu.se \xb7 SE1–SE4 spotpris', tag: 'LIVE', an: 'blixt' },
+    { ic: '🔋', t: 'Elf\xf6rbrukning', s: 'kWh/mil f\xf6r elbilar \xb7 CarAdvice', an: 'ladda' },
+    { ic: '🛢️', t: 'F\xf6rbrukning', s: 'l/mil bensin, diesel &amp; hybrid', an: 'tunna' },
+    { ic: '🗺️', t: 'Ruttber\xe4kning', s: 'Verklig str\xe4cka via v\xe4gn\xe4tet', an: 'karta' },
+    { ic: '💰', t: 'Sparkalkyl',   s: 'J\xe4mf\xf6r bensin, diesel &amp; el', an: 'mynt' }
   ];
 
   var BOOT_PHRASES = ['l\xe4ser in br\xe4nslepriser', 'h\xe4mtar elpris SE1–SE4', 'kalibrerar f\xf6rbrukning per mil', 'r\xe4knar ut din kostnad'];
@@ -3119,7 +3119,55 @@ if (document.readyState === 'loading') {
       '.bcsp-row.show{opacity:1;transform:translateY(0);}',
       '.bcsp-row.done{border-color:rgba(52,211,153,.5);background:rgba(34,197,94,.13);',
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(34,197,94,.2);}',
-      '.bcsp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;filter:drop-shadow(0 0 5px rgba(245,158,11,.4));}',
+      '.bcsp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;display:inline-block;',
+        'filter:grayscale(.75) brightness(.85) drop-shadow(0 0 5px rgba(245,158,11,.3));opacity:.8;',
+        'transition:filter .5s ease,opacity .5s ease;',
+        'animation:bcsp-i-vilar 3s ease-in-out var(--ikd,0s) infinite;}',
+      // Alla ikoner rör sig: en lugn andning medan raden laddar, och en egen rörelse när den
+      // tänds. Glöden ligger i drop-shadow på spannet och inte i text-shadow — wp-emoji byter
+      // ut emojin mot en <img> på WP-sidan, och text-shadow biter inte på en bild. Bara
+      // transform/opacity animeras. --ikd förskjuter raderna så de inte andas i takt.
+      '@keyframes bcsp-i-vilar{0%,100%{transform:translateY(0) scale(.96);}',
+        '50%{transform:translateY(-1.5px) scale(1);}}',
+      '.bcsp-row.done .bcsp-ic{opacity:1;filter:drop-shadow(0 0 7px rgba(52,211,153,.55));}',
+      // Munstycket pulsar som nar det matar.
+      '.bcsp-row.done .bcsp-i-pump{filter:drop-shadow(0 0 7px rgba(248,113,113,.65));animation:bcsp-i-pump 1.9s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-pump{0%,100%{transform:scale(1) rotate(0);}45%{transform:scale(1.14) rotate(-4deg);}}',
+      // Bilen gungar pa fjadringen.
+      '.bcsp-row.done .bcsp-i-kor{filter:drop-shadow(0 0 7px rgba(167,139,250,.65));animation:bcsp-i-kor 2.4s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-kor{0%,100%{transform:translateX(-2.5px) rotate(-2.5deg);}50%{transform:translateX(2.5px) rotate(2.5deg);}}',
+      // Blixten flimrar till som en urladdning.
+      '.bcsp-row.done .bcsp-i-blixt{filter:drop-shadow(0 0 7px rgba(250,204,21,.75));animation:bcsp-i-blixt 2.6s ease-in-out var(--ikd,0s) infinite;}',
+      // steps(1,end) stod här först och det var fel: den interpolerar inte alls mellan
+      // keyframes, så ikonen hoppade och stod stilla resten av varvet. Nu ligger en
+      // bärvåg under (den syns hela tiden) och urladdningen som en smäll ovanpå.
+      '@keyframes bcsp-i-blixt{0%{transform:scale(1) rotate(-3deg);opacity:1;}',
+        '26%{transform:scale(1.07) rotate(3deg);opacity:.92;}',
+        '50%{transform:scale(1) rotate(-2deg);opacity:1;}',
+        '55%{transform:scale(1.32) rotate(0);opacity:.4;}',
+        '59%{transform:scale(1.1) rotate(0);opacity:1;}',
+        '63%{transform:scale(1.36) rotate(0);opacity:.5;}',
+        '70%{transform:scale(1.02) rotate(2deg);opacity:1;}',
+        '100%{transform:scale(1) rotate(-3deg);opacity:1;}}',
+      // Batteriet fylls pa och slapper.
+      '.bcsp-row.done .bcsp-i-ladda{filter:drop-shadow(0 0 7px rgba(74,222,128,.7));animation:bcsp-i-ladda 2.2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-ladda{0%,100%{transform:scale(.95);opacity:.85;}45%{transform:scale(1.16);opacity:1;}}',
+      // Fatet rullar fram och tillbaka.
+      '.bcsp-row.done .bcsp-i-tunna{filter:drop-shadow(0 0 7px rgba(251,146,60,.65));animation:bcsp-i-tunna 3s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-tunna{0%,100%{transform:rotate(-8deg) translateX(-1.5px);}50%{transform:rotate(8deg) translateX(1.5px);}}',
+      // Kartan vrids som nar man foljer en rutt.
+      '.bcsp-row.done .bcsp-i-karta{filter:drop-shadow(0 0 7px rgba(125,211,252,.65));animation:bcsp-i-karta 3.4s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-karta{0%,100%{transform:rotate(-5deg) translateX(-1.5px);}50%{transform:rotate(5deg) translateX(1.5px);}}',
+      // Myntet vander sig.
+      '.bcsp-row.done .bcsp-i-mynt{filter:drop-shadow(0 0 7px rgba(250,204,21,.75));animation:bcsp-i-mynt 3.2s ease-in-out var(--ikd,0s) infinite;}',
+      // Myntet låg stilla på rotateY(0) i över halva varvet. Nu vaggar det hela tiden
+      // och vändningen blir accenten i stället för den enda rörelsen.
+      '@keyframes bcsp-i-mynt{0%{transform:perspective(70px) rotateY(0) translateY(0);}',
+        '18%{transform:perspective(70px) rotateY(-16deg) translateY(-1.5px);}',
+        '40%{transform:perspective(70px) rotateY(16deg) translateY(0);}',
+        '55%{transform:perspective(70px) rotateY(0) translateY(-1px);}',
+        '85%{transform:perspective(70px) rotateY(330deg) translateY(0);}',
+        '100%{transform:perspective(70px) rotateY(360deg) translateY(0);}}',
       '.bcsp-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25;}',
       '.bcsp-tx b{font-size:.83rem;font-weight:700;color:#fff6e6;display:flex;align-items:center;gap:7px;}',
       '.bcsp-tx i{font-size:.69rem;font-style:normal;color:rgba(253,230,138,.78);',
@@ -3214,7 +3262,8 @@ if (document.readyState === 'loading') {
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="bcsp-row" data-i="' + i + '">' +
-        '<span class="bcsp-ic">' + r.ic + '</span>' +
+        '<span class="bcsp-ic' + (r.an ? ' bcsp-i-' + r.an : '') +
+          '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
         '<span class="bcsp-tx"><b>' + r.t + tagHtml(r.tag) + '</b><i class="bcsp-suba">' + subFor(r) + '</i></span>' +
         '<span class="bcsp-st"><span class="bcsp-spin"></span></span>' +
       '</div>';

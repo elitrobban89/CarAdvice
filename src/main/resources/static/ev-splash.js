@@ -38,16 +38,16 @@
   // datan kommer; kommer den aldrig (tjänsten sover, nätet strular) ser besökaren en hel
   // rad ändå i stället för en tom siffra. De med tag:'ONLINE' får en pulsande grön pill.
   var ROWS = [
-    { ic: '🤖', t: 'Groq AI',        kind: 'groq', tag: 'ONLINE' },
-    { ic: '🗄️', t: 'PostgreSQL',     s: 'ev_spec-databasen ansluten', tag: 'ONLINE' },
-    { ic: '🔋', t: 'Elbilar',        kind: 'cars' },
-    { ic: '🛣️', t: 'R\xe4ckvidd',     kind: 'rackvidd' },
-    { ic: '⚡',       t: 'Batteri &amp; effekt', kind: 'batteri' },
-    { ic: '💡', t: 'Elpriser',       kind: 'elpris', tag: 'LIVE' },
-    { ic: '💰', t: 'Laddpriser',     kind: 'laddpris', tag: 'LIVE' },
-    { ic: '💸', t: 'Bilpriser',      kind: 'bilpris' },
-    { ic: '🔌', t: 'Laddstationer',  s: 'Open Charge Map \xb7 realtidsdata', tag: 'LIVE' },
-    { ic: '🗺️', t: 'Ruttplanering',  s: 'Laddstopp l\xe4ngs din resa \xb7 OSRM' }
+    { ic: '🤖', t: 'Groq AI',        kind: 'groq', tag: 'ONLINE', an: 'robot' },
+    { ic: '🗄️', t: 'PostgreSQL',     s: 'ev_spec-databasen ansluten', tag: 'ONLINE', an: 'arkiv' },
+    { ic: '🔋', t: 'Elbilar',        kind: 'cars', an: 'ladda' },
+    { ic: '🛣️', t: 'R\xe4ckvidd',     kind: 'rackvidd', an: 'vag' },
+    { ic: '⚡',       t: 'Batteri &amp; effekt', kind: 'batteri', an: 'blixt' },
+    { ic: '💡', t: 'Elpriser',       kind: 'elpris', tag: 'LIVE', an: 'lampa' },
+    { ic: '💰', t: 'Laddpriser',     kind: 'laddpris', tag: 'LIVE', an: 'mynt' },
+    { ic: '💸', t: 'Bilpriser',      kind: 'bilpris', an: 'sedel' },
+    { ic: '🔌', t: 'Laddstationer',  s: 'Open Charge Map \xb7 realtidsdata', tag: 'LIVE', an: 'kontakt' },
+    { ic: '🗺️', t: 'Ruttplanering',  s: 'Laddstopp l\xe4ngs din resa \xb7 OSRM', an: 'karta' }
   ];
 
   // Live-siffror; tomma tills respektive anrop svarat.
@@ -205,7 +205,76 @@
       '.ev-sp-row.show{opacity:1;transform:translateY(0);}',
       '.ev-sp-row.done{border-color:rgba(52,211,153,.5);background:rgba(34,197,94,.14);',
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(34,197,94,.22);}',
-      '.ev-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;filter:drop-shadow(0 0 5px rgba(59,130,246,.4));}',
+      '.ev-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;display:inline-block;',
+        'filter:grayscale(.75) brightness(.85) drop-shadow(0 0 5px rgba(59,130,246,.3));opacity:.8;',
+        'transition:filter .5s ease,opacity .5s ease;',
+        'animation:ev-ic-vilar 3s ease-in-out var(--ikd,0s) infinite;}',
+      // Ikonerna rör sig allihop: en lugn andning medan raden laddar, och en egen rörelse när
+      // den tänds — batteriet laddar, myntet vänder sig, kontakten söker uttaget. Glöden ligger
+      // i drop-shadow på spannet och inte i text-shadow: wp-emoji byter ut emojin mot en <img>
+      // på WP-sidan, och text-shadow biter inte på en bild. Bara transform/opacity animeras.
+      // --ikd förskjuter raderna så de tio inte andas i takt som en maskin.
+      '@keyframes ev-ic-vilar{0%,100%{transform:translateY(0) scale(.96);}',
+        '50%{transform:translateY(-1.5px) scale(1);}}',
+      '.ev-sp-row.done .ev-sp-ic{opacity:1;',
+        'filter:drop-shadow(0 0 7px rgba(52,211,153,.55)) drop-shadow(0 0 3px rgba(125,211,252,.5));}',
+      // Roboten nickar till och vaknar.
+      '.ev-sp-row.done .ev-ic-robot{filter:drop-shadow(0 0 7px rgba(244,114,182,.6));animation:ev-ic-robot 2.8s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-robot{0%,100%{transform:translateY(0) rotate(0);}',
+        '18%{transform:translateY(-2px) rotate(-7deg);}36%{transform:translateY(0) rotate(6deg);}',
+        '54%{transform:translateY(-1px) rotate(0);}}',
+      // Arkivlådan skjuts in och ut.
+      '.ev-sp-row.done .ev-ic-arkiv{filter:drop-shadow(0 0 7px rgba(148,163,184,.6));animation:ev-ic-arkiv 2.6s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-arkiv{0%,100%{transform:translateX(0) scaleY(1);}',
+        '40%{transform:translateX(2.5px) scaleY(.92);}70%{transform:translateX(-1px) scaleY(1.03);}}',
+      // Batteriet fylls på — pulsen växer och släpper, som en laddcykel.
+      '.ev-sp-row.done .ev-ic-ladda{filter:drop-shadow(0 0 7px rgba(74,222,128,.7));animation:ev-ic-ladda 2.2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-ladda{0%,100%{transform:scale(.95);opacity:.85;}',
+        '45%{transform:scale(1.16);opacity:1;}}',
+      // Vägen rullar förbi.
+      '.ev-sp-row.done .ev-ic-vag{filter:drop-shadow(0 0 7px rgba(125,211,252,.65));animation:ev-ic-vag 3s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-vag{0%,100%{transform:translateX(-3px) scale(.97);}',
+        '50%{transform:translateX(3px) scale(1.03);}}',
+      // Blixten flimrar till som en urladdning och är stilla däremellan.
+      '.ev-sp-row.done .ev-ic-blixt{filter:drop-shadow(0 0 7px rgba(250,204,21,.75));animation:ev-ic-blixt 2.6s ease-in-out var(--ikd,0s) infinite;}',
+      // steps(1,end) stod här först och det var fel: den interpolerar inte alls mellan
+      // keyframes, så ikonen hoppade och stod stilla resten av varvet. Nu ligger en
+      // bärvåg under (den syns hela tiden) och urladdningen som en smäll ovanpå.
+      '@keyframes ev-ic-blixt{0%{transform:scale(1) rotate(-3deg);opacity:1;}',
+        '26%{transform:scale(1.07) rotate(3deg);opacity:.92;}',
+        '50%{transform:scale(1) rotate(-2deg);opacity:1;}',
+        '55%{transform:scale(1.32) rotate(0);opacity:.4;}',
+        '59%{transform:scale(1.1) rotate(0);opacity:1;}',
+        '63%{transform:scale(1.36) rotate(0);opacity:.5;}',
+        '70%{transform:scale(1.02) rotate(2deg);opacity:1;}',
+        '100%{transform:scale(1) rotate(-3deg);opacity:1;}}',
+      // Lampan tänds och dämpas.
+      '.ev-sp-row.done .ev-ic-lampa{filter:drop-shadow(0 0 7px rgba(253,224,71,.75));animation:ev-ic-lampa 2.4s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-lampa{0%,100%{transform:scale(.96);opacity:.8;}',
+        '30%{transform:scale(1.14);opacity:1;}45%{transform:scale(1.05);opacity:.9;}',
+        '60%{transform:scale(1.12);opacity:1;}}',
+      // Myntet vänder sig.
+      '.ev-sp-row.done .ev-ic-mynt{filter:drop-shadow(0 0 7px rgba(250,204,21,.75));animation:ev-ic-mynt 3.2s ease-in-out var(--ikd,0s) infinite;}',
+      // Myntet låg stilla på rotateY(0) i över halva varvet. Nu vaggar det hela tiden
+      // och vändningen blir accenten i stället för den enda rörelsen.
+      '@keyframes ev-ic-mynt{0%{transform:perspective(70px) rotateY(0) translateY(0);}',
+        '18%{transform:perspective(70px) rotateY(-16deg) translateY(-1.5px);}',
+        '40%{transform:perspective(70px) rotateY(16deg) translateY(0);}',
+        '55%{transform:perspective(70px) rotateY(0) translateY(-1px);}',
+        '85%{transform:perspective(70px) rotateY(330deg) translateY(0);}',
+        '100%{transform:perspective(70px) rotateY(360deg) translateY(0);}}',
+      // Sedeln fladdrar iväg.
+      '.ev-sp-row.done .ev-ic-sedel{filter:drop-shadow(0 0 7px rgba(134,239,172,.65));animation:ev-ic-sedel 2.8s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-sedel{0%,100%{transform:translateY(1px) rotate(-5deg);}',
+        '50%{transform:translateY(-3px) rotate(6deg);}}',
+      // Kontakten söker sig in i uttaget.
+      '.ev-sp-row.done .ev-ic-kontakt{filter:drop-shadow(0 0 7px rgba(52,211,153,.65));animation:ev-ic-kontakt 2.2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-kontakt{0%,100%{transform:translateX(0) rotate(0);}',
+        '25%{transform:translateX(3px) rotate(6deg);}55%{transform:translateX(-2px) rotate(-5deg);}}',
+      // Kartan vrids som när man följer en rutt med fingret.
+      '.ev-sp-row.done .ev-ic-karta{filter:drop-shadow(0 0 7px rgba(125,211,252,.65));animation:ev-ic-karta 3.4s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ev-ic-karta{0%,100%{transform:rotate(-5deg) translateX(-1.5px);}',
+        '50%{transform:rotate(5deg) translateX(1.5px);}}',
       '.ev-sp-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25;}',
       '.ev-sp-tx b{font-size:.83rem;font-weight:700;color:#f4f8ff;display:flex;align-items:center;gap:7px;}',
       '.ev-sp-tx i{font-size:.69rem;font-style:normal;color:rgba(191,219,254,.82);',
@@ -318,7 +387,8 @@
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="ev-sp-row" data-i="' + i + '">' +
-        '<span class="ev-sp-ic">' + r.ic + '</span>' +
+        '<span class="ev-sp-ic' + (r.an ? ' ev-ic-' + r.an : '') +
+          '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
         '<span class="ev-sp-tx"><b>' + r.t + tagHtml(r.tag) + '</b><i class="ev-sp-suba">' + subFor(r) + '</i></span>' +
         '<span class="ev-sp-st"><span class="ev-sp-spin"></span></span>' +
       '</div>';

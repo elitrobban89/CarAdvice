@@ -40,15 +40,15 @@
   // de finns i serverns cache; annars står den beskrivande texten kvar.
   var ROWS = [
     { ic: '🤖', t: 'Groq AI',        s: 'V\xe4cker spr\xe5kmodellen…', kind: 'groq' },
-    { ic: '🚗', t: 'Bildatabas',     kind: 'models' },
-    { ic: '⚡',       t: 'Elbilsdata',     s: 'R\xe4ckvidd, batteri &amp; laddeffekt \xb7 ev-database.org' },
-    { ic: '⛽',       t: 'F\xf6rbrukning', s: 'Verifierad l/mil &amp; kWh/mil' },
-    { ic: '🛡️', t: 'S\xe4kerhet', s: 'Euro NCAP &amp; Folksam krocktester' },
-    { ic: '📰', t: 'Expertdata',     kind: 'insights' },
-    { ic: '🔌', t: 'Elpriser',       kind: 'el' },
-    { ic: '💸', t: 'Br\xe4nslepriser', kind: 'fuel' },
-    { ic: '🎬', t: 'Videotester',    s: 'YouTube-recensioner per modell' },
-    { ic: '🔵', t: 'Marknadspriser', s: 'Dagsaktuella priser fr\xe5n Blocket' }
+    { ic: '🚗', t: 'Bildatabas',     kind: 'models', an: 'kor' },
+    { ic: '⚡',       t: 'Elbilsdata',     s: 'R\xe4ckvidd, batteri &amp; laddeffekt \xb7 ev-database.org', an: 'blixt' },
+    { ic: '⛽',       t: 'F\xf6rbrukning', s: 'Verifierad l/mil &amp; kWh/mil', an: 'pump' },
+    { ic: '🛡️', t: 'S\xe4kerhet', s: 'Euro NCAP &amp; Folksam krocktester', an: 'skold' },
+    { ic: '📰', t: 'Expertdata',     kind: 'insights', an: 'blad' },
+    { ic: '🔌', t: 'Elpriser',       kind: 'el', an: 'kontakt' },
+    { ic: '💸', t: 'Br\xe4nslepriser', kind: 'fuel', an: 'sedel' },
+    { ic: '🎬', t: 'Videotester',    s: 'YouTube-recensioner per modell', an: 'klappa' },
+    { ic: '🔵', t: 'Marknadspriser', s: 'Dagsaktuella priser fr\xe5n Blocket', an: 'puls' }
   ];
 
   // Live-datapunkter från /api/stats.live — tomma tills servern svarat.
@@ -161,7 +161,69 @@
         'opacity:0;transform:translateY(8px);transition:opacity .35s ease,transform .35s ease,border-color .3s,background .3s;}',
       '.ca-sp-row.show{opacity:1;transform:translateY(0);}',
       '.ca-sp-row.done{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.06);}',
-      '.ca-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;}',
+      '.ca-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;display:inline-block;}',
+      // Alla ikoner rör sig, inte bara roboten: en lugn andning medan raden laddar, och en
+      // egen signaturrörelse när den tänds — bilen gungar, blixten flimrar, klappan smäller.
+      // Två saker styr utförandet. Glöden ligger i drop-shadow och INTE i text-shadow som
+      // robotens: på WP-sidan byter wp-emoji ut emojin mot en <img>, och text-shadow biter
+      // inte på en bild (se feedback-wp-emoji-img-textcontent) — drop-shadow på spannet gör
+      // det. Och bara transform/opacity animeras, så de tio ikonerna kostar inget att rita.
+      // --ikd förskjuter varje rad, annars andas de tio i takt som en maskin.
+      '.ca-sp-ic:not(.ca-sp-bot){filter:grayscale(.8) brightness(.85);opacity:.78;',
+        'transition:filter .5s ease,opacity .5s ease;',
+        'animation:ca-ic-vilar 3s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-vilar{0%,100%{transform:translateY(0) scale(.96);}',
+        '50%{transform:translateY(-1.5px) scale(1);}}',
+      '.ca-sp-row.done .ca-sp-ic:not(.ca-sp-bot){filter:drop-shadow(0 0 6px rgba(167,139,250,.5));opacity:1;}',
+      // Bilen gungar på fjädringen.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-kor{filter:drop-shadow(0 0 7px rgba(167,139,250,.65));animation:ca-ic-kor 2.4s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-kor{0%,100%{transform:translateX(-2.5px) rotate(-2.5deg);}',
+        '50%{transform:translateX(2.5px) rotate(2.5deg);}}',
+      // Blixten flimrar till som en urladdning och är stilla däremellan.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-blixt{filter:drop-shadow(0 0 7px rgba(250,204,21,.75));animation:ca-ic-blixt 2.6s ease-in-out var(--ikd,0s) infinite;}',
+      // steps(1,end) stod här först och det var fel: den interpolerar inte alls mellan
+      // keyframes, så ikonen hoppade och stod stilla resten av varvet. Nu ligger en
+      // bärvåg under (den syns hela tiden) och urladdningen som en smäll ovanpå.
+      '@keyframes ca-ic-blixt{0%{transform:scale(1) rotate(-3deg);opacity:1;}',
+        '26%{transform:scale(1.07) rotate(3deg);opacity:.92;}',
+        '50%{transform:scale(1) rotate(-2deg);opacity:1;}',
+        '55%{transform:scale(1.32) rotate(0);opacity:.4;}',
+        '59%{transform:scale(1.1) rotate(0);opacity:1;}',
+        '63%{transform:scale(1.36) rotate(0);opacity:.5;}',
+        '70%{transform:scale(1.02) rotate(2deg);opacity:1;}',
+        '100%{transform:scale(1) rotate(-3deg);opacity:1;}}',
+      // Pumpen pulsar som ett munstycke som matar.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-pump{filter:drop-shadow(0 0 7px rgba(248,113,113,.65));animation:ca-ic-pump 1.9s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-pump{0%,100%{transform:scale(1) rotate(0);}45%{transform:scale(1.14) rotate(-4deg);}}',
+      // Skölden vaggar som om den parerade ett slag.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-skold{filter:drop-shadow(0 0 7px rgba(96,165,250,.7));animation:ca-ic-skold 3.2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-skold{0%,100%{transform:rotate(0) scale(1);}40%{transform:rotate(-9deg) scale(1.08);}',
+        '70%{transform:rotate(7deg) scale(1.04);}}',
+      // Tidningen bläddras — perspektivet ligger i transformen, inte på föräldern.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-blad{filter:drop-shadow(0 0 7px rgba(226,232,240,.55));animation:ca-ic-blad 3s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-blad{0%,100%{transform:perspective(60px) rotateY(0);}',
+        '50%{transform:perspective(60px) rotateY(34deg);}}',
+      // Kontakten söker sig in i uttaget.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-kontakt{filter:drop-shadow(0 0 7px rgba(52,211,153,.65));animation:ca-ic-kontakt 2.2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-kontakt{0%,100%{transform:translateX(0) rotate(0);}',
+        '25%{transform:translateX(3px) rotate(6deg);}55%{transform:translateX(-2px) rotate(-5deg);}}',
+      // Sedeln fladdrar iväg.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-sedel{filter:drop-shadow(0 0 7px rgba(134,239,172,.65));animation:ca-ic-sedel 2.8s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-sedel{0%,100%{transform:translateY(1px) rotate(-5deg);}',
+        '50%{transform:translateY(-3px) rotate(6deg);}}',
+      // Filmklappan smäller igen kring sitt eget gångjärn — och vaggar mellan smällarna.
+      // Utan vaggningen stod den still 74 % av varvet: smällen syntes, resten var en
+      // stillbild, och just den sortens rörelse läser som en frusen ikon bredvid nio som
+      // lever. Samma fel som steps(1,end) gav blixten, en våning ned.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-klappa{filter:drop-shadow(0 0 7px rgba(148,163,184,.6));transform-origin:20% 80%;',
+        'animation:ca-ic-klappa 2.4s ease-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-klappa{0%{transform:rotate(0);}8%{transform:rotate(-16deg);}',
+        '18%{transform:rotate(2deg);}26%{transform:rotate(0);}',
+        '52%{transform:rotate(-3.5deg) translateY(-1px);}78%{transform:rotate(3.5deg) translateY(0);}',
+        '100%{transform:rotate(0);}}',
+      // Marknadspriset pulsar som en radarpunkt.
+      '.ca-sp-row.done .ca-sp-ic.ca-ic-puls{filter:drop-shadow(0 0 7px rgba(56,189,248,.7));animation:ca-ic-puls 2s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes ca-ic-puls{0%,100%{transform:scale(.94);opacity:.85;}50%{transform:scale(1.18);opacity:1;}}',
       // Roboten på Groq-raden: sover, vaknar och stannar vaken. Glöden ligger i text-shadow
       // och inte i ett ::after — ett absolut pseudoelement ovanpå en emoji tvättar ur den
       // (samma fälla som glasglöden på elbilskorten).
@@ -272,7 +334,8 @@
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="ca-sp-row" data-i="' + i + '">' +
-        '<span class="ca-sp-ic' + (r.kind === 'groq' ? ' ca-sp-bot' : '') + '">' + r.ic + '</span>' +
+        '<span class="ca-sp-ic' + (r.kind === 'groq' ? ' ca-sp-bot' : '') +
+          (r.an ? ' ca-ic-' + r.an : '') + '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
         '<span class="ca-sp-tx"><b>' + r.t + '</b><i class="ca-sp-suba">' + subFor(r) + '</i></span>' +
         '<span class="ca-sp-st"><span class="ca-sp-spin"></span></span>' +
       '</div>';
