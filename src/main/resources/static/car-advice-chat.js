@@ -49,20 +49,14 @@
       var otherNames = recs.filter(function(r, i) { return i !== idx; })
                            .map(function(r) { return r.title.replace(/\s*\(\d{4}\)\s*$/, '').trim(); });
       var chips = [
-        { label: '🔍 Berätta om ' + name, q: 'Berätta mer om ' + name + ' — vad är fördelarna och nackdelarna?' },
-        { label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + name + ' per månad? Räkna in skatt, försäkring och bränsle/el.' },
-        { label: '🔧 Tillförlitlighet & problem', q: 'Vilka vanliga problem eller fel brukar ' + name + ' ha?' },
+        { ton: '167,139,250', label: '🔍 Berätta om ' + name, q: 'Berätta mer om ' + name + ' — vad är fördelarna och nackdelarna?' },
+        { ton: '251,191,36', label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + name + ' per månad? Räkna in skatt, försäkring och bränsle/el.' },
+        { ton: '244,114,182', label: '🔧 Tillförlitlighet & problem', q: 'Vilka vanliga problem eller fel brukar ' + name + ' ha?' },
       ];
       if (otherNames.length > 0) {
-        chips.push({ label: '⚖️ Jämför med ' + otherNames[0], q: 'Jämför ' + name + ' med ' + otherNames[0] + ' — vilken är bäst för mig?' });
+        chips.push({ ton: '56,189,248', label: '⚖️ Jämför med ' + otherNames[0], q: 'Jämför ' + name + ' med ' + otherNames[0] + ' — vilken är bäst för mig?' });
       }
-      quick.innerHTML = chips.map(function(c) {
-        return '<button class="ca-chat-quick-btn" data-q="' + c.q.replace(/"/g, '&quot;') + '">' + c.label + '</button>';
-      }).join('');
-      quick.querySelectorAll('.ca-chat-quick-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() { caChatSendMessage(btn.dataset.q); });
-      });
-      quick.style.display = 'flex';
+      ritaChips(quick, chips);
     }
 
     // Contextual message
@@ -111,21 +105,109 @@
     }
   }
 
+  /**
+   * Startknapparna innan man sokt — formulerade ur det formularet redan sager.
+   *
+   * <p>De fyra gamla ("Bäst värde", "Pålitlighet", "Köpguide") skrevs innan formularet hade
+   * några förval alls. Nu står kategori, drivmedel och budget där med riktiga värden innan
+   * besökaren skrivit ett ord, och då är en allmän fråga ett slöseri med den enda plats
+   * chatten har för att föreslå något.
+   *
+   * <p>Faller tillbaka på de allmänna frågorna om formularet inte går att läsa — en chatt
+   * utan startknappar är sämre än en med allmänna.
+   */
+  function caChatStartChips() {
+    var quick = document.getElementById('ca-chat-quick');
+    if (!quick) return;
+    // Har man sokt bar knapparna bilarna man fick — de vinner alltid over startfragorna.
+    if (window._caRecommendations && window._caRecommendations.length) return;
+
+    function las(id) { var e = document.getElementById(id); return e ? e.value : ''; }
+    var kat = las('ca-category');
+    var drivmedel = las('ca-fuel');
+    var budget = parseInt(las('ca-budget-slider'), 10);
+    var pengar = budget > 0 ? Math.round(budget / 1000) + ' 000 kr' : '';
+    var KAT = { smaabil: 'sm\u00e5bil', familjebil: 'familjebil', suv: 'SUV',
+                elbil: 'elbil', laddhybrid: 'laddhybrid' };
+    var vad = KAT[kat] || 'bil';
+    var elig = drivmedel === 'el' || kat === 'elbil';
+    var phev = drivmedel === 'laddhybrid' || kat === 'laddhybrid';
+
+    var chips;
+    if (!kat) {
+      chips = ALLMANNA_CHIPS;
+    } else {
+      chips = [];
+      if (pengar) {
+        chips.push({ ton: '52,211,153', ik: '\uD83C\uDFAF', label: 'B\u00e4st ' + vad + ' f\u00f6r ' + pengar,
+          q: 'Vilken ' + vad + ' ' + (elig ? 'som elbil ' : '') + 'ger mest f\u00f6r pengarna kring ' + pengar + '?' });
+      }
+      if (elig) {
+        chips.push({ ton: '56,189,248', ik: '\uD83D\uDD0B', label: 'R\u00e4ckvidd p\u00e5 vintern',
+          q: 'Hur mycket r\u00e4ckvidd tappar en elbil i svensk vinterkyla, och vilka klarar det b\u00e4st?' });
+      } else if (phev) {
+        chips.push({ ton: '251,191,36', ik: '\uD83D\uDCC5', label: 'Skatten 2027',
+          q: 'Hur p\u00e5verkas laddhybrider av skatte\u00e4ndringen 2027, och vad b\u00f6r jag t\u00e4nka p\u00e5 nu?' });
+      } else {
+        chips.push({ ton: '56,189,248', ik: '\u26A1', label: 'El eller bensin?',
+          q: 'Lonar sig en elbil framfor bensin for mig, eller ar det tvartom?' });
+      }
+      chips.push({ ton: '251,191,36', ik: '\uD83D\uDCB0', label: 'Vad kostar milen?',
+        q: 'Vad kostar en mil att k\u00f6ra med en ' + vad + ' ' + (elig ? 'p\u00e5 el' : 'i den h\u00e4r klassen') + ' i Sverige idag?' });
+      chips.push({ ton: '167,139,250', ik: '\uD83D\uDD27', label: 'Vad g\u00e5r s\u00f6nder?',
+        q: 'Vilka vanliga fel och dyra reparationer ska jag h\u00e5lla utkik efter p\u00e5 en begagnad ' + vad + '?' });
+    }
+
+    ritaChips(quick, chips.slice(0, 4));
+  }
+
+  /** De allmanna fragorna — anvands nar formularet inte gar att lasa. */
+  var ALLMANNA_CHIPS = [
+    { ton: '56,189,248',  ik: '\u26A1', label: 'El eller laddhybrid?', q: 'Elbil eller laddhybrid \u2014 vad passar mig?' },
+    { ton: '251,191,36',  ik: '\uD83D\uDCB0', label: 'Vad kostar milen?', q: 'Vad kostar en mil att k\u00f6ra med el, bensin och laddhybrid i Sverige idag?' },
+    { ton: '167,139,250', ik: '\uD83D\uDD27', label: 'Vad g\u00e5r s\u00f6nder?', q: 'Vilken begagnad bil \u00e4r mest p\u00e5litlig, och vad brukar g\u00e5 s\u00f6nder?' },
+    { ton: '52,211,153',  ik: '\uD83D\uDCCB', label: 'K\u00f6pguide', q: 'Vad ska jag t\u00e4nka p\u00e5 n\u00e4r jag k\u00f6per begagnad bil?' }
+  ];
+
+  /**
+   * Ritar en knapprad. Ikonen får en egen bricka och knappen sin ton.
+   *
+   * <p>Saknas {@code ik} plockas en inledande emoji ur etiketten i stället. Det är så de
+   * kontextuella knapparna efter en sökning är skrivna ("🔍 Berätta om …"), och utan den
+   * uppdelningen hade de fått text utan bricka medan startknapparna fick bricka — samma rad
+   * i två utföranden.
+   */
+  var LEDANDE_EMOJI = /^(\p{Extended_Pictographic}️?)\s*/u;
+
+  function ritaChips(quick, chips) {
+    quick.innerHTML = chips.map(function (c) {
+      var etikett = String(c.label);
+      var ikon = c.ik || '';
+      if (!ikon) {
+        var m = etikett.match(LEDANDE_EMOJI);
+        if (m) { ikon = m[1]; etikett = etikett.slice(m[0].length); }
+      }
+      c = { ton: c.ton, q: c.q, label: etikett, ik: ikon };
+      var ton = c.ton ? ' style="--ton:' + c.ton + '"' : '';
+      var ik = c.ik ? '<span class="ca-chat-quick-ik">' + c.ik + '</span>' : '';
+      return '<button class="ca-chat-quick-btn"' + ton +
+        ' data-q="' + String(c.q).replace(/"/g, '&quot;') + '">' + ik + '<span>' + c.label + '</span></button>';
+    }).join('');
+    quick.querySelectorAll('.ca-chat-quick-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { caChatSendMessage(btn.dataset.q); });
+    });
+    quick.style.display = 'flex';
+  }
+
   function caChatUpdateQuickChips(recs, names) {
     var quick = document.getElementById('ca-chat-quick');
     if (!quick) return;
     var chips = [];
-    if (names.length >= 1) chips.push({ label: '🔍 Berätta om ' + names[0], q: 'Berätta mer om ' + names[0] + ' — vad är för- och nackdelarna?' });
-    if (names.length >= 2) chips.push({ label: '⚖️ Jämför ' + names[0] + ' vs ' + names[1], q: 'Jämför ' + names[0] + ' och ' + names[1] + ' — vilken passar mig bäst?' });
-    chips.push({ label: '🎯 Vilken passar mig bäst?', q: 'Av ' + names.join(', ') + ' — vilken passar mig bäst baserat på mina önskemål?' });
-    if (names.length >= 1) chips.push({ label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + names[0] + ' per månad? Skatt, försäkring och driftkostnad.' });
-    quick.innerHTML = chips.slice(0, 4).map(function(c) {
-      return '<button class="ca-chat-quick-btn" data-q="' + c.q.replace(/"/g, '&quot;') + '">' + c.label + '</button>';
-    }).join('');
-    quick.querySelectorAll('.ca-chat-quick-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() { caChatSendMessage(btn.dataset.q); });
-    });
-    quick.style.display = 'flex';
+    if (names.length >= 1) chips.push({ ton: '167,139,250', label: '🔍 Berätta om ' + names[0], q: 'Berätta mer om ' + names[0] + ' — vad är för- och nackdelarna?' });
+    if (names.length >= 2) chips.push({ ton: '56,189,248', label: '⚖️ Jämför ' + names[0] + ' vs ' + names[1], q: 'Jämför ' + names[0] + ' och ' + names[1] + ' — vilken passar mig bäst?' });
+    chips.push({ ton: '52,211,153', label: '🎯 Vilken passar mig bäst?', q: 'Av ' + names.join(', ') + ' — vilken passar mig bäst baserat på mina önskemål?' });
+    if (names.length >= 1) chips.push({ ton: '251,191,36', label: '💰 Driftkostnad & skatt', q: 'Vad kostar det att äga ' + names[0] + ' per månad? Skatt, försäkring och driftkostnad.' });
+    ritaChips(quick, chips.slice(0, 4));
   }
 
   function detectMentionedCar(msg) {
@@ -437,13 +519,34 @@
         background:rgba(12,9,32,0.42);border-top:1px solid rgba(196,181,253,0.16);
         backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);
       }
+      /* Varje knapp bar sin egen ton ur appens palett, satt med --ton. Fyra likadana lila
+         piller sa ingenting om vad de ledde till - fargen bar information nu. */
       .ca-chat-quick-btn {
-        background:rgba(46,32,92,0.62);border:1px solid rgba(167,139,250,0.42);color:#ddd0ff;
-        border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;
-        cursor:pointer;transition:all .15s;white-space:nowrap;
+        --ton:167,139,250;
+        display:inline-flex;align-items:center;gap:6px;
+        background:linear-gradient(145deg,rgba(var(--ton),0.20),rgba(var(--ton),0.09));
+        border:1px solid rgba(var(--ton),0.42);color:#efe9ff;
+        border-radius:20px;padding:6px 13px 6px 7px;font-size:12px;font-weight:600;
+        cursor:pointer;white-space:nowrap;letter-spacing:.1px;
+        box-shadow:0 2px 10px -6px rgba(var(--ton),0.9);
+        transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background .15s ease;
         backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
       }
-      .ca-chat-quick-btn:hover { background:rgba(139,92,246,0.35);color:#fff;border-color:rgba(167,139,250,0.55); }
+      /* Ikonen i en egen bricka - annars drunknar den i texten bredvid. */
+      .ca-chat-quick-btn .ca-chat-quick-ik {
+        display:inline-flex;align-items:center;justify-content:center;
+        width:20px;height:20px;border-radius:50%;flex-shrink:0;font-size:11px;
+        background:rgba(var(--ton),0.26);
+      }
+      .ca-chat-quick-btn:hover {
+        background:linear-gradient(145deg,rgba(var(--ton),0.34),rgba(var(--ton),0.16));
+        border-color:rgba(var(--ton),0.75);color:#fff;
+        transform:translateY(-1px);box-shadow:0 6px 16px -7px rgba(var(--ton),1);
+      }
+      .ca-chat-quick-btn:active { transform:translateY(0); }
+      .ca-chat-quick-btn:focus-visible { outline:2px solid rgba(var(--ton),0.9);outline-offset:2px; }
+      @media(prefers-reduced-motion:reduce){.ca-chat-quick-btn{transition:none;}
+        .ca-chat-quick-btn:hover{transform:none;}}
       .ca-chat-input-row {
         display:flex;gap:8px;padding:10px 12px;
         border-top:1px solid rgba(196,181,253,0.16);
@@ -710,6 +813,10 @@
       caChatVackt = true;
       caLugnaRadgivaren();
       caChatSyncGlass();
+      // Startknapparna byggs HÄR och inte bara vid sidladdning: formuläret kan ha ändrats
+      // sedan sidan öppnades, och det är formulärets nuvarande läge frågorna ska handla om.
+      // Har man sökt avstår funktionen själv — då bär knapparna bilarna man fick.
+      try { caChatStartChips(); } catch (e) {}
       document.getElementById("ca-chat-input").focus();
     }
   }
