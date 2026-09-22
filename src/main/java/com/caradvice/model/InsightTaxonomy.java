@@ -229,6 +229,99 @@ public final class InsightTaxonomy {
             + "\\s+(?:omkring\\s+|cirka\\s+|ca\\s+)?(\\d{4})|(\\d{4})\\s*års\\b");
 
     /**
+     * Modeller som bevisligen slutade tillverkas, och året de gjorde det.
+     *
+     * <p><b>Varför den behövs vid sidan av årsregeln.</b> {@link #MODELLAR} kräver ett årtal i
+     * modellårsposition och {@link #SAMLARORD} ett samlarord. Tre rader i drift 2026-09-22 bar
+     * varken det ena eller det andra och stod därför kvar som köpråd: en Volvo 780 beskriven med
+     * motor och nypris, en Volvo 240 om nya däck och bromsar, och en Audi 100 5E om en utmärkelse.
+     * Ingen mening i dem avslöjar att bilen är fyrtio år gammal — men <b>modellnamnet gör det</b>.
+     *
+     * <p><b>Årtalet står i tabellen, inte i koden, och gränsen rullar.</b> Regeln är densamma som
+     * för en enskild bil: modellen är veteran när den upphörde för {@link #VETERANALDER_AR} år
+     * sedan eller mer. Därför går {@code volvo 940} (1998) och {@code saab 9000} (1998) att ha
+     * med redan nu — de biter först 2028, av sig själva, utan att någon behöver minnas dem. Ett
+     * hårdkodat "de här är veteraner" hade åldrats exakt som varje annan baslinje i projektet.
+     *
+     * <p><b>Urvalsregeln — två krav, båda nödvändiga:</b>
+     * <ol>
+     *   <li><b>Ingen levande namne.</b> {@code renault 4} och {@code mini} är uteslutna trots att
+     *       originalen är stendöda: Renault 4 E-Tech kom 2025 och Mini säljs som nybil. En markör
+     *       som träffar en bil man kan köpa i dag är värre än ingen markör alls.</li>
+     *   <li><b>Marginal till gränsen.</b> {@code audi 80} (1996) utelämnas fastän den precis
+     *       kvalificerar — ligger mitt eget årtal ett år fel vänder utfallet. Modeller nära
+     *       gränsen får vänta tills de klarar den med marginal.</li>
+     * </ol>
+     *
+     * <p><b>Markören bär alltid MÄRKET</b>, av samma skäl som {@code LYX_OCH_SPORTMODELLER} lärde
+     * när {@code ls} och {@code xj} prövades lösa: matchningen är en delsträngsjämförelse, så
+     * {@code 240} ensamt hade träffat allt från Mercedes 240D till en effektangivelse.
+     *
+     * <p><b>Mätt mot hela tabellen (1 162 rader) 2026-09-22 innan den skrevs:</b> sju träffar,
+     * <b>noll</b> falska. Fyra av de sju fångade textreglerna redan; modellregelns egna bidrag är
+     * exakt de tre rader som beskrivs ovan. Att 24 av markörerna inte träffar något i dag är
+     * meningen — vakten finns för raderna som kommer, inte för en städning.
+     */
+    public static final Map<String, Integer> UTGANGNA_MODELLER = Map.ofEntries(
+            Map.entry("volvo pv", 1965),      Map.entry("volvo duett", 1969),
+            Map.entry("volvo amazon", 1970),  Map.entry("volvo 140", 1974),
+            Map.entry("volvo 164", 1975),     Map.entry("volvo 260", 1985),
+            Map.entry("volvo 760", 1990),     Map.entry("volvo 780", 1990),
+            Map.entry("volvo 740", 1992),     Map.entry("volvo 240", 1993),
+            Map.entry("volvo 960", 1997),     Map.entry("volvo 940", 1998),
+            Map.entry("saab sonett", 1974),   Map.entry("saab 96", 1980),
+            Map.entry("saab 99", 1984),       Map.entry("saab 9000", 1998),
+            Map.entry("audi 100", 1994),
+            Map.entry("bmw 2002", 1976),      Map.entry("bmw 1502", 1977),
+            Map.entry("opel rekord", 1986),   Map.entry("opel ascona", 1988),
+            Map.entry("opel kadett", 1991),
+            Map.entry("ford taunus", 1982),   Map.entry("ford cortina", 1982),
+            Map.entry("ford sierra", 1993),
+            Map.entry("citroen 2cv", 1990),   Map.entry("citroën 2cv", 1990),
+            Map.entry("fiat 127", 1983),      Map.entry("trabant 601", 1991),
+            Map.entry("mercedes w123", 1986));
+
+    /**
+     * Är bilens MODELL utgången sedan {@link #VETERANALDER_AR} år? Motiveringen, annars {@code null}.
+     *
+     * <p>Den längsta träffande markören vinner — samma regel som radvalet i servicelagret, och
+     * den som gör en framtida {@code "volvo 240 gl"} mer specifik än {@code "volvo 240"}. Utan
+     * den hade utfallet hängt på {@link Map}-ordningen, som är <b>oordnad</b> i {@code Map.ofEntries}.
+     *
+     * <p>Saknas modellen görs ingenting: namnet är det enda beviset regeln har, och ett märke
+     * utan modell ("Volvo") säger inget om årgången.
+     */
+    public static String utgangenModell(String carMake, String carModel) {
+        if (carModel == null || carModel.isBlank()) return null;
+        String namn = ((carMake == null ? "" : carMake) + " " + carModel).toLowerCase(Locale.ROOT).trim();
+        int gransar = java.time.Year.now().getValue() - VETERANALDER_AR;
+        String bast = null;
+        int bastAr = 0;
+        for (Map.Entry<String, Integer> e : UTGANGNA_MODELLER.entrySet()) {
+            if (e.getValue() > gransar) continue;           // modellen är inte 30 år ännu
+            if (!namn.contains(e.getKey())) continue;
+            if (bast == null || e.getKey().length() > bast.length()) {
+                bast = e.getKey();
+                bastAr = e.getValue();
+            }
+        }
+        return bast == null ? null
+                : "modellen " + bast + " slutade tillverkas " + bastAr;
+    }
+
+    /**
+     * Veteranvakten med bilens namn i handen — textreglerna först, modellregeln som fångstnät.
+     *
+     * <p>Ordningen är inte godtycklig: en text som SÄGER sin årsmodell ger en mer precis
+     * motivering ("årsmodell 1977") än modellnamnet kan ge ("modellen audi 100 slutade tillverkas
+     * 1994"), och motiveringen är det som hamnar i loggen och i kategorivaktens buffert.
+     */
+    public static String veteranInnehall(String insight, String carMake, String carModel) {
+        String texten = veteranInnehall(insight);
+        return texten != null ? texten : utgangenModell(carMake, carModel);
+    }
+
+    /**
      * Är insikten en veteran-/samlarbil i stället för ett köpråd? Motiveringen, annars {@code null}.
      *
      * <p><b>Femte promptregeln som behövde kodstöd.</b> Skrapans prompt har uteslutit

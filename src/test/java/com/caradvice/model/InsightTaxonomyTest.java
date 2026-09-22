@@ -256,4 +256,79 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.veteranInnehall("Bilen från " + (iAr - 29) + " gick bra."))
                 .isNull();
     }
+
+    @Test
+    void utgangenModellFallerDeTreSomTextenInteAvslojar() {
+        // Ordagrant ur drift 2026-09-22. Ingen av de tre bär årtal i modellårsposition eller
+        // samlarord — textreglerna returnerar null, och raderna stod därför kvar som köpråd
+        // tills de rättades för hand. Mätningen före bygget: modellregelns EGNA bidrag över
+        // hela tabellen (1 162 rader) är exakt de här tre, och noll falska träffar.
+        String volvo780 = "Volvo 780 hade en 2,8-liters V6-motor med 156 hk och såldes"
+                + " ursprungligen för omkring 300 000 kr.";
+        String volvo240 = "Bilen har nyligen fått nya däck, nya bromsar och ett nytt bakre"
+                + " avgassystem samt har genomgått frekvent oljebyte.";
+        String audi100 = "Audi 100 5E utsågs till Årets Bil i Norden för sin säkerhet, komfort"
+                + " och lättkörda egenskaper, särskilt på vintern.";
+
+        // Textregeln ensam ser dem inte — det är hela skälet till att vakten finns.
+        assertThat(InsightTaxonomy.veteranInnehall(volvo780)).isNull();
+        assertThat(InsightTaxonomy.veteranInnehall(volvo240)).isNull();
+        assertThat(InsightTaxonomy.veteranInnehall(audi100)).isNull();
+
+        assertThat(InsightTaxonomy.veteranInnehall(volvo780, "Volvo", "780")).contains("1990");
+        assertThat(InsightTaxonomy.veteranInnehall(volvo240, "Volvo", "240")).contains("1993");
+        assertThat(InsightTaxonomy.veteranInnehall(audi100, "Audi", "100 5E")).contains("1994");
+    }
+
+    @Test
+    void levandeModellerRorsInteAvModellregeln() {
+        // Urvalsregelns första krav: ingen levande namne. Renault 4 och Mini är de farliga
+        // fallen — originalen är stendöda men båda namnen säljs som nybil i dag, så de står
+        // medvetet UTANFÖR tabellen. Slinker de in blir varje nybilsråd om dem osynligt.
+        assertThat(InsightTaxonomy.utgangenModell("Renault", "4 E-Tech")).isNull();
+        assertThat(InsightTaxonomy.utgangenModell("Mini", "Cooper SE")).isNull();
+        assertThat(InsightTaxonomy.utgangenModell("Volvo", "XC60")).isNull();
+        assertThat(InsightTaxonomy.utgangenModell("Volvo", "V70")).isNull();
+        assertThat(InsightTaxonomy.utgangenModell("Audi", "A6")).isNull();
+        // Märke utan modell är inget bevis — namnet är det enda regeln har att gå på.
+        assertThat(InsightTaxonomy.utgangenModell("Volvo", null)).isNull();
+        assertThat(InsightTaxonomy.utgangenModell("Volvo", "  ")).isNull();
+        assertThat(InsightTaxonomy.utgangenModell(null, null)).isNull();
+    }
+
+    @Test
+    void modellensVeteranstatusRullarOcksaMedKalendern() {
+        // Volvo 940 upphörde 1998 och ligger med i tabellen REDAN NU, men får inte bita
+        // förrän den fyllt VETERANALDER_AR. Provet räknar gränsen själv, så det följer med
+        // över årsskiftet 2027/2028 i stället för att bli rött — samma princip som textregeln.
+        int gransar = java.time.Year.now().getValue() - InsightTaxonomy.VETERANALDER_AR;
+        int sista940 = InsightTaxonomy.UTGANGNA_MODELLER.get("volvo 940");
+        assertThat(sista940).isEqualTo(1998);
+
+        if (sista940 > gransar) {
+            assertThat(InsightTaxonomy.utgangenModell("Volvo", "940")).isNull();
+        } else {
+            assertThat(InsightTaxonomy.utgangenModell("Volvo", "940")).contains("1998");
+        }
+        // Volvo 240 (1993) ligger före gränsen och ska bita i dag.
+        assertThat(InsightTaxonomy.UTGANGNA_MODELLER.get("volvo 240")).isLessThanOrEqualTo(gransar);
+    }
+
+    @Test
+    void varjeMarkorBarMarketOchEttRimligtArtal() {
+        // Två regler som skyddar tabellen mot framtida tillägg:
+        // 1) markören måste innehålla ett mellanslag, alltså märke + modell. En lös "240"
+        //    hade träffat delsträngar överallt — samma läxa som lyxvaktens ls/xj gav.
+        // 2) årtalet måste vara ett verkligt tillverkningsår, inte en platshållare.
+        assertThat(InsightTaxonomy.UTGANGNA_MODELLER).isNotEmpty();
+        InsightTaxonomy.UTGANGNA_MODELLER.forEach((markor, sistaAr) -> {
+            assertThat(markor)
+                    .as("markören \"%s\" måste bära märket, annars matchar den delsträngar", markor)
+                    .contains(" ");
+            assertThat(markor).isLowerCase();
+            assertThat(sistaAr)
+                    .as("orimligt tillverkningsår för \"%s\"", markor)
+                    .isBetween(1900, java.time.Year.now().getValue());
+        });
+    }
 }

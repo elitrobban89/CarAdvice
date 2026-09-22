@@ -973,16 +973,20 @@ public class WebInsightScraperService {
                 markSeen(key);
             }
 
-            // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda.
-            String veteran = InsightTaxonomy.veteranInnehall(insightText);
+            // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda. Den får
+            // bilens namn med sig: tre rader i drift 2026-09-22 var veteraner som BARA modellen
+            // avslöjade — texten bar varken årtal eller samlarord.
+            String carMake  = blankToNull(ins.path("car_make").asText(""));
+            String carModel = blankToNull(ins.path("car_model").asText(""));
+            String veteran = InsightTaxonomy.veteranInnehall(insightText, carMake, carModel);
             String fuelType = veteran == null
                     ? InsightTaxonomy.validFuel(ins.path("fuel_type").asText("")) : null;
             String category = veteran == null ? kategoriFor(ins) : veteranUtanPool(ins, veteran);
 
             ExpertInsight stored = insightRepo.save(new ExpertInsight(
                     expert,
-                    blankToNull(ins.path("car_make").asText("")),
-                    blankToNull(ins.path("car_model").asText("")),
+                    carMake,
+                    carModel,
                     fuelType,
                     category,
                     insightText,

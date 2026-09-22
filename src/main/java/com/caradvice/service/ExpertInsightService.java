@@ -846,7 +846,7 @@ ett bilkort.*/
             // Veteranvakten, samma skäl som kategorivakten står här: en import är masskrivning,
             // och skadan beror inte på vem som skrev raden. Prövad mot repots fyra kurerade
             // CSV:er (240 rader) 2026-09-20 — noll träffar, alltså rörs inget kurerat.
-            String veteran = InsightTaxonomy.veteranInnehall(insight);
+            String veteran = InsightTaxonomy.veteranInnehall(insight, carMake, carModel);
             if (veteran != null) {
                 log.warn("CSV-import [{}]: veteran-/samlarbil ({}) — {} {} sparas utan kategori"
                         + " och drivmedel", expertName, veteran, carMake, carModel);
