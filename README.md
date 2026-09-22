@@ -365,7 +365,7 @@ En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** —
 
 | Del | Teknologi |
 |-----|-----------|
-| Backend | Java 25, Spring Boot 3.5.16 |
+| Backend | Java 27, Spring Boot 3.5.16 |
 | AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.8-27b` reserv) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
@@ -1355,6 +1355,7 @@ kriterier är inte problemet", just för att felet annars läses som att söknin
 | Robustare AI-JSON-parsning | `extractJson` hanterar svar med bare root-array (behöll tidigare inte hakparenteserna → array-fallbacken triggades aldrig); `convertRecommendations` fångar schemafel och ger begripligt fel istället för 500; `@JsonIgnoreProperties(ignoreUnknown=true)` på `CarRecommendation` så AI:ns påhittade extrafält inte fäller parsningen |
 | `extract_insights.py` avvecklad modell | Scriptet körde `llama-3.3-70b-versatile` (avvecklad 2026-06-29) → `openai/gpt-oss-120b` med `reasoning_effort: low` och `GROQ_MODEL`-env-override |
 | Mockito på Java 25 | Spring Boot 3.5 pinnar Mockito 5.17 som inte kan mocka klasser på Java 25 — versions-override i `pom.xml` till Mockito 5.23 (Byte Buddy lämnas till Boot) |
+| Java 27 utan Temurin-avbildningar (2026-09-22) | Java 27 gick GA 2026-09-15 och `<java.version>` är nu 27 — verifierat lokalt på JDK 27+35 med klassfilsversion **71** och 1 149 gröna tester, utan att Mockito eller Byte Buddy (1.17.8) behövde röras. Det som INTE fanns var byggmiljön: `eclipse-temurin:27-jdk`, `eclipse-temurin:27-jre` och `maven:3.9-eclipse-temurin-27` svarade alla **404** på Docker Hub, och Adoptium listar visserligen utgåvan `jdk-27+35` men har inga binärer publicerade — så både Dockerfilen och `setup-java` hade fallit på det gamla receptet. Fix: **Liberica** i båda leden (`liberica-openjdk-debian:27` bygger, `liberica-openjre-debian:27` kör, `distribution: 'liberica'` i CI), och Maven kommer från en **wrapper i repot** (3.9.16, samma som byggdes lokalt) eftersom ingen `maven`-avbildning har JDK 27 än. Wrappern laddar ner sig själv med wget, curl **eller bara java**, så den ställer inga krav på vad basavbildningen råkar ha installerat. Byt tillbaka till Temurin när deras 27 dyker upp — det är ett namnbyte på två rader |
 | TCO leasing-kalkyl | `caParseLeaseMonthly` läste köppriser (t.ex. "330 000 kr") som månadskostnad → TCO visades som ~18 miljoner. Fixat: parsar nu bara som månadsbelopp om strängen innehåller "mån"; faller tillbaka på användarens budget-slider som leasingkostnad |
 | Elbilar: "obligatorisk årsavgift" | Chatbotten påstod att BYD/MG4 m.fl. har en obligatorisk årsavgift på 1 800 kr — det finns ingen sådan generell avgift i svensk lag. System-prompt korrigerad med faktaanvisning |
 | Elbilar: "turbo/ej turbo" i fördelar | AI annoterade elbilars batterivarianter med "(turbo)" / "(ej turbo)". Fixat: turbo-terminologi förbjuds för elbil/laddhybrid i systempromptarna |

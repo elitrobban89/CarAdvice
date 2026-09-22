@@ -12,11 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up JDK 25
+      # Liberica, inte Temurin: Temurin har annu ingen 27 att hamta (Adoptium listar
+      # utgavan jdk-27+35 men har inga binarer publicerade, kontrollerat 2026-09-22), och
+      # setup-java hade darfor fallit direkt. Samma leverantor som Dockerfilen anvander.
+      - name: Set up JDK 27
         uses: actions/setup-java@v5
         with:
-          java-version: '25'
-          distribution: 'temurin'
+          java-version: '27'
+          distribution: 'liberica'
           cache: maven
 
       - name: Build and run tests

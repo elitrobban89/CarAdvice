@@ -16,7 +16,7 @@
     <name>Car Advice</name>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>27</java.version>
         <!-- Boot 3.5 pinnar Mockito 5.17; 5.23 behövs för att mocka klasser på Java 25.
              Byte Buddy lämnas till Boot (1.17.8), nyare än 1.17.7 som Mockito kräver. -->
         <mockito.version>5.23.0</mockito.version>
