@@ -13,7 +13,9 @@ WORKDIR /app
 COPY pom.xml .
 COPY .mvn ./.mvn
 COPY mvnw .
-RUN ./mvnw -B dependency:go-offline
+# chmod trots att .gitattributes och git-laget (100755) redan sager ratt sak: skriptet
+# skrivs pa en Windows-maskin, och rattigheten ar det billigaste stallet att vara sakter pa.
+RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
 COPY src ./src
 RUN ./mvnw -B clean package -DskipTests
 

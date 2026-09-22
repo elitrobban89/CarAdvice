@@ -1,0 +1,5 @@
+# mvnw ar ett sh-skript som kors i Linux-avbildningen vid bygget - CRLF hade gett
+# "bad interpreter" dar. Windows-varianten mvnw.cmd behover tvartom CRLF.
+mvnw text eol=lf
+*.sh text eol=lf
+mvnw.cmd text eol=crlf
