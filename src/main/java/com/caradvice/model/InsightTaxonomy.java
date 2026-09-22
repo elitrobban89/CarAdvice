@@ -35,13 +35,61 @@ public final class InsightTaxonomy {
     public static final Set<String> CATEGORIES =
             Set.of("familjebil", "suv", "elbil", "laddhybrid", "smaabil");
 
-    /** Insiktens {@code fuel_type}. OBS: drivmedelsrutan postar {@code el}, inte {@code elbil} —
-     *  ett {@code elbil}-värde matchar bara när rutan göms och kategorin får agera drivmedel. */
+    /** Insiktens {@code fuel_type} — tabellens stavning, som {@link #FUEL_ALIASES} översätter till. */
     public static final Set<String> FUEL_TYPES =
             Set.of("elbil", "bensin", "diesel", "hybrid", "laddhybrid");
 
     private static final Map<String, String> CATEGORY_ALIASES =
             Map.of("småbil", "smaabil", "smabil", "smaabil", "ekonomibil", "smaabil");
+
+    /**
+     * Drivmedelsrutan postar {@code el}, tabellen stavar det {@code elbil} — samma drivmedel,
+     * två stavningar, och {@code buildExpertContext} jämför med likhet.
+     *
+     * <p><b>Vad det kostade.</b> Mätt i drift 2026-09-22: <b>561 av 1 162 rader</b> bär
+     * {@code fuel_type = elbil} och <b>en enda</b> bar {@code el} (id 1056, rättad samma dag).
+     * En sökning där användaren uttryckligen valde <i>El</i> i rullgardinen frågade alltså efter
+     * den enda raden och missade de 561 — elbilsinsikterna nådde prompten bara via sin
+     * {@code category}, och bara när användaren råkat välja samma kategori som raden bar.
+     * Kategorifältet har haft både whitelist och alias sedan 2026-08-10; drivmedelsfältet hade
+     * whitelist bara i skrapan och alias ingenstans.
+     *
+     * <p><b>Aliaset är en stavning, ingen översättning</b> — samma gräns som
+     * {@link #CATEGORY_ALIASES}. {@code mildhybrid} och {@code etanol} står därför INTE här:
+     * de är egna drivlinor som formuläret inte har någon knapp för, och att mappa dem till
+     * {@code hybrid} respektive {@code bensin} vore att skriva om datan för att komma runt
+     * en saknad knapp. De faller i stället på whitelisten och sparas utan drivmedel.
+     */
+    private static final Map<String, String> FUEL_ALIASES = Map.of("el", "elbil");
+
+    /**
+     * Drivmedlet i tabellens stavning. Okända värden släpps igenom oförändrade — det här är
+     * LÄSvägens översättning, och en sökning ska inte tystna för att formuläret fått ett nytt
+     * värde innan den här listan hunnit med. Skrivvägarna använder {@link #validFuel} i stället.
+     */
+    public static String canonicalFuel(String raw) {
+        if (raw == null) return null;
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        if (v.isEmpty()) return null;
+        return FUEL_ALIASES.getOrDefault(v, v);
+    }
+
+    /** Som {@link #canonicalFuel}, men {@code null} när värdet inte är ett drivmedel vi känner. */
+    public static String validFuel(String raw) {
+        String v = canonicalFuel(raw);
+        return (v != null && FUEL_TYPES.contains(v)) ? v : null;
+    }
+
+    /** Som {@link #isUnknownCategory}: skiljer "tomt" (tillåtet) från "påhittat" (avvisas). */
+    public static boolean isUnknownFuel(String raw) {
+        return raw != null && !raw.isBlank() && validFuel(raw) == null;
+    }
+
+    /** Felmeddelandet som når admin — listar vad som faktiskt går att välja. */
+    public static String fuelError(String raw) {
+        return "Okänt drivmedel: " + raw + " (tillåtna: "
+                + String.join(", ", new java.util.TreeSet<>(FUEL_TYPES)) + ", eller tomt)";
+    }
 
     /**
      * Modeller som bevisligen INTE är SUV:ar — halvkombier, sedaner, kombier och låga crossovers.
@@ -113,12 +161,27 @@ public final class InsightTaxonomy {
      *
      * <p><b>Två rader står kvar som {@code familjebil} med flit och får INTE in i listan:</b>
      * id 1239 (Polestar 5) och id 1246 (Audi A6) — de är användarens egna gränsfall.
+     *
+     * <p><b>{@code jaguar xj} och {@code lexus ls} tillkom 2026-09-22.</b> En körning av vakten
+     * mot alla 1 162 rader i drift fällde <b>noll</b> — listorna var alltså ifatt sin egen tabell —
+     * men fem rader stod kvar som {@code familjebil} på bilar i exakt det segment listan redan
+     * täcker: två <i>Jaguar XJ8</i> (1613, 1615) och tre <i>Lexus LS 460</i> (1359–1361). Samma
+     * hylla som A8, S-Klass, 7-serie, Panamera och Quattroporte, bara utan markör. En av dem
+     * (1615) var dessutom ett prisråd — <i>"säljs för 50 000–60 000 kr … ett fynd för en klassisk
+     * lyxbil"</i> — mitt i familjebilarna. Båda markörerna bär märkesnamnet med sig, eftersom
+     * {@code ls} och {@code xj} som lösa ord hade träffat delsträngar i andra modellnamn; hela
+     * tabellen gav noll andra träffar på dem.
+     *
+     * <p><b>Fyra rader om elektriska <i>Mercedes-AMG CLA 45</i> (875–878) och en om
+     * <i>BMW M350 xDrive</i> (1453) lämnades avsiktligt utanför.</b> De är prestandaversioner av
+     * en kompakt- respektive mellanklassbil, inte flaggskepp, och gränsen för varmhalvkombierna
+     * är användarens egen (samma skäl som GTI, GR Yaris, Cooper S och Cupra VZ står utanför).
      */
     public static final List<String> LYX_OCH_SPORTMODELLER = List.of(
             // Lyxflaggskepp
             "a8", "s8", "s-klass", "s klass", "eqs", "7-serie", "7 serie", "i7", "model s",
             "panamera", "taycan", "quattroporte", "levante", "maserati", "bentley", "rolls-royce",
-            "ghost", "phantom", "cullinan", "escalade",
+            "ghost", "phantom", "cullinan", "escalade", "jaguar xj", "lexus ls",
             // Sportbilar
             "911", "718", "cayman", "boxster", "corvette", "emira", "supra", "gt-r", "f-type",
             "amg gt", "m4", "m5", "m8", "rs4", "rs5", "rs6", "rs7", "mx-5", "brz", "gr86",

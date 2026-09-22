@@ -1,5 +1,6 @@
 package com.caradvice.scraper;
 
+import com.caradvice.model.InsightTaxonomy;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.service.UpcomingInsightService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -254,12 +254,15 @@ class WebInsightScraperServiceTest {
 
     @Test
     void ogiltigKategoriOchDrivmedelBlirNull() {
-        // Ferrari som "ekonomibil" förgiftade rekommendationsprompten — värden utanför whitelisten kastas
-        assertThat(WebInsightScraperService.validOrNull("suv", Set.of("suv", "elbil"))).isEqualTo("suv");
-        assertThat(WebInsightScraperService.validOrNull("SUV ", Set.of("suv"))).isEqualTo("suv");
-        assertThat(WebInsightScraperService.validOrNull("sportbil", Set.of("suv", "elbil"))).isNull();
-        assertThat(WebInsightScraperService.validOrNull("", Set.of("suv"))).isNull();
-        assertThat(WebInsightScraperService.validOrNull(null, Set.of("suv"))).isNull();
+        // Ferrari som "ekonomibil" förgiftade rekommendationsprompten — värden utanför whitelisten kastas.
+        // Vakten bor i InsightTaxonomy sedan skrapans lokala kopia togs bort 2026-09-22.
+        assertThat(InsightTaxonomy.canonicalCategory("suv")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("SUV ")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("sportbil")).isNull();
+        assertThat(InsightTaxonomy.validFuel("Bensin ")).isEqualTo("bensin");
+        assertThat(InsightTaxonomy.validFuel("etanol")).isNull();
+        assertThat(InsightTaxonomy.validFuel("")).isNull();
+        assertThat(InsightTaxonomy.validFuel(null)).isNull();
     }
 
     @Test

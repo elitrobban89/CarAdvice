@@ -54,11 +54,22 @@ public class ExpertInsightService {
         return insights.stream().filter(i -> !hidden.contains(i.getId())).toList();
     }
 
+    /**
+     * Insikterna som får följa med rekommendationsprompten: raderna vars {@code category} eller
+     * {@code fuel_type} är det användaren sökte på.
+     *
+     * <p><b>Drivmedlet måste översättas till tabellens stavning.</b> Rullgardinen postar
+     * {@code el}, tabellen skriver {@code elbil}, och jämförelsen är likhet — utan
+     * {@link InsightTaxonomy#canonicalFuel} frågade ett uttryckligt elbilssök efter en stavning
+     * som 2026-09-22 fanns på EN av 1 162 rader medan 561 bar den andra. Kategorin behöver ingen
+     * motsvarande rad här: {@link CarPreferences#canonicalCategory()} har redan gjort den.
+     */
     public String buildExpertContext(CarPreferences prefs) {
         String category = prefs.carCategory();
-        String fuelType = ("spelar ingen roll".equalsIgnoreCase(prefs.fuelType()))
-                ? category
-                : prefs.fuelType();
+        String fuelType = InsightTaxonomy.canonicalFuel(
+                ("spelar ingen roll".equalsIgnoreCase(prefs.fuelType()))
+                        ? category
+                        : prefs.fuelType());
 
         List<ExpertInsight> matched = visible(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase(category, fuelType));
         if (matched.isEmpty()) return "";
@@ -687,7 +698,7 @@ ett bilkort.*/
         if (fields.containsKey("insight"))  row.setInsight(requireText(fields.get("insight"), "insight"));
         if (fields.containsKey("carMake"))  row.setCarMake(requireText(fields.get("carMake"), "carMake"));
         if (fields.containsKey("carModel")) row.setCarModel(optionalText(fields.get("carModel"), false));
-        if (fields.containsKey("fuelType")) row.setFuelType(optionalText(fields.get("fuelType"), true));
+        if (fields.containsKey("fuelType")) row.setFuelType(requireKnownFuel(optionalText(fields.get("fuelType"), true)));
         if (fields.containsKey("category")) row.setCategory(requireKnownCategory(optionalText(fields.get("category"), true)));
         if (fields.containsKey("rating"))   row.setRating(parseRating(fields.get("rating")));
         return Optional.of(toAdminMap(repo.save(row)));
@@ -714,6 +725,22 @@ ett bilkort.*/
     private String requireKnownCategory(String raw) {
         if (InsightTaxonomy.isUnknownCategory(raw)) throw new IllegalArgumentException(InsightTaxonomy.categoryError(raw));
         return InsightTaxonomy.canonicalCategory(raw);
+    }
+
+    /**
+     * Samma vakt som kategorin har haft här hela tiden, nu även för drivmedlet.
+     *
+     * <p>PATCH:en gick förbi både whitelist och alias, och det syntes i drift 2026-09-22: fyra
+     * rader bar värden som inte finns i formuläret — två {@code mildhybrid} (517, 519), en
+     * {@code etanol} (464) och en {@code el} (1056). De tre första var osynliga för varje
+     * sökning, den fjärde var rätt drivmedel i fel stavning. <b>Ett fel värde avvisas här</b>
+     * (till skillnad från importen, som skriver många rader på en gång och därför hellre sparar
+     * raden utan drivmedel): den som rättar en rad för hand ska få veta att värdet inte biter.
+     * Vakten gäller stavningen, inte omdömet — motsägelsevakten står fortfarande utanför PATCH:en.
+     */
+    private String requireKnownFuel(String raw) {
+        if (InsightTaxonomy.isUnknownFuel(raw)) throw new IllegalArgumentException(InsightTaxonomy.fuelError(raw));
+        return InsightTaxonomy.validFuel(raw);
     }
 
     private Integer parseRating(Object v) {
@@ -786,6 +813,7 @@ ett bilkort.*/
     public int importCsv(String csv, String expertName) {
         int count = 0;
         int okandaKategorier = 0;
+        int okandaDrivmedel = 0;
         int motsagdaKategorier = 0;
         int veteranrader = 0;
         for (String line : csv.split("\\R")) {
@@ -796,6 +824,8 @@ ett bilkort.*/
             String carMake   = blank(f[0]) ? null : f[0];
             String carModel  = blank(f[1]) ? null : f[1];
             String fuelType  = blank(f[2]) ? null : f[2];
+            if (InsightTaxonomy.isUnknownFuel(fuelType)) { okandaDrivmedel++; fuelType = null; }
+            else fuelType = InsightTaxonomy.validFuel(fuelType);
             String category  = blank(f[3]) ? null : f[3];
             if (InsightTaxonomy.isUnknownCategory(category)) { okandaKategorier++; category = null; }
             else category = InsightTaxonomy.canonicalCategory(category);
@@ -835,6 +865,11 @@ ett bilkort.*/
         // i veckor, så bortfallet ska synas i loggen.
         if (okandaKategorier > 0)
             log.warn("CSV-import [{}]: {} rader hade en kategori utanför formuläret och sparades utan kategori", expertName, okandaKategorier);
+        // Samma skäl som raden ovan: drivmedelsfältet hade ingen whitelist alls här förrän
+        // 2026-09-22, och tre av de fyra döda värdena i drift (mildhybrid, mildhybrid, etanol)
+        // kom in den här vägen — osynliga för varje sökning, utan ett ord i loggen.
+        if (okandaDrivmedel > 0)
+            log.warn("CSV-import [{}]: {} rader hade ett drivmedel utanför formuläret och sparades utan drivmedel", expertName, okandaDrivmedel);
         if (motsagdaKategorier > 0)
             log.warn("CSV-import [{}]: {} rader bar en kategori som bilens egen modell motsade", expertName, motsagdaKategorier);
         if (veteranrader > 0)

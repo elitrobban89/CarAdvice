@@ -70,6 +70,9 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.canonicalCategory("familjebil", "BMW", "M5")).isNull();
         assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Mazda", "MX-5")).isNull();
         assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Porsche", "911 Carrera")).isNull();
+        // De fem raderna som stod kvar 2026-09-22: samma segment som A8 och S-Klass, men utan markör
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Jaguar", "XJ8")).isNull();
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Lexus", "LS 460")).isNull();
     }
 
     /**
@@ -86,6 +89,40 @@ class InsightTaxonomyTest {
         assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Toyota", "GR Yaris")).isEqualTo("smaabil");
         assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Mini", "Cooper SE")).isEqualTo("smaabil");
         assertThat(InsightTaxonomy.canonicalCategory("smaabil", "Cupra", "Raval VZ")).isEqualTo("smaabil");
+        // Prestandaversioner av vanliga bilar hor till samma gransdragning (id 875-878 och 1453)
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Mercedes", "CLA 45")).isEqualTo("familjebil");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "BMW", "M350 xDrive")).isEqualTo("familjebil");
+        // Jaguar XF ar mellanklass som A6 och E-Klass - markoren bar market just for att inte ata den
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Jaguar", "XF")).isEqualTo("familjebil");
+    }
+
+    /**
+     * Drivmedelsfaltet far den normalisering kategorifaltet haft sedan 2026-08-10.
+     *
+     * <p>Rullgardinen postar {@code el}, tabellen stavar {@code elbil}, och 2026-09-22 bar
+     * 561 av 1 162 rader den ena stavningen och EN rad den andra. Aliaset ar en stavning:
+     * {@code mildhybrid} och {@code etanol} ar egna drivlinor utan knapp i formularet och
+     * ska falla, inte skrivas om till narmaste granne.
+     */
+    @Test
+    void drivmedletOversattsTillTabellensStavning() {
+        assertThat(InsightTaxonomy.canonicalFuel("el")).isEqualTo("elbil");
+        assertThat(InsightTaxonomy.canonicalFuel("El ")).isEqualTo("elbil");
+        assertThat(InsightTaxonomy.canonicalFuel("elbil")).isEqualTo("elbil");
+        assertThat(InsightTaxonomy.canonicalFuel("laddhybrid")).isEqualTo("laddhybrid");
+        assertThat(InsightTaxonomy.canonicalFuel("")).isNull();
+        assertThat(InsightTaxonomy.canonicalFuel(null)).isNull();
+        // Lasvagen slapper igenom ett okant varde oforandrat - en sokning ska inte tystna
+        assertThat(InsightTaxonomy.canonicalFuel("vatgas")).isEqualTo("vatgas");
+        // Skrivvagen gor det inte
+        assertThat(InsightTaxonomy.validFuel("el")).isEqualTo("elbil");
+        assertThat(InsightTaxonomy.validFuel("mildhybrid")).isNull();
+        assertThat(InsightTaxonomy.validFuel("etanol")).isNull();
+        assertThat(InsightTaxonomy.isUnknownFuel("mildhybrid")).isTrue();
+        assertThat(InsightTaxonomy.isUnknownFuel("el")).isFalse();
+        assertThat(InsightTaxonomy.isUnknownFuel("")).isFalse();
+        assertThat(InsightTaxonomy.isUnknownFuel(null)).isFalse();
+        assertThat(InsightTaxonomy.fuelError("mildhybrid")).contains("mildhybrid", "elbil", "eller tomt");
     }
 
     @Test

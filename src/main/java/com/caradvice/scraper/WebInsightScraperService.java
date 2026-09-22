@@ -976,7 +976,7 @@ public class WebInsightScraperService {
             // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda.
             String veteran = InsightTaxonomy.veteranInnehall(insightText);
             String fuelType = veteran == null
-                    ? validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES) : null;
+                    ? InsightTaxonomy.validFuel(ins.path("fuel_type").asText("")) : null;
             String category = veteran == null ? kategoriFor(ins) : veteranUtanPool(ins, veteran);
 
             ExpertInsight stored = insightRepo.save(new ExpertInsight(
@@ -1441,7 +1441,12 @@ public class WebInsightScraperService {
     // crossover, transportbil, tom) — de är osynliga, inte farliga, och lämnades medvetet.
     // Listorna bor i InsightTaxonomy — CSV-importen och admin-PATCH vaktar på samma värden,
     // och en fjärde kopia hade varit en fjärde plats att glömma uppdatera.
-    private static final Set<String> VALID_FUEL_TYPES = InsightTaxonomy.FUEL_TYPES;
+    //
+    // Drivmedlet går sedan 2026-09-22 genom InsightTaxonomy.validFuel i stället för en whitelist
+    // här: den kan dessutom skriva om "el" till tabellens "elbil", precis som "ekonomibil" blir
+    // "smaabil". Whitelisten ensam hade kastat värdet, och raden blivit drivmedelslös. Den lokala
+    // kopian av listan — och hjälparen validOrNull — försvann i samma svep: de hade inga andra
+    // anrop kvar, och en whitelist utan alias var just det som gjorde "el" till ett dött värde.
 
     /** AI:n ekar ibland fältmallen tillbaka som en rad ("car_make car_model" / "insight") — hittades 6 st i DB. */
     static boolean isTemplateEcho(JsonNode ins) {
@@ -1479,7 +1484,7 @@ public class WebInsightScraperService {
      */
     private String veteranUtanPool(JsonNode ins, String motivering) {
         String kategori = InsightTaxonomy.canonicalCategory(ins.path("category").asText(""));
-        String drivmedel = validOrNull(ins.path("fuel_type").asText(""), VALID_FUEL_TYPES);
+        String drivmedel = InsightTaxonomy.validFuel(ins.path("fuel_type").asText(""));
         String bil = (ins.path("car_make").asText("") + " " + ins.path("car_model").asText("")).trim();
         log.warn("Web insights: veteran-/samlarbil ({}) — {} sparas utan kategori och drivmedel",
                 motivering, bil);
@@ -1500,12 +1505,6 @@ public class WebInsightScraperService {
         kategoriVaktStats.registrera("web-insights", InsightTaxonomy.canonicalCategory(varde),
                 (make + " " + model).trim(), motsagelse, ins.path("insight").asText(""));
         return null;
-    }
-
-    static String validOrNull(String s, Set<String> allowed) {
-        if (s == null) return null;
-        String v = s.trim().toLowerCase();
-        return allowed.contains(v) ? v : null;
     }
 
     private static Integer parseRating(JsonNode node) {

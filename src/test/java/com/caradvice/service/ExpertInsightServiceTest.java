@@ -73,14 +73,14 @@ class ExpertInsightServiceTest {
 
     @Test
     void tomtResultatGerTomStrang() {
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of());
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of());
         assertThat(service().buildExpertContext(prefs("suv", "el"))).isEmpty();
     }
 
     @Test
     void begransasTillMaxFemSlumpadeInsikter() {
         // 7 insikter i poolen → exakt MAX_RECOMMEND_INSIGHTS (5) hamnar i prompten; urvalet är slumpat
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of(
                 insikt("Vi Bilägare", "Volvo", "XC40", "Insikt 1", 7),
                 insikt("Vi Bilägare", "Kia", "EV6", "Insikt 2", 8),
                 insikt("Vi Bilägare", "Tesla", "Model Y", "Insikt 3", 9),
@@ -96,7 +96,7 @@ class ExpertInsightServiceTest {
 
     @Test
     void farreInsikterAnMaxTasMedAllihop() {
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of(
                 insikt("Vi Bilägare", "Volvo", "XC40", "Insikt 1", 7),
                 insikt("Vi Bilägare", "Kia", "EV6", "Insikt 2", 8)));
 
@@ -106,7 +106,7 @@ class ExpertInsightServiceTest {
 
     @Test
     void formateringInnehallerBilBetygOchKalla() {
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of(
                 insikt("Teknikens Värld", "Volvo", "XC40", "Bra köp begagnad", 8)));
 
         String ctx = service().buildExpertContext(prefs("suv", "el"));
@@ -115,7 +115,7 @@ class ExpertInsightServiceTest {
 
     @Test
     void namngivenExpertVisasMedSittNamn() {
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of(
                 insikt("M Sverige", "Volvo", "XC40", "Insikt", null)));
 
         String ctx = service().buildExpertContext(prefs("suv", "el"));
@@ -124,11 +124,27 @@ class ExpertInsightServiceTest {
 
     @Test
     void saknatExpertnamnBlirBilexpert() {
-        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "el")).thenReturn(List.of(
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("suv", "elbil")).thenReturn(List.of(
                 insikt(null, "Volvo", "XC40", "Insikt", null)));
 
         String ctx = service().buildExpertContext(prefs("suv", "el"));
         assertThat(ctx).contains("(Bilexpert)");
+    }
+
+    /**
+     * Formuläret postar {@code el}, tabellen stavar {@code elbil} — och jämförelsen är likhet.
+     *
+     * <p>Utan översättningen frågade ett uttryckligt elbilssök efter en stavning som 2026-09-22
+     * fanns på EN av 1 162 rader i drift, medan 561 bar den andra. Provet står på verify och
+     * inte på ett returvärde: felet syns bara i ARGUMENTET, och ett stubbat svar hade sagt
+     * "insikter kom med" oavsett vilken stavning som gick ner i frågan. De sex stubbarna ovan
+     * bar {@code "el"} ända till den här dagen och blev därmed ett grönt prov på fel sak.
+     */
+    @Test
+    void elITruttanBlirElbilITabellen() {
+        when(repo.findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("familjebil", "elbil")).thenReturn(List.of());
+        service().buildExpertContext(prefs("familjebil", "el"));
+        verify(repo).findByCategoryIgnoreCaseOrFuelTypeIgnoreCase("familjebil", "elbil");
     }
 
     @Test
