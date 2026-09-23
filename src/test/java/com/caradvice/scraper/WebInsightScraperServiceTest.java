@@ -889,6 +889,21 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void relevanspromptenStopparVantetiderOchLeveranslage() {
+        // Nattrapporten 2026-09-23: id 1608 ("BMW iX3 har en väntetid på sex till sju månader
+        // och mer än 50 000 enheter har redan producerats") och 1609 ("Mercedes GLC har en
+        // väntetid på nio månader") sparades fast produktionssiffror och förseningar redan
+        // var uteslutna — ordet väntetid stod ingenstans, och en leveranstid läses lätt som
+        // en egenskap hos bilen. Den är ett läge som är inaktuellt inom några månader
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("VÄNTETIDER")
+                .contains("väntetid på nio månader");
+        // samma gräns i extraktionsprompten, annars plockas raden ut och stoppas först i vakten
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("väntetider");
+    }
+
+    @Test
     void relevanspromptenSkiljerKonceptbilFranPresenteradModell() {
         // A/B 2026-08-08: A2 e-tron-raderna stoppades 3/3 även ensamma i sin batch tills
         // gränsen skrevs ut — "preliminär energiförbrukning" lästes som konceptbil av

@@ -119,7 +119,8 @@ public class WebInsightScraperService {
                 — eller om ett mått som bara skiljer utgåvan från sin EGEN standardversion
                 ("15 millimeter lägre än standardversionen"). Utrustning, räckvidd, effekt
                 och pris för utgåvan är däremot relevanta och ska extraheras
-              * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar)
+              * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar,
+                väntetider och leveranstider, antal producerade bilar)
                 — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test")
                 är RELEVANTA och ska inkluderas. Försäljningsstatistik räknas som utmärkelse bara
                 när det är FÖRSTAPLATSEN, på den SVENSKA marknaden, och siffran är från det
@@ -275,7 +276,11 @@ public class WebInsightScraperService {
               hos bilen ("Polestar 3 har drabbats av buggar som försenat leveranserna"
               släpptes felaktigt igenom 2026-08-01). Skriver texten däremot ut vad som
               faktiskt går sönder — vilken funktion, vilket symtom, vilken åtgärd — är den
-              RELEVANT som känt fel
+              RELEVANT som känt fel. Samma sak gäller VÄNTETIDER och leveranstider: "Mercedes
+              GLC har en väntetid på nio månader" och "BMW iX3 har en väntetid på sex till sju
+              månader och mer än 50 000 enheter har redan producerats" släpptes felaktigt
+              igenom 2026-09-23. En väntetid beskriver fabrikens orderläge just nu och är
+              inaktuell inom några månader — den säger ingenting om bilen
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler. Uteslutningen
               gäller ÄVEN när skattebeloppet är knutet till en enskild modell — fordonsskatt,
               malus och trängselskatt: "Volvo V60 Recharge betalar 360 kr/år i fordonsskatt"
