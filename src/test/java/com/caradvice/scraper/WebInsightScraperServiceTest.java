@@ -904,6 +904,18 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void relevanspromptenStopparAffarerKringEnskildaExemplar() {
+        // Natten mot 2026-09-23: id 1623 (två Toyota Avensis sålda "i ett affär med den ryska
+        // ambassaden") och 1625 (Ford Mondeo ur samma affär) sparades. Kronbeloppet gjorde
+        // att raden såg ut som en prisuppgift, men det är affärens belopp, inte modellens
+        assertThat(WebInsightScraperService.RELEVANCE_PROMPT)
+                .contains("AFFÄRER KRING ENSKILDA EXEMPLAR")
+                .contains("Toyota Avensis såldes till");
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("vem som köpt eller sålt");
+    }
+
+    @Test
     void relevanspromptenSkiljerKonceptbilFranPresenteradModell() {
         // A/B 2026-08-08: A2 e-tron-raderna stoppades 3/3 även ensamma i sin batch tills
         // gränsen skrevs ut — "preliminär energiförbrukning" lästes som konceptbil av

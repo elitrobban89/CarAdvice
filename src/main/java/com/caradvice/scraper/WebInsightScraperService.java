@@ -120,7 +120,8 @@ public class WebInsightScraperService {
                 ("15 millimeter lägre än standardversionen"). Utrustning, räckvidd, effekt
                 och pris för utgåvan är däremot relevanta och ska extraheras
               * fabriks-, försäljnings- och företagsnyheter (nedläggningar, marknadsandelar, showrooms, mässor, lanseringar,
-                väntetider och leveranstider, antal producerade bilar)
+                väntetider och leveranstider, antal producerade bilar, vem som köpt eller sålt
+                ett enskilt exemplar och i vilken affär)
                 — MEN utmärkelser till en specifik modell (Årets Bil/Car of the Year, "bäst i test")
                 är RELEVANTA och ska inkluderas. Försäljningsstatistik räknas som utmärkelse bara
                 när det är FÖRSTAPLATSEN, på den SVENSKA marknaden, och siffran är från det
@@ -280,7 +281,13 @@ public class WebInsightScraperService {
               GLC har en väntetid på nio månader" och "BMW iX3 har en väntetid på sex till sju
               månader och mer än 50 000 enheter har redan producerats" släpptes felaktigt
               igenom 2026-09-23. En väntetid beskriver fabrikens orderläge just nu och är
-              inaktuell inom några månader — den säger ingenting om bilen
+              inaktuell inom några månader — den säger ingenting om bilen.
+              Detsamma gäller AFFÄRER KRING ENSKILDA EXEMPLAR: vem som köpt eller sålt en
+              viss bil, till vem och i vilken affär. "Två begagnade Toyota Avensis såldes till
+              en svensk bilhandlare för totalt 415 000 kronor i en affär med den ryska
+              ambassaden" släpptes felaktigt igenom 2026-09-23 (samma artikel gav en rad om
+              Ford Mondeo) — kronbeloppet är affärens, inte modellens, och säger ingenting om
+              vad bilen kostar eller hur den håller
             - trafikregler, lagändringar, böter, skatter eller försäkringsregler. Uteslutningen
               gäller ÄVEN när skattebeloppet är knutet till en enskild modell — fordonsskatt,
               malus och trängselskatt: "Volvo V60 Recharge betalar 360 kr/år i fordonsskatt"
