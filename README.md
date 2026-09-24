@@ -359,6 +359,18 @@ En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** —
 - **Graceful degradation** — om DB är tillfälligt otillgänglig returneras AI-rekommendationer utan EV/cargo/expert-data istället för ett 500-fel
 - **HikariCP begränsad till 3 kopplingar** med keepalive var 60:e sekund och `SELECT 1`-validering — optimerad för delad free-tier PostgreSQL
 
+### Claude i molnet — morgongranskning och morgonfix
+Nattjobben granskas varje morgon av **Claude Code i molnet** (schemalagda rutiner som kör mot det här repot), och den ena rutinen både granskar och **åtgärdar fel i nattscrapern själv** — men ingenting når drift förrän jag har godkänt det.
+
+- **05:30 — nattkörningskontrollen** läser bara: `/api/health`, `/api/version` och `/api/stats`. Gick 04:00-jobbet, kör Render samma commit som master, lever databasen, och rör sig talen rimligt — åt båda hållen, ett för stort hopp uppåt larmar också
+- **06:30 — nattscrape-audit + morgonfix** arbetar i två faser som inte får blandas:
+  1. **Granskningen** (bara GET mot admin-API:t): körstatus, varje ny insiktsrad mot relevansreglerna, bagage- och generationstäckning, kommande-kön med annonskoll mot Blocket, vPIC-årtalsvakten, drivmedelsräknaren och Groq-modellernas hälsa. Rapporten skrivs färdigt först och får en dom överst — **GRÖNT / KOLLA / LARM** — och skickas som mobilnotis. Ett tal som inte gick att mäta ger aldrig GRÖNT
+  2. **Morgonfixen** körs bara om domen inte är GRÖNT: Claude lagar felet i koden (t.ex. en scraperregel eller en vaktprompt), skriver ett prov som är rött före och grönt efter, bygger med Maven och committar
+- **Egen gren, aldrig master**: allt Claude gör hamnar på den rullande grenen `auto/morgonfix` som en enda PR. Finns grenen kvar byggs nästa dags commit ovanpå; är den mergad startar den om från master. Grenen deployas inte — **jag granskar och godkänner PR:en innan något går ut**, och en fix jag inte vill ha stänger jag bara
+- **Hårda gränser**: högst 5 filer och 12 datarader per körning (resten skrivs som förslag), grönt bygge krävs före commit, aldrig `push --force`, aldrig workflows eller nycklar, och **aldrig skrivningar mot produktionsdatabasen** — en radering eller parkering av en insiktsrad blir alltid ett förslag i rapporten som jag kör själv
+- **Loggbok** i `docs/morgonfix-logg.md` (på grenen, skapas vid första fixen) så samma fel inte lagas sju gånger medan PR:en väntar på granskning; rutinen larmar själv om grenen blir äldre än 7 dygn eller får fler än 10 commits
+- Molnmiljön har Java 27 (Liberica via setupskript) och kör hela testsviten; baslinjerna rutinerna jämför mot ligger i deras prompter och uppdateras när en siffra flyttar sig varaktigt
+
 ---
 
 ## Teknikstack
