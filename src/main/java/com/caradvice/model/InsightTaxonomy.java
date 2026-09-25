@@ -276,7 +276,7 @@ public final class InsightTaxonomy {
             Map.entry("opel rekord", 1986),   Map.entry("opel ascona", 1988),
             Map.entry("opel kadett", 1991),
             Map.entry("ford taunus", 1982),   Map.entry("ford cortina", 1982),
-            Map.entry("ford sierra", 1993),
+            Map.entry("ford sierra", 1993),   Map.entry("ford orion", 1993),
             Map.entry("citroen 2cv", 1990),   Map.entry("citroën 2cv", 1990),
             Map.entry("fiat 127", 1983),      Map.entry("trabant 601", 1991),
             Map.entry("mercedes w123", 1986));
