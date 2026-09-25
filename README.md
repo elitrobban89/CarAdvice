@@ -219,7 +219,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **Två sätt att tappa rader på ett kort, båda uppmätta** (2026-08-27). När flera modellnamn matchar samma titel vinner det som börjar tidigast och, vid lika position, det **längsta** — så en rad som heter `GLC 400 4MATIC` slår ut alla `GLC`-rader på just det kortet. Och `MAX_CARD_INSIGHTS = 3` med urvalsordningen "modellträffar före märkesträffar" gör att tre modellrader **deterministiskt** tränger ut de märkesbreda (`BMW X5`-kortet tappade N47-dieselvarningen den vägen). Bägge är avsedda, men de gör att en kortning kan ge färre rader på ett kort trots att fler rader matchar
 
 ### Insiktsscraper (8 motorsajter, nattlig)
-- **`WebInsightScraperService`** körs kl **04:00 Stockholm-tid** på Render — efter EV-synken (02:00) och CargoSpec-synken (03:00)
+- **`WebInsightScraperService`** körs kl **02:00 Stockholm-tid** på Render — efter EV-synken (00:00) och CargoSpec-synken (01:00)
 - Källor och upptäcktsmetod:
   - **Teknikens Värld** — WordPress-sitemap (deras `/feed/` svarar 406)
   - **Vi Bilägare** — RSS (`rss.xml`)
@@ -283,7 +283,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - Manuell trigger (synkron, svarar med resultatet): `POST /api/admin/sync-mobility-stats`
 
 ### CargoSpec-skrapare (Bilweb.se)
-- Daglig schemalagd sync kl **03:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
+- Daglig schemalagd sync kl **01:00 Stockholm-tid** — hämtar alla bilmärken och modeller från Bilweb.se och lägger till nya poster i `cargo_spec`-tabellen med `null`-värde för bagagevolym
 - Skrapar `bilweb.se/alla-marken` för märkeslista, sedan `bilweb.se/sok/<märke>` för modellnamn. **Adressen byttes 2026-09-01**: `sok/bilar` 301:ar numera till en 404, och eftersom `fetchMakes` returnerade en tom lista i stället för att kasta rapporterade nattjobbet `OK` medan det inte gjorde någonting. Tom märkeslista **kastar** nu, så körningen syns som `FEL` i `scrape-status` — cargo-täckningen står på 100 % och kan aldrig larma, så körtiden (571 s → 3 s) var enda spåret
 - Hoppar över modeller som redan finns i databasen (normaliserad jämförelse)
 - 1 500 ms fördröjning mellan requests för att undvika blockering
@@ -295,14 +295,14 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   ```
 
 ### EV-spec-skrapare (ev-database.org)
-- Daglig schemalagd sync kl 02:00 Stockholm-tid — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
+- Daglig schemalagd sync kl 00:00 Stockholm-tid — hämtar WLTP-räckvidd, batteristorlek, DC/AC-laddning och EUR-pris per bil
 - **Auto-skapar nya poster** — bilar som finns på ev-database.org men saknas i DB läggs till automatiskt med all tillgänglig data; EUR-pris konverteras till SEK (~11.5×)
 - Fuzzy-matchning i **tre** steg mot befintliga DB-poster — förhindrar dubbletter: (1) exakt normaliserat namn, (2) DB-namnets ord finns alla i det skrapade (längsta DB-namnet vinner), (3) omvänt — DB-namnet är mer specifikt än det skrapade, med räckvidden som tie-break. Steg 3 kräver ≥3 ord i det skrapade namnet och räckvidd inom 10 %, och avstår helt vid oavgjort mellan två varianter (se "Senaste bugfixar")
 - Priser uppdateras på befintliga poster där `priceKr=0`
 - **Fyller bagagevolym i `cargo_spec` på köpet** (`fillFromScrape`): luckan är bilar som **saknar rad**, inte rader som saknar siffra: `cargo_spec` hade 243 rader den 2026-08-10 och **samtliga bar volym**, medan `ev_spec` hade 518 elbilsvarianter — merparten av elbilarna saknar alltså bagagerad helt, och bagagefiltrets vakt kan därför bara fälla på positivt bevis. ev-database bär både `Cargo Volume` och `Cargo Volume Max` på precis de bilsidor den här synken ändå besöker, så siffran kostar **inget extra HTTP-anrop**. Täcker bara elbilar; förbränningsbilar behöver en annan källa (car.info blockerar skrapning, Bilwebs sidor bär inte volymen). Tre regler: **befintlig volym skrivs aldrig över** (DataLoaders seedade är handkontrollerade och vinner), **mest specifika namnet vinner** när flera rader matchar, och **saknas raden helt skapas den** under ev-databases variantnamn. Den sista regeln var först den motsatta ("skapa aldrig") — och gjorde funktionen verkningslös, eftersom det inte fanns en enda tom rad att fylla. Det syntes först när `cargo-coverage` svarade `utanVolym: 0` efter en 12-minuterskörning som rört noll rader; motivet till spärren höll inte heller, eftersom `/api/cars` redan är unionen av cargo_spec och ev_spec. Volymen läses ur cellen EFTER etiketten och inte ur brödtexten: `Cargo Volume` och `Cargo Volume Max` står som varsin rad i samma tabell, så en textsökning hade lika gärna kunnat plocka den andras siffra. Egen try/catch runt skrivningen — `cargo_spec` är en annan tabell och ett fel där får inte sänka EV-synken. Antalet syns som `bagagevolymer=N` i synksammanfattningen
 - Synken håller ingen DB-koppling öppen — varje sparande är en egen kort transaktion (förhindrar connection pool-uttömning)
 - **Strukturlarm** — loggar `ERROR` om cheatsheet-sidan returnerar 0 bilar (HTML-strukturen har ändrats) eller om >50 % av bilsidorna misslyckas; synksammanfattningen visar `updated/created/failed/total`
-- Kör kl **02:00 Stockholm-tid** med `zone="Europe/Stockholm"` (hanterar DST automatiskt — ingen manuell UTC-offset); aborterar med `WARN` om den mot förmodan pågår efter 08:00
+- Kör kl **00:00 Stockholm-tid** med `zone="Europe/Stockholm"` (hanterar DST automatiskt — ingen manuell UTC-offset); aborterar med `WARN` om den mot förmodan pågår efter 08:00
 - Manuell trigger via admin-endpoint:
   ```bash
   curl -X POST https://caradvice.onrender.com/api/admin/sync-ev-specs \
@@ -362,8 +362,8 @@ En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** —
 ### Claude i molnet — morgongranskning och morgonfix
 Nattjobben granskas varje morgon av **Claude Code i molnet** (schemalagda rutiner som kör mot det här repot), och den ena rutinen både granskar och **åtgärdar fel i nattscrapern själv** — men ingenting når drift förrän jag har godkänt det.
 
-- **05:30 — nattkörningskontrollen** läser bara: `/api/health`, `/api/version` och `/api/stats`. Gick 04:00-jobbet, kör Render samma commit som master, lever databasen, och rör sig talen rimligt — åt båda hållen, ett för stort hopp uppåt larmar också
-- **06:30 — nattscrape-audit + morgonfix** arbetar i två faser som inte får blandas:
+- **02:30 — nattkörningskontrollen** läser bara: `/api/health`, `/api/version` och `/api/stats`. Gick 02:00-jobbet, kör Render samma commit som master, lever databasen, och rör sig talen rimligt — åt båda hållen, ett för stort hopp uppåt larmar också
+- **03:30 — nattscrape-audit + morgonfix** arbetar i två faser som inte får blandas:
   1. **Granskningen** (bara GET mot admin-API:t): körstatus, varje ny insiktsrad mot relevansreglerna, bagage- och generationstäckning, kommande-kön med annonskoll mot Blocket, vPIC-årtalsvakten, drivmedelsräknaren och Groq-modellernas hälsa. Rapporten skrivs färdigt först och får en dom överst — **GRÖNT / KOLLA / LARM** — och skickas som mobilnotis. Ett tal som inte gick att mäta ger aldrig GRÖNT
   2. **Morgonfixen** körs bara om domen inte är GRÖNT: Claude lagar felet i koden (t.ex. en scraperregel eller en vaktprompt), skriver ett prov som är rött före och grönt efter, bygger med Maven och committar
 - **Egen gren, aldrig master**: allt Claude gör hamnar på den rullande grenen `auto/morgonfix` som en enda PR. Finns grenen kvar byggs nästa dags commit ovanpå; är den mergad startar den om från master. Grenen deployas inte — **jag granskar och godkänner PR:en innan något går ut**, och en fix jag inte vill ha stänger jag bara
@@ -493,11 +493,11 @@ CarAdvice/
     │   │   └── UserRepository.java
     │   ├── scraper/
     │   │   ├── CargoSpecSyncService.java      ← Jsoup-skrapare mot Bilweb.se
-    │   │   ├── CargoSpecSyncScheduler.java    ← @Scheduled cron 03:00 Stockholm-tid
+    │   │   ├── CargoSpecSyncScheduler.java    ← @Scheduled cron 01:00 Stockholm-tid
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
-    │   │   ├── EvSpecSyncScheduler.java       ← @Scheduled cron 02:00 Stockholm-tid
+    │   │   ├── EvSpecSyncScheduler.java       ← @Scheduled cron 00:00 Stockholm-tid
     │   │   ├── WebInsightScraperService.java  ← Insikter från 7 motorsajter via Groq-extraktion
-    │   │   └── WebInsightSyncScheduler.java   ← @Scheduled cron 04:00 Stockholm-tid
+    │   │   └── WebInsightSyncScheduler.java   ← @Scheduled cron 02:00 Stockholm-tid
     │   └── service/
     │       ├── CargoSpecService.java   ← Fuzzy-matchning på bilnamn → bagagevolym
     │       ├── EvSpecService.java      ← Fuzzy-matchning + räckvidd/laddberäkning
@@ -689,7 +689,7 @@ curl -X POST https://caradvice.onrender.com/api/admin/ice-consumption/sync   -H 
 
 ### `POST /api/admin/sync-web-insights`
 
-Kör insiktsscrapern manuellt (samma jobb som nattens 04:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight") eller via `GET /api/admin/scrape-status`.
+Kör insiktsscrapern manuellt (samma jobb som nattens 02:00-körning). Returnerar `202 Accepted` direkt; synken körs i bakgrunden (virtual thread); resultat i serverloggar (sök "Web insight") eller via `GET /api/admin/scrape-status`.
 
 ```bash
 curl -X POST https://caradvice.onrender.com/api/admin/sync-web-insights \
@@ -1159,7 +1159,7 @@ Den korta hashen finns även i [`/api/health`](#get-apihealth) — vill man bara
 | `APP_BASE_URL` | Bas-URL för success/cancel-redirect (`https://caradvice.onrender.com`) |
 | `CORS_ALLOWED_ORIGINS` | Kommaseparerade tillåtna origins (default: `https://elitrobban.se,http://localhost:8080,http://localhost:3000`) |
 
-EV-spec-synken körs automatiskt varje natt kl 03:00 UTC på Render-servern — ingen lokal dator behövs.
+EV-spec-synken körs automatiskt varje natt kl 00:00 Stockholm-tid på Render-servern — ingen lokal dator behövs.
 
 ---
 

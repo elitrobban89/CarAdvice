@@ -19,8 +19,8 @@ public class WebInsightSyncScheduler {
         this.autoRelease = autoRelease;
     }
 
-    // Körs varje dag 04:00 Stockholm — en timme efter CargoSpec-synken
-    @Scheduled(cron = "0 0 4 * * *", zone = "Europe/Stockholm")
+    // Körs varje dag 02:00 Stockholm — en timme efter CargoSpec-synken, och klar före molnrutinerna 02:30/03:30
+    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily web insight sync triggered");
         try {

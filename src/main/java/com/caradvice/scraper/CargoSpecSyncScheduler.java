@@ -21,8 +21,8 @@ public class CargoSpecSyncScheduler {
         this.jobStatus = jobStatus;
     }
 
-    // Runs every day at 03:00 Stockholm time — one hour after the EV sync
-    @Scheduled(cron = "0 0 3 * * *", zone = "Europe/Stockholm")
+    // Runs every day at 01:00 Stockholm time — one hour after the EV sync
+    @Scheduled(cron = "0 0 1 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily CargoSpec sync triggered");
         // trackDetailed, inte track: de tre delarna måste stå var för sig i scrape-status,

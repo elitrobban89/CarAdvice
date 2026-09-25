@@ -16,8 +16,8 @@ public class MobilityStatsSyncScheduler {
         this.service = service;
     }
 
-    // Den 4:e varje månad 05:00 Stockholm — månadsrapporten publiceras den 1:a–3:e
-    @Scheduled(cron = "0 0 5 4 * *", zone = "Europe/Stockholm")
+    // Den 4:e varje månad 00:30 Stockholm — månadsrapporten publiceras den 1:a–3:e
+    @Scheduled(cron = "0 30 0 4 * *", zone = "Europe/Stockholm")
     public void monthlySync() {
         log.info("Monthly Mobility Sweden stats sync triggered");
         Object status = service.syncNow().get("status");

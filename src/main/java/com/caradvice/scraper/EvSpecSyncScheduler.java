@@ -18,8 +18,8 @@ public class EvSpecSyncScheduler {
         this.jobStatus = jobStatus;
     }
 
-    // Runs every day at 02:00 Stockholm time (handles DST automatically)
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Stockholm")
+    // Runs every day at 00:00 Stockholm time (handles DST automatically) — first in the night chain
+    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Stockholm")
     public void dailySync() {
         log.info("Daily EV spec sync triggered");
         int updated = jobStatus.track(JobStatusService.JOB_EV_SPECS, scraper::syncFromEvDatabase);

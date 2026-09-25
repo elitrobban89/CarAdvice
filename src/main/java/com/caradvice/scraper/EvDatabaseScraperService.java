@@ -147,7 +147,7 @@ public class EvDatabaseScraperService {
         for (String path : carUrls) {
             int hour = ZonedDateTime.now(STOCKHOLM).getHour();
             if (hour >= 8 && hour < 17) {
-                log.warn("SCRAPER: Aborting at {}:xx Stockholm time — outside allowed window (02:00–07:00). updated={} created={} processed so far.", hour, updated, created);
+                log.warn("SCRAPER: Aborting at {}:xx Stockholm time — inside the blocked window (08:00–17:00). updated={} created={} processed so far.", hour, updated, created);
                 break;
             }
             try {
