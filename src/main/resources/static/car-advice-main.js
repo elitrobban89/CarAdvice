@@ -1236,7 +1236,11 @@ function caUpdateSliderFill() {
   var min = parseInt(slider.min) || (caIsLeasing ? 1000 : 50000);
   var max = parseInt(slider.max) || (caIsLeasing ? 15000 : caBudgetTak);
   var pct = (val - min) / (max - min) * 100;
-  document.getElementById('ca-slider-fill').style.width = pct + '%';
+  // Fyllnaden slutar i pluppens MITT. Pluppen rör sig bara över (bredd − pluppbredd), så en
+  // ren procentsats hamnar upp till en halv plupp fel: före mitten i vänstra halvan, efter i
+  // högra. 24 px = pluppen i caBudgetReglageCss.
+  var halv = 12 - pct / 100 * 24;
+  document.getElementById('ca-slider-fill').style.width = 'calc(' + pct + '% + ' + halv.toFixed(2) + 'px)';
   var text = caIsLeasing
     ? val.toLocaleString('sv-SE') + '\xa0kr/m\xe5n'
     : val.toLocaleString('sv-SE') + '\xa0kr';
@@ -1811,6 +1815,10 @@ function caKategoriForval() {
     caUtanForval(function () {
       slider.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    // Direkt, inte via eventet: vid sidladdning körs det här FÖRE caBindChangeListeners, så
+    // ingen lyssnare fångade input-eventet. Pluppen stod på 250 000 medan fyllnaden och
+    // beloppet visade markupens 200 000 — linjen slutade en bit till vänster om pluppen.
+    caUpdateSliderFill();
   }
   var fuel = document.getElementById('ca-fuel');
   if (f.drivmedel && fuel && !fuel.dataset.rord && fuel.value !== f.drivmedel) {
