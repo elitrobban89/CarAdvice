@@ -3965,6 +3965,70 @@ function caIsDiesel(fuelSpec) {
   return fuelSpec.consumptionLiterPerMil > 7;
 }
 
+// Service och slitdelar över fem år, uppdelat på år 1–3 (bilen servas på märkesverkstad under
+// garantin) och år 4–5 (fri verkstad + första bromsjobbet). Kronor per år, 2026 års nivå.
+//
+// Tidigare stod det 3 000 / 6 000 / 8 000 kr per år för el / laddhybrid / övrigt, utan källa
+// (kom in med TCO-kalkylatorn 2026-06-21) — ungefär dubbelt mot allt som publicerats, och en
+// självladdande hybrid räknades som bensinbil fast den är dyrast att serva.
+//
+// År 1–3: VW, Kia och Volvo tar "från" 3 950–5 150 kr/år för bensinbil i serviceabonnemang
+//   (Moveabout 2026-03-25), därav 4 000. Förhållandet mellan drivlinor ur Vi Bilägares snitt
+//   för 3 år / 6 000 mil (2023-10): elbil 6 019, bensin/diesel drygt 9 000, hybrid och
+//   laddhybrid över 13 000 kr — alltså 0,67 : 1 : 1,44. Elbilen sätts till 2 000 och inte
+//   2 700, för abonnemangen 2026 ligger på 830–2 870 kr/år och KVD mäter 1 300–1 900.
+// År 4–5: KVD + Autoexperten 2026-05-19 (årsmodell 2021–22, 4 500 mil, kommande tre år):
+//   median elbil 1 700, bensin/diesel 4 000, laddhybrid 4 100 kr/år. Därtill slitdelar ur
+//   Moveabout 2026: bromsskivor + belägg 4 000–6 000 kr (5 000, en gång, fördelat på två år)
+//   för allt utom elbilen, vars regenerering sparar bromsarna — elbilen får AC-servicen
+//   (1 595 kr, en gång) i stället.
+var CA_SERVICE_AR_1_3 = { el: 2000, bensin: 4000, hybrid: 5800 };
+var CA_SERVICE_AR_4_5 = { el: 1700, bensin: 4000, hybrid: 4100 };
+var CA_SLITDELAR_AR_4_5 = { el: 800, bensin: 2500, hybrid: 2500 };
+
+// Vi Bilägares snitt per märke, 3 år / 6 000 mil på märkesverkstad, minst fem testade modeller
+// per märke (2024-01-03). Snittet över alla 19 är 10 176 kr.
+//
+// Tabellen blandar märke och drivlina: Toyota är dyrt delvis för att det säljer hybrider, Tesla
+// billigt för att det bara säljer elbilar. Drivlinan räknas redan i grundbeloppet, så faktorn
+// är ROTEN ur kvoten mot snittet — halva utslaget, så samma skillnad inte räknas två gånger.
+// Toyota blir 1,19 i stället för 1,41, Audi 0,83 i stället för 0,68. Märken som saknas
+// (MG, BYD, Polestar, Cupra, Lynk & Co …) får 1, alltså rent drivlinesnitt.
+var CA_SERVICE_MARKE = {
+  'audi': 6960, 'renault': 7310, 'tesla': 7369, 'bmw': 8037, 'nissan': 8093,
+  'skoda': 8332, 'seat': 8420, 'opel': 8909, 'volkswagen': 9128, 'citroen': 9821,
+  'mazda': 10085, 'honda': 10451, 'hyundai': 11044, 'mercedes': 11966, 'volvo': 12089,
+  'ford': 12768, 'kia': 13671, 'toyota': 14356, 'peugeot': 14541
+};
+var CA_SERVICE_MARKE_SNITT = 10176;
+var CA_SERVICE_MARKE_ALIAS = { 'vw': 'volkswagen', 'škoda': 'skoda', 'citro\xebn': 'citroen', 'mercedes-benz': 'mercedes' };
+
+// Märkets faktor ur kortets rubrik ("Volkswagen ID.4 Pro (2023)"), 1 när märket saknas.
+function caServiceMarkesfaktor(title) {
+  var ord = String(title || '').trim().toLowerCase().split(/\s+/)[0] || '';
+  ord = CA_SERVICE_MARKE_ALIAS[ord] || ord;
+  var kr = CA_SERVICE_MARKE[ord];
+  return kr ? Math.sqrt(kr / CA_SERVICE_MARKE_SNITT) : 1;
+}
+
+// Drivlinan för servicen: 'el', 'hybrid' (även laddhybrid) eller 'bensin' (även diesel).
+function caServiceDrivlina(r) {
+  if (r.evSpec) return r.evSpec.carType === 'PHEV' ? 'hybrid' : 'el';
+  if (r.fuelSpec && /hybrid/i.test(r.fuelSpec.fuel || '')) return 'hybrid';
+  return 'bensin';
+}
+
+// Fem års service + slitdelar i kr. Källornas körsträcka är 6 000 mil på tre år, alltså
+// 2 000 mil/år; under det styr tiden intervallen, över det skalar kostnaden med milen.
+function caServiceCost(r, kmPerYear) {
+  var dl = caServiceDrivlina(r);
+  var marke = caServiceMarkesfaktor(r.title);
+  var mil = Math.max(1, (kmPerYear || 15000) / 20000);
+  var ar13 = CA_SERVICE_AR_1_3[dl] * marke * mil * 3;
+  var ar45 = (CA_SERVICE_AR_4_5[dl] * marke + CA_SLITDELAR_AR_4_5[dl]) * mil * 2;
+  return ar13 + ar45;
+}
+
 function caTcoCalc(r, kmPerYear) {
   var price = caParsePrice(r.price);
   if (!price) return null;
@@ -3990,8 +4054,8 @@ function caTcoCalc(r, kmPerYear) {
     fuelCost = 6.5 * (km / 100) * years * CA_FUEL_PRICES.bensin; // schablonbensin 6.5 l/100km
   }
 
-  // Servicekostnad
-  var serviceCost = (isEv ? 3000 : isPhev ? 6000 : 8000) * years;
+  // Servicekostnad — källorna och modellen står vid caServiceCost
+  var serviceCost = caServiceCost(r, km);
 
   // Värdeminskning (billiga begagnade tappar ~40% i värde, dyra nya ~52–58%)
   var deprRate = isEv ? 0.58 : price < 80000 ? 0.35 : price < 150000 ? 0.42 : 0.52;
@@ -4114,7 +4178,7 @@ function caTcoHtml(r, kmPerYear) {
       '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.9">' +
         '&#x1F4C9; V\xe4rdeminskning: ' + tco.depreciation.toLocaleString('sv-SE') + ' kr<br>' +
         '&#x26FD; Drivmedel: ' + tco.fuel.toLocaleString('sv-SE') + ' kr<br>' +
-        '&#x1F527; Service: ' + tco.service.toLocaleString('sv-SE') + ' kr<br>' +
+        '&#x1F527; Service &amp; slitdelar: ' + tco.service.toLocaleString('sv-SE') + ' kr<br>' +
         '&#x1F3E6; Fordonsskatt: ' + tco.tax.toLocaleString('sv-SE') + ' kr<br>' +
         '&#x1F6E1;&#xFE0F; Halvf\xf6rs\xe4kring: ' + tco.insurance.toLocaleString('sv-SE') + ' kr' +
       '</div>' +
