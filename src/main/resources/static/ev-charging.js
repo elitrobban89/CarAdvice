@@ -29,22 +29,32 @@ function evInjectStyles() {
   if (document.getElementById('ev-styles')) return;
   var s = document.createElement('style');
   s.id = 'ev-styles';
+  // Samma runda 💳-knapp som bilrådgivningen (.ca-rundknapp i car-advice-main.js) — den breda
+  // raden med "Demo – 30 av 30 frågor … Prenumerera – 49 kr/mån" är borta på båda sidorna.
+  // Texten bor i knappens title, lägena i färgen: violett = demo, grön = prenumerant,
+  // bärnsten = kvoten tar slut, röd puls = slut.
   s.textContent = [
-    '#ev-sub-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;',
-    'background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:14px;',
-    'padding:11px 18px;margin-bottom:24px;',
-    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
-    '#ev-sub-bar.ev-limited{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.3)}',
-    '#ev-sub-left{font-size:.85rem;color:rgba(0,0,0,.6);line-height:1.4}',
-    '#ev-sub-left strong{color:#1a1a2e}',
-    '#ev-sub-right{display:flex;gap:8px;align-items:center;flex-shrink:0}',
-    '#ev-prenumerera-btn{padding:8px 20px;background:linear-gradient(135deg,#635bff,#4f46e5);',
-    'border:none;border-radius:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;',
-    'white-space:nowrap;transition:opacity .2s;display:inline-block;font-family:inherit}',
-    '#ev-prenumerera-btn:hover{opacity:.88}',
-    '#ev-login-link{font-size:.78rem;color:#635bff;cursor:pointer;white-space:nowrap;',
-    'background:none;border:none;text-decoration:underline;padding:0;font-family:inherit}',
-    '#ev-sub-email{font-size:.78rem;color:rgba(0,0,0,.4)}'
+    '#ev-sub-bar{display:flex;justify-content:center;margin:0 0 24px}',
+    '.ev-rundknapp{position:relative;width:44px;height:44px;border-radius:50%;display:inline-flex;',
+      'align-items:center;justify-content:center;font-size:1.15rem;line-height:1;padding:0;',
+      'cursor:pointer;background:rgba(15,12,41,.55);border:1px solid rgba(167,139,250,.38);',
+      'box-shadow:0 6px 20px -10px rgba(139,92,246,.85);',
+      'transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}',
+    '.ev-rundknapp:hover{transform:translateY(-2px) scale(1.07);',
+      'border-color:rgba(167,139,250,.75);box-shadow:0 11px 28px -10px rgba(167,139,250,1)}',
+    '.ev-rundknapp:focus-visible{outline:2px solid rgba(167,139,250,.85);outline-offset:3px}',
+    '.ev-rundknapp.ev-rund-prenumerant{border-color:rgba(52,211,153,.8);background:rgba(6,78,59,.6);',
+      'box-shadow:0 6px 22px -9px rgba(16,185,129,1)}',
+    '.ev-rundknapp.ev-rund-prenumerant:hover{border-color:rgba(52,211,153,1);',
+      'box-shadow:0 11px 28px -10px rgba(52,211,153,1)}',
+    '.ev-rundknapp.ev-rund-larm{border-color:rgba(251,191,36,.8);',
+      'box-shadow:0 6px 22px -9px rgba(251,191,36,.95)}',
+    '.ev-rundknapp.ev-rund-slut{border-color:rgba(248,113,113,.9);background:rgba(69,10,10,.55)}',
+    '.ev-rundknapp.ev-rund-slut::after{content:"";position:absolute;inset:-5px;border-radius:50%;',
+      'pointer-events:none;box-shadow:0 0 20px 5px rgba(248,113,113,.75),0 0 40px 10px rgba(239,68,68,.35);',
+      'animation:ev-rund-puls 1.9s ease-in-out infinite}',
+    '@keyframes ev-rund-puls{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}',
+    '@media(prefers-reduced-motion:reduce){.ev-rundknapp.ev-rund-slut::after{animation:none;opacity:.9}}'
   ].join('');
   document.head.appendChild(s);
 }
@@ -121,86 +131,56 @@ function evUpdateSubBar(isSubscriber, isLoggedIn) {
   var bar = document.getElementById('ev-sub-bar');
   if (!bar) return;
 
+  var knapp = document.getElementById('ev-rund-pren');
+  if (!knapp) {
+    bar.innerHTML = '';
+    knapp = document.createElement('button');
+    knapp.type = 'button';
+    knapp.id = 'ev-rund-pren';
+    knapp.className = 'ev-rundknapp';
+    knapp.textContent = '💳';
+    // Popup och inte en vanlig länk: subscribe.html skickar CA_LOGIN tillbaka till fönstret
+    // som öppnade den, och det är det meddelandet som gör knappen grön utan omladdning.
+    knapp.onclick = evOpenSubscribe;
+    bar.appendChild(knapp);
+  }
+
   var caEmail = localStorage.getItem('ca_email');
-
-  if (!document.getElementById('ev-sub-title')) {
-    bar.innerHTML =
-      '<div id="ev-sub-left"><strong id="ev-sub-title">Demo</strong><span id="ev-sub-desc"></span></div>' +
-      '<div id="ev-sub-right">' +
-        '<span id="ev-sub-email"></span>' +
-        '<button id="ev-login-link" style="display:none" onclick="evLoginLinkClick()"></button>' +
-        '<button id="ev-prenumerera-btn" onclick="evOpenSubscribe()">Prenumerera – 49\xa0kr/m\xe5n</button>' +
-      '</div>';
-  }
-
-  var title     = document.getElementById('ev-sub-title');
-  var desc      = document.getElementById('ev-sub-desc');
-  var loginLink = document.getElementById('ev-login-link');
-  var prenBtn   = document.getElementById('ev-prenumerera-btn');
-  var emailEl   = document.getElementById('ev-sub-email');
-  bar.classList.remove('ev-limited');
-
+  var text;
+  var kvar = null;
   // Prövas FÖRE prenumerationen: en WordPress-inloggad har fri tillgång oavsett konto, och
-  // baren måste säga det — annars lovar den en nedräkning som chatten inte gör.
+  // knappen måste säga det — annars lovar den en nedräkning som chatten inte gör.
   if (evArWordpressInloggad()) {
-    title.textContent    = '✓ Obegr\xe4nsat';
-    desc.textContent     = ' – inloggad i WordPress, kvoten g\xe4ller inte dig';
-    prenBtn.style.display  = 'none';
-    loginLink.style.display = 'none';
-    if (emailEl) { emailEl.textContent = ''; emailEl.style.display = 'none'; }
-    return;
-  }
-
-  if (isSubscriber) {
-    title.textContent    = '✓ Prenumerant';
-    desc.textContent     = ' – obegr\xe4nsad \xe5tkomst';
-    prenBtn.style.display  = 'none';
-    loginLink.style.display = 'inline';
-    loginLink.textContent   = 'Konto';
-    loginLink.dataset.action = 'account';
-    if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
-  } else if (isLoggedIn) {
-    title.textContent    = 'Inloggad';
-    // Sa " – prenumeration krävs" fram till 2026-08-22, vilket var sant när betalväggen
-    // dolde allt. Nu är appen gratis att använda; prenumerationen tar bort gränsen.
-    desc.textContent     = ' – ' + evFragorKvar() + ' av ' + EV_FRAGOR_PER_TIMME
-                         + ' fr\xe5gor kvar denna timme \xb7 obegr\xe4nsat som prenumerant';
-    prenBtn.style.display  = 'inline-block';
-    prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
-    loginLink.style.display = 'inline';
-    loginLink.textContent   = 'Logga ut';
-    loginLink.dataset.action = 'logout';
-    if (caEmail) { emailEl.textContent = caEmail; emailEl.style.display = 'inline'; }
+    text = '✓ Obegr\xe4nsat – inloggad i WordPress, kvoten g\xe4ller inte dig';
+  } else if (isSubscriber) {
+    text = '✓ Prenumerant – obegr\xe4nsad \xe5tkomst' + (caEmail ? ' (' + caEmail + ')' : '');
   } else {
-    title.textContent    = 'Demo';
-    // "logga in för åtkomst" var beskedet när betalväggen dolde sidan. Inget konto behövs.
-    // Siffran är LIVE: baren lovade "30 frågor i timmen" men stod stilla medan chattens egen
-    // rad räknade ner, så det såg ut som att kvoten inte drogs. Båda läser nu samma nyckel.
-    desc.textContent     = ' – ' + evFragorKvar() + ' av ' + EV_FRAGOR_PER_TIMME
-                         + ' fr\xe5gor kvar denna timme \xb7 obegr\xe4nsat som prenumerant';
-    prenBtn.style.display  = 'inline-block';
-    prenBtn.textContent    = 'Prenumerera – 49\xa0kr/m\xe5n';
-    loginLink.style.display = 'none';
-    if (emailEl) { emailEl.textContent = ''; emailEl.style.display = 'none'; }
+    // Samma villkor som caUpdateSubBar: en sparad e-post räcker för "Inloggad".
+    kvar = evFragorKvar();
+    text = ((isLoggedIn || caEmail) ? 'Inloggad' : 'Demo') + ' – ' + kvar + ' av '
+         + EV_FRAGOR_PER_TIMME + ' fr\xe5gor kvar denna timme \xb7 prenumerant: obegr\xe4nsat';
   }
+  var gron = evArWordpressInloggad() || !!isSubscriber;
+  knapp.title = text;
+  knapp.setAttribute('aria-label', text);
+  knapp.classList.toggle('ev-rund-prenumerant', gron);
+  // Samma trösklar som bilrådgivningens rad: bärnsten när det börjar ta slut, röd när det är slut.
+  knapp.classList.toggle('ev-rund-larm', kvar !== null && kvar > 0 && kvar <= 5);
+  knapp.classList.toggle('ev-rund-slut', kvar === 0);
 }
 
-function evLoginLinkClick() {
-  var link = document.getElementById('ev-login-link');
-  if (link && link.dataset.action === 'logout') {
-    var token = localStorage.getItem('ca_token');
-    fetch(CA_API_BASE + '/api/auth/logout', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + (token || '') }
-    });
-    localStorage.removeItem('ca_token');
-    localStorage.removeItem('ca_email');
-    localStorage.removeItem('ca_status');
-    // Utloggning döljer inte längre innehållet — appen är gratis att använda utan konto.
-    evUpdateSubBar(false, false);
-  } else {
-    evOpenSubscribe();
-  }
+/** Cachat läge — samma som caInit använder, så en prenumerant är grön från första bildrutan. */
+function evCachatLage() {
+  var harToken = !!localStorage.getItem('ca_token');
+  var aktiv = harToken && localStorage.getItem('ca_status') === 'active';
+  evUpdateSubBar(aktiv, harToken && !aktiv);
+}
+
+function evLoggaUtLokalt() {
+  localStorage.removeItem('ca_token');
+  localStorage.removeItem('ca_email');
+  localStorage.removeItem('ca_status');
+  evUpdateSubBar(false, false);
 }
 
 // ── Content gating ───────────────────────────────────────────────────────────
@@ -271,7 +251,9 @@ function evFixPromoText() {
 
 async function evCheckAuth() {
   evInjectStyles();
-  evUpdateSubBar(false, false);
+  // Cachat läge FÖRST, inte "Demo": en prenumerant såg annars Demo + köpknapp tills
+  // /api/auth/me hunnit svara — och för alltid om svaret aldrig kom.
+  evCachatLage();
 
   // Innehållet visas ALLTID och direkt. Ingen väntan på serversvar, ingen dold sida:
   // appen är gratis att använda, och det enda inloggningen avgör är vad statusbaren säger.
@@ -291,13 +273,10 @@ async function evCheckAuth() {
       headers: { 'Authorization': 'Bearer ' + token }
     });
 
-    if (!r.ok) {
-      localStorage.removeItem('ca_token');
-      localStorage.removeItem('ca_email');
-      localStorage.removeItem('ca_status');
-      evUpdateSubBar(false, false);
-      return;
-    }
+    // Bara 401 betyder "tokenet gäller inte". En 502/503 under omdeploy loggade förut ut
+    // varje besökare som råkade ladda sidan just då.
+    if (r.status === 401) { evLoggaUtLokalt(); return; }
+    if (!r.ok) { evCachatLage(); return; }
 
     var data = await r.json();
     localStorage.setItem('ca_status', data.subscriptionStatus);
@@ -305,8 +284,7 @@ async function evCheckAuth() {
   } catch(e) {
     // Serverfel eller kallstart: cachat värde får gälla, precis som bcHasUnlimited gör.
     // En prenumerant ska inte degraderas till demoläge för att Render startar om.
-    var cached = localStorage.getItem('ca_status');
-    evUpdateSubBar(cached === 'active', cached !== 'active');
+    evCachatLage();
   }
 }
 
@@ -314,6 +292,9 @@ async function evCheckAuth() {
 
 window.addEventListener('message', function(ev) {
   if (!ev.data || !ev.data.type) return;
+  // Meddelandet bär ett token som skrivs rakt in i localStorage — bara vårt eget API och
+  // sidan själv får skicka det (samma kontroll som bilrådgivningen gör).
+  if (ev.origin !== CA_API_BASE && ev.origin !== window.location.origin) return;
   if (ev.data.type === 'CA_LOGIN' || ev.data.type === 'CA_SUBSCRIBED') {
     if (ev.data.token) localStorage.setItem('ca_token', ev.data.token);
     if (ev.data.email) localStorage.setItem('ca_email', ev.data.email);
@@ -326,6 +307,11 @@ window.addEventListener('message', function(ev) {
     localStorage.removeItem('ca_status');
     evUpdateSubBar(false, false);
   }
+});
+
+// Inloggning i en annan flik (t.ex. bilrådgivningen) syns här direkt — samma lyssnare som där.
+window.addEventListener('storage', function(ev) {
+  if (ev.key === 'ca_status' || ev.key === 'ca_token') evCachatLage();
 });
 
 if (document.readyState === 'loading') {

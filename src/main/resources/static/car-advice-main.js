@@ -1590,7 +1590,7 @@ function caMaxAgeYears() {
   return isNaN(n) ? parseInt(CA_MAXAGE_FORVAL) : n;
 }
 
-// Nytt åldersförval: max 5 år (markupen hade 10). Körs FÖRE caLoadPrefs och caReadUrlParams,
+// Nytt åldersförval: max 5 år (markupen hade 10). Körs FÖRE caReadUrlParams,
 // så en sparad inställning och en delningslänk fortfarande vinner över förvalet.
 //
 // Byggs från JS och inte bara i HTML-snippeten av samma skäl som bagagefältet nedan:
@@ -1626,7 +1626,7 @@ function caForvalKorstracka() {
 // öppnar något.
 //
 // SELECTEN BLIR KVAR och är fortfarande värdet — knapparna sätter .value och skickar
-// change. Allt annat (caLoadPrefs, caReadUrlParams, caCheckChanges, payloaden) läser
+// change. Allt annat (caReadUrlParams, caCheckChanges, payloaden) läser
 // selecten och behöver inte veta att den fått ett nytt ansikte. Samma grepp som
 // märkesväljaren använder mot sin dolda select.
 var caChipsRader = [];
@@ -1842,7 +1842,7 @@ function caUtanForval(fn) {
 }
 
 /**
- * Startläget en NY besökare möter: Familjebil, laddare hemma <b>Ja</b> och 200 000 kr.
+ * Startläget VARJE landning möter: Familjebil, laddare hemma <b>Ja</b>, El och 250 000 kr.
  *
  * <p><b>Varför Ja.</b> Laddarfrågan svarar på drivmedelsfrågan (se caUpdateFuelVisibility):
  * Ja ger El i alla kategorier. Med Familjebil som kategori är "Familjebil · El · 250 000 kr"
@@ -1854,16 +1854,15 @@ function caUtanForval(fn) {
  * 100 000–299 999 kr och bara 10 % på över en halv miljon, så förvalet ligger kvar i mitten
  * av det spannet. Formuläret söker dessutom begagnat, vilket är vad 47 % planerar att köpa.
  *
- * <p><b>Rör bara den som inte har något eget.</b> Sparade inställningar, delningslänkar och
- * historikposter sätts EFTER det här anropet och vinner därför alltid. Finns det redan ett
- * ca-prefs eller en parameter i länken avstår funktionen helt — annars hade ett förval
- * skrivit över besökarens senaste sökning, vilket är precis den fällan dataset.rord finns
- * till för i de andra förvalen.
+ * <p><b>Gäller varje landning, även för den som sökt förut</b> (sedan 2026-09-25). Förut
+ * återställdes förra sökningens val ur ca-prefs och funktionen avstod då helt — så den som
+ * en gång sökt på bensin och 150 000 landade där för alltid, aldrig på startläget.
+ * Delningslänkar, sparade sökningar och historikposter vinner fortfarande: de sätts efter
+ * det här anropet, och en parameter i länken får funktionen att avstå.
  */
 function caForvalStartlage() {
   var chg = document.getElementById('ca-charger');
   if (!chg) return;
-  try { if (localStorage.getItem(CA_PREFS_NYCKEL)) return; } catch (e) {}
   try {
     var p = new URLSearchParams(window.location.search);
     if (p.has('charger') || p.has('fuelType') || p.has('category') || p.has('budget')) return;
@@ -2045,26 +2044,6 @@ function caKompaktNotis(falt) {
     '</div>';
 }
 
-function caSavePrefs() {
-  try {
-    var t = document.getElementById('ca-transmission');
-    var maEl = document.getElementById('ca-maxage');
-    localStorage.setItem(CA_PREFS_NYCKEL, JSON.stringify({
-      category:     document.getElementById('ca-category').value,
-      budget:       document.getElementById('ca-budget-slider').value,
-      budgetMode:   caIsLeasing ? 'leasing' : 'köp',
-      charger:      document.getElementById('ca-charger').value,
-      km:           document.getElementById('ca-km').value,
-      usage:        document.getElementById('ca-usage').value,
-      passengers:   document.getElementById('ca-passengers').value,
-      newcar:       caIsNewCar() ? 'true' : 'false',
-      fuelType:     document.getElementById('ca-fuel').value,
-      transmission: t ? t.value : 'spelar ingen roll',
-      maxage:       maEl ? maEl.value : '',
-      cargo:        (function(){ var c = document.getElementById('ca-cargo'); return c ? c.value : '0'; })()
-    }));
-  } catch(e) { caWarn('att spara inställningar', e); }
-}
 // ── Bagagefiltret ────────────────────────────────────────────────────────────
 // Byggs från JS och inte i HTML-snippeten: WordPress-sidan är en manuell kopia, så ett nytt
 // fält i snippeten syns inte förrän den klistrats in på nytt. Injektionen är idempotent
@@ -2227,26 +2206,6 @@ function caFyllKvotrutan(serverMeddelande) {
     + '/subscribe.html" target="_blank" rel="opener">Prenumerera – 49 kr/mån →</a></div>';
 }
 
-function caLoadPrefs() {
-  try {
-    var raw = localStorage.getItem(CA_PREFS_NYCKEL);
-    if (!raw) return;
-    var d = JSON.parse(raw);
-    if (d.category)   document.getElementById('ca-category').value   = caCanonCat(d.category);
-    caSetBudgetMode(d.budgetMode || 'köp', d.budget ? parseInt(d.budget) : undefined);
-    if (d.charger)    document.getElementById('ca-charger').value     = d.charger;
-    if (d.km)         document.getElementById('ca-km').value          = d.km;
-    if (d.usage)      document.getElementById('ca-usage').value       = d.usage;
-    if (d.passengers) document.getElementById('ca-passengers').value  = d.passengers;
-    if (d.cargo) { var cg = document.getElementById('ca-cargo'); if (cg) cg.value = d.cargo; }
-    if (d.newcar)   { var ncEl = document.getElementById('ca-newcar'); if (ncEl) ncEl.value = d.newcar; }
-    if (d.fuelType)   document.getElementById('ca-fuel').value        = d.fuelType;
-    if (d.transmission) { var t = document.getElementById('ca-transmission'); if (t) t.value = d.transmission; }
-    if (d.maxage) { var ma = document.getElementById('ca-maxage'); if (ma) ma.value = d.maxage; }
-    caUtanForval(caUpdateFuelVisibility);
-    caCheckMismatch();
-  } catch(e) { caWarn('sparade inställningar', e); }
-}
 
 function caReadUrlParams() {
   try {
@@ -2729,7 +2688,6 @@ function caResetForm() {
   caUpdateFuelVisibility();
   caCheckMismatch();
   if (caHasSearched) caCheckChanges();
-  try { localStorage.removeItem(CA_PREFS_NYCKEL); } catch(e) {}
 }
 
 function caSkeletonHTML() {
@@ -4534,7 +4492,6 @@ async function caGetRecommendation() {
       if (d.subscriber) caUpdateSubBar(true, false, null);
       else if (d.loggedIn) caUpdateSubBar(false, true, d.remainingSearches);
       else caUpdateSubBar(false, false, d.remainingSearches);
-      caSavePrefs();
       caSaveHistory(d.recommendations);
     } else {
       document.getElementById('ca-cards').innerHTML =
@@ -4582,24 +4539,11 @@ function caOpenSubscribe() {
    kostnadsbroms mot skript, inte ett erbjudande, och en besökare når det aldrig. */
 var CA_SEARCHES_PER_HOUR = 30;
 
-/**
- * Nyckeln till "senast använda inställningar" — med en GENERATION i namnet.
- *
- * <p>{@code caForvalStartlage} avstår helt när ett sparat läge finns, och det är rätt: ett
- * eget val ska vinna över ett förval. Men ett sparat läge som skrevs INNAN förvalen ändrades
- * bär inget eget val — det bär det gamla förvalet. En telefon som använt appen förut möttes
- * därför av 200 000 kr och "spelar ingen roll" dagen efter att förvalen blev 250 000 och el,
- * och det läser som att förvalen försvunnit.
- *
- * <p><b>Bumpa den här när förvalen ändras.</b> Alla börjar då en gång från de nya förvalen,
- * och därefter sticker deras egna val igen. Sparade sökningar och historiken har egna
- * nycklar och rörs inte — det här är bara "senast använda".
- */
-var CA_PREFS_NYCKEL = 'ca-prefs-v2';
-
-// Den gamla nyckeln städas bort så den inte ligger kvar som död data i alla webbläsare.
+/* "Senast använda inställningar" återställs inte längre (2026-09-25): varje landning börjar
+   på startläget, se caForvalStartlage. Båda generationerna av nyckeln städas bort så de inte
+   ligger kvar som död data. Sparade sökningar och historiken har egna nycklar och rörs inte. */
 (function caStadaGamlaPrefs() {
-  try { localStorage.removeItem('ca-prefs'); } catch (e) {}
+  try { localStorage.removeItem('ca-prefs'); localStorage.removeItem('ca-prefs-v2'); } catch (e) {}
 })();
 
 function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
@@ -4616,6 +4560,8 @@ function caUpdateSubBar(isSubscriber, isLoggedIn, remaining, limit, period) {
   // signalen samma sak i bada och slutar betyda nagot.
   bar.classList.remove('ca-sub-bar-limited');
   bar.classList.remove('ca-sub-bar-slut');
+  // Speglas av den runda 💳-knappen (caRundaKnappar): grön för prenumeranter.
+  bar.classList.toggle('ca-sub-bar-prenumerant', !!isSubscriber);
   var slut = remaining === 0;
   if (isSubscriber) {
     title.textContent = '✓ Prenumerant';
@@ -5143,6 +5089,12 @@ function caFcRenderResult(recs) {
       'box-shadow:0 6px 20px -10px rgba(16,185,129,.9);}',
     '.ca-rundknapp.ca-rund-ev:hover{border-color:rgba(52,211,153,.8);',
       'box-shadow:0 11px 28px -10px rgba(52,211,153,1);}',
+    // Grön för prenumeranter — samma familj som ⚡-knappen bredvid, och samma som elbilssidans
+    // knapp (.ev-rund-prenumerant i ev-charging.js). Syns redan innan man klickat.
+    '.ca-rundknapp.ca-rund-prenumerant{border-color:rgba(52,211,153,.8);background:rgba(6,78,59,.6);',
+      'box-shadow:0 6px 22px -9px rgba(16,185,129,1);}',
+    '.ca-rundknapp.ca-rund-prenumerant:hover{border-color:rgba(52,211,153,1);',
+      'box-shadow:0 11px 28px -10px rgba(52,211,153,1);}',
     // Bärnsten när sökningarna BÖRJAR ta slut — samma signal som den breda raden bar, så
     // den inte försvinner med raden.
     '.ca-rundknapp.ca-rund-larm{border-color:rgba(251,191,36,.8);',
@@ -5554,6 +5506,7 @@ function caRundaKnappar() {
       }
       pren.classList.toggle('ca-rund-larm', bar.classList.contains('ca-sub-bar-limited'));
       pren.classList.toggle('ca-rund-slut', bar.classList.contains('ca-sub-bar-slut'));
+      pren.classList.toggle('ca-rund-prenumerant', bar.classList.contains('ca-sub-bar-prenumerant'));
     }
     synka();
     if ('MutationObserver' in window) {
@@ -5743,11 +5696,11 @@ function caInit() {
   // den skalan.
   caInitBudgetReglage();
   caUpdateSliderFill();
-  // Injiceras FÖRE caLoadPrefs — annars finns inte reglaget när det sparade värdet ska sättas
+  // Injiceras FÖRE caReadUrlParams — annars finns inte reglaget när länkens värde ska sättas
   caEnsureCargoField();
   caFixCategoryLabels();
-  // Före caLoadPrefs: sätter åldersförvalet och byter ut ny/begagnad-rutan mot notisen,
-  // så att en sparad inställning och en delningslänk fortfarande vinner över förvalet.
+  // Före caReadUrlParams: sätter åldersförvalet och byter ut ny/begagnad-rutan mot notisen,
+  // så att en delningslänk fortfarande vinner över förvalet.
   caAnpassaBegagnatFormular();
   caForvalKorstracka();
   // Före caFlerVal: knappraderna ska med när fälten flyttas, inte lämnas kvar.
@@ -5755,12 +5708,10 @@ function caInit() {
   // Efter caEnsureCargoField och förvalen: rutorna måste finnas OCH vara ifyllda innan de
   // flyttas, annars fälls tomma fält ihop.
   caFlerVal();
-  // Efter caFlerVal (drivmedelsraden finns då och kan skrivas), men FÖRE caLoadPrefs och
-  // caReadUrlParams: den som har ett eget val ska alltid vinna över startläget.
+  // Efter caFlerVal (drivmedelsraden finns då och kan skrivas), men FÖRE caReadUrlParams: den som har ett eget val ska alltid vinna över startläget.
   caForvalStartlage();
   // Efter caFlerVal: raden ska ligga överst i formuläret, och caFlerVal flyttar fält mellan
   // rutnäten. Egen klass och inget .ca-grid, så den aldrig plockas in i "Fler val"-lådan.
-  caLoadPrefs();
   caReadUrlParams();
   // Efter att kategori och drivmedel återställts, aldrig före: fältet byggdes med förvalen och
   // hade annars visat bensinbilar som ankare för en sparad elbilssökning ända tills användaren

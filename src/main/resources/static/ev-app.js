@@ -3072,21 +3072,33 @@
          Egen klass i stallet for inline display, annars kan CSS-reglerna nedan
          (platsbrist i liggande lage, expanderat lage) aldrig ta over. */
       .ev-chat-quick.ev-chat-quick-off { display:none; }
-      /* Snabbknapparna bar samma band. De ar sma, sa varje knapp visar sin egen skiva av
-         bandet och de vandrar i takt — texten ar ljusblå och bandet morkt, sa kontrasten
-         haller hela varvet. backdrop-filter ar borttagen har: den kostar en om-filtrering
-         per bildruta nar bakgrunden rors, och knappen har nu en egen botten att sta pa. */
+      /* Snabbknapparna ser ut som bilradgivningens (.ca-chat-quick-btn i car-advice-chat.js):
+         varje knapp bar sin egen ton ur paletten via --ton, och ikonen star i en egen rund
+         bricka. Fyra likadana bla piller sa ingenting om vad de ledde till. */
       .ev-chat-quick-btn {
-        border:1px solid rgba(147,197,253,0.24);color:#bfdcff;
-        border-radius:20px;padding:5px 13px;font-size:12px;font-weight:600;
-        cursor:pointer;transition:color .15s,border-color .15s,box-shadow .15s;white-space:nowrap;
-        background:linear-gradient(110deg,
-          rgba(10,22,54,0.92) 0%,rgba(18,44,120,0.86) 24%,rgba(29,78,216,0.7) 46%,
-          rgba(13,110,132,0.66) 66%,rgba(6,95,70,0.7) 84%,rgba(18,44,120,0.86) 100%);
-        background-size:220% 100%;
-        animation:ev-chat-header-skift 16s ease-in-out infinite alternate;
+        --ton:167,139,250;
+        display:inline-flex;align-items:center;gap:6px;
+        background:linear-gradient(145deg,rgba(var(--ton),0.20),rgba(var(--ton),0.09));
+        border:1px solid rgba(var(--ton),0.42);color:#efe9ff;
+        border-radius:20px;padding:6px 13px 6px 7px;font-size:12px;font-weight:600;
+        cursor:pointer;white-space:nowrap;letter-spacing:.1px;
+        box-shadow:0 2px 10px -6px rgba(var(--ton),0.9);
+        transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background .15s ease;
       }
-      .ev-chat-quick-btn:hover { color:#fff;border-color:rgba(147,197,253,0.6);box-shadow:0 0 14px rgba(59,130,246,.35); }
+      .ev-chat-quick-btn .ev-chat-quick-ik {
+        display:inline-flex;align-items:center;justify-content:center;
+        width:20px;height:20px;border-radius:50%;flex-shrink:0;font-size:11px;
+        background:rgba(var(--ton),0.26);
+      }
+      .ev-chat-quick-btn:hover {
+        background:linear-gradient(145deg,rgba(var(--ton),0.34),rgba(var(--ton),0.16));
+        border-color:rgba(var(--ton),0.75);color:#fff;
+        transform:translateY(-1px);box-shadow:0 6px 16px -7px rgba(var(--ton),1);
+      }
+      .ev-chat-quick-btn:active { transform:translateY(0); }
+      .ev-chat-quick-btn:focus-visible { outline:2px solid rgba(var(--ton),0.9);outline-offset:2px; }
+      @media(prefers-reduced-motion:reduce){.ev-chat-quick-btn{transition:none;}
+        .ev-chat-quick-btn:hover{transform:none;}}
       /* Demoraden och brasklappen har ingen egen bakgrund i markupen och lyste igenom som
          morka band mellan de skiftande raderna — de far samma botten sa panelen hanger ihop. */
       .ev-chat-demobar,.ev-chat-disclaimer {
@@ -3162,7 +3174,7 @@
         .ev-chat-messages{padding:12px 10px;gap:9px;}
         .ev-chat-bubble{max-width:90%;padding:9px 12px;}
         .ev-chat-quick{padding:8px 10px 4px;gap:6px;}
-        .ev-chat-quick-btn{font-size:11px;padding:4px 11px;}
+        .ev-chat-quick-btn{font-size:11px;padding:4px 11px 4px 6px;}
         .ev-chat-input-row{padding:8px 10px 9px;}
       }
       /* Liggande mobil: nastan ingen hojd kvar — hall panelen riktigt lag */
@@ -3264,10 +3276,10 @@
         </div>
         <div class="ev-chat-messages" id="ev-chat-messages"></div>
         <div class="ev-chat-quick" id="ev-chat-quick">
-          <button class="ev-chat-quick-btn" data-q="Ge mig råd för att köpa elbil">🚗 Elbilsköp</button>
-          <button class="ev-chat-quick-btn" data-q="Vilken elbil laddar snabbast med DC?">⚡ Snabbaste DC</button>
-          <button class="ev-chat-quick-btn" data-q="Vilken elbil har längst räckvidd?">🛣️ Räckvidd</button>
-          <button class="ev-chat-quick-btn" data-q="Var laddar jag billigast?">💰 Billigast</button>
+          <button class="ev-chat-quick-btn" style="--ton:167,139,250" data-q="Ge mig råd för att köpa elbil"><span class="ev-chat-quick-ik">🚗</span><span>Elbilsköp</span></button>
+          <button class="ev-chat-quick-btn" style="--ton:56,189,248" data-q="Vilken elbil laddar snabbast med DC?"><span class="ev-chat-quick-ik">⚡</span><span>Snabbaste DC</span></button>
+          <button class="ev-chat-quick-btn" style="--ton:52,211,153" data-q="Vilken elbil har längst räckvidd?"><span class="ev-chat-quick-ik">🛣️</span><span>Räckvidd</span></button>
+          <button class="ev-chat-quick-btn" style="--ton:251,191,36" data-q="Var laddar jag billigast?"><span class="ev-chat-quick-ik">💰</span><span>Billigast</span></button>
         </div>
         <div class="ev-chat-demobar" id="ev-chat-demobar" style="display:none;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 8px;padding:7px 12px;font-size:.74rem;color:rgba(147,197,253,.78);border-top:1px solid rgba(148,163,184,.12);">
           <span id="ev-chat-demoinfo">Demoläge · <b><span id="ev-chat-demoleft">30</span> gratis frågor kvar</b></span>
