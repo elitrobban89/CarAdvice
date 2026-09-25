@@ -43,21 +43,16 @@ public class NattkedjanScheduler {
     private final CargoSpecSyncScheduler cargoSpecs;
     private final WebInsightSyncScheduler webInsights;
     private final MobilityStatsSyncScheduler mobility;
-    private final NattkedjanStatus status;
-    private final GitHubSignal signal;
 
     /** Utbytbar i prov — mobility-ledet hänger på datumet. */
     Clock klocka = Clock.systemUTC();
 
     public NattkedjanScheduler(EvSpecSyncScheduler evSpecs, CargoSpecSyncScheduler cargoSpecs,
-                               WebInsightSyncScheduler webInsights, MobilityStatsSyncScheduler mobility,
-                               NattkedjanStatus status, GitHubSignal signal) {
+                               WebInsightSyncScheduler webInsights, MobilityStatsSyncScheduler mobility) {
         this.evSpecs = evSpecs;
         this.cargoSpecs = cargoSpecs;
         this.webInsights = webInsights;
         this.mobility = mobility;
-        this.status = status;
-        this.signal = signal;
     }
 
     @Scheduled(cron = "0 0 23 * * *", zone = "UTC")
@@ -70,11 +65,7 @@ public class NattkedjanScheduler {
         // Månadsrapporten publiceras den 1:a–3:e; datumet räknas i svensk tid som förut
         if (LocalDate.ofInstant(klocka.instant(), STOCKHOLM).getDayOfMonth() == 4)
             led("mobility-stats", mobility::monthlySync);
-        Instant klar = klocka.instant();
-        log.info("Nattkedjan klar efter {} min", Duration.between(start, klar).toMinutes());
-        status.klar(klar);
-        // Sist: signalen startar granskningen, som ska se en färdig natt. Kastar aldrig.
-        status.signal(klocka.instant(), signal.skicka());
+        log.info("Nattkedjan klar efter {} min", Duration.between(start, klocka.instant()).toMinutes());
     }
 
     private void led(String namn, Runnable jobb) {
