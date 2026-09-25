@@ -2,7 +2,6 @@ package com.caradvice.scraper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** @author Robert Andersson Kopler */
@@ -18,8 +17,7 @@ public class EvSpecSyncScheduler {
         this.jobStatus = jobStatus;
     }
 
-    // Runs every day at 00:00 Stockholm time (handles DST automatically) — first in the night chain
-    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Stockholm")
+    // Första ledet i NattkedjanScheduler (23:00 UTC) — har inget eget klockslag längre
     public void dailySync() {
         log.info("Daily EV spec sync triggered");
         int updated = jobStatus.track(JobStatusService.JOB_EV_SPECS, scraper::syncFromEvDatabase);

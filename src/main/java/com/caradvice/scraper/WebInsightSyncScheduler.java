@@ -3,7 +3,6 @@ package com.caradvice.scraper;
 import com.caradvice.service.UpcomingAutoReleaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** @author Robert Andersson Kopler */
@@ -19,8 +18,7 @@ public class WebInsightSyncScheduler {
         this.autoRelease = autoRelease;
     }
 
-    // Körs varje dag 02:00 Stockholm — en timme efter CargoSpec-synken, och klar före molnrutinerna 02:30/03:30
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Stockholm")
+    // Tredje ledet i NattkedjanScheduler, direkt efter cargo-specs — har inget eget klockslag längre
     public void dailySync() {
         log.info("Daily web insight sync triggered");
         try {

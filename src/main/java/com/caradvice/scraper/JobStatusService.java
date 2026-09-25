@@ -31,10 +31,10 @@ public class JobStatusService {
 
     /** Visas i statussvaret så NEVER_RUN går att tolka utan att slå upp cron-uttrycken. */
     static final Map<String, String> SCHEDULES = Map.of(
-            JOB_EV_SPECS, "dagligen 00:00 Europe/Stockholm",
-            JOB_CARGO_SPECS, "dagligen 01:00 Europe/Stockholm",
-            JOB_WEB_INSIGHTS, "dagligen 02:00 Europe/Stockholm",
-            JOB_MOBILITY_STATS, "den 4:e varje månad 00:30 Europe/Stockholm");
+            JOB_EV_SPECS, "nattkedjan 23:00 UTC (01:00 sommartid, 00:00 vintertid), första ledet",
+            JOB_CARGO_SPECS, "nattkedjan, direkt efter ev-specs",
+            JOB_WEB_INSIGHTS, "nattkedjan, direkt efter cargo-specs",
+            JOB_MOBILITY_STATS, "nattkedjan den 4:e varje månad, sist");
 
     /** Jobben i körordning — statussvaret listar alla, även de som aldrig kört. */
     static final List<String> JOBS = List.of(JOB_EV_SPECS, JOB_CARGO_SPECS, JOB_WEB_INSIGHTS, JOB_MOBILITY_STATS);

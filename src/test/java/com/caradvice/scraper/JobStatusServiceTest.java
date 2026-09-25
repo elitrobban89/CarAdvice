@@ -91,7 +91,7 @@ class JobStatusServiceTest {
         Map<String, Object> status = service.lastRun(JobStatusService.JOB_MOBILITY_STATS);
 
         assertThat(status.get("status")).isEqualTo("NEVER_RUN");
-        assertThat((String) status.get("info")).contains("den 4:e varje månad 00:30");
+        assertThat((String) status.get("info")).contains("nattkedjan den 4:e varje månad");
     }
 
     @Test
