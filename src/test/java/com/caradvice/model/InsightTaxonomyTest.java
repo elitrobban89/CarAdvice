@@ -281,6 +281,18 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void fordOrionArUtgangenSomFordSierra() {
+        // Natten mot 2026-09-25: en CarUp-artikel om en övergiven bilhandlare gav fyra
+        // Ford-rader ur samma stycke. Ford Sierra (1993) fångades av UTGANGNA_MODELLER och
+        // ströks, men Ford Orion — som byggdes på samma Escort-plattform och försvann samma
+        // år, 1993, när namnet gick upp i Escort-serien — saknades i listan och stod kvar
+        // som familjebil. Ingen levande "Orion" säljs i dag, och 1993 ligger med samma
+        // marginal till 30-årsgränsen som Sierra redan har.
+        assertThat(InsightTaxonomy.UTGANGNA_MODELLER.get("ford sierra")).isEqualTo(1993);
+        assertThat(InsightTaxonomy.utgangenModell("Ford", "Orion")).contains("1993");
+    }
+
+    @Test
     void levandeModellerRorsInteAvModellregeln() {
         // Urvalsregelns första krav: ingen levande namne. Renault 4 och Mini är de farliga
         // fallen — originalen är stendöda men båda namnen säljs som nybil i dag, så de står
