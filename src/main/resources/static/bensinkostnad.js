@@ -2076,6 +2076,42 @@ function bcDemoTimes() {
 function bcDemoRemaining() {
   return Math.max(0, BC_DEMO_MAX - bcDemoTimes().length);
 }
+/**
+ * Kortsymbolen 💳 på Prenumerera-länkarna — samma symbol som den runda knappen på
+ * bilrådgivningen och elbilssidan (.ca-rundknapp / .ev-rundknapp), så prenumerationen ser
+ * likadan ut på alla tre sidorna. Texten står kvar; ikonen läggs i en egen rund bricka.
+ *
+ * CTA-knappen är statisk HTML i WordPress-blocket, så ikonen sätts in härifrån i stället för
+ * att vänta på att blocket klistras om (samma grepp som texten i demoraden).
+ */
+var BC_KORT_IKON = '<span class="bc-kort-ik" aria-hidden="true">💳</span>';
+
+function bcInjectKortStyles() {
+  if (document.getElementById('bc-kort-styles')) return;
+  var s = document.createElement('style');
+  s.id = 'bc-kort-styles';
+  s.textContent =
+    '.bc-kort-ik{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;' +
+      'width:24px;height:24px;border-radius:50%;font-size:.8rem;line-height:1;' +
+      'background:rgba(15,12,41,.55);border:1px solid rgba(167,139,250,.38);' +
+      'box-shadow:0 4px 12px -6px rgba(139,92,246,.85)}' +
+    '.bc-kort-ik img.emoji{width:1em!important;height:1em!important;margin:0!important}' +
+    '.bc-demo-banner a.bc-kortlank{display:inline-flex;align-items:center;gap:6px;vertical-align:middle;' +
+      'padding:2px 11px 2px 3px;border-radius:20px;text-decoration:none;' +
+      'background:rgba(139,92,246,.10);border:1px solid rgba(139,92,246,.35);color:#5b21b6;' +
+      'transition:transform .15s ease,box-shadow .15s ease}' +
+    '.bc-demo-banner a.bc-kortlank:hover{transform:translateY(-1px);box-shadow:0 6px 16px -8px rgba(139,92,246,.9)}' +
+    '@media(prefers-reduced-motion:reduce){.bc-demo-banner a.bc-kortlank{transition:none}' +
+      '.bc-demo-banner a.bc-kortlank:hover{transform:none}}';
+  (document.head || document.documentElement).appendChild(s);
+}
+
+function bcKortIkonPaCta() {
+  bcInjectKortStyles();
+  var cta = document.querySelector('.bc-login-cta-btn');
+  if (cta && !cta.querySelector('.bc-kort-ik')) cta.insertAdjacentHTML('afterbegin', BC_KORT_IKON);
+}
+
 function bcUpdateDemoUI() {
   var banner   = document.getElementById('bc-demoBanner');
   var loginCta = document.getElementById('bc-loginCta');
@@ -2108,7 +2144,7 @@ function bcUpdateDemoUI() {
   }
   if (text) {
     text.innerHTML = 'Demoläge — <strong>' + rem + ' av ' + BC_DEMO_MAX + '</strong> beräkningar kvar denna timme. '
-      + '<a href="#" id="bc-demoSubLink">Prenumerera</a> för obegränsad tillgång.';
+      + '<a href="#" id="bc-demoSubLink" class="bc-kortlank">' + BC_KORT_IKON + 'Prenumerera</a> för obegränsad tillgång.';
     // Lyssnare i stället för inline onclick: sidans CSP tillåter inte inline-kod, och
     // attributet hade dessutom krävt tre lager av citattecken i en JS-byggd sträng.
     var lank = document.getElementById('bc-demoSubLink');
@@ -2118,6 +2154,7 @@ function bcUpdateDemoUI() {
       else window.open('https://caradvice.onrender.com/subscribe.html', '_blank', 'width=480,height=650,resizable=yes');
     });
   }
+  bcKortIkonPaCta();
   var countEl = document.getElementById('bc-demoCount');
   if (countEl) countEl.textContent = rem;
   var ctaCountEl = document.getElementById('bc-loginCtaCount');
