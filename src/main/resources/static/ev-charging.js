@@ -55,7 +55,41 @@ function evInjectStyles() {
       'pointer-events:none;box-shadow:0 0 20px 5px rgba(248,113,113,.75),0 0 40px 10px rgba(239,68,68,.35);',
       'animation:ev-rund-puls 1.9s ease-in-out infinite}',
     '@keyframes ev-rund-puls{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}',
-    '@media(prefers-reduced-motion:reduce){.ev-rundknapp.ev-rund-slut::after{animation:none;opacity:.9}}'
+    '@media(prefers-reduced-motion:reduce){.ev-rundknapp.ev-rund-slut::after{animation:none;opacity:.9}}',
+    // ── Heron: samma grepp som bilrådgivningens #ca-hero (caPolishCss i car-advice-main.js) ──
+    // Appen är mörk men heron låg direkt på sidans vita botten: den ljusa underrubriken syntes
+    // knappt och ytan hade ingen färg alls. Nu en mörk panel med skiftande aurora och en
+    // vandrande färgkant — elbilens blå/cyan/gröna familj, med husets lila och rosa i ringen
+    // så de två apparna ser släkt ut.
+    '@property --ev-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false}',
+    '@keyframes ev-rim{to{--ev-rim-ang:360deg}}',
+    '@keyframes ev-aurora{from{opacity:.62;transform:scale(1)}to{opacity:1;transform:scale(1.06) translate(1.5%,-1.5%)}}',
+    '.ev-hero{isolation:isolate;overflow:hidden;border-radius:24px;padding:38px 20px 30px!important;margin:18px 0 20px;',
+      'background:linear-gradient(135deg,#0b1030 0%,#172a6b 48%,#0c2438 100%);',
+      'border:1px solid rgba(147,197,253,.26);',
+      'box-shadow:0 24px 60px rgba(2,6,23,.32),0 0 90px rgba(59,130,246,.2),inset 0 1px 0 rgba(255,255,255,.09)}',
+    '.ev-hero::before{top:0!important;left:0!important;width:100%!important;height:100%!important;',
+      'transform:none!important;z-index:0;',
+      'background:radial-gradient(ellipse at 72% 12%,rgba(59,130,246,.34) 0%,transparent 55%),',
+        'radial-gradient(ellipse at 18% 22%,rgba(34,211,238,.2) 0%,transparent 52%),',
+        'radial-gradient(ellipse at 12% 88%,rgba(52,211,153,.18) 0%,transparent 48%),',
+        'radial-gradient(ellipse at 88% 92%,rgba(167,139,250,.2) 0%,transparent 50%),',
+        'radial-gradient(ellipse at 52% 62%,rgba(244,114,182,.1) 0%,transparent 46%)!important;',
+      'animation:ev-aurora 12s ease-in-out infinite alternate}',
+    '.ev-hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;padding:2px;',
+      'background:conic-gradient(from var(--ev-rim-ang),#60a5fa,#22d3ee,#34d399,#a78bfa,#f472b6,#60a5fa);',
+      '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+      '-webkit-mask-composite:xor;mask-composite:exclude;',
+      'opacity:.85;filter:saturate(140%);animation:ev-rim 9s linear infinite}',
+    '.ev-hero>*{position:relative;z-index:1}',
+    '.ev-hero h1{filter:drop-shadow(0 0 24px rgba(96,165,250,.35))}',
+    '.ev-hero p{color:rgba(220,230,255,.74)!important}',
+    // Pausas när heron rullat ur bild — ringen och auroran ska inte kosta något medan man
+    // läser stationslistan längre ned (samma .ca-vilar-grepp som bilrådgivningen).
+    '.ev-hero.ev-vilar,.ev-hero.ev-vilar::before,.ev-hero.ev-vilar::after{animation-play-state:paused!important}',
+    '@media(max-width:520px){.ev-hero{padding:28px 14px 22px!important;border-radius:18px}}',
+    '@media(prefers-reduced-motion:reduce){.ev-hero::before,.ev-hero::after{animation:none!important}}'
   ].join('');
   document.head.appendChild(s);
 }
@@ -135,6 +169,17 @@ function evInjectBarIfNeeded() {
     underrubrik.parentNode.insertBefore(bar, underrubrik.nextSibling);
     bar.classList.add('ev-i-hero');
   }
+  evVilaUtomBild();
+}
+
+/** Pausar heroens animationer när den inte syns. Kopplas en gång. */
+function evVilaUtomBild() {
+  var hero = document.querySelector('.ev-hero');
+  if (!hero || hero.dataset.vilaKopplad || !('IntersectionObserver' in window)) return;
+  hero.dataset.vilaKopplad = '1';
+  new IntersectionObserver(function (poster) {
+    poster.forEach(function (p) { hero.classList.toggle('ev-vilar', !p.isIntersecting); });
+  }).observe(hero);
 }
 
 function evUpdateSubBar(isSubscriber, isLoggedIn) {
