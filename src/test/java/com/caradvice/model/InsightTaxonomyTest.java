@@ -293,6 +293,24 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void artiondetFallerAttiotalsbilarnaSomModellregelnMissar() {
+        // Natten mot 2026-09-25, samma artikel som Orion: Escort (1638) och Scorpio (1637) har
+        // för unga slutår för modellistan, men texten säger "på 1980-talet".
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Ford Scorpio var den första bilen i världen med ABS-bromsar som standard när den lanserades på 1980-talet."))
+                .contains("1980-talet");
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Ford Escort var en av Fords storsäljare på 1980-talet och finns fortfarande som fabriksny i den övergivna bilhandlaren."))
+                .contains("1980-talet");
+        // "sedan" är ingen tidsposition för bilen själv — modellen kan säljas ny i dag
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Golf har tillverkats sedan 1970-talet och är fortfarande en trygg begagnatbil.")).isNull();
+        // Hela årtiondet måste vara bortom gränsen: 1990-talet rymmer bilar under 30 år
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Modellen var populär på 1990-talet men har åldrats väl.")).isNull();
+    }
+
+    @Test
     void levandeModellerRorsInteAvModellregeln() {
         // Urvalsregelns första krav: ingen levande namne. Renault 4 och Mini är de farliga
         // fallen — originalen är stendöda men båda namnen säljs som nybil i dag, så de står

@@ -229,6 +229,20 @@ public final class InsightTaxonomy {
             + "\\s+(?:omkring\\s+|cirka\\s+|ca\\s+)?(\\d{4})|(\\d{4})\\s*års\\b");
 
     /**
+     * Årtiondet i en tidsposition — "lanserades på 1980-talet", "storsäljare på 1980-talet".
+     *
+     * <p>Natten mot 2026-09-25 gav en artikel om en övergiven bilhandlare fyra Ford-rader.
+     * Modellregeln fällde Sierra, men Escort och Scorpio har inget årtal i modellårsposition och
+     * för unga slutår för {@link #UTGANGNA_MODELLER} (2000 resp. 1998) — ändå säger texten rakt
+     * ut att den handlar om åttiotalsbilar. Prepositionen {@code på} är villkoret: "sedan
+     * 1970-talet" om en modell som säljs ny i dag ska inte fällas. Hela årtiondet måste ligga
+     * bortom gränsen, så 1990-talet biter först 2029. Mätt mot alla 1 182 rader i drift
+     * 2026-09-25: tre träffar (1637–1639), alla tre veteraner, noll falska.
+     */
+    private static final java.util.regex.Pattern ARTIONDE = java.util.regex.Pattern.compile(
+            "\\bpå\\s+(19\\d0)-talet");
+
+    /**
      * Modeller som bevisligen slutade tillverkas, och året de gjorde det.
      *
      * <p><b>Varför den behövs vid sidan av årsregeln.</b> {@link #MODELLAR} kräver ett årtal i
@@ -352,6 +366,12 @@ public final class InsightTaxonomy {
             int arsmodell = Integer.parseInt(funnet);
             if (arsmodell >= 1900 && arsmodell <= gransar)
                 return "årsmodell " + arsmodell + " är " + VETERANALDER_AR + " år eller äldre";
+        }
+        java.util.regex.Matcher artionde = ARTIONDE.matcher(text);
+        while (artionde.find()) {
+            int start = Integer.parseInt(artionde.group(1));
+            if (start + 9 <= gransar)
+                return start + "-talet är " + VETERANALDER_AR + " år eller äldre";
         }
         return null;
     }
