@@ -2106,6 +2106,57 @@ function bcInjectKortStyles() {
   (document.head || document.documentElement).appendChild(s);
 }
 
+/**
+ * Toppytan får samma skiftande aurora och vandrande färgkant som bilrådgivningens #ca-hero
+ * och elbilsappens .ev-hero — de tre sidorna ska se släkt ut. Bränslets egen familj
+ * (bärnsten/orange) bär auroran; husets lila, rosa och cyan går med i ringen.
+ *
+ * Blocket använde ::before/::after till två svävande bubblor. Auroran tar ::before i hela
+ * ytans storlek och ringen tar ::after. Injiceras härifrån: WP-blocket är en manuell kopia.
+ * Pausas när toppytan rullat ur bild, så den inte kostar något medan man läser resultatet.
+ */
+function bcHeroFarger() {
+  var hero = document.querySelector('.bc-header');
+  if (!hero) return;
+  if (!document.getElementById('bc-hero-farger')) {
+    var s = document.createElement('style');
+    s.id = 'bc-hero-farger';
+    s.textContent =
+      '@property --bc-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false}' +
+      '@keyframes bc-rim{to{--bc-rim-ang:360deg}}' +
+      '@keyframes bc-aurora{from{opacity:.62;transform:scale(1)}to{opacity:1;transform:scale(1.06) translate(1.5%,-1.5%)}}' +
+      '.bc-header{isolation:isolate;border:1px solid rgba(251,191,36,.22);' +
+        'box-shadow:0 8px 40px rgba(29,70,120,.30),0 0 80px rgba(249,115,22,.14),inset 0 1px 0 rgba(255,255,255,.09)}' +
+      '.bc-header::before{top:0!important;left:0!important;right:auto!important;bottom:auto!important;' +
+        'width:100%!important;height:100%!important;border-radius:0!important;z-index:0;' +
+        'background:radial-gradient(ellipse at 72% 12%,rgba(251,191,36,.26) 0%,transparent 55%),' +
+          'radial-gradient(ellipse at 18% 22%,rgba(56,189,248,.18) 0%,transparent 52%),' +
+          'radial-gradient(ellipse at 12% 88%,rgba(249,115,22,.2) 0%,transparent 48%),' +
+          'radial-gradient(ellipse at 88% 92%,rgba(244,114,182,.18) 0%,transparent 50%),' +
+          'radial-gradient(ellipse at 52% 62%,rgba(167,139,250,.14) 0%,transparent 46%)!important;' +
+        'animation:bc-aurora 12s ease-in-out infinite alternate!important}' +
+      '.bc-header::after{top:0!important;left:0!important;right:0!important;bottom:0!important;' +
+        'width:auto!important;height:auto!important;border-radius:inherit!important;padding:2px;z-index:0;' +
+        'background:conic-gradient(from var(--bc-rim-ang),#fbbf24,#f97316,#f472b6,#a78bfa,#38bdf8,#fbbf24)!important;' +
+        '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+        'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+        '-webkit-mask-composite:xor;mask-composite:exclude;' +
+        'opacity:.85;filter:saturate(140%);transform:none!important;animation:bc-rim 9s linear infinite!important}' +
+      '.bc-header>*{position:relative;z-index:1}' +
+      '.bc-header.bc-vilar,.bc-header.bc-vilar::before,.bc-header.bc-vilar::after{animation-play-state:paused!important}' +
+      '@media(prefers-reduced-motion:reduce){.bc-header::before,.bc-header::after{animation:none!important}}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  if (!hero.dataset.vilaKopplad && 'IntersectionObserver' in window) {
+    hero.dataset.vilaKopplad = '1';
+    new IntersectionObserver(function (poster) {
+      poster.forEach(function (p) { hero.classList.toggle('bc-vilar', !p.isIntersecting); });
+    }).observe(hero);
+  }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bcHeroFarger);
+else bcHeroFarger();
+
 function bcKortIkonPaCta() {
   bcInjectKortStyles();
   var cta = document.querySelector('.bc-login-cta-btn');
