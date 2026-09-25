@@ -35,9 +35,10 @@ function evInjectStyles() {
   // bärnsten = kvoten tar slut, röd puls = slut.
   s.textContent = [
     '#ev-sub-bar{display:flex;justify-content:center;margin:0 0 24px}',
+    '#ev-sub-bar.ev-i-hero{margin:16px 0 0}',
     '.ev-rundknapp{position:relative;width:44px;height:44px;border-radius:50%;display:inline-flex;',
       'align-items:center;justify-content:center;font-size:1.15rem;line-height:1;padding:0;',
-      'cursor:pointer;background:rgba(15,12,41,.55);border:1px solid rgba(167,139,250,.38);',
+      'cursor:pointer;background:rgba(30,27,75,.88);border:1px solid rgba(167,139,250,.5);',
       'box-shadow:0 6px 20px -10px rgba(139,92,246,.85);',
       'transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}',
     '.ev-rundknapp:hover{transform:translateY(-2px) scale(1.07);',
@@ -118,12 +119,22 @@ window.evRefreshQuotaBar = evRefreshQuotaBar;
 // ── Status bar ───────────────────────────────────────────────────────────────
 
 function evInjectBarIfNeeded() {
-  if (document.getElementById('ev-sub-bar')) return;
-  var content = evGetContentEl();
-  if (!content) return;
-  var bar = document.createElement('div');
-  bar.id = 'ev-sub-bar';
-  content.parentNode.insertBefore(bar, content);
+  var bar = document.getElementById('ev-sub-bar');
+  if (!bar) {
+    var content = evGetContentEl();
+    if (!content) return;
+    bar = document.createElement('div');
+    bar.id = 'ev-sub-bar';
+    content.parentNode.insertBefore(bar, content);
+  }
+  // Knappen hör hemma UNDER appens underrubrik, som på bilrådgivningen (under heron text) —
+  // WP-blockets egen plats ovanför appen lämnade den svävande mellan sidans text och ⚡-ikonen.
+  // Flyttas härifrån så blocket inte behöver klistras om.
+  var underrubrik = document.querySelector('.ev-hero > p');
+  if (underrubrik && bar.previousElementSibling !== underrubrik) {
+    underrubrik.parentNode.insertBefore(bar, underrubrik.nextSibling);
+    bar.classList.add('ev-i-hero');
+  }
 }
 
 function evUpdateSubBar(isSubscriber, isLoggedIn) {
