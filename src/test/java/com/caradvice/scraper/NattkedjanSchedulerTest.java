@@ -17,6 +17,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Nattens jobb körs som EN kedja från 23:00 UTC i stället för på fyra klockslag (2026-09-25).
@@ -33,7 +34,9 @@ class NattkedjanSchedulerTest {
     private final CargoSpecSyncScheduler cargo = mock(CargoSpecSyncScheduler.class);
     private final WebInsightSyncScheduler web = mock(WebInsightSyncScheduler.class);
     private final MobilityStatsSyncScheduler mobility = mock(MobilityStatsSyncScheduler.class);
-    private final NattkedjanScheduler kedjan = new NattkedjanScheduler(ev, cargo, web, mobility);
+    private final NattkedjanStatus status = new NattkedjanStatus();
+    private final GitHubSignal signal = mock(GitHubSignal.class);
+    private final NattkedjanScheduler kedjan = new NattkedjanScheduler(ev, cargo, web, mobility, status, signal);
 
     private void klockan(String utc) {
         kedjan.klocka = Clock.fixed(Instant.parse(utc), ZoneOffset.UTC);
@@ -47,6 +50,18 @@ class NattkedjanSchedulerTest {
         ordning.verify(ev).dailySync();
         ordning.verify(cargo).dailySync();
         ordning.verify(web).dailySync();
+    }
+
+    @Test
+    void signalenGarSistOchUtfalletSparas() {
+        klockan("2026-09-25T23:00:00Z");
+        when(signal.skicka()).thenReturn("skickad");
+        kedjan.kor();
+        InOrder ordning = inOrder(web, signal);
+        ordning.verify(web).dailySync();
+        ordning.verify(signal).skicka();
+        assertThat(status.somKarta()).containsEntry("signalUtfall", "skickad")
+                .containsEntry("kedjanKlar", "2026-09-25T23:00:00Z");
     }
 
     @Test
