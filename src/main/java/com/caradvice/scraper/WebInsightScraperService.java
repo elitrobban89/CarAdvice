@@ -659,10 +659,14 @@ public class WebInsightScraperService {
                     "https://msverige.se/allt-om-bilen/motor-testar/bilar/",
                     "https://msverige.se", "href=\"(/allt-om-bilen/motor-testar/bilar/[a-z0-9\\-]+/?)\"",
                     "biltest från Riksförbundet M Sverige", List.of()),
-            new Source("Bytbil", Mode.ARTICLES, Discover.LISTING,
-                    "https://nybil.bytbil.com/posts",
-                    "https://nybil.bytbil.com", "href=\"(/posts/[a-z0-9\\-]+)\"",
-                    "biltest/nybilsartikel från Bytbil", List.of()),
+            // Bytbil är BORTTAGEN 2026-09-26: hela nybil.bytbil.com (även gamla artikeladresser)
+            // 301:ar till Blockets nybilssida, som inte har några artiklar — "INGA LANKAR" två
+            // nätter i rad. Redaktionen finns kvar på www.bytbil.com/nyheter, men senaste
+            // artikeln där är publicerad 2025-02-05 (dataLayer publishDate) i alla kategorier,
+            // så arkivet är vilande och gav bara "0 av 0" även före flytten. Omriktning dit hade
+            // mest läst om samma tester under nya URL:er. Redan sparade Bytbil-insikter rörs INTE.
+            // Börjar de publicera igen: LISTING mot /nyheter/kategori/prov-konsument med
+            // mönstret href="(/nyheter/[a-z0-9\-]+-[0-9]+)" (provat 09-26, 24 länkar).
             new Source("M3", Mode.ARTICLES, Discover.RSS,
                     "https://www.m3.se/feed/", null, null,
                     // M3 är en teknikssajt — icke-bilartiklar ger tom insiktslista och filtreras bort

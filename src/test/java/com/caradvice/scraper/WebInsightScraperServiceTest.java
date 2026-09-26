@@ -1301,6 +1301,13 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void bytbilArBorttagenSomKalla() {
+        // nybil.bytbil.com 301:ar till Blockets nybilssida sedan 2026-09, och redaktionen på
+        // www.bytbil.com/nyheter har inte publicerat sedan 2025-02-05
+        assertThat(WebInsightScraperService.sourceByName("Bytbil")).isNull();
+    }
+
+    @Test
     void carInfoArBorttagenSomKalla() {
         // JS-renderat filterskal utan omdömestext — sparade aldrig en insikt
         assertThat(WebInsightScraperService.sourceByName("Bilägare (car.info)")).isNull();
