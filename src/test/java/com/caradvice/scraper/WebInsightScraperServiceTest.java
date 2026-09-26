@@ -984,8 +984,9 @@ class WebInsightScraperServiceTest {
     void saljbarhetsvaktenGallerBaraStriktaKallor() throws Exception {
         // CarUp läckte USA-modeller (Cadillac SRX) och EPA-siffror tre auditer i rad —
         // övriga källor ska inte betala för ett extra Groq-anrop på sina säljbara rader.
-        // (Deras KOMMANDE-rader granskas däremot, se nästa test.)
-        assertThat(WebInsightScraperService.STRICT_SOURCES).containsExactly("CarUp");
+        // (Deras KOMMANDE-rader granskas däremot, se nästa test.) Allt om Elbil har samma
+        // nyhetsprofil och lades till med vakten från start 2026-09-26.
+        assertThat(WebInsightScraperService.STRICT_SOURCES).containsExactlyInAnyOrder("CarUp", "Allt om Elbil");
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         List<JsonNode> insikter = List.of(mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}"));
         assertThat(service().filterStrict("Teknikens Värld", insikter)).isSameAs(insikter);
@@ -1305,6 +1306,18 @@ class WebInsightScraperServiceTest {
         // nybil.bytbil.com 301:ar till Blockets nybilssida sedan 2026-09, och redaktionen på
         // www.bytbil.com/nyheter har inte publicerat sedan 2025-02-05
         assertThat(WebInsightScraperService.sourceByName("Bytbil")).isNull();
+    }
+
+    @Test
+    void alltOmElbilUteslaterAnnonserOchDelasInteVidKommatecken() {
+        // Flödet bär sponsrade inlägg (kategori Annons 842, AD 2408, Gästartikel 829) — de
+        // utesluts i endpointen. discoverWpJson delar url:en på "," för flera endpoints,
+        // så ett okodat kommatecken i categories_exclude hade gett tre trasiga anrop.
+        var kalla = WebInsightScraperService.sourceByName("Allt om Elbil");
+        assertThat(kalla).isNotNull();
+        assertThat(kalla.discover()).isEqualTo(WebInsightScraperService.Discover.WPJSON);
+        assertThat(kalla.url()).doesNotContain(",")
+                .contains("categories_exclude=842%2C2408%2C829");
     }
 
     @Test

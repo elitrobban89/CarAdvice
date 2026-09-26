@@ -218,7 +218,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 - **Diakriter fälls bort i namnjämförelsen** (2026-08-27, `foldDiacritics`). Märkeskontrollen är `titel.contains(carMake)`, och våra egna bilnamn stavar samma märke på två sätt: `Citroen C5 Aircross` bredvid `Citroën C5 Aircross Long Range`, och **23 av 31 Skoda-namn med `Š`** medan insiktsraderna skriver `Skoda`. Sju rader var därmed osynliga på våra egna kort, och `Mégane E-Tech` nådde inget kort alls. NFD + `\p{Mn}` löser det åt båda hållen — men **bara på namnjämförelsen** (märke, modell, grupperingsnyckeln), aldrig i `flattenSpaces`: drivlinevaktens `ICE_MARKER` bär `tändstift` och `förgasare`, och en generell avkodning hade gjort dem omöjliga att träffa, varpå en bensintext kunnat slinka in på ett rent elbilskort. Gränsen är spikad med ett eget test
 - **Två sätt att tappa rader på ett kort, båda uppmätta** (2026-08-27). När flera modellnamn matchar samma titel vinner det som börjar tidigast och, vid lika position, det **längsta** — så en rad som heter `GLC 400 4MATIC` slår ut alla `GLC`-rader på just det kortet. Och `MAX_CARD_INSIGHTS = 3` med urvalsordningen "modellträffar före märkesträffar" gör att tre modellrader **deterministiskt** tränger ut de märkesbreda (`BMW X5`-kortet tappade N47-dieselvarningen den vägen). Bägge är avsedda, men de gör att en kortning kan ge färre rader på ett kort trots att fler rader matchar
 
-### Insiktsscraper (7 källor, nattlig)
+### Insiktsscraper (8 källor, nattlig)
 - **`WebInsightScraperService`** körs som **tredje ledet i nattkedjan** (`NattkedjanScheduler`, 23:00 UTC = 01:00 sommartid / 00:00 vintertid) på Render — direkt efter EV-synken och CargoSpec-synken
 - Källor och upptäcktsmetod:
   - **Teknikens Värld** — WordPress-sitemap (deras `/feed/` svarar 406)
@@ -227,6 +227,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
   - **M3** — RSS (icke-bilartiklar ger tom insiktslista och filtreras bort automatiskt)
   - **Auto Motor & Sport** — WordPress REST API (`wp-json`); F1/racing-artiklar filtreras bort som M3:s
   - **CarUp** — WordPress REST API (`wp-json`)
+  - **Allt om Elbil** — WordPress REST API (`wp-json`), tillagd 2026-09-26; sponsrade kategorier (Annons, AD, Gästartikel) utesluts i endpointen och källan har CarUps extra säljbarhetsvakt
   - **Folksam** — krocksäkerhetsstudien "Hur säker är bilen" (dedup per bilmodell)
 - **Elbilen är borttagen som källa 2026-08-23**: elbilen.se svarar 200 på ~0,2 s från en vanlig uppkoppling men tar inte emot anslutningar från Renders utgångs-IP — `Connect timed out` varje natt 08-15 → 08-23, noll sparade insikter efter 08-14. Ingen Cloudflare-vägg och inget 403: paketen släpps tyst och avbrottet sker *före* HTTP, så varken en annan User-Agent eller en andra värd hjälper (`elbilen.se` och `www.elbilen.se` pekar båda på 13.49.199.225, ingen AAAA-post). Spärren sitter på IP-nivå hos deras värd och går inte att koda sig runt utan att byta utgående IP. Källan kostade 2 × 20 s spilld väntetid per natt och en röd rad i statusraden som dolde att allt annat var grönt. **Redan sparade Elbilen-insikter ligger kvar** i `expert_insight` och används av prompten som förut — bara hämtningen är avstängd
 - **Bytbil är borttagen som källa 2026-09-26**: hela `nybil.bytbil.com` (även gamla artikeladresser) 301:ar till Blockets nybilssida, som saknar artiklar — `INGA LANKAR` två nätter i rad. Redaktionen finns kvar på `www.bytbil.com/nyheter`, men senaste artikeln i samtliga kategorier är publicerad 2025-02-05, så arkivet är vilande och en omriktning hade mest läst om samma tester under nya URL:er. **Redan sparade Bytbil-insikter ligger kvar** i `expert_insight`
@@ -498,7 +499,7 @@ CarAdvice/
     │   │   ├── CargoSpecSyncScheduler.java    ← led 2 i nattkedjan Stockholm-tid
     │   │   ├── EvDatabaseScraperService.java  ← Jsoup-skrapare mot ev-database.org
     │   │   ├── EvSpecSyncScheduler.java       ← led 1 i nattkedjan Stockholm-tid
-    │   │   ├── WebInsightScraperService.java  ← Insikter från 7 motorsajter via Groq-extraktion
+    │   │   ├── WebInsightScraperService.java  ← Insikter från 8 källor via Groq-extraktion
     │   │   └── WebInsightSyncScheduler.java   ← led 3 i nattkedjan Stockholm-tid
     │   └── service/
     │       ├── CargoSpecService.java   ← Fuzzy-matchning på bilnamn → bagagevolym
