@@ -86,6 +86,7 @@ public class CarController {
     private final com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
     private final com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     private final com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
+    private final com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -179,7 +180,9 @@ public class CarController {
                          com.caradvice.service.UpcomingAdCheckService upcomingAdCheckService,
                          com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService,
                          com.caradvice.service.KategoriVaktStats kategoriVaktStats,
-                         com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill) {
+                         com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill,
+                         com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder) {
+        this.morgonfixAtgarder = morgonfixAtgarder;
         this.kategoriVaktStats = kategoriVaktStats;
         this.autoDataCargoFill = autoDataCargoFill;
         this.upcomingAutoReleaseService = upcomingAutoReleaseService;
@@ -317,6 +320,15 @@ public class CarController {
         return upcomingInsightService.release(id)
                 ? ResponseEntity.ok(Map.of("released", id))
                 : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte markerad som kommande"));
+    }
+
+    // Admin: vad appen gjorde av nattrutinens atgarder.json — rutinen läser det nästa natt,
+    // eftersom en rad i filen inte bevisar att den blev utförd (taket, id som saknas, DB-fel)
+    @GetMapping("/admin/morgonfix-atgarder")
+    public ResponseEntity<?> morgonfixAtgarder(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = morgonfixAtgarder.utforda();
+        return ResponseEntity.ok(Map.of("count", rader.size(), "utforda", rader));
     }
 
     /**

@@ -85,6 +85,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService;
     @MockBean private com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     @MockBean private com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
+    @MockBean private com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
 
     // --- health ---
 

@@ -1,0 +1,9 @@
+{
+  "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera. Högst 12 nya per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
+  "atgarder": [
+    {"datum": "2026-09-27", "typ": "slapp", "id": 1657, "skal": "Toyota Land Cruiser 250 Hybrid säljs i Sverige sedan 2025 (Toyotas pressrelease); raden bär ett eget uppmätt test - TESTBEVISREGELN"},
+    {"datum": "2026-09-27", "typ": "slapp", "id": 1658, "skal": "Toyota Land Cruiser 250 Hybrid säljs i Sverige sedan 2025 (Toyotas pressrelease); samma test som 1657"},
+    {"datum": "2026-09-27", "typ": "slapp", "id": 1659, "skal": "Toyota Land Cruiser 250 Hybrid säljs i Sverige sedan 2025 (Toyotas pressrelease); samma test som 1657"},
+    {"datum": "2026-09-27", "typ": "slapp", "id": 1664, "skal": "Mercedes CLA 45 4MATIC+ med utskrivet svenskt pris 799 000 kr - ARSMODELLSREGELN"}
+  ]
+}

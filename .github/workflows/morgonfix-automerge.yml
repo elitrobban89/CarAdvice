@@ -1,0 +1,62 @@
+name: Morgonfix auto-merge
+
+# Nattrutinen committar sina fixar till auto/morgonfix och öppnar en PR. Förut stod PR:en och
+# väntade på en människa - i drift nådde ingenting fram förrän någon klickade merge. Nu mergas
+# den här när "Build & Test" gått grönt på exakt den commit som ligger överst i PR:en.
+#
+# Workflow_run körs alltid från master-versionen av den här filen, så en ändring på grenen kan
+# inte ändra reglerna för sin egen merge. Vakten nedan stoppar ändå en PR som rör workflows,
+# Claude-inställningar eller byggfilerna - de ska granskas av en människa.
+
+on:
+  workflow_run:
+    workflows: ["Build & Test"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_branch == 'auto/morgonfix' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Hitta PR:en
+        id: pr
+        run: |
+          nr=$(gh pr list -R "$REPO" --head auto/morgonfix --base master --state open --json number -q '.[0].number')
+          if [ -z "$nr" ]; then echo "Ingen öppen morgonfix-PR"; exit 0; fi
+          echo "nr=$nr" >> "$GITHUB_OUTPUT"
+
+      - name: Vakt - filer som kräver en människa
+        if: steps.pr.outputs.nr != ''
+        run: |
+          filer=$(gh pr view "${{ steps.pr.outputs.nr }}" -R "$REPO" --json files -q '.files[].path')
+          echo "$filer"
+          antal=$(echo "$filer" | grep -c . || true)
+          forbjudna=$(echo "$filer" | grep -E '^(\.github/|\.claude/|\.mvn/|mvnw|pom\.xml$|Dockerfile$|render\.yaml$)' || true)
+          if [ -n "$forbjudna" ]; then
+            echo "::warning::Morgonfix-PR:en rör filer som kräver granskning - ingen auto-merge:"
+            echo "$forbjudna"
+            exit 1
+          fi
+          # Rutinens tak är 5 filer per natt plus loggboken och atgarder.json
+          if [ "$antal" -gt 12 ]; then
+            echo "::warning::$antal filer i PR:en - över taket, ingen auto-merge"
+            exit 1
+          fi
+
+      - name: Merga
+        if: steps.pr.outputs.nr != ''
+        run: |
+          # --match-head-commit: har grenen fått en ny commit sedan bygget startade mergas ingenting
+          gh pr merge "${{ steps.pr.outputs.nr }}" -R "$REPO" --merge --delete-branch --match-head-commit "$SHA"
