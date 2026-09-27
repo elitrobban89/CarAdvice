@@ -1974,12 +1974,19 @@
     let calcHtml = '';
     if (state.carIndex !== null && state.cars.length > 0) {
       const car = state.cars[state.carIndex];
-      const dcStation = top.find(s => s.connectorType.includes('DC') && s.maxEffKw > 0);
+      // Närmaste DC-station: bland de visade i första hand, annars ur hela sökområdet
+      // (data.nearestDc, 2026-09-27). Förut bara bland de fem visade - i centrala Jönköping
+      // var alla fem AC-laddare, så kalkylatorn skrev "Ingen DC-station hittad" och räknade
+      // med bilens egen toppeffekt fast en snabbladdare fanns 1,6 km bort.
+      const dcIListan = top.find(s => s.connectorType.includes('DC') && s.maxEffKw > 0);
+      const dcStation = dcIListan || (data.nearestDc && data.nearestDc.maxEffKw > 0 ? data.nearestDc : null);
       if (car && car.batteryKwh > 0) {
         const effKw = dcStation ? Math.min(car.maxDcKw || 50, dcStation.maxEffKw) : (car.maxDcKw || 50);
+        const dcNamn = dcStation ? (dcStation.name.length > 32 ? dcStation.name.slice(0, 30) + '…' : dcStation.name) : '';
         const stLabel = dcStation
-          ? (dcStation.name.length > 32 ? dcStation.name.slice(0, 30) + '…' : dcStation.name) + ' · ' + Math.round(dcStation.maxEffKw) + ' kW'
-          : 'Ingen DC-station hittad';
+          ? dcNamn + ' · ' + Math.round(dcStation.maxEffKw) + ' kW' +
+            (dcIListan ? '' : ' · ' + dcStation.distanceKm.toFixed(1).replace('.', ',') + ' km bort')
+          : 'Ingen snabbladdare inom 15 km · räknar med bilens toppeffekt';
         // Kortet bär INTE längre .ev-funfact-card och ingen egen stor ikon. Inuti
         // verktygsavdelningen hade det två ramar utanpå varandra och två ikoner som
         // konkurrerade om samma blick — 🧰 för avdelningen och ⏱ för kortet, tio pixlar isär.
