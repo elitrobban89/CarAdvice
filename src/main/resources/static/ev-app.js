@@ -1286,6 +1286,14 @@
     .catch(() => {})
     .finally(() => renderTipsOnly());
 
+  // Carlas Elbilsindex ur pressrummet (2026-09-27). Förut klistrades siffrorna in för hand
+  // en gång i månaden, eftersom carla.se står bakom en bot-vägg; pressflödet är öppet.
+  fetch(API + "/api/carla-index")
+    .then(r => (r.status === 200 ? r.json() : null))
+    .then(d => { if (d && d.manad) state.carla = d; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
   fetch(API + "/api/ev-sales-rank")
     .then(r => r.json())
     .then(rows => { if (Array.isArray(rows)) state.evSalesRank = rows; })
@@ -2253,8 +2261,6 @@
         { icon: '📈', text: 'Elbilarna går framåt: <strong>45%</strong> av Sveriges nyregistreringar 2026 väntas bli elbilar enligt Mobility Swedens prognos (justerad juli 2026) – upp från 36,5% helåret 2025.' },
         { icon: '🚗', text: 'Mercedes eldrivna CLA utsågs till <strong>Årets Bil 2026</strong> (europeiska Car of the Year) – före Škoda Elroq och Kia EV4. 2025 vann Renault 5 E-Tech.' },
         { icon: '📊', text: 'Volvo dominerar den svenska nybilsmarknaden med <strong>16,5%</strong> marknadsandel i juni 2026, före Volkswagen (13,2%) och Kia (7,4%). Tesla ligger åtta med 4,4% (Mobility Sweden).' },
-        { icon: '🥇', text: 'I maj 2026 var Volkswagen ID.4 Sveriges mest sålda renodlade elbil med <strong>687</strong> nyregistreringar – tätt följt av Tesla Model Y (683) och Polestar 2 (526) (Carla.se elbilsindex).' },
-        { icon: '🔌', text: 'Kia EV6 (339), Volkswagen ID.3 (285) och Škoda Enyaq (276) rundade av majitoppen bland Sveriges mest sålda elbilar 2026 – före Nissan Leaf (260) och Volvo EX40 (205) (Carla.se elbilsindex).' },
         { icon: '🚀', text: 'Elbilar gick om laddhybrider i försäljning kring årsskiftet 2025/2026 och har inte tittat tillbaka – i april 2026 passerade elbilsförsäljningen till och med diesel och närmade sig bensin, fortfarande den största kategorin (Carla.se).' },
         // Nedan: hämtade ur CarAdvice-insikterna (samma skrapade motorpress som bilkortens
         // "Vad experterna säger"). Bara laddningsrelevanta rader om bilar som går att köpa —
@@ -2336,9 +2342,14 @@
        */
       const dynamicVardeFacts = [];
       if (state.valueRetention && state.valueRetention.length > 0) {
-        const v = state.valueRetention[0];
+        // Roterar en modell per vecka (2026-09-27): förut stod samma bil överst varje vecka,
+        // och raden såg likadan ut i månader fast listan har tio modeller.
+        const vecka = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
+        const v = state.valueRetention[vecka % state.valueRetention.length];
+        // Åldern räknas ur årsmodellen - "fem år" hårdkodat hade blivit fel från 2027.
+        const ar = new Date().getFullYear() - (v.modelYear || 2021);
         dynamicVardeFacts.push({ icon: '📉', text:
-          `Fyndläge på begagnad el: <strong>${v.model}</strong> har tappat <strong>${100 - v.retentionPct} %</strong> av nypriset på fem år. Ny kostade den ${v.newPriceKr.toLocaleString('sv-SE')} kr — idag ligger medianen på <strong>${v.medianPriceKr.toLocaleString('sv-SE')} kr</strong>${v.cheapestPriceKr ? `, billigaste exemplaret på ${v.cheapestPriceKr.toLocaleString('sv-SE')} kr` : ''}. Räknat på ${v.adCount} annonser av årsmodell 2021 under 15 000 mil (${state.valueRetentionKalla}; medianpriset är vår egen mätning på Blocket).` });
+          `Fyndläge på begagnad el: <strong>${v.model}</strong> har tappat <strong>${100 - v.retentionPct} %</strong> av nypriset på ${ar} år. Ny kostade den ${v.newPriceKr.toLocaleString('sv-SE')} kr — idag ligger medianen på <strong>${v.medianPriceKr.toLocaleString('sv-SE')} kr</strong>${v.cheapestPriceKr ? `, billigaste exemplaret på ${v.cheapestPriceKr.toLocaleString('sv-SE')} kr` : ''}. Räknat på ${v.adCount} annonser av årsmodell 2021 under 15 000 mil (${state.valueRetentionKalla}; medianpriset är vår egen mätning på Blocket).` });
       }
 
       /*
@@ -2401,6 +2412,18 @@
         text: esc(t.text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>') + ' (' + esc(t.kalla) + ')'
       }));
 
+      /*
+       * Begagnatmarknaden ur Carlas Elbilsindex. Rubriken är Carlas egen och escapas - den kommer
+       * ur ett externt flöde. Antal och medianpris skrivs bara ut när de gick att läsa.
+       */
+      const dynamicCarlaFacts = [];
+      if (state.carla && state.carla.manad && state.carla.rubrik) {
+        const c = state.carla;
+        const antal = c.antal ? `<strong>${c.antal.toLocaleString('sv-SE')}</strong> begagnade elbilar såldes i ${esc(c.manad)}` : `Begagnade elbilar i ${esc(c.manad)}`;
+        const median = c.medianprisKr ? `, medianpriset låg på <strong>${c.medianprisKr.toLocaleString('sv-SE')} kr</strong>` : '';
+        dynamicCarlaFacts.push({ icon: '🚙', text: `${antal}${median} — ${esc(c.rubrik)} (Carlas Elbilsindex).` });
+      }
+
       const dynamicRankFacts = [];
       if (state.evSalesRank && state.evSalesRank.length > 0) {
         const top = state.evSalesRank[0];
@@ -2419,6 +2442,7 @@
         ...dynamicVardeFacts,
         ...dynamicPrisFacts,
         ...dynamicRankFacts,
+        ...dynamicCarlaFacts,
         ...dynamicZonFacts,
         ...dynamicEffektFacts,
         // Nattrutinens tips före de handskrivna: de är nyare, och de gamla ligger kvar under.
