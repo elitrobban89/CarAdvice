@@ -233,7 +233,10 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
         'radial-gradient(ellipse at 88% 92%,rgba(217,70,239,.14) 0%,transparent 50%);',
       'animation:ca-hue 20s ease-in-out infinite,ca-aurora 12s ease-in-out infinite alternate;}',
     // Fält: mer glas + lila fokus-glöd
-    '.ca-field select,.ca-field input[type="number"]{backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border-color:rgba(167,139,250,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}',
+    // Ingen backdrop-filter på fälten längre (2026-09-27): de ligger ovanpå kortet, som redan
+    // har egen glasoskärpa, så deras oskärpa syntes inte - men nio fält räknade om den varje
+    // bildruta under scroll. Uppmätt med 4x strypt CPU: 45 -> 61 fps utan backdrop på sidan.
+    '.ca-field select,.ca-field input[type="number"]{border-color:rgba(167,139,250,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}',
     '.ca-field input[type="number"]:focus,.ca-field select:focus{border-color:rgba(167,139,250,.7);box-shadow:0 0 0 3px rgba(139,92,246,.28),0 0 34px rgba(167,139,250,.4),inset 0 1px 0 rgba(255,255,255,.1);}',
     // Sök-knapp: ljusare skiftande lila, pulserande glöd + vandrande sheen
     // ca-hue ar BORTTAGEN har, av samma skal som den togs bort fran heron (se kommentaren
@@ -257,6 +260,17 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     // av besoket som betyder nagot. Uppmatt med 4x strypt CPU: ringar, glod och hue
     // tillsammans kostade 20 fps (32,3 -> 52,6) medan de syntes.
     '.ca-vilar,.ca-vilar *{animation-play-state:paused!important;}',
+    // Pseudoelementen följde inte med i regeln ovan: toppytans aurora och färgkant och
+    // vägramens två glödlager bor i ::before/::after och animerade vidare ur bild (2026-09-27).
+    '.ca-vilar::before,.ca-vilar::after,.ca-vilar *::before,.ca-vilar *::after{animation-play-state:paused!important;}',
+    // Under en scroll står allt dekorativt still och vaknar 150 ms efter att den slutat - se
+    // caPausVidScroll(). Uppmätt med 4x strypt CPU: 45 fps under scroll, 74 med bara vägscenen
+    // pausad och 162 med allt pausat. Ingen ser att en aurora står still en halv sekund.
+    'html.ca-scrollar #ca-hero,html.ca-scrollar #ca-hero *,html.ca-scrollar #ca-hero::before,html.ca-scrollar #ca-hero::after,' +
+      'html.ca-scrollar #ca-hero *::before,html.ca-scrollar #ca-hero *::after,' +
+      'html.ca-scrollar .ca-chip,html.ca-scrollar .ca-chip *,html.ca-scrollar .ca-chip::after,' +
+      'html.ca-scrollar #ca-btn,html.ca-scrollar #ca-btn::after,html.ca-scrollar .ca-groq-badge,' +
+      'html.ca-scrollar .ca-chat-spark{animation-play-state:paused!important;}',
     '@property --ca-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false;}',
     '@keyframes ca-rim{to{--ca-rim-ang:360deg;}}',
     // Hero: hela färgskalan, som chattpanelen. ::before är upptaget av auroran, så ::after.
@@ -4303,6 +4317,26 @@ function caVilaUtanforBild() {
   }
 }
 
+/**
+ * Pausar det dekorativa medan sidan scrollas (2026-09-27).
+ *
+ * <p>Vilolägesskyddet ovan hjälper bara när toppytan är UR bild. Hacket kändes när den var i
+ * bild: vägscenens ~30 animationer, auroran och ringarna ritades om i varje bildruta samtidigt
+ * som sidan skulle flyttas. Klassen sätts EN gång när scrollningen börjar och tas bort EN gång
+ * 150 ms efter att den slutat - inte per scrollhändelse, så stilomräkningen sker två gånger per
+ * scroll och inte sextio. Lyssnaren är passive, så den kan aldrig själv fördröja scrollningen.
+ */
+function caPausVidScroll() {
+  try {
+    var rot = document.documentElement, timer = null;
+    window.addEventListener('scroll', function () {
+      if (!rot.classList.contains('ca-scrollar')) rot.classList.add('ca-scrollar');
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { rot.classList.remove('ca-scrollar'); timer = null; }, 150);
+    }, { passive: true });
+  } catch (_) { /* utan pausen scrollar sidan som förut */ }
+}
+
 function caSvepVidSyn() {
   try {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5700,6 +5734,7 @@ function caInit() {
     'Jämför bilar fritt', 'två bilar mot varandra', 'jamfor');
   caSvepVidSyn();
   caVilaUtanforBild();
+  caPausVidScroll();
   // Före caUpdateSliderFill: reglaget får sitt tak och sina steg, och fyllnaden räknas på
   // den skalan.
   caInitBudgetReglage();
