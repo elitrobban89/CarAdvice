@@ -110,6 +110,20 @@ class MorgonfixAtgarderTest {
     }
 
     @Test
+    void doljSkickarMedSkaletOchKontrollerarRaden() {
+        when(insikter.exists(1482L)).thenReturn(true);
+        when(kon.dolj(1482L, "prov")).thenReturn(true);
+        when(insikter.exists(9L)).thenReturn(false);
+
+        var u = med(fil(rad("dolj", 1482), rad("dolj", 9))).kor();
+
+        assertThat(u.rader()).containsExactly("dolj 1482: dold", "dolj 9: finns inte");
+        verify(kon, never()).dolj(eq(9L), anyString());
+        // dölj är INTE radera: raden ska finnas kvar och gå att visa igen
+        verify(insikter, never()).deleteById(anyLong());
+    }
+
+    @Test
     void raderingFinnsInte() {
         var u = med(fil(rad("radera", 1482))).kor();
 

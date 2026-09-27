@@ -322,6 +322,24 @@ public class CarController {
                 : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte markerad som kommande"));
     }
 
+    // Admin: rader nattrutinen dolt som skräp (skatterader, dubbletter, renoveringsobjekt) — med skäl
+    @GetMapping("/admin/insights/dolda")
+    public ResponseEntity<?> doldaInsikter(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = upcomingInsightService.listDolda();
+        return ResponseEntity.ok(Map.of("count", rader.size(), "insights", rader));
+    }
+
+    // Admin: ångra en dold rad — den syns igen som vilken insikt som helst
+    @DeleteMapping("/admin/insights/{id}/dold")
+    public ResponseEntity<?> visaInsikt(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                        @PathVariable Long id) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return upcomingInsightService.visa(id)
+                ? ResponseEntity.ok(Map.of("visad", id))
+                : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte dold"));
+    }
+
     // Admin: vad appen gjorde av nattrutinens atgarder.json — rutinen läser det nästa natt,
     // eftersom en rad i filen inte bevisar att den blev utförd (taket, id som saknas, DB-fel)
     @GetMapping("/admin/morgonfix-atgarder")

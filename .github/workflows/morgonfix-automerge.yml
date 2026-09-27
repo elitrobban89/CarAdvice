@@ -6,7 +6,8 @@ name: Morgonfix auto-merge
 #
 # Workflow_run körs alltid från master-versionen av den här filen, så en ändring på grenen kan
 # inte ändra reglerna för sin egen merge. Vakten nedan stoppar ändå en PR som rör workflows,
-# Claude-inställningar eller byggfilerna - de ska granskas av en människa.
+# Claude-inställningar, byggfilerna eller rutinens egna regler - de ska granskas av en människa.
+# Efter merge väntar den på deployen och gör en revert-commit om tjänsten inte kommer upp.
 
 on:
   workflow_run:
@@ -43,7 +44,9 @@ jobs:
           filer=$(gh pr view "${{ steps.pr.outputs.nr }}" -R "$REPO" --json files -q '.files[].path')
           echo "$filer"
           antal=$(echo "$filer" | grep -c . || true)
-          forbjudna=$(echo "$filer" | grep -E '^(\.github/|\.claude/|\.mvn/|mvnw|pom\.xml$|Dockerfile$|render\.yaml$)' || true)
+          # docs/nattrutin.md är rutinens egna regler och scripts/ dess mätning - en rutin som
+          # skriver om sina egna regler och mergar dem själv har ingen gräns kvar
+          forbjudna=$(echo "$filer" | grep -E '^(\.github/|\.claude/|\.mvn/|mvnw|pom\.xml$|Dockerfile$|render\.yaml$|docs/nattrutin\.md$|scripts/)' || true)
           if [ -n "$forbjudna" ]; then
             echo "::warning::Morgonfix-PR:en rör filer som kräver granskning - ingen auto-merge:"
             echo "$forbjudna"
@@ -56,7 +59,54 @@ jobs:
           fi
 
       - name: Merga
+        id: merge
         if: steps.pr.outputs.nr != ''
         run: |
           # --match-head-commit: har grenen fått en ny commit sedan bygget startade mergas ingenting
           gh pr merge "${{ steps.pr.outputs.nr }}" -R "$REPO" --merge --delete-branch --match-head-commit "$SHA"
+          merge=$(gh pr view "${{ steps.pr.outputs.nr }}" -R "$REPO" --json mergeCommit -q '.mergeCommit.oid')
+          echo "Mergad som $merge"
+          echo "sha=$merge" >> "$GITHUB_OUTPUT"
+
+      # Efter merge deployar Render. Kommer tjänsten inte upp på den nya koden rullar Render
+      # själv tillbaka till förra versionen (a4e09e0 09-13) - men master står kvar trasig, och
+      # nästa deploy av vad som helst faller igen. Därför: vänta på den nya commiten i
+      # /api/version, kolla /api/health, och gör en revert-commit om något av dem inte håller.
+      # Groq-hälsan kollas INTE här: en avvecklad modell är inget en morgonfix orsakar.
+      - name: Kontrollera deployen
+        id: deploy
+        if: steps.merge.outputs.sha != ''
+        env:
+          MERGE: ${{ steps.merge.outputs.sha }}
+        run: |
+          kort=${MERGE:0:7}
+          for i in $(seq 1 45); do
+            commit=$(curl -s -m 20 https://caradvice.onrender.com/api/version | grep -o '"commit":"[^"]*"' | cut -d'"' -f4)
+            if [ "${commit:0:7}" = "$kort" ]; then echo "Deployad: $commit efter $((i*20)) s"; break; fi
+            sleep 20
+          done
+          if [ "${commit:0:7}" != "$kort" ]; then
+            echo "::error::$kort kom aldrig ut på Render inom 15 min (kör fortfarande ${commit:-okänt}) - tjänsten startade troligen inte"
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sleep 60   # DataLoader och MorgonfixAtgarder hinner köra färdigt efter uppstarten
+          svar=$(curl -s -m 30 -w ' HTTP%{http_code}' https://caradvice.onrender.com/api/health)
+          echo "$svar"
+          case "$svar" in
+            *'"status":"OK"'*HTTP200) echo "ok=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::/api/health efter deployen: $svar"; echo "ok=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Revert om deployen inte höll
+        if: steps.deploy.outputs.ok == 'false'
+        env:
+          MERGE: ${{ steps.merge.outputs.sha }}
+        run: |
+          git clone -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" repo
+          cd repo
+          git config user.name "morgonfix-automerge"
+          git config user.email "actions@users.noreply.github.com"
+          git revert --no-edit -m 1 "$MERGE"
+          git commit --amend -q -m "Revert morgonfix $(echo $MERGE | cut -c1-7): deployen höll inte" -m "Automatisk revert från morgonfix-automerge.yml - tjänsten kom inte upp eller /api/health var inte OK efter merge. Nattrutinen ser reverten nästa natt och ska läsa Render-loggen i stället för att laga om samma sak."
+          git push origin HEAD:master
+          echo "::warning::Morgonfixen revertad - se commit $(git rev-parse --short HEAD)"

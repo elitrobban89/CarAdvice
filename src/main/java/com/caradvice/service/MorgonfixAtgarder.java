@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Utför nattrutinens köbeslut — släpp och parkera insikter — en gång vid uppstart.
+ * Utför nattrutinens beslut — släpp, parkera och dölj insikter — en gång vid uppstart.
  *
  * <p><b>Varför en fil i stället för admin-API:t.</b> Molnrutinen som granskar nattjobben får inte
  * skriva mot produktionen, och det är rätt spärr: den läser skrapat webbinnehåll varje natt. Men
@@ -32,8 +32,9 @@ import java.util.function.Supplier;
  * Varje åtgärd bär ett skäl, och git-historiken är granskningsloggen.
  *
  * <p><b>Bara det som går att ångra.</b> Släpp och parkera är en flagga i {@code insight_upcoming}
- * och backas med den motsatta åtgärden. Radering finns medvetet inte — den stannar som förslag i
- * rapporten och görs för hand.
+ * och backas med den motsatta åtgärden. Dölj (2026-09-27) är samma sak för skräprader — skatterader,
+ * dubbletter, renoveringsobjekt — i {@code insight_hidden}, och ångras med
+ * {@code DELETE /api/admin/insights/{id}/dold}. Radering finns medvetet inte — den görs för hand.
  *
  * <p><b>En gång per åtgärd.</b> Filen ligger kvar i jarren och läses vid varje omstart, så varje
  * utförd åtgärd noteras i {@code morgonfix_atgard} och hoppas över nästa gång. Utan det hade en rad
@@ -53,7 +54,7 @@ public class MorgonfixAtgarder {
 
     static final String RESURS = "morgonfix/atgarder.json";
     static final int TAK = 12;
-    static final Set<String> TYPER = Set.of("slapp", "parkera");
+    static final Set<String> TYPER = Set.of("slapp", "parkera", "dolj");
 
     public record Atgard(String datum, String typ, long id, String skal) {
         String nyckel() { return datum + "|" + typ + "|" + id; }
@@ -144,6 +145,8 @@ public class MorgonfixAtgarder {
             if (a.typ().equals("slapp"))
                 return kon.release(a.id()) ? "släppt" : "låg inte i kön";
             if (!insikter.exists(a.id())) return "finns inte";
+            if (a.typ().equals("dolj"))
+                return kon.dolj(a.id(), a.skal()) ? "dold" : "FEL: kunde inte döljas";
             kon.mark(a.id());
             return kon.isUpcoming(a.id()) ? "parkerad" : "FEL: kunde inte parkeras";
         } catch (Exception e) {

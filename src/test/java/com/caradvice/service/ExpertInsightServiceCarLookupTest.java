@@ -57,6 +57,21 @@ class ExpertInsightServiceCarLookupTest {
     }
 
     @Test
+    void doldInsiktVisasIntePåBilkortet() {
+        // nattrutinen döljer skräp (t.ex. en ren skatterad) i stället för att radera det
+        ExpertInsight skrap = insight("CarUp", "Mercedes", "GLA", "Fordonsskatten höjs.", null);
+        org.springframework.test.util.ReflectionTestUtils.setField(skrap, "id", 20L);
+        ExpertInsight bra = insight("Vi Bilägare", "Mercedes", "GLA", "Bra andrahandsvärde.", null);
+        org.springframework.test.util.ReflectionTestUtils.setField(bra, "id", 21L);
+        when(repo.findAll()).thenReturn(List.of(skrap, bra));
+        when(upcomingService.doldaIds()).thenReturn(java.util.Set.of(20L));
+
+        List<Map<String, Object>> result = service.findForCarTitle("Mercedes GLA (2024)");
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).get("insight")).isEqualTo("Bra andrahandsvärde.");
+    }
+
+    @Test
     void insiktOmAnnanModellAvSammaMarkeUtesluts() {
         when(repo.findAll()).thenReturn(List.of(
                 insight("Vi Bilägare", "Tesla", "Model S", "Dyr i inköp.", null),

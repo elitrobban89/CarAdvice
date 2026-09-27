@@ -47,11 +47,15 @@ public class ExpertInsightService {
      * Filtrerar bort insikter om bilar som ännu inte går att köpa i Sverige. De sparas av
      * scrapern men får inte nå prompter eller bilkort — en insikt om en bil läsaren inte
      * kan köpa läses som en rekommendation. Admin-vyerna går medvetet förbi det här.
+     * Samma filter tar bort rader som nattrutinen DOLT som skräp ({@code insight_hidden}).
      */
     private List<ExpertInsight> visible(List<ExpertInsight> insights) {
-        Set<Long> hidden = upcomingService.hiddenIds();
-        if (hidden.isEmpty()) return insights;
-        return insights.stream().filter(i -> !hidden.contains(i.getId())).toList();
+        Set<Long> kommande = upcomingService.hiddenIds();
+        Set<Long> dolda = upcomingService.doldaIds();
+        if (kommande.isEmpty() && (dolda == null || dolda.isEmpty())) return insights;
+        return insights.stream()
+                .filter(i -> !kommande.contains(i.getId()) && (dolda == null || !dolda.contains(i.getId())))
+                .toList();
     }
 
     /**

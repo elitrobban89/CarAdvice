@@ -83,4 +83,34 @@ class UpcomingInsightServiceTest {
         assertThat(service.isUpcoming(43L)).isFalse();
         assertThat(service.isUpcoming(null)).isFalse();
     }
+
+    @Test
+    void doldaHallsIsarFranKon() {
+        // en dold skräprad får aldrig se ut som en köad bil: då hade autosläppet släppt den
+        when(jdbc.queryForList(eq("SELECT insight_id FROM insight_upcoming"), eq(Long.class))).thenReturn(List.of(1L));
+        when(jdbc.queryForList(eq("SELECT insight_id FROM insight_hidden"), eq(Long.class))).thenReturn(List.of(2L));
+
+        assertThat(service.hiddenIds()).containsExactly(1L);
+        assertThat(service.doldaIds()).containsExactly(2L);
+    }
+
+    @Test
+    void doljSkriverSkaletOchTommerCachen() {
+        when(jdbc.queryForList(eq("SELECT insight_id FROM insight_hidden"), eq(Long.class))).thenReturn(List.of());
+        assertThat(service.doldaIds()).isEmpty();
+
+        when(jdbc.queryForList(eq("SELECT insight_id FROM insight_hidden"), eq(Long.class))).thenReturn(List.of(1482L));
+        assertThat(service.dolj(1482L, "ren skatterad")).isTrue();
+
+        verify(jdbc).update(eq("INSERT INTO insight_hidden(insight_id, hidden_at, skal) VALUES (?, ?, ?)"),
+                eq(1482L), any(), eq("ren skatterad"));
+    }
+
+    @Test
+    void visaAngrarDolj() {
+        when(jdbc.update(eq("DELETE FROM insight_hidden WHERE insight_id = ?"), eq(5L))).thenReturn(1);
+        assertThat(service.visa(5L)).isTrue();
+        when(jdbc.update(eq("DELETE FROM insight_hidden WHERE insight_id = ?"), eq(6L))).thenReturn(0);
+        assertThat(service.visa(6L)).isFalse();
+    }
 }

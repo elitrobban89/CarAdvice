@@ -102,6 +102,90 @@ public class UpcomingInsightService {
         return insightId != null && hiddenIds().contains(insightId);
     }
 
+    /*
+     * DOLDA RADER (2026-09-27) — skräp som ska bort ur prompter och bilkort utan att raderas.
+     *
+     * Nattrutinen får inte radera (det går inte att ångra), men skatterader, dubbletter och
+     * renoveringsobjekt låg därför kvar synliga tills någon hann radera för hand. En dold rad
+     * syns inte, men finns kvar och kan visas igen med ett anrop. Egen tabell och INTE kön:
+     * autosläppet och annonskollen läser kön, och en dold skatterad om en bil som säljs hade
+     * annars släppts tillbaka nästa natt.
+     */
+
+    void ensureDoldTable() {
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS insight_hidden (
+                insight_id BIGINT PRIMARY KEY,
+                hidden_at VARCHAR(40),
+                skal VARCHAR(300)
+            )
+            """);
+    }
+
+    /** Döljer insikten. @return true om den är dold efteråt */
+    public boolean dolj(Long insightId, String skal) {
+        if (insightId == null) return false;
+        try {
+            ensureDoldTable();
+            jdbc.update("DELETE FROM insight_hidden WHERE insight_id = ?", insightId);
+            jdbc.update("INSERT INTO insight_hidden(insight_id, hidden_at, skal) VALUES (?, ?, ?)",
+                    insightId, now(), skal == null ? "" : skal.length() > 300 ? skal.substring(0, 300) : skal);
+            cache.clear();
+            return doldaIds().contains(insightId);
+        } catch (Exception e) {
+            log.warn("Kunde inte dölja insikt {}: {}", insightId, e.getMessage());
+            return false;
+        }
+    }
+
+    /** Visar en dold insikt igen — ångrar {@link #dolj}. */
+    public boolean visa(Long insightId) {
+        try {
+            ensureDoldTable();
+            int removed = jdbc.update("DELETE FROM insight_hidden WHERE insight_id = ?", insightId);
+            cache.clear();
+            return removed > 0;
+        } catch (Exception e) {
+            log.warn("Kunde inte visa insikt {}: {}", insightId, e.getMessage());
+            return false;
+        }
+    }
+
+    /** Dolda id:n, cachade som kön. Vid DB-fel tom mängd — hellre en skräprad synlig än inga insikter. */
+    @SuppressWarnings("unchecked")
+    public Set<Long> doldaIds() {
+        Long fetchedAt = (Long) cache.get("dolda_at");
+        if (fetchedAt != null && System.currentTimeMillis() - fetchedAt < CACHE_TTL_MS) {
+            return (Set<Long>) cache.get("dolda");
+        }
+        Set<Long> ids;
+        try {
+            ensureDoldTable();
+            ids = Set.copyOf(jdbc.queryForList("SELECT insight_id FROM insight_hidden", Long.class));
+        } catch (Exception e) {
+            log.warn("Kunde inte läsa dolda insikter: {}", e.getMessage());
+            return Set.of();
+        }
+        cache.put("dolda", ids);
+        cache.put("dolda_at", System.currentTimeMillis());
+        return ids;
+    }
+
+    /** Admin-vy: dolda insikter med skäl, nyast först. */
+    public List<Map<String, Object>> listDolda() {
+        try {
+            ensureDoldTable();
+            return jdbc.queryForList("""
+                SELECT h.insight_id, h.hidden_at, h.skal, i.expert_name, i.car_make, i.car_model, i.insight
+                FROM insight_hidden h JOIN expert_insight i ON i.id = h.insight_id
+                ORDER BY h.insight_id DESC
+                """);
+        } catch (Exception e) {
+            log.warn("Kunde inte lista dolda insikter: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     /** Admin-vy: vilka insikter ligger och väntar, och sedan när. */
     public List<Map<String, Object>> list() {
         try {
