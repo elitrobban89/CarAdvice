@@ -184,6 +184,17 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void kiaCeedArIngenSmaabil() {
+        // Natten mot 2026-09-27: id 1660 (CarUp, "en begagnad Kia Ceed") kom in som smaabil.
+        // Ceed är Golf-klass (C-segment), samma hylla som id.3/octavia/passat i STORA_MODELLER —
+        // inte en stadsbil. Proceed (Ceed-baserad kombikupé) fångas av samma delsträng.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "Kia", "Ceed"))
+                .isEqualTo("kia ceed är ingen småbil");
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "Kia", "Proceed"))
+                .isEqualTo("kia proceed är ingen småbil");
+    }
+
+    @Test
     void okandKategoriArFortfarandeNull() {
         // Whitelisten gäller som förut — vakten läggs till, den ersätter ingenting
         assertThat(InsightTaxonomy.canonicalCategory("sportbil", "Porsche", "911")).isNull();

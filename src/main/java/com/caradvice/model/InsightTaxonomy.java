@@ -133,11 +133,16 @@ public final class InsightTaxonomy {
      *
      * <p>{@code id3} står med bredvid {@code id.3} eftersom AI:n skriver bägge formerna; samma
      * dubblering finns i {@link #LAGA_MODELLER}.
+     *
+     * <p><b>{@code ceed} tillkom 2026-09-27</b> efter id 1660 (CarUp, en begagnad Kia Ceed) kom
+     * in som {@code smaabil}. Ceed är Golf-klass, samma hylla som {@code passat}/{@code octavia}
+     * här i listan. Fångar även Kia Proceed (Ceed-baserad) via samma delsträng.
      */
     public static final List<String> STORA_MODELLER = List.of(
             "model 3", "model s", "model x", "model y", "id.3", "id3", "id.7", "polestar 2",
             "polestar 3", "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger",
-            "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo");
+            "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo",
+            "ceed");
 
     /**
      * Lyxbilar och sportbilar — modeller som ALDRIG får bära {@code smaabil} eller {@code familjebil}.
