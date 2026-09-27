@@ -44,9 +44,10 @@ jobs:
           filer=$(gh pr view "${{ steps.pr.outputs.nr }}" -R "$REPO" --json files -q '.files[].path')
           echo "$filer"
           antal=$(echo "$filer" | grep -c . || true)
-          # docs/nattrutin.md är rutinens egna regler och scripts/ dess mätning - en rutin som
-          # skriver om sina egna regler och mergar dem själv har ingen gräns kvar
-          forbjudna=$(echo "$filer" | grep -E '^(\.github/|\.claude/|\.mvn/|mvnw|pom\.xml$|Dockerfile$|render\.yaml$|docs/nattrutin\.md$|scripts/)' || true)
+          # docs/nattrutin-ramar.md är gränserna och scripts/ mätningen - en rutin som skriver om
+          # sina egna gränser och mergar dem själv har ingen gräns kvar. docs/nattrutin.md FÅR
+          # rutinen förbättra, men bara lite i taget (se nästa steg).
+          forbjudna=$(echo "$filer" | grep -E '^(\.github/|\.claude/|\.mvn/|mvnw|pom\.xml$|Dockerfile$|render\.yaml$|docs/nattrutin-ramar\.md$|scripts/)' || true)
           if [ -n "$forbjudna" ]; then
             echo "::warning::Morgonfix-PR:en rör filer som kräver granskning - ingen auto-merge:"
             echo "$forbjudna"
@@ -55,6 +56,14 @@ jobs:
           # Rutinens tak är 5 filer per natt plus loggboken och atgarder.json
           if [ "$antal" -gt 12 ]; then
             echo "::warning::$antal filer i PR:en - över taket, ingen auto-merge"
+            exit 1
+          fi
+          # Ramarna rad 12: högst 40 ändrade rader i rutinens regler per PR - en rutin som skriver
+          # om hela sin instruktion på en natt ska granskas av en människa
+          regelrader=$(gh pr view "${{ steps.pr.outputs.nr }}" -R "$REPO" --json files \
+            -q '[.files[] | select(.path == "docs/nattrutin.md") | .additions + .deletions] | add // 0')
+          if [ "$regelrader" -gt 40 ]; then
+            echo "::warning::docs/nattrutin.md ändrad på $regelrader rader (tak 40) - ingen auto-merge"
             exit 1
           fi
 

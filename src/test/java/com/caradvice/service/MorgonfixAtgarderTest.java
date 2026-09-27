@@ -124,10 +124,11 @@ class MorgonfixAtgarderTest {
     }
 
     @Test
-    void raderingFinnsInte() {
+    void raderingAvRadSomInteFinnsGorIngenting() {
+        // hela raderingsvägen provas mot riktig databas i MorgonfixRaderingTest
         var u = med(fil(rad("radera", 1482))).kor();
 
-        assertThat(u.rader()).isEmpty();
+        assertThat(u.rader()).containsExactly("radera 1482: finns inte");
         verify(insikter, never()).deleteById(anyLong());
     }
 

@@ -340,6 +340,24 @@ public class CarController {
                 : ResponseEntity.status(404).body(Map.of("error", "Insikten var inte dold"));
     }
 
+    // Admin: insikter nattrutinen raderat — kopian ur arkivet, med skäl
+    @GetMapping("/admin/insights/raderade")
+    public ResponseEntity<?> raderadeInsikter(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = morgonfixAtgarder.raderade();
+        return ResponseEntity.ok(Map.of("count", rader.size(), "insights", rader));
+    }
+
+    // Admin: ångra en automatisk radering — raden läggs tillbaka (med nytt id)
+    @PostMapping("/admin/insights/raderade/{id}/aterstall")
+    public ResponseEntity<?> aterstallInsikt(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                             @PathVariable Long id) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        return morgonfixAtgarder.aterstall(id)
+                ? ResponseEntity.ok(Map.of("aterstalld", id))
+                : ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte i arkivet"));
+    }
+
     // Admin: vad appen gjorde av nattrutinens atgarder.json — rutinen läser det nästa natt,
     // eftersom en rad i filen inte bevisar att den blev utförd (taket, id som saknas, DB-fel)
     @GetMapping("/admin/morgonfix-atgarder")
@@ -959,8 +977,15 @@ public class CarController {
         GroqService.ModelStatus st = groqService.checkModels();
         if (st.error() != null)
             return ResponseEntity.ok(Map.of("status", "UNKNOWN", "error", st.error()));
+        Map<String, String> ersatta = groqService.ersattaModeller();
         if (!st.missing().isEmpty())
-            return ResponseEntity.status(503).body(Map.of("status", "MODEL_MISSING", "missing", st.missing()));
+            return ResponseEntity.status(503).body(Map.of("status", "MODEL_MISSING", "missing", st.missing(),
+                    "ersatt", ersatta == null ? Map.of() : ersatta));
+        // En avvecklad egen modell som appen redan bytt ut: tjänsten fungerar, så inget 503 till
+        // UptimeRobot - men ERSATT syns tills application.properties fått det nya namnet
+        if (ersatta != null && !ersatta.isEmpty())
+            return ResponseEntity.ok(Map.of("status", "ERSATT", "ersatt", ersatta,
+                    "models", groqService.configuredModels()));
         return ResponseEntity.ok(Map.of("status", "OK", "models", groqService.configuredModels()));
     }
 

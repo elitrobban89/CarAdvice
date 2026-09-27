@@ -55,8 +55,27 @@ public class NattkedjanScheduler {
         this.mobility = mobility;
     }
 
+    /** Sant medan kedjan kör — igenkörningen i {@link NattkedjanVakt} får aldrig starta en andra. */
+    private final java.util.concurrent.atomic.AtomicBoolean pagar = new java.util.concurrent.atomic.AtomicBoolean();
+
+    public boolean pagar() {
+        return pagar.get();
+    }
+
     @Scheduled(cron = "0 0 23 * * *", zone = "UTC")
     public void kor() {
+        if (!pagar.compareAndSet(false, true)) {
+            log.warn("Nattkedjan kör redan — den här starten hoppas över");
+            return;
+        }
+        try {
+            korKedjan();
+        } finally {
+            pagar.set(false);
+        }
+    }
+
+    private void korKedjan() {
         Instant start = klocka.instant();
         log.info("Nattkedjan startar");
         led("ev-specs", evSpecs::dailySync);

@@ -171,6 +171,19 @@ public class UpcomingInsightService {
         return ids;
     }
 
+    /** När insikten doldes ({@code yyyy-MM-dd HH:mm:ss}, svensk tid), eller null om den inte är dold. */
+    public String doldSedan(Long insightId) {
+        try {
+            ensureDoldTable();
+            List<String> rader = jdbc.queryForList(
+                    "SELECT hidden_at FROM insight_hidden WHERE insight_id = ?", String.class, insightId);
+            return rader.isEmpty() ? null : rader.get(0);
+        } catch (Exception e) {
+            log.warn("Kunde inte läsa när insikt {} doldes: {}", insightId, e.getMessage());
+            return null;
+        }
+    }
+
     /** Admin-vy: dolda insikter med skäl, nyast först. */
     public List<Map<String, Object>> listDolda() {
         try {

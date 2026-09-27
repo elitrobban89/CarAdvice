@@ -1283,6 +1283,20 @@ class CarControllerTest {
     }
 
     @Test
+    void groqHealthMedErsattModellGer200Ersatt() throws Exception {
+        // appen har redan bytt ut den avvecklade modellen - tjänsten fungerar, så inget 503
+        when(groqService.isConfigured()).thenReturn(true);
+        when(groqService.checkModels()).thenReturn(new GroqService.ModelStatus(List.of(), null, 0));
+        when(groqService.ersattaModeller()).thenReturn(Map.of("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"));
+        when(groqService.configuredModels()).thenReturn(List.of("openai/gpt-oss-120b", "qwen/qwen3.8-27b"));
+
+        mvc.perform(get("/api/health/groq"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.status").value("ERSATT"))
+           .andExpect(jsonPath("$.ersatt['qwen/qwen3.6-27b']").value("qwen/qwen3.8-27b"));
+    }
+
+    @Test
     void groqHealthTransientFelGer200Unknown() throws Exception {
         when(groqService.isConfigured()).thenReturn(true);
         when(groqService.checkModels())

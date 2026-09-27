@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -3649,6 +3650,7 @@ public class GroqService {
             HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200)
                 return new ModelStatus(List.of(), "Groq /models svarade " + resp.statusCode(), System.currentTimeMillis());
+            ersattSaknade(tillgangliga(resp.body()));
             List<String> missing = missingModels(resp.body());
             if (!missing.isEmpty()) log.error("Groq-modeller saknas i /models-listan: {}", missing);
             return new ModelStatus(missing, null, System.currentTimeMillis());
@@ -3678,6 +3680,79 @@ public class GroqService {
         List<String> ids = new ArrayList<>();
         if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asText()));
         return ids.stream().sorted().toList();
+    }
+
+    // --- Självläkning: en avvecklad egen modell byts mot en som finns (2026-09-27) ---
+
+    /**
+     * Ersättare i prioritetsordning när en av VÅRA modeller försvunnit ur Groqs katalog.
+     *
+     * <p>Två gånger (llama-3.3-70b 06-29, qwen3.6-27b 09-17) har en avvecklad modell legat kvar i
+     * konfigurationen tills någon hann byta namnet för hand, och under tiden föll varje anrop på
+     * den. Hälsokollen visste redan VAD som saknades och VAD som fanns - det enda som fattades var
+     * att agera. Listan provas först; räcker den inte tas närmaste chattmodell ur katalogen.
+     */
+    @Value("${groq.ersattning.kandidater:openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.8-27b}")
+    private String ersattningsKandidater = "openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.8-27b";
+
+    /** gammal modell -> ersättare, sedan senaste omstarten. Tom = allt kör på konfigurerade namn. */
+    private final Map<String, String> ersatta = new ConcurrentHashMap<>();
+
+    public Map<String, String> ersattaModeller() {
+        return Map.copyOf(ersatta);
+    }
+
+    Set<String> tillgangliga(String modelsResponseBody) throws Exception {
+        JsonNode data = mapper.readTree(modelsResponseBody).get("data");
+        Set<String> available = new HashSet<>();
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asText()));
+        return available;
+    }
+
+    /** Katalogen innehåller också tal-, vakt- och inbäddningsmodeller - de kan inte skriva JSON-svar. */
+    static boolean arChattmodell(String id) {
+        String s = id.toLowerCase(Locale.ROOT);
+        return !(s.contains("whisper") || s.contains("tts") || s.contains("guard") || s.contains("embed")
+                || s.contains("orpheus") || s.contains("playai") || s.contains("compound") || s.contains("prompt-guard"));
+    }
+
+    /**
+     * Byter varje egen modell som saknas i {@code available} mot första lediga ersättare.
+     * Den fjärde modellen töms i stället: den är ren extrakapacitet, och en gissad ersättare sist
+     * i kedjan är exakt det dess javadoc varnar för. Andra projekts bevakade modeller
+     * ({@code groq.watched.models}) går inte att byta härifrån och larmar som förut.
+     * Tom katalog (Groq svarade konstigt) ändrar ingenting.
+     */
+    synchronized void ersattSaknade(Set<String> available) {
+        if (available.isEmpty()) return;
+        if (fourthModel != null && !fourthModel.isBlank() && !available.contains(fourthModel)) {
+            log.error("Groq-modell {} (fjärde) finns inte längre - tas ur kedjan", fourthModel);
+            ersatta.put(fourthModel, "(borttagen ur kedjan)");
+            fourthModel = "";
+        }
+        if (!available.contains(model)) model = ersatt(model, available);
+        if (!available.contains(chatModel)) chatModel = ersatt(chatModel, available);
+        if (reserveModel != null && !reserveModel.isBlank() && !available.contains(reserveModel))
+            reserveModel = ersatt(reserveModel, available);
+    }
+
+    private String ersatt(String gammal, Set<String> available) {
+        Set<String> upptagna = Set.of(model, chatModel, reserveModel == null ? "" : reserveModel);
+        List<String> kandidater = new ArrayList<>();
+        for (String k : ersattningsKandidater.split(",")) if (!k.isBlank()) kandidater.add(k.trim());
+        available.stream().filter(GroqService::arChattmodell).sorted().forEach(kandidater::add);
+
+        String vald = kandidater.stream().filter(available::contains).filter(k -> !upptagna.contains(k)).findFirst()
+                // hellre dela TPM-pott med en annan roll än att varje anrop faller
+                .orElse(kandidater.stream().filter(available::contains).findFirst().orElse(null));
+        if (vald == null) {
+            log.error("Groq-modell {} saknas och ingen ersättare finns i katalogen", gammal);
+            return gammal;
+        }
+        log.error("Groq-modell {} finns inte längre - ersatt med {} tills application.properties uppdaterats",
+                gammal, vald);
+        ersatta.put(gammal, vald);
+        return vald;
     }
 
     List<String> missingModels(String modelsResponseBody) throws Exception {

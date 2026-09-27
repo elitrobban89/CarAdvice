@@ -3010,6 +3010,68 @@ class GroqServiceTest {
         assertThat(s.missingModels(utan120b)).containsExactly("openai/gpt-oss-120b");
     }
 
+    // --- ersattSaknade (självläkning när Groq avvecklar en modell) ---
+
+    @Test
+    void avveckladHuvudmodellBytsMotForstaLedigaKandidat() throws Exception {
+        // qwen3.6-scenariot 09-17, men för huvudmodellen: den finns inte längre i katalogen
+        GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
+        ReflectionTestUtils.setField(s, "reserveModel", "qwen/qwen3.8-27b");
+        ReflectionTestUtils.setField(s, "ersattningsKandidater", "openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.8-27b,moonshot/kimi-k3");
+
+        s.ersattSaknade(s.tillgangliga("""
+                {"data":[{"id":"openai/gpt-oss-20b"},{"id":"qwen/qwen3.8-27b"},{"id":"moonshot/kimi-k3"}]}"""));
+
+        // de två andra är upptagna i sina roller - kimi är första LEDIGA
+        assertThat(ReflectionTestUtils.getField(s, "model")).isEqualTo("moonshot/kimi-k3");
+        assertThat(s.ersattaModeller()).containsEntry("openai/gpt-oss-120b", "moonshot/kimi-k3");
+        assertThat(s.missingModels("""
+                {"data":[{"id":"openai/gpt-oss-20b"},{"id":"qwen/qwen3.8-27b"},{"id":"moonshot/kimi-k3"}]}""")).isEmpty();
+    }
+
+    @Test
+    void utanLedigKandidatDelasEnModellHellreAnAttAllaAnropFaller() throws Exception {
+        GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
+        ReflectionTestUtils.setField(s, "reserveModel", "");
+
+        s.ersattSaknade(s.tillgangliga("""
+                {"data":[{"id":"openai/gpt-oss-20b"},{"id":"whisper-large-v3"}]}"""));
+
+        // whisper är en talmodell och får aldrig väljas, även om den är ledig
+        assertThat(ReflectionTestUtils.getField(s, "model")).isEqualTo("openai/gpt-oss-20b");
+    }
+
+    @Test
+    void fjardeModellenTasBortIStalletForAttGissas() throws Exception {
+        GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
+        ReflectionTestUtils.setField(s, "fourthModel", "meta/llama-5-borta");
+
+        s.ersattSaknade(s.tillgangliga("""
+                {"data":[{"id":"openai/gpt-oss-120b"},{"id":"openai/gpt-oss-20b"}]}"""));
+
+        assertThat(ReflectionTestUtils.getField(s, "fourthModel")).isEqualTo("");
+        assertThat(s.ersattaModeller()).containsKey("meta/llama-5-borta");
+    }
+
+    @Test
+    void tomKatalogAndrarIngenting() throws Exception {
+        // Groq svarade med en tom lista - det är ett fel hos Groq, inte en avveckling av allt
+        GroqService s = serviceMedModeller("openai/gpt-oss-120b", "openai/gpt-oss-20b");
+        s.ersattSaknade(s.tillgangliga("{\"data\":[]}"));
+        assertThat(ReflectionTestUtils.getField(s, "model")).isEqualTo("openai/gpt-oss-120b");
+        assertThat(s.ersattaModeller()).isEmpty();
+    }
+
+    @Test
+    void bevakadeAndrasModellerByttsInteUtHarifran() throws Exception {
+        GroqService s = serviceMedModeller("openai/gpt-oss-20b", "openai/gpt-oss-20b", "openai/gpt-oss-120b");
+        String body = """
+                {"data":[{"id":"openai/gpt-oss-20b"}]}""";
+        s.ersattSaknade(s.tillgangliga(body));
+        // Tag/VaderKlader kör 120b - det är deras konfiguration, så den ska fortfarande larma
+        assertThat(s.missingModels(body)).containsExactly("openai/gpt-oss-120b");
+    }
+
     // --- buildRateLimitError / buildGroqErrorMessage ---
 
     @Test
