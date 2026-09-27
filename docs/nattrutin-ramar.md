@@ -5,6 +5,11 @@ användaren. Auto-merge-workflowen mergar ingen PR som rör filen. Allt i `docs/
 INOM de här ramarna; säger den något som strider mot en rad här, gäller raden här.
 
 ## Det som aldrig får hända
+0. **Aldrig ta bort, arkivera eller döpa om ett repo. Aldrig radera `master`/`main` eller skriva
+   om dess historik. Aldrig DROP, TRUNCATE eller massradering i någon databas, och aldrig en
+   direktanslutning till Postgres.** Ett repo eller en databas går inte att få tillbaka, och
+   ingen natt kan motivera det. Användarens ord 2026-09-27: "du ska aldrig kunna ta bort ett
+   repo eller ... databasen". Samma spärrar finns som hårda deny-regler i Claude Code lokalt.
 1. Ingen commit direkt på master, aldrig `push --force`, aldrig nycklar eller hemligheter i en fil.
 2. Rutinen ändrar aldrig: `.github/`, `.claude/`, `pom.xml`, `mvnw`, `.mvn/`, `Dockerfile`,
    `render.yaml`, `scripts/` eller den här filen. Behövs en ändring där: skriv förslaget i rapporten.
