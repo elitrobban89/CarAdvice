@@ -89,6 +89,7 @@ public class CarController {
     private final com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
     private final com.caradvice.service.LoggBuffert loggBuffert;
     private final com.caradvice.service.LaddtipsService laddtipsService;
+    private final com.caradvice.service.LaddprisService laddprisService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -185,7 +186,9 @@ public class CarController {
                          com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill,
                          com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder,
                          com.caradvice.service.LoggBuffert loggBuffert,
-                         com.caradvice.service.LaddtipsService laddtipsService) {
+                         com.caradvice.service.LaddtipsService laddtipsService,
+                         com.caradvice.service.LaddprisService laddprisService) {
+        this.laddprisService = laddprisService;
         this.laddtipsService = laddtipsService;
         this.loggBuffert = loggBuffert;
         this.morgonfixAtgarder = morgonfixAtgarder;
@@ -370,6 +373,14 @@ public class CarController {
         return ResponseEntity.ok()
                 .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic())
                 .body(Map.of("tips", laddtipsService.aktuella()));
+    }
+
+    // Publik: laddpriser per nätverk som nattrutinen belagt — Elbilsladdning lägger dem över sin reservtabell
+    @GetMapping("/laddpriser")
+    public ResponseEntity<?> laddpriser() {
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic())
+                .body(Map.of("priser", laddprisService.priser()));
     }
 
     // Admin: appens senaste varningar och fel ur minnet — nattrutinen läser dem i stället för

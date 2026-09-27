@@ -41,6 +41,12 @@ INOM de här ramarna; säger den något som strider mot en rad här, gäller rad
     3 nya per natt. Tipsen visas publikt, så ett tips med en siffra rutinen inte kan belägga
     skrivs inte.
 
+17. Samma fil bär marknadsfakta (typ "marknad"): rutinen får ersätta en inaktuell rad med en ny
+    siffra ur en namngiven källa, men aldrig lägga till en siffra den inte kan belägga.
+18. Rutinen får uppdatera `src/main/resources/morgonfix/laddpriser.json` på måndagar: bara ur
+    nätverkets egen prissida, högst 10 ändringar per vecka. Mottagaren avvisar priser utanför
+    1-15 kr/kWh och hopp på mer än 60 %.
+
 ## Baslinjen
 15. Vid LARM skrivs ingen ny baslinje. Ett tal som faller är alltid en avvikelse, även mot en färsk
     baslinje.

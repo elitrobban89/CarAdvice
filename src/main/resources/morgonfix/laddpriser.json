@@ -1,0 +1,4 @@
+{
+  "_om": "DC-laddpriser per natverk (utan abonnemang), belagda av nattrutinen mot natverkets EGEN prissida (docs/nattrutin.md avsnitt 13). Elbilsladdning hamtar dem via GET /api/laddpriser och lagger dem over sin reservtabell. natverk = gemener, samma nyckel som i OperatorPriceService (ionity, allego, tesla, mer, circle k ...). pris = \"~6,96 kr/kWh\" eller \"Gratis ...\".",
+  "priser": []
+}

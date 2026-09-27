@@ -2253,15 +2253,13 @@
     let funfactHtml = "";
     {
       const staticFacts = [
-        { icon: '🏆', text: 'Volvo EX40 var Sveriges mest sålda elbil 2025 med <strong>8 788</strong> nyregistreringar – och EX40/XC40 leder även första halvåret 2026, före Tesla Model Y (Mobility Sweden).' },
+        // De tidsbundna raderna (säljtoppar, prognoser, Årets Bil, marknadsandelar) flyttades
+        // 2026-09-27 till CarAdvice morgonfix/laddtips.json: där har de ett datum, faller bort efter
+        // 180 dagar och förnyas av nattrutinen. Här står bara det som inte åldras.
         { icon: '🌍', text: 'IONITY är Europas snabbaste offentliga laddnätverk med upp till <strong>350 kW</strong> per laddpunkt. I Norden finns 100+ stationer längs motorvägarna.' },
         { icon: '🇸🇪', text: 'Vattenfall InCharge är ett av Nordens största laddnätverk med över <strong>33 000 laddpunkter</strong> i Sverige, Norge, Danmark och Finland.' },
         { icon: '❄️', text: 'På kall vinterdag kan räckvidden minska med <strong>20–40%</strong> jämfört med WLTP. Värm bilen medan den laddar för att spara batterienergi.' },
         { icon: '⚡', text: 'Tesla öppnade sitt Supercharger-nätverk för andra elbilsmärken i Sverige <strong>2023</strong>. CCS (Combo) är Europas dominerande DC-laddstandard.' },
-        { icon: '📈', text: 'Elbilarna går framåt: <strong>45%</strong> av Sveriges nyregistreringar 2026 väntas bli elbilar enligt Mobility Swedens prognos (justerad juli 2026) – upp från 36,5% helåret 2025.' },
-        { icon: '🚗', text: 'Mercedes eldrivna CLA utsågs till <strong>Årets Bil 2026</strong> (europeiska Car of the Year) – före Škoda Elroq och Kia EV4. 2025 vann Renault 5 E-Tech.' },
-        { icon: '📊', text: 'Volvo dominerar den svenska nybilsmarknaden med <strong>16,5%</strong> marknadsandel i juni 2026, före Volkswagen (13,2%) och Kia (7,4%). Tesla ligger åtta med 4,4% (Mobility Sweden).' },
-        { icon: '🚀', text: 'Elbilar gick om laddhybrider i försäljning kring årsskiftet 2025/2026 och har inte tittat tillbaka – i april 2026 passerade elbilsförsäljningen till och med diesel och närmade sig bensin, fortfarande den största kategorin (Carla.se).' },
         // Nedan: hämtade ur CarAdvice-insikterna (samma skrapade motorpress som bilkortens
         // "Vad experterna säger"). Bara laddningsrelevanta rader om bilar som går att köpa —
         // kommande modeller hör hemma i CarAdvice kommande-kö, inte i en publik faktakarusell.
