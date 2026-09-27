@@ -2233,6 +2233,52 @@ function bcBakgrund() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bcBakgrund);
 else bcBakgrund();
 
+/**
+ * "Räkna ut kostnaden" som glasknapp (2026-09-27), i samma designspråk som bilrådgivningens
+ * "Hitta min bil" och elbilsappen: lila→indigo-gradienten, 14 px rundning och glansstråket -
+ * plus det som gör den till glas: en ljus välvd reflex i överkanten, mörkare botten, och samma
+ * vandrande färgkant som går runt appen och toppytan.
+ *
+ * Kanten är en andra bakgrund i border-box (inte ett pseudoelement - de två är redan upptagna av
+ * reflexen och glansen), roterad med --bc-knapp-ang. Glansen sveper av sig själv var femte
+ * sekund, inte bara vid hovring: på en telefon finns ingen hovring. Bara #bc-calcBtn - andra
+ * .bc-btn på sidan lämnas som de är.
+ */
+function bcGlasknapp() {
+  if (document.getElementById('bc-glasknapp')) return;
+  var s = document.createElement('style');
+  s.id = 'bc-glasknapp';
+  s.textContent =
+    '@property --bc-knapp-ang{syntax:"<angle>";initial-value:0deg;inherits:false}' +
+    '@keyframes bc-knapp-kant{to{--bc-knapp-ang:360deg}}' +
+    '@keyframes bc-knapp-flod{0%,100%{background-position:0% 50%,0 0}50%{background-position:100% 50%,0 0}}' +
+    '@keyframes bc-knapp-glans{0%,55%{transform:translateX(0) skewX(-18deg)}100%{transform:translateX(520%) skewX(-18deg)}}' +
+    '#bc-results{scroll-margin-top:90px}' +
+    '#bc-calcBtn{isolation:isolate;border:2px solid transparent!important;border-radius:16px!important;' +
+      'background:linear-gradient(135deg,rgba(139,92,246,.94) 0%,rgba(99,102,241,.92) 50%,rgba(14,165,233,.88) 100%) padding-box,' +
+        'conic-gradient(from var(--bc-knapp-ang),#fbbf24,#ec4899,#8b5cf6,#0ea5e9,#fbbf24) border-box!important;' +
+      'background-size:200% 200%,100% 100%!important;' +
+      'animation:bc-knapp-flod 7s ease infinite,bc-knapp-kant 6s linear infinite!important;' +
+      'box-shadow:0 10px 30px rgba(99,102,241,.45),0 0 26px rgba(236,72,153,.18),' +
+        'inset 0 -10px 22px rgba(49,46,129,.35)!important;' +
+      'text-shadow:0 1px 2px rgba(30,27,75,.4);letter-spacing:.02em}' +
+    '#bc-calcBtn::before{content:"";position:absolute;left:2px;right:2px;top:2px;height:52%;z-index:-1;' +
+      'border-radius:13px 13px 45% 45%/13px 13px 14px 14px;pointer-events:none;' +
+      'background:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,.04))}' +
+    '#bc-calcBtn::after{left:-70%!important;background:rgba(255,255,255,.28)!important;' +
+      'transition:none!important;animation:bc-knapp-glans 5s ease-in-out infinite}' +
+    '#bc-calcBtn:hover{transform:translateY(-2px);' +
+      'box-shadow:0 14px 38px rgba(99,102,241,.6),0 0 34px rgba(236,72,153,.28),inset 0 -10px 22px rgba(49,46,129,.35)!important}' +
+    '#bc-calcBtn:hover::after{left:-70%!important}' +
+    '#bc-calcBtn:active{transform:translateY(0) scale(.99)}' +
+    '#bc-calcBtn:disabled{opacity:.7;cursor:progress}' +
+    '#bc-calcBtn:focus-visible{outline:3px solid rgba(139,92,246,.55);outline-offset:3px}' +
+    '@media(prefers-reduced-motion:reduce){#bc-calcBtn,#bc-calcBtn::after{animation:none!important}}';
+  (document.head || document.documentElement).appendChild(s);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bcGlasknapp);
+else bcGlasknapp();
+
 function bcKortIkonPaCta() {
   bcInjectKortStyles();
   var cta = document.querySelector('.bc-login-cta-btn');
@@ -2413,7 +2459,10 @@ function bcDoCalculate(cons, pris) {
   try { history.replaceState(null, '', bcBuildShareUrl()); } catch(e) {}
 
   document.getElementById('bc-results').classList.add('show');
-  document.getElementById('bc-mapCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Till RESULTATET (2026-09-27). Förut scrollades kartan till "närmaste" läge, vilket ofta
+  // betydde att sidan knappt rörde sig och resultatet låg kvar under kanten. scroll-margin-top
+  // i bcGlasknapp() håller rubriken fri från WordPress-temats huvud.
+  document.getElementById('bc-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Räkna upp demo-counter om utloggad
   if (!bcHasUnlimited()) {
