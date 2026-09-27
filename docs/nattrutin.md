@@ -19,6 +19,13 @@ Den har filen (docs/nattrutin.md) ar rutinens instruktioner och ligger i repot s
 
 Admin-nyckel: miljovariabeln $ADMIN_KEY (satt i molnmiljon sedan 2026-09-27, star inte langre i klartext har), alltid inom DUBBLA citattecken: -H "X-Admin-Key: $ADMIN_KEY". Skriv aldrig ut vardet. Ger `echo ${#ADMIN_KEY}` 0 ar variabeln tom - da ar det ett MILJOFEL: skriv det overst som LARM ("ADMIN_KEY saknas i molnmiljon") i stallet for att tolka 403-svaren som att API:t ar trasigt.
 
+=== LOGGEN - las den SJALV (sedan 2026-09-27) ===
+curl -s -H "X-Admin-Key: $ADMIN_KEY" "https://caradvice.onrender.com/api/admin/logg?sok=<text>&niva=ERROR&limit=100"
+Appen haller sina senaste 500 varningar och fel i minnet: {"iBufferten":N,"count":N,"uptimeSeconds":N,"rader":[{tid,niva,kalla,meddelande,undantag}]}, nyast forst. `sok` ar en delstrang i meddelande eller kalla (skiftlagesokanslig), `niva=ERROR` ger bara fel, utelamnad ger WARN+ERROR.
+- **Varje gang texten nedan sager "be om Render-loggen", "rekommendera att Render-loggen soks" eller "loggraden att leta efter": las den har forst** och citera raden i rapporten. Det ar skalet till att endpointen finns - forut stannade varje sadan avvikelse hos en manniska.
+- **Bufferten tommas vid varje omstart.** Ar `uptimeSeconds` kortare an tiden sedan nattkedjan korde har en deploy kommit emellan och nattens rader ar borta - skriv det, och forst DA ber du om Render-loggen.
+- Tom sokning pa en rad som borde finnas ar inget bevis for att den inte skrevs: kolla `iBufferten` (500 = aldre rader har fallit ur).
+
 === 0. GRUNDKOLLEN - gor den FORST, den kraver ingen nyckel ===
 Fram till 2026-09-25 gjordes detta av en separat lasande rutin kl 02:30. Den ar nedlagd och dess kontroller ligger nu HAR - ingen annan tittar pa dem.
 curl -s https://caradvice.onrender.com/api/health

@@ -86,6 +86,7 @@ class CarControllerTest {
     @MockBean private com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     @MockBean private com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
     @MockBean private com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
+    @MockBean private com.caradvice.service.LoggBuffert loggBuffert;
 
     // --- health ---
 
@@ -1280,6 +1281,18 @@ class CarControllerTest {
            .andExpect(status().isServiceUnavailable())
            .andExpect(jsonPath("$.status").value("MODEL_MISSING"))
            .andExpect(jsonPath("$.missing[0]").value("qwen/qwen3.8-27b"));
+    }
+
+    @Test
+    void loggenKraverAdminnyckelOchSkickarVidareSokningen() throws Exception {
+        mvc.perform(get("/api/admin/logg")).andExpect(status().isForbidden());
+
+        when(loggBuffert.senaste("ERROR", "bagage", 100)).thenReturn(List.of(Map.of("meddelande", "auto-data bagage: fel")));
+        when(loggBuffert.antal()).thenReturn(7);
+        mvc.perform(get("/api/admin/logg").header("X-Admin-Key", "test-admin").param("niva", "ERROR").param("sok", "bagage"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.iBufferten").value(7))
+           .andExpect(jsonPath("$.rader[0].meddelande").value("auto-data bagage: fel"));
     }
 
     @Test

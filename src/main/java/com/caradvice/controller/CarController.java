@@ -87,6 +87,7 @@ public class CarController {
     private final com.caradvice.service.KategoriVaktStats kategoriVaktStats;
     private final com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
     private final com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
+    private final com.caradvice.service.LoggBuffert loggBuffert;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -181,7 +182,9 @@ public class CarController {
                          com.caradvice.service.UpcomingAutoReleaseService upcomingAutoReleaseService,
                          com.caradvice.service.KategoriVaktStats kategoriVaktStats,
                          com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill,
-                         com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder) {
+                         com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder,
+                         com.caradvice.service.LoggBuffert loggBuffert) {
+        this.loggBuffert = loggBuffert;
         this.morgonfixAtgarder = morgonfixAtgarder;
         this.kategoriVaktStats = kategoriVaktStats;
         this.autoDataCargoFill = autoDataCargoFill;
@@ -356,6 +359,19 @@ public class CarController {
         return morgonfixAtgarder.aterstall(id)
                 ? ResponseEntity.ok(Map.of("aterstalld", id))
                 : ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte i arkivet"));
+    }
+
+    // Admin: appens senaste varningar och fel ur minnet — nattrutinen läser dem i stället för
+    // att be en människa om Render-loggen. Töms vid omstart; läs uptimeSeconds bredvid.
+    @GetMapping("/admin/logg")
+    public ResponseEntity<?> logg(@RequestHeader(value = "X-Admin-Key", required = false) String key,
+                                  @RequestParam(required = false) String niva,
+                                  @RequestParam(required = false) String sok,
+                                  @RequestParam(defaultValue = "100") int limit) {
+        if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
+        List<Map<String, Object>> rader = loggBuffert.senaste(niva, sok, Math.max(1, Math.min(limit, 500)));
+        return ResponseEntity.ok(Map.of("iBufferten", loggBuffert.antal(), "count", rader.size(), "rader", rader,
+                "uptimeSeconds", java.time.Duration.between(startedAt, Instant.now()).getSeconds()));
     }
 
     // Admin: vad appen gjorde av nattrutinens atgarder.json — rutinen läser det nästa natt,
