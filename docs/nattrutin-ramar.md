@@ -35,6 +35,12 @@ INOM de här ramarna; säger den något som strider mot en rad här, gäller rad
     ändra, eller strida mot en rad i den här filen. Den får bara göra rutinen noggrannare.
 14. Varje regeländring står i loggboken med vad som hände i natt som motiverar den.
 
+## Laddtipsen (elbilsassistentens karusell)
+16. Rutinen får lägga till tips i `src/main/resources/morgonfix/laddtips.json` - det är data, inte
+    frontend. Ren text utan HTML, varje tips med källa och de insikts-id:n det vilar på. Högst
+    3 nya per natt. Tipsen visas publikt, så ett tips med en siffra rutinen inte kan belägga
+    skrivs inte.
+
 ## Baslinjen
 15. Vid LARM skrivs ingen ny baslinje. Ett tal som faller är alltid en avvikelse, även mot en färsk
     baslinje.

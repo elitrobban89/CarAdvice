@@ -7,6 +7,7 @@
   // integration hade glidit isär från den. Tjänsten ligger på gratisnivån och somnar —
   // svarar den inte visas raden helt enkelt inte, och det är hela felhanteringen.
   const BILRESA_API = window.EV_BILRESA_URL || "https://bilresa.onrender.com";
+  const CARADVICE = window.EV_CARADVICE_URL || "https://caradvice.onrender.com";
 
   // Var FILERNA ligger — härlett ur var den här filen själv laddades ifrån.
   //
@@ -1321,6 +1322,15 @@
     .catch(() => {})
     .finally(() => renderTipsOnly());
 
+  // Laddtipsen ur CarAdvice-insikterna, skrivna av nattrutinen (2026-09-27). Förut låg de
+  // handskrivna i staticFacts nedan och fylldes på för hand. Hämtas från CarAdvice och inte från
+  // API: det är CarAdvice som äger insikterna, och den tjänsten är vaken.
+  fetch(CARADVICE + "/api/laddtips")
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => { if (d && Array.isArray(d.tips)) state.laddtips = d.tips; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
   // Tipsen syns direkt, utan bil och utan position. Väntar vi på användaren möts hen av en
   // tom yta, och de statiska fakta är läsvärda i sig.
   renderTipsOnly();
@@ -2380,6 +2390,17 @@
           `Stolpens effekt är sällan taket — bilen är det: av <strong>${medDc.length}</strong> snabbladdande bilar i vår databas klarar <strong>${snabba}</strong> minst 150 kW, medan <strong>${langsamma}</strong> ligger under 100 kW. Högst upp: <strong>${topp.name}</strong> med <strong>${Math.round(topp.maxDcKw)} kW</strong>. Vid en 350 kW-laddare laddar en 100 kW-bil precis lika långsamt som vid en 100 kW-stolpe, och därför räknar laddtidskalkylatorn här på det lägsta av bilens och stolpens tak. Den börjar dessutom på 20→80 %: laddeffekten trappas ned mot fullt batteri, så de sista procenten är de dyraste i tid.` });
       }
 
+      /*
+       * Laddtipsen från nattrutinen. Texten är AI-formulerad ur skrapad motorpress och kommer som
+       * REN TEXT: den escapas först, och först därefter blir **så här** till <strong>. Backenden
+       * avvisar redan tips med en tagg, men den här raden är det som gör att en tagg ändå aldrig
+       * kan köras - två lås, för att det är publik text från en maskin.
+       */
+      const dynamicLaddtips = (state.laddtips || []).map(t => ({
+        icon: esc(t.ikon || '💡'),
+        text: esc(t.text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>') + ' (' + esc(t.kalla) + ')'
+      }));
+
       const dynamicRankFacts = [];
       if (state.evSalesRank && state.evSalesRank.length > 0) {
         const top = state.evSalesRank[0];
@@ -2400,6 +2421,8 @@
         ...dynamicRankFacts,
         ...dynamicZonFacts,
         ...dynamicEffektFacts,
+        // Nattrutinens tips före de handskrivna: de är nyare, och de gamla ligger kvar under.
+        ...dynamicLaddtips,
         ...staticFacts
       ];
 

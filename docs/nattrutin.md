@@ -294,4 +294,16 @@ En morgonfix-PR som auto-merge inte tagit (rott CI eller vakten) blockerar allt 
 4. Borja nattens arbete fran origin/master enligt 9a. Samma fix far aldrig finnas pa bada grenarna - loggboken avgor.
 Skriv flytten overst under Morgonfixen som KOLLA, och under Veckan som "vantar pa dig".
 
+=== 12. LADDTIPSEN - elbilsassistentens karusell (sedan 2026-09-27) ===
+Elbilsassistenten visar "Visste du att"-tips. Nya laddtips skriver DU, i `src/main/resources/morgonfix/laddtips.json`; assistenten hamtar dem fran GET /api/laddtips. Forut skrevs de for hand i ev-app.js och karusellen stod still i veckor.
+- **NAR:** sa fort du ser ett tips som ar nytt, rimligt och aktuellt - ingen fast takt, men hogst 3 nya per natt (ramarna rad 16). En natt utan bra kandidat ger inget tips; fyll aldrig pa for att fylla.
+- **UNDERLAG:** fyndlistan `GET /api/admin/ev-fact-candidates` (poangsatta kandidater ur insikterna) och nattens egna rader. Bara laddning, batteri, rackvidd, forbrukning och laddpriser - och bara bilar som gar att kopa i Sverige idag (inget ur kommande-kon).
+- **KONTROLLERA SIFFRORNA SJALV** innan du skriver - insikterna ar AI-extraherad text. Sa foll Puma Gen-E 08-18, och fyndlistans id 1509/1510 bar bada en siffra som inte gick ihop (en laddtid som kravde 31 kW i snitt pa en bil som laddar 87 kW, en "verklig" rackvidd over den officiella). Stam rackvidd/batteri/laddeffekt mot /api/ev-spec?car=... Gar en siffra inte att belagga: stryk den ur tipset, eller skriv inte tipset.
+- **INGEN DUBBLETT:** las GET /api/laddtips och de handskrivna tipsen i src/main/resources/static/ev-app.js (staticFacts) - samma faktum om samma bil far inte sta tva ganger.
+- **FORMAT** - lagg till i listan, ta aldrig bort nagon annans rad:
+  {"datum": "YYYY-MM-DD", "ikon": "⚡", "text": "Ren text, **fetstil** med dubbla asterisker, 40-420 tecken.", "kalla": "Teknikens Varld", "insikter": [1510]}
+  Ingen HTML (tipset avvisas och visas aldrig). Kallan skrivs som publikationen, precis som i staticFacts. `insikter` = id:na tipset vilar pa: doljs, parkeras eller raderas en av dem forsvinner tipset av sig sjalvt. Tips aldre an 180 dagar visas inte; ta bort dem ur filen nar du anda ror den.
+- Provet `LaddtipsServiceTest.verkligaFilenArGiltig` faller om ett tips i filen inte godkanns - kor det fore commit.
+- Under rubriken Morgonfixen: "Nya laddtips i natt: N" med texten for varje. Pa sondagar i Veckan.
+
 === SLUT PA NATTRUTINEN ===

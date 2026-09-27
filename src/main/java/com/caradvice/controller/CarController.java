@@ -88,6 +88,7 @@ public class CarController {
     private final com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill;
     private final com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder;
     private final com.caradvice.service.LoggBuffert loggBuffert;
+    private final com.caradvice.service.LaddtipsService laddtipsService;
     private final Map<String, List<Long>> ipRequestLog = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
     /*
@@ -183,7 +184,9 @@ public class CarController {
                          com.caradvice.service.KategoriVaktStats kategoriVaktStats,
                          com.caradvice.scraper.AutoDataCargoFillService autoDataCargoFill,
                          com.caradvice.service.MorgonfixAtgarder morgonfixAtgarder,
-                         com.caradvice.service.LoggBuffert loggBuffert) {
+                         com.caradvice.service.LoggBuffert loggBuffert,
+                         com.caradvice.service.LaddtipsService laddtipsService) {
+        this.laddtipsService = laddtipsService;
         this.loggBuffert = loggBuffert;
         this.morgonfixAtgarder = morgonfixAtgarder;
         this.kategoriVaktStats = kategoriVaktStats;
@@ -359,6 +362,14 @@ public class CarController {
         return morgonfixAtgarder.aterstall(id)
                 ? ResponseEntity.ok(Map.of("aterstalld", id))
                 : ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte i arkivet"));
+    }
+
+    // Publik: laddtipsen till elbilsassistentens karusell — skrivna av nattrutinen, ren text
+    @GetMapping("/laddtips")
+    public ResponseEntity<?> laddtips() {
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic())
+                .body(Map.of("tips", laddtipsService.aktuella()));
     }
 
     // Admin: appens senaste varningar och fel ur minnet — nattrutinen läser dem i stället för
