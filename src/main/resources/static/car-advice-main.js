@@ -270,7 +270,8 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
       'html.ca-scrollar #ca-hero *::before,html.ca-scrollar #ca-hero *::after,' +
       'html.ca-scrollar .ca-chip,html.ca-scrollar .ca-chip *,html.ca-scrollar .ca-chip::after,' +
       'html.ca-scrollar #ca-btn,html.ca-scrollar #ca-btn::after,html.ca-scrollar .ca-groq-badge,' +
-      'html.ca-scrollar .ca-chat-spark{animation-play-state:paused!important;}',
+      'html.ca-scrollar .ca-chat-spark,html.ca-scrollar .ca-cmp,html.ca-scrollar .ca-cmp::before,' +
+      'html.ca-scrollar .ca-cmp::after,html.ca-scrollar .ca-cmp-titel{animation-play-state:paused!important;}',
     '@property --ca-rim-ang{syntax:"<angle>";initial-value:0deg;inherits:false;}',
     '@keyframes ca-rim{to{--ca-rim-ang:360deg;}}',
     // Hero: hela färgskalan, som chattpanelen. ::before är upptaget av auroran, så ::after.
@@ -508,7 +509,12 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   // backdrop-filter gör jobbet som ogenomskinligheten gjorde: det som scrollar under suddas
   // bort så etiketten går att läsa. Fallbacken nedan täcker webbläsare utan stöd — utan den
   // syns värdena rakt igenom kolumnen så fort tabellen sidscrollar.
-  var LBL = 'linear-gradient(90deg,rgba(255,255,255,.075),rgba(255,255,255,.03))';
+  // 2026-09-27: INGEN backdrop-filter på etikettkolumnen längre. Varje etikettcell suddade
+  // bakgrunden på nytt, ovanpå en ruta som själv har backdrop-filter och en aurora som rör sig -
+  // oskärpa i två lager över en rörlig bakgrund, och kolumnen BLINKADE när sidan scrollades
+  // (Chrome bygger om lagren när scrollpausens klass slås av och på). En tonad lila platta i
+  // rutans egen färg täcker värdena som sidscrollar in under den lika bra, utan att blinka.
+  var LBL = 'linear-gradient(90deg,rgba(72,54,146,.985),rgba(66,50,138,.97))';
   var LBL_FALLBACK = 'linear-gradient(90deg,rgba(49,34,94,.97),rgba(46,32,88,.93))';
   s.textContent = [
     // Tre färglager som vandrar var för sig. inherits:true krävs för att ::before ska ärva
@@ -609,7 +615,6 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
       'background:rgba(255,255,255,.06);border:1.5px solid var(--ca-acc,#a78bfa);' +
       'box-shadow:0 0 14px -4px var(--ca-acc,#a78bfa),inset 0 1px 0 rgba(255,255,255,.08);}',
     '.ca-cmp-hoek{position:sticky;left:0;z-index:4;width:152px;padding:10px 14px;background:' + LBL + ';' +
-      'backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);' +
       'border-bottom:1px solid rgba(255,255,255,.09);border-right:1px solid rgba(255,255,255,.07);}',
     // Etikettkolumnen fastnar vid vänsterkanten: utan den vet man inte VAD man läser så fort
     // tabellen sidscrollat ett steg, och på mobil scrollar den alltid.
@@ -618,7 +623,6 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-cmp-lbl{position:sticky;left:0;z-index:3;padding:11px 13px;text-align:left;font-size:.72rem;' +
       'font-weight:700;color:rgba(226,232,240,.66);line-height:1.35;vertical-align:middle;' +
       'letter-spacing:.01em;border-bottom:1px solid rgba(255,255,255,.05);background:' + LBL + ';' +
-      'backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);' +
       'border-right:1px solid rgba(255,255,255,.07);transition:color .18s,box-shadow .18s;}',
     '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){' +
       '.ca-cmp-lbl,.ca-cmp-hoek{background:' + LBL_FALLBACK + ';}}',
