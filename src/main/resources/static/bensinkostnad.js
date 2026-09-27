@@ -2158,18 +2158,21 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else bcHeroFarger();
 
 /**
- * Sidan BAKOM appen får en ljus aurora i skiftande färger (2026-09-27). WordPress-sektionen som
- * bär appen var helt vit (temats background-preset #ffffff); appen själv lämnas som den var.
+ * Sidan BAKOM appen får en aurora i skiftande färger, och appens yttre panel blir glas
+ * (2026-09-27). WordPress-sektionen som bär appen var helt vit (temats #ffffff).
  *
- * Första försöket lade auroran INNE i appen och gjorde korten till glas - fel yta, och appen
- * var bättre förut. Nu letar skriptet upp närmaste förälder med egen bakgrund (sektionen i
- * WordPress) och lägger färgerna där. Appens yttre kant får bara en ljus glaskant och skugga,
- * så att den svävar ovanpå färgerna i stället för att se inklistrad ut.
+ * Tre lager, inifrån och ut:
+ *  - SEKTIONEN (närmaste .has-background runt appen) får en mättad bas i bärnsten, rosa, violett
+ *    och cyan, plus två drivande lager: ::before bränslets varma familj, ::after husets kalla.
+ *    Det kalla tonar hela vägen ut och in - det är det som gör att färgen skiftar.
+ *  - APPENS PANEL (.bc-wrap) blir frostat glas: halvgenomskinlig, så auroran lyser igenom runt
+ *    korten. Korten inuti lämnas vita - första försöket gjorde dem till glas och appen var
+ *    bättre förut. Ingen backdrop-filter: bakom panelen finns bara mjuka gradienter, så oskärpan
+ *    syns inte men hade räknats om varje bildruta medan auroran rör sig.
+ *  - RUNT PANELEN en vandrande färgkant (samma grepp som toppytan) och ett färgsken som pulserar.
  *
- * Två lager: ::before bär bränslets varma familj (bärnsten, orange, rosa), ::after husets kalla
- * (lila, cyan, indigo). Båda driver långsamt och det kalla tonar in och ut - det är det som
- * gör att färgen skiftar. Bara transform och opacity animeras, det kostar ingen ommålning.
- * Pausas när sektionen rullat ur bild, och står still för den som bett om mindre rörelse.
+ * Bara transform och opacity animeras, utom den tunna kanten (--bc-ram-ang), som är samma teknik
+ * toppytan redan kör. Pausas när sektionen rullat ur bild, still vid reduced motion.
  */
 function bcBakgrund() {
   var wrap = document.querySelector('.bc-wrap');
@@ -2181,27 +2184,43 @@ function bcBakgrund() {
     var s = document.createElement('style');
     s.id = 'bc-bakgrund';
     s.textContent =
-      '@keyframes bc-bg-drift{0%{transform:translate3d(-6%,-4%,0) rotate(0deg)}' +
-        '50%{transform:translate3d(4%,3%,0) rotate(7deg)}100%{transform:translate3d(-2%,6%,0) rotate(-5deg)}}' +
-      '@keyframes bc-bg-skifte{from{opacity:.12}to{opacity:1}}' +
+      '@property --bc-ram-ang{syntax:"<angle>";initial-value:0deg;inherits:false}' +
+      '@keyframes bc-ram{to{--bc-ram-ang:360deg}}' +
+      '@keyframes bc-bg-drift{0%{transform:translate3d(-7%,-5%,0) rotate(0deg) scale(1)}' +
+        '50%{transform:translate3d(5%,4%,0) rotate(9deg) scale(1.08)}100%{transform:translate3d(-3%,7%,0) rotate(-7deg) scale(1)}}' +
+      '@keyframes bc-bg-skifte{from{opacity:0}to{opacity:1}}' +
+      '@keyframes bc-glod{from{opacity:.45;transform:scale(1)}to{opacity:.85;transform:scale(1.025)}}' +
       '.bc-sida{position:relative;isolation:isolate;overflow:hidden;' +
-        'background:linear-gradient(160deg,#fff7ed 0%,#f5f3ff 52%,#ecfeff 100%)!important}' +
-      '.bc-sida::before,.bc-sida::after{content:"";position:absolute;inset:-25%;z-index:-1;' +
+        'background:linear-gradient(135deg,#fde68a 0%,#fbcfe8 34%,#ddd6fe 66%,#a5f3fc 100%)!important}' +
+      '.bc-sida::before,.bc-sida::after{content:"";position:absolute;inset:-30%;z-index:-1;' +
         'pointer-events:none;will-change:transform,opacity}' +
       '.bc-sida::before{background:' +
-        'radial-gradient(circle at 20% 22%,rgba(251,191,36,.42) 0%,transparent 38%),' +
-        'radial-gradient(circle at 82% 18%,rgba(244,114,182,.34) 0%,transparent 40%),' +
-        'radial-gradient(circle at 68% 82%,rgba(249,115,22,.28) 0%,transparent 42%);' +
-        'animation:bc-bg-drift 26s ease-in-out infinite alternate}' +
+        'radial-gradient(circle at 18% 20%,rgba(251,191,36,.75) 0%,transparent 42%),' +
+        'radial-gradient(circle at 84% 16%,rgba(236,72,153,.60) 0%,transparent 44%),' +
+        'radial-gradient(circle at 66% 84%,rgba(249,115,22,.55) 0%,transparent 46%);' +
+        'animation:bc-bg-drift 22s ease-in-out infinite alternate}' +
       '.bc-sida::after{background:' +
-        'radial-gradient(circle at 24% 76%,rgba(167,139,250,.40) 0%,transparent 40%),' +
-        'radial-gradient(circle at 82% 58%,rgba(56,189,248,.36) 0%,transparent 40%),' +
-        'radial-gradient(circle at 46% 16%,rgba(99,102,241,.26) 0%,transparent 38%);' +
-        'animation:bc-bg-drift 32s ease-in-out infinite alternate-reverse,bc-bg-skifte 18s ease-in-out infinite alternate}' +
-      '.bc-sida .bc-wrap{border:1px solid rgba(255,255,255,.8);' +
-        'box-shadow:0 18px 60px rgba(76,29,149,.16),0 4px 16px rgba(30,42,58,.08),inset 0 1px 0 rgba(255,255,255,.9)}' +
-      '.bc-sida.bc-bg-vilar::before,.bc-sida.bc-bg-vilar::after{animation-play-state:paused}' +
-      '@media(prefers-reduced-motion:reduce){.bc-sida::before,.bc-sida::after{animation:none}}';
+        'radial-gradient(circle at 22% 78%,rgba(139,92,246,.70) 0%,transparent 44%),' +
+        'radial-gradient(circle at 84% 56%,rgba(14,165,233,.62) 0%,transparent 44%),' +
+        'radial-gradient(circle at 44% 14%,rgba(79,70,229,.50) 0%,transparent 40%);' +
+        'animation:bc-bg-drift 28s ease-in-out infinite alternate-reverse,bc-bg-skifte 14s ease-in-out infinite alternate}' +
+      '.bc-sida .bc-wrap{position:relative;isolation:isolate;' +
+        'background:linear-gradient(160deg,rgba(255,255,255,.62) 0%,rgba(255,255,255,.34) 100%)!important;' +
+        'border:1px solid rgba(255,255,255,.75);' +
+        'box-shadow:0 24px 70px rgba(76,29,149,.28),0 6px 20px rgba(30,42,58,.10),' +
+          'inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.4)}' +
+      '.bc-sida .bc-wrap::before{content:"";position:absolute;inset:-22px;border-radius:42px;z-index:-1;' +
+        'pointer-events:none;background:conic-gradient(from 0deg,#f59e0b,#ec4899,#8b5cf6,#0ea5e9,#f97316,#f59e0b);' +
+        'filter:blur(30px);will-change:transform,opacity;animation:bc-glod 5s ease-in-out infinite alternate}' +
+      '.bc-sida .bc-wrap::after{content:"";position:absolute;inset:-2px;border-radius:26px;padding:2px;z-index:5;' +
+        'pointer-events:none;background:conic-gradient(from var(--bc-ram-ang),#fbbf24,#f97316,#ec4899,#8b5cf6,#0ea5e9,#fbbf24);' +
+        '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+        'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);' +
+        '-webkit-mask-composite:xor;mask-composite:exclude;opacity:.9;animation:bc-ram 8s linear infinite}' +
+      '.bc-sida.bc-bg-vilar::before,.bc-sida.bc-bg-vilar::after,' +
+        '.bc-sida.bc-bg-vilar .bc-wrap::before,.bc-sida.bc-bg-vilar .bc-wrap::after{animation-play-state:paused}' +
+      '@media(prefers-reduced-motion:reduce){.bc-sida::before,.bc-sida::after,' +
+        '.bc-sida .bc-wrap::before,.bc-sida .bc-wrap::after{animation:none}}';
     (document.head || document.documentElement).appendChild(s);
   }
   if (!sida.dataset.bgVilaKopplad && 'IntersectionObserver' in window) {
