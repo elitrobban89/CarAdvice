@@ -1896,8 +1896,8 @@ function bcAutoRoute() {
                 destVal
               );
               bcSetCalcStatus('');
-              var mapCard = document.getElementById('bc-mapCard');
-              if (mapCard) mapCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              // Ingen scroll till kartan här: bcDoCalculate scrollar till resultatet strax
+              // efter, och två mjuka scrollningar i rad avbröt varandra - sidan hoppade.
             });
         });
     })
@@ -2254,6 +2254,12 @@ function bcGlasknapp() {
     '@keyframes bc-knapp-flod{0%,100%{background-position:0% 50%,0 0}50%{background-position:100% 50%,0 0}}' +
     '@keyframes bc-knapp-glans{0%,55%{transform:translateX(0) skewX(-18deg)}100%{transform:translateX(520%) skewX(-18deg)}}' +
     '#bc-results{scroll-margin-top:90px}' +
+    '#bc-results.bc-inaktuell{opacity:.45;transition:opacity .2s}' +
+    // Linjerna låg 16 px OVANFÖR cirklarna (margin-top:-16px i WP-blocket) - två grå streck
+    // som inte hörde till något. Nu genom cirklarnas mitt (28 px cirkel, 2 px linje) och i
+    // samma lila som de tända stegen. Rättat härifrån: WP-blocket är en manuell kopia.
+    '.bc-step-line{margin-top:13px!important;border-radius:2px}' +
+    '.bc-step.active+.bc-step-line{background:linear-gradient(90deg,#6366f1,#8b5cf6)!important;opacity:.6}' +
     '#bc-calcBtn{isolation:isolate;border:2px solid transparent!important;border-radius:16px!important;' +
       'background:linear-gradient(135deg,rgba(139,92,246,.94) 0%,rgba(99,102,241,.92) 50%,rgba(14,165,233,.88) 100%) padding-box,' +
         'conic-gradient(from var(--bc-knapp-ang),#fbbf24,#ec4899,#8b5cf6,#0ea5e9,#fbbf24) border-box!important;' +
@@ -2346,7 +2352,10 @@ function bcIncrementDemo() {
 function bcCalculate() {
   bcClearError();
   bcSetCalcStatus('');
-  document.getElementById('bc-results').classList.remove('show');
+  // Tonas ned i stället för att döljas (2026-09-27). Att dölja resultatet krympte sidan, och
+  // webbläsaren kastade då upp den - för att sedan scrolla ned igen när det nya resultatet kom.
+  // Nedtonat syns det att siffrorna är gamla, och bcDoCalculate tänder dem igen.
+  document.getElementById('bc-results').classList.add('bc-inaktuell');
 
   // Blockera om demo-gränsen är nådd
   if (!bcHasUnlimited() && bcDemoRemaining() === 0) {
@@ -2459,6 +2468,7 @@ function bcDoCalculate(cons, pris) {
   try { history.replaceState(null, '', bcBuildShareUrl()); } catch(e) {}
 
   document.getElementById('bc-results').classList.add('show');
+  document.getElementById('bc-results').classList.remove('bc-inaktuell');
   // Till RESULTATET (2026-09-27). Förut scrollades kartan till "närmaste" läge, vilket ofta
   // betydde att sidan knappt rörde sig och resultatet låg kvar under kanten. scroll-margin-top
   // i bcGlasknapp() håller rubriken fri från WordPress-temats huvud.
