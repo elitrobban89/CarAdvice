@@ -692,9 +692,19 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     '.ca-cmp-legend-rad{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;}',
     '.ca-cmp-leg{display:inline-flex;align-items:center;gap:5px;font-size:.65rem;color:rgba(226,232,240,.5);}',
     '.ca-cmp-prick{width:9px;height:9px;border-radius:3px;flex-shrink:0;box-shadow:0 0 9px -1px currentColor;}',
+    // Mobil (2026-09-27): etikettkolumnen tog ~40 % av bredden - långa ord som
+    // "Expertrecension" och "batterialternativ" tvingade den bredare än de 118 px regeln bad om,
+    // så bara drygt en bil syntes och ingenting sa att det fanns fler att svepa till. Priserna
+    // bröts dessutom i "329 000" / "kr →". Nu: 92 px med avstavning, priser på en rad, och en
+    // tonad högerkant som visar att tabellen fortsätter (bort när man nått sista bilen).
     '@media(max-width:520px){.ca-cmp{margin-top:28px;border-radius:16px;}' +
-      '.ca-cmp-c,.ca-cmp-lbl{padding:9px 10px;}.ca-cmp-hoek{width:118px;padding:9px 10px;}' +
-      '.ca-cmp-lbl{font-size:.68rem;}.ca-cmp-h{padding:11px 10px 9px;}.ca-cmp-tab{min-width:390px;}}',
+      '.ca-cmp-c{padding:9px 8px;min-width:112px;}' +
+      '.ca-cmp-hoek,.ca-cmp-lbl{width:92px;min-width:92px;max-width:92px;padding:9px 8px;}' +
+      '.ca-cmp-lbl{font-size:.62rem;line-height:1.3;hyphens:manual;-webkit-hyphens:manual;overflow-wrap:break-word;}' +
+      '.ca-cmp-h{padding:11px 8px 9px;}.ca-cmp-tab{min-width:0;}' +
+      '.ca-cmp-lank,.ca-cmp-pris{white-space:nowrap;font-size:.78rem;}' +
+      '.ca-cmp-scroll{-webkit-mask-image:linear-gradient(90deg,#000 80%,rgba(0,0,0,.22));mask-image:linear-gradient(90deg,#000 80%,rgba(0,0,0,.22));}' +
+      '.ca-cmp-scroll.ca-cmp-slut{-webkit-mask-image:none;mask-image:none;}}',
     // animation:none tar bort clip-path-fyllningen också, och då står stapeln helt framme
     // direkt — den slocknar alltså inte, den slutar bara röra sig.
     '@media(prefers-reduced-motion:reduce){.ca-cmp,.ca-cmp::before,.ca-cmp::after,.ca-cmp-titel,.ca-cmp-ev i,' +
@@ -3351,7 +3361,7 @@ function caRenderCompare(recs, targetEl) {
       }).join('') + '</ul>';
     }},
     { label: '&#x26A0; Nackdel', fn: function(r){ return '<span class="ca-cmp-minus">' + caEsc(r.con) + '</span>'; } },
-    { label: '&#x1F3AF; Expertrecension', fn: function(r){
+    { label: '&#x1F3AF; Expert&shy;recension', fn: function(r){
       if (!r.expertOpinion) return TOM;
       return '<span class="ca-cmp-cit">' + caEsc(r.expertOpinion) + '</span>';
     }},
@@ -3363,7 +3373,7 @@ function caRenderCompare(recs, targetEl) {
       return '<span class="ca-cmp-stjarnor">' + caEsc(stars) + '</span>' +
         (details ? '<span class="ca-cmp-sub">' + caEsc(details) + '</span>' : '');
     }},
-    { label: '&#x1F9F3; Bagageutrymme', rikt: 'hog',
+    { label: '&#x1F9F3; Bagage&shy;utrymme', rikt: 'hog',
       tal: function(r){ return r.cargoSpec ? r.cargoSpec.cargoLiters : 0; },
       fn: function(r){
         if (!r.cargoSpec || r.cargoSpec.cargoLiters <= 0) return TOM;
@@ -3371,7 +3381,7 @@ function caRenderCompare(recs, targetEl) {
         if (r.cargoSpec.cargoMaxLiters > 0) txt += ' <span class="ca-cmp-sub" style="display:inline">/ ' + r.cargoSpec.cargoMaxLiters + ' L</span>';
         return txt;
       }},
-    { label: '&#x1F527; Motor &amp; batterialternativ', fn: function(r){
+    { label: '&#x1F527; Motor &amp; batteri&shy;alternativ', fn: function(r){
       if (!r.engineOptions) return TOM;
       return r.engineOptions.split(',').map(function(opt) {
         return '<span class="ca-cmp-opt">' + caEsc(opt.trim()) + '</span>';
@@ -3509,6 +3519,16 @@ function caRenderCompare(recs, targetEl) {
       else ruta.removeAttribute('data-hov');
     });
     ruta.addEventListener('mouseleave', function() { ruta.removeAttribute('data-hov'); });
+  }
+
+  // Den tonade högerkanten (mobil) ska bara synas så länge det FINNS mer att svepa till.
+  var skrol = cmp.querySelector('.ca-cmp-scroll');
+  if (skrol) {
+    var vidSlutet = function () {
+      skrol.classList.toggle('ca-cmp-slut', skrol.scrollLeft + skrol.clientWidth >= skrol.scrollWidth - 4);
+    };
+    skrol.addEventListener('scroll', vidSlutet, { passive: true });
+    vidSlutet();
   }
 }
 
