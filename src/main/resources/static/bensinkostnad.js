@@ -2157,6 +2157,66 @@ function bcHeroFarger() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bcHeroFarger);
 else bcHeroFarger();
 
+/**
+ * Hela ytan får en ljus aurora i skiftande färger och korten blir glas (2026-09-27). Förut var
+ * .bc-wrap en nästan vit gradient och korten helt vita — toppytan hade fått liv, resten inte.
+ *
+ * Två lager ovanpå varandra: ::before bär bränslets varma familj (bärnsten, orange, rosa) och
+ * ::after husets kalla (lila, cyan, indigo). Båda driver långsamt, och det kalla tonar in och ut
+ * — det är det som gör att färgen skiftar. Bara transform och opacity animeras: de kostar ingen
+ * ommålning, medan filter/hue-rotate kostade 20 fps när samma sak mättes på elbilssidan.
+ *
+ * Korten är glas UTAN backdrop-filter: bakom dem finns bara mjuka gradienter, så en oskärpa
+ * syns inte men hade räknats om varje bildruta medan auroran rör sig. Halvgenomskinligt vitt,
+ * en ljus kant och ett inre skimmer ger samma intryck gratis. Förslagslistan under sökfälten
+ * behåller solid vit bakgrund — den ska gå att läsa ovanpå allt annat.
+ *
+ * Pausas när ytan rullat ur bild, och står still för den som bett om mindre rörelse.
+ */
+function bcBakgrund() {
+  var wrap = document.querySelector('.bc-wrap');
+  if (!wrap) return;
+  if (!document.getElementById('bc-bakgrund')) {
+    var s = document.createElement('style');
+    s.id = 'bc-bakgrund';
+    s.textContent =
+      '@keyframes bc-bg-drift{0%{transform:translate3d(-6%,-4%,0) rotate(0deg)}' +
+        '50%{transform:translate3d(4%,3%,0) rotate(7deg)}100%{transform:translate3d(-2%,6%,0) rotate(-5deg)}}' +
+      '@keyframes bc-bg-skifte{from{opacity:.12}to{opacity:1}}' +
+      '.bc-wrap{position:relative;isolation:isolate;overflow:hidden;' +
+        'background:linear-gradient(160deg,#fff7ed 0%,#f5f3ff 52%,#ecfeff 100%)!important;' +
+        'box-shadow:0 10px 40px rgba(76,29,149,.10)}' +
+      '.bc-wrap::before,.bc-wrap::after{content:"";position:absolute;inset:-25%;z-index:-1;' +
+        'pointer-events:none;will-change:transform,opacity}' +
+      '.bc-wrap::before{background:' +
+        'radial-gradient(circle at 20% 22%,rgba(251,191,36,.42) 0%,transparent 38%),' +
+        'radial-gradient(circle at 82% 18%,rgba(244,114,182,.34) 0%,transparent 40%),' +
+        'radial-gradient(circle at 68% 82%,rgba(249,115,22,.28) 0%,transparent 42%);' +
+        'animation:bc-bg-drift 26s ease-in-out infinite alternate}' +
+      '.bc-wrap::after{background:' +
+        'radial-gradient(circle at 24% 76%,rgba(167,139,250,.40) 0%,transparent 40%),' +
+        'radial-gradient(circle at 82% 58%,rgba(56,189,248,.36) 0%,transparent 40%),' +
+        'radial-gradient(circle at 46% 16%,rgba(99,102,241,.26) 0%,transparent 38%);' +
+        'animation:bc-bg-drift 32s ease-in-out infinite alternate-reverse,bc-bg-skifte 18s ease-in-out infinite alternate}' +
+      '.bc-card,.bc-map-card,.bc-res-item{' +
+        'background:linear-gradient(135deg,rgba(255,255,255,.66),rgba(255,255,255,.38))!important;' +
+        'border:1px solid rgba(255,255,255,.78)!important;' +
+        'box-shadow:0 8px 32px rgba(76,29,149,.10),0 2px 8px rgba(30,42,58,.05),inset 0 1px 0 rgba(255,255,255,.95)!important}' +
+      '.bc-input-wrap input,.bc-input-wrap select{background:rgba(255,255,255,.72)}' +
+      '.bc-wrap.bc-bg-vilar::before,.bc-wrap.bc-bg-vilar::after{animation-play-state:paused}' +
+      '@media(prefers-reduced-motion:reduce){.bc-wrap::before,.bc-wrap::after{animation:none}}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  if (!wrap.dataset.bgVilaKopplad && 'IntersectionObserver' in window) {
+    wrap.dataset.bgVilaKopplad = '1';
+    new IntersectionObserver(function (poster) {
+      poster.forEach(function (p) { wrap.classList.toggle('bc-bg-vilar', !p.isIntersecting); });
+    }).observe(wrap);
+  }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bcBakgrund);
+else bcBakgrund();
+
 function bcKortIkonPaCta() {
   bcInjectKortStyles();
   var cta = document.querySelector('.bc-login-cta-btn');
