@@ -1,5 +1,68 @@
 # Morgonfix-logg
 
+## 2026-09-28
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:29:42, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (1e889b5), status OK, Groq
+3/3 modeller, vPIC 291 kontrollerade / 0 avvikelser (9:e natten i rad utan avvikelse),
+kontrollräkningen (cargo total 1725 + evSpecs 599 + ice_consumption 960 = 3284 = variants)
+stämmer, drivmedelsräknaren 482/397/85/16 (ingen flip), kategorivakten tyst (0/0) sedan
+senaste omstarten (uptime ~11,3 h). cargo-specs-jobbet gav 0/0/0 (nya bilnamn/bagagevolymer/
+generationsår) och bade medVolym (991) och bagageMissar (778) star exakt still mot
+baslinjen — men 3f:s domregel undantar det: bagagesvepets 150/natt-budget användes sist
+09-26, alla 778 parkerade missar är ej-hittad (ingen Volvo XC60/Golf i listan) och ingen
+är eligible för omprövning förrän 30-dagarsfönstret öppnar i slutet av oktober, så
+stillestånd är DET NORMALA (samma läge som generationsåren). Dagens dom blev KOLLA — en
+kodlucka i kategorivakten (samma mönster som Kia Ceed 09-27) plus två kommande-rader som
+verkade felaktigt parkerade.
+
+**Fix 1 — `born` och `focus` saknades i `InsightTaxonomy.STORA_MODELLER`**
+(`src/main/java/com/caradvice/model/InsightTaxonomy.java`, samma lista som fick `ceed`
+09-27).
+
+- **Vad nattrapporten visade:** id 1665-1669 (Teknikens Värld, Cupra Born) och id 1671
+  (Auto Motor & Sport, Ford Focus) kom in som `smaabil`. Cupra Born delar VW ID.3:s
+  MEB-plattform (samma storleksklass, ~4,3 m) — id.3 står redan i listan — och Ford Focus
+  är C-segment, samma hylla som ceed/octavia. `/api/admin/kategorivakten` visade
+  `totalt:0` för natten (uptime ~11,3 h, täcker hela kedjan), vilket bekräftar att vakten
+  inte känner till någon av modellerna.
+- **Källan för faktat:** kontrollerat mot `/api/cars` och `/api/admin/ice-generations` att
+  bara "Cupra Born" resp. "Ford Focus" innehåller delsträngarna `born`/`focus` i hela
+  bildatabasen (ingen kollisionsrisk). Cupra Born säljs i Sverige som halvkombi på samma
+  plattform som VW ID.3; Ford Focus är en C-segmentbil, ingen stadsbil.
+- **Provet:** `InsightTaxonomyTest.cupraBornOchFordFocusArIngenSmaabil` (i
+  `src/test/java/com/caradvice/model/InsightTaxonomyTest.java`, efter
+  `kiaCeedArIngenSmaabil`). RÖTT före fixen (`kategoriMotsagelse("smaabil", "Cupra",
+  "Born")` gav `null`), GRÖNT efter (`"born"` och `"focus"` tillagda i `STORA_MODELLER`).
+- **Byggresultat:** `mvn -q test` grönt: 1219 tester, 0 failures, 0 errors.
+
+**Kobeslut i natt (`src/main/resources/morgonfix/atgarder.json`):**
+- **id 1661 (Volvo EX60, slapp):** modellen finns redan i katalogen som ev_spec-varianter
+  (P6, P10 AWD, P12 AWD i `/api/cars`) och leasas aktivt — Blockets annonskoll (3b) hittade
+  47 annonser, Business Lease 6995-7995 kr/mån för 2027 års modell. Bestallningsbar idag,
+  alltså AKTUELL enligt användarens linje, trots att annonskollen gav GRANSKA (den
+  tolkningen krävde ett beslut, inte bara annonstexten).
+- **id 1387 (Lexus NX 450h+, slapp):** modellen säljs redan i Sverige (Blocket-annonser
+  2019/2022 års modeller, `Lexus nx` i `/api/cars` sedan 2021 i ice-generations). Insikten
+  beskriver en ansiktslyftning under samma modellnamn (ökad elektrisk räckvidd, DC-laddning)
+  — ARSMODELLSREGELN säger en sådan är köpbar, inte en ny generation. Legat parkerad som
+  GRANSKA sedan 09-02 utan att någon flaggat regressionen förrän nu.
+- Övriga 27 rader i kön (XC70, Pajero, NX-varianter redan hanterade, Santa Fe, Tucson x4,
+  Range Rover, ID.3 GTI x6, C-klass Electric x4, XC100, ID. Polo GTI, Lynk & Co 10, iX5
+  Hydrogen, Kia PV7) lämnas parkerade — ingen av dem är bekräftat köpbar i Sverige idag.
+
+**Laddtips (`src/main/resources/morgonfix/laddtips.json`):** ett nytt tips om Nissan Leaf
+(75 kWh / 624 km WLTP / 150 kW DC), verifierat mot `/api/ev-spec?car=Nissan Leaf`
+(id 1629 och 1631, poäng 3-4 i `/api/admin/ev-fact-candidates`) och kontrollerat mot
+befintliga `laddtips.json` och `ev-app.js`-staticFacts utan dubblett.
+
+**Laddpriser (måndag, avsnitt 13):** 0 kontrollerade — molnmiljöns egress-proxy avvisade
+(`connect_rejected`) samtliga testade nätverks egna prissidor (Ionity, Tesla, Circle K,
+Vattenfall InCharge). Reserven i `laddpriser.json` lämnas oförändrad.
+
+**Lämnat därhän (kräver beslut, inte kod):**
+- Ingen — inget över taket, inget krävde belägg som saknades i natt.
+
 ## 2026-09-27
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:25 svensk tid, inom

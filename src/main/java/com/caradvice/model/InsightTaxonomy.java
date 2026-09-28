@@ -137,12 +137,17 @@ public final class InsightTaxonomy {
      * <p><b>{@code ceed} tillkom 2026-09-27</b> efter id 1660 (CarUp, en begagnad Kia Ceed) kom
      * in som {@code smaabil}. Ceed är Golf-klass, samma hylla som {@code passat}/{@code octavia}
      * här i listan. Fångar även Kia Proceed (Ceed-baserad) via samma delsträng.
+     *
+     * <p><b>{@code born} och {@code focus} tillkom 2026-09-28</b> efter id 1665-1669 (Teknikens
+     * Värld, Cupra Born) och id 1671 (Auto Motor & Sport, Ford Focus) kom in som {@code smaabil}.
+     * Born delar ID.3-plattformen (MEB, ~4,3 m) och Focus är C-segment — samma hylla som
+     * {@code id.3}/{@code octavia}/{@code ceed} här i listan.
      */
     public static final List<String> STORA_MODELLER = List.of(
             "model 3", "model s", "model x", "model y", "id.3", "id3", "id.7", "polestar 2",
             "polestar 3", "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger",
             "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo",
-            "ceed");
+            "ceed", "born", "focus");
 
     /**
      * Lyxbilar och sportbilar — modeller som ALDRIG får bära {@code smaabil} eller {@code familjebil}.
