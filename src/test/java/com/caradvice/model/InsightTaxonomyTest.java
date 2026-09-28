@@ -195,6 +195,18 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void cupraBornOchFordFocusArIngenSmaabil() {
+        // Natten mot 2026-09-28: id 1665-1669 (Teknikens Värld, Cupra Born) och id 1671
+        // (Auto Motor & Sport, Ford Focus) kom in som smaabil. Born delar ID.3-plattformen
+        // (MEB, ~4,3 m) och Focus är C-segment — samma hylla som id.3/octavia/ceed i
+        // STORA_MODELLER, inte stadsbilar.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "Cupra", "Born"))
+                .isEqualTo("cupra born är ingen småbil");
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "Ford", "Focus"))
+                .isEqualTo("ford focus är ingen småbil");
+    }
+
+    @Test
     void okandKategoriArFortfarandeNull() {
         // Whitelisten gäller som förut — vakten läggs till, den ersätter ingenting
         assertThat(InsightTaxonomy.canonicalCategory("sportbil", "Porsche", "911")).isNull();
