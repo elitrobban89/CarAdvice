@@ -5139,6 +5139,22 @@ function caFcRenderResult(recs) {
     '.ca-rubrikrad h2{margin-bottom:0!important;align-self:flex-start;text-align:left;}',
     // Underrubriken centreras under remsan.
     '#ca-hero p.ca-sub{text-align:center;margin-bottom:16px;}',
+    // 3D-bilen före rubriken (se caRubrikBil). Den vaggar i perspektiv som chattens bilar;
+    // pekaren över rubriken får den att rycka till och köra — hjulen snurrar, helljuset tänds.
+    // Spannet bär perspektivet, SVG:n vridningen: samma uppdelning som i chattrubriken.
+    '.ca-rubrik-bil{display:inline-block;width:1.6em;height:.94em;margin-right:.32em;',
+      'vertical-align:-.06em;perspective:160px;}',
+    '.ca-rubrik-bil svg{width:100%;height:100%;overflow:visible;transform-origin:50% 70%;',
+      'filter:drop-shadow(0 2px 2px rgba(20,6,50,.55)) drop-shadow(0 0 8px rgba(196,181,253,.35));',
+      'animation:ca-rubrik-vagga 6s ease-in-out infinite;}',
+    '@keyframes ca-rubrik-vagga{0%,100%{transform:rotateY(-20deg) rotateX(6deg)}',
+      '50%{transform:rotateY(20deg) rotateX(-2deg) translateY(-1px)}}',
+    '.ca-rubrik-hjul{transform-box:fill-box;transform-origin:center;}',
+    '#ca-hero h2:hover .ca-rubrik-bil svg{animation:ca-rubrik-ryck .7s cubic-bezier(.3,1.6,.5,1);}',
+    '#ca-hero h2:hover .ca-rubrik-hjul{animation:ca-vag-snurr .3s linear infinite;}',
+    '#ca-hero h2:hover .ca-rubrik-lampa{fill:#fffef5;}',
+    '@keyframes ca-rubrik-ryck{0%{transform:none}30%{transform:translate(3px,-3px) rotate(-5deg)}',
+      '65%{transform:translate(-1px,1px) rotate(1.5deg)}100%{transform:none}}',
     // Två runda ikonknappar i stället för de två breda raderna. 44 px är fingermålet —
     // samma mått som resten av appens knappar fick när de mättes på telefon.
     '.ca-hero-knappar{display:flex;justify-content:center;gap:13px;margin:0 0 28px;}',
@@ -5497,7 +5513,7 @@ function caFcRenderResult(recs) {
       '.ca-rubrikrad{gap:9px;margin-bottom:11px;}}',
     '@media(prefers-reduced-motion:reduce){.ca-vag-linje,.ca-vag-kant,.ca-vag-stolpar,',
       '.ca-vag-bil,.ca-vag-hjul,.ca-vag-fart,.ca-vag-ljus,.ca-vag-sol,.ca-vag-stralar,',
-      '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans{animation:none!important;}',
+      '.ca-vag-krans,.ca-vag-solvagn,.ca-vag-glans,.ca-rubrik-bil svg,.ca-rubrik-hjul{animation:none!important;}',
       '.ca-vag-sport,.ca-vag-sport-strimma,.ca-vag-faglar{display:none;}',
       '.ca-vag-stad,.ca-vag-kullar-bort,.ca-vag-moln,.ca-vag-vagor,',
       '.ca-vag-solvag,.ca-vag-glitter,.ca-vag-solsken,.ca-vag-skum,',
@@ -5586,6 +5602,56 @@ function caRundaKnappar() {
 }
 
 /**
+ * Byter 🚗 före "Hitta din drömbil" mot samma pärlvita 3D-bil som chatten har.
+ *
+ * <p>Emojin pekade åt VÄNSTER medan bilen i vägscenen under kör åt höger. Den bor i WP-sidans
+ * manuella HTML-kopia, så den byts här från JS i stället för att sidan ska klistras om. WP:s
+ * emoji-skript kan redan ha gjort den till en {@code <img class="emoji" alt="🚗">} — båda
+ * formerna tas bort. Hittas ingen emoji läggs bilen ändå först, en gång.
+ */
+function caRubrikBil(h2) {
+  if (h2.querySelector('.ca-rubrik-bil')) return;
+  var nod = h2.firstChild;
+  while (nod && nod.nodeType === 3 && !nod.nodeValue.trim()) nod = nod.nextSibling;
+  if (nod && nod.nodeType === 3 && nod.nodeValue.indexOf('🚗') !== -1) {
+    nod.nodeValue = nod.nodeValue.replace('🚗', '').replace(/^\s+/, '');
+  } else if (nod && nod.nodeType === 1 && nod.tagName === 'IMG' && nod.getAttribute('alt') === '🚗') {
+    var efter = nod.nextSibling;
+    nod.parentNode.removeChild(nod);
+    if (efter && efter.nodeType === 3) efter.nodeValue = efter.nodeValue.replace(/^\s+/, '');
+  }
+  var bil = document.createElement('span');
+  bil.className = 'ca-rubrik-bil';
+  bil.setAttribute('aria-hidden', 'true');
+  bil.innerHTML =
+    '<svg viewBox="2 8 53 31" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<linearGradient id="ca-rub-lack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="42%" stop-color="#ece6ff"/><stop offset="100%" stop-color="#9f8fe0"/></linearGradient>' +
+        '<linearGradient id="ca-rub-skugga" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#2e1065" stop-opacity="0"/><stop offset="100%" stop-color="#2e1065" stop-opacity=".38"/></linearGradient>' +
+        '<linearGradient id="ca-rub-ruta" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#5b21b6"/><stop offset="100%" stop-color="#2e1065"/></linearGradient>' +
+        '<radialGradient id="ca-rub-falg" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset="60%" stop-color="#cbd5e1"/><stop offset="100%" stop-color="#64748b"/></radialGradient>' +
+        '<radialGradient id="ca-rub-golv" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>' +
+      '</defs>' +
+      '<ellipse cx="28" cy="37.2" rx="23" ry="1.8" fill="url(#ca-rub-golv)"/>' +
+      '<path d="M4 27 Q4 21.2 10 20.2 L17 19.2 Q21.5 11.2 27.5 10.6 L35.5 10.6 Q41 11.2 45 18.6 L49.5 19.6 Q53 20.6 53 25 L53 29 Q53 31 51 31 L6 31 Q4 31 4 29 Z" fill="url(#ca-rub-lack)" stroke="#7c6bc4" stroke-width=".7"/>' +
+      '<path d="M4 27 Q4 21.2 10 20.2 L17 19.2 Q21.5 11.2 27.5 10.6 L35.5 10.6 Q41 11.2 45 18.6 L49.5 19.6 Q53 20.6 53 25 L53 29 Q53 31 51 31 L6 31 Q4 31 4 29 Z" fill="url(#ca-rub-skugga)"/>' +
+      '<path d="M19.5 17.6 Q23 12.4 27.8 11.9 L34.6 11.9" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round"/>' +
+      '<path d="M8 22.4 Q18 20.9 30 20.9 L48 21.2" stroke="#fff" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".8"/>' +
+      '<path d="M19.2 19 Q22.6 13 27.6 12.6 L30.2 12.6 L30.2 19 Z" fill="url(#ca-rub-ruta)"/>' +
+      '<path d="M32 12.6 L35.4 12.6 Q39.4 13.1 42.6 19 L32 19 Z" fill="url(#ca-rub-ruta)"/>' +
+      '<path d="M23.5 18.4 L27.4 13.4 L28.8 13.4 L24.9 18.4 Z" fill="#fff" opacity=".45"/>' +
+      '<path d="M25.6 21.2 L23.6 25.4 L25.4 25 L24.4 28.6 L27.4 23.8 L25.5 24.2 Z" fill="#facc15" stroke="#ca8a04" stroke-width=".35" stroke-linejoin="round"/>' +
+      '<rect x="3.8" y="21.8" width="2.4" height="2.6" rx="1" fill="#f43f5e"/>' +
+      '<rect class="ca-rubrik-lampa" x="49.6" y="21.2" width="3.4" height="2.4" rx="1.1" fill="#fef08a"/>' +
+      '<path d="M8.2 31 A6.8 6.8 0 0 1 21.8 31 Z" fill="#2e1065"/>' +
+      '<path d="M35.2 31 A6.8 6.8 0 0 1 48.8 31 Z" fill="#2e1065"/>' +
+      '<g class="ca-rubrik-hjul"><circle cx="15" cy="31" r="5.6" fill="#17122e"/><circle cx="15" cy="31" r="3.3" fill="url(#ca-rub-falg)"/><path d="M15 27.9 V34.1 M11.9 31 H18.1" stroke="#64748b" stroke-width=".9"/><circle cx="15" cy="31" r="1.1" fill="#475569"/></g>' +
+      '<g class="ca-rubrik-hjul"><circle cx="42" cy="31" r="5.6" fill="#17122e"/><circle cx="42" cy="31" r="3.3" fill="url(#ca-rub-falg)"/><path d="M42 27.9 V34.1 M38.9 31 H45.1" stroke="#64748b" stroke-width=".9"/><circle cx="42" cy="31" r="1.1" fill="#475569"/></g>' +
+    '</svg>';
+  h2.insertBefore(bil, h2.firstChild);
+}
+
+/**
  * Sätter vägen under rubriken.
  *
  * <p>Idempotent: körs om utan att dubblera, eftersom WP-sidan kan ladda skriptet en gång till
@@ -5605,6 +5671,7 @@ function caByggVag() {
     rad.className = 'ca-rubrikrad';
     h2.parentNode.insertBefore(rad, h2);
     rad.appendChild(h2);
+    caRubrikBil(h2);
 
     // Bäraren tar aria-hidden för hela stycket: ramen och scenen är en dekoration, och en
     // skärmläsare ska inte hitta två tomma lådor i stället för en.
@@ -5668,28 +5735,53 @@ function caByggVag() {
         '<g class="ca-vag-hjul"><circle cx="40" cy="14.2" r="3.7" fill="#0f172a"/>' +
           '<circle cx="40" cy="14.2" r="1.5" fill="#e2e8f0"/></g>' +
       '</svg>' +
+      // Pärlvit 3D-lack (2026-09-29), samma bil som chattknappen och chattrubriken: ljus
+      // överkant, skuggad underkant, glanslinjer längs tak och axel, tonade rutor med reflex.
+      // Måtten är de gamla — strålkastarkäglan och fartstrecken är placerade efter dem.
       '<svg class="ca-vag-bil" viewBox="0 0 46 21" xmlns="http://www.w3.org/2000/svg">' +
         '<defs>' +
           '<linearGradient id="ca-vag-lack" x1="0" y1="0" x2="0" y2="1">' +
-            '<stop offset="0" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#8b5cf6"/>' +
-            '<stop offset="100%" stop-color="#5b21b6"/></linearGradient>' +
+            '<stop offset="0" stop-color="#ffffff"/><stop offset="45%" stop-color="#ece6ff"/>' +
+            '<stop offset="100%" stop-color="#9f8fe0"/></linearGradient>' +
+          '<linearGradient id="ca-vag-lackskugga" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="55%" stop-color="#2e1065" stop-opacity="0"/>' +
+            '<stop offset="100%" stop-color="#2e1065" stop-opacity=".4"/></linearGradient>' +
+          '<linearGradient id="ca-vag-ruta" x1="0" y1="0" x2="1" y2="1">' +
+            '<stop offset="0" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#5b21b6"/>' +
+            '<stop offset="100%" stop-color="#2e1065"/></linearGradient>' +
+          '<radialGradient id="ca-vag-falg" cx="38%" cy="32%" r="75%">' +
+            '<stop offset="0" stop-color="#ffffff"/><stop offset="60%" stop-color="#cbd5e1"/>' +
+            '<stop offset="100%" stop-color="#64748b"/></radialGradient>' +
         '</defs>' +
         // Kaross: nos åt höger, kupé i mitten, bakparti något högre
         '<path d="M2.5 15.5 L3.6 10.6 Q4 8.9 6 8.6 L13.5 7.6 L18.5 3.9 Q19.8 3 21.8 3 L28.5 3 ' +
               'Q30.8 3 32 4.4 L35.6 8.4 L40.8 9.4 Q43.5 9.9 43.5 12.6 L43.5 15.5 Z" ' +
-              'fill="url(#ca-vag-lack)"/>' +
-        // Rutor
-        '<path d="M15.8 7.8 L19.8 4.9 Q20.6 4.4 21.8 4.4 L24.2 4.4 L24.2 8.1 Z" fill="#bae6fd" opacity=".9"/>' +
-        '<path d="M25.6 4.4 L28.4 4.4 Q29.9 4.4 30.7 5.3 L33.2 8.1 L25.6 8.1 Z" fill="#bae6fd" opacity=".9"/>' +
-        // Strålkastare
+              'fill="url(#ca-vag-lack)" stroke="#7c6bc4" stroke-width=".5"/>' +
+        '<path d="M2.5 15.5 L3.6 10.6 Q4 8.9 6 8.6 L13.5 7.6 L18.5 3.9 Q19.8 3 21.8 3 L28.5 3 ' +
+              'Q30.8 3 32 4.4 L35.6 8.4 L40.8 9.4 Q43.5 9.9 43.5 12.6 L43.5 15.5 Z" ' +
+              'fill="url(#ca-vag-lackskugga)"/>' +
+        // Glansen längs taket och axellinjen
+        '<path d="M16 7 L19.4 4.3 Q20.4 3.7 22 3.7 L28.4 3.7" stroke="#fff" stroke-width=".8" fill="none" stroke-linecap="round"/>' +
+        '<path d="M5.6 10 Q14 8.9 24 8.9 L40.5 10.1" stroke="#fff" stroke-width=".7" fill="none" stroke-linecap="round" opacity=".85"/>' +
+        // Rutor med reflex
+        '<path d="M15.8 7.8 L19.8 4.9 Q20.6 4.4 21.8 4.4 L24.2 4.4 L24.2 8.1 Z" fill="url(#ca-vag-ruta)"/>' +
+        '<path d="M25.6 4.4 L28.4 4.4 Q29.9 4.4 30.7 5.3 L33.2 8.1 L25.6 8.1 Z" fill="url(#ca-vag-ruta)"/>' +
+        '<path d="M19 7.6 L22 4.8 L23 4.8 L20.1 7.6 Z" fill="#fff" opacity=".5"/>' +
+        // El-märket på dörren, baklyse och strålkastare
+        '<path d="M22.4 9.6 L21 12.6 L22.3 12.3 L21.6 14.8 L23.8 11.4 L22.4 11.7 Z" fill="#facc15" stroke="#ca8a04" stroke-width=".25" stroke-linejoin="round"/>' +
+        '<rect x="2.6" y="10.4" width="1.6" height="2" rx=".7" fill="#f43f5e"/>' +
         '<rect x="41.4" y="10.6" width="2.2" height="2.4" rx="1" fill="#fde68a"/>' +
-        // Hjulhus + hjul med eker så rotationen syns
-        '<g class="ca-vag-hjul"><circle cx="12.5" cy="15.4" r="4.1" fill="#1f1830"/>' +
-          '<circle cx="12.5" cy="15.4" r="1.7" fill="#cbd5e1"/>' +
-          '<rect x="12.1" y="11.9" width=".8" height="7" fill="#94a3b8" opacity=".85"/></g>' +
-        '<g class="ca-vag-hjul"><circle cx="33.5" cy="15.4" r="4.1" fill="#1f1830"/>' +
-          '<circle cx="33.5" cy="15.4" r="1.7" fill="#cbd5e1"/>' +
-          '<rect x="33.1" y="11.9" width=".8" height="7" fill="#94a3b8" opacity=".85"/></g>' +
+        // Hjulhus + hjul med blank fälg och eker så rotationen syns
+        '<path d="M7.6 15.5 A4.9 4.9 0 0 1 17.4 15.5 Z" fill="#2e1065"/>' +
+        '<path d="M28.6 15.5 A4.9 4.9 0 0 1 38.4 15.5 Z" fill="#2e1065"/>' +
+        '<g class="ca-vag-hjul"><circle cx="12.5" cy="15.4" r="4.1" fill="#17122e"/>' +
+          '<circle cx="12.5" cy="15.4" r="2.4" fill="url(#ca-vag-falg)"/>' +
+          '<rect x="12.1" y="13" width=".8" height="4.8" fill="#64748b"/>' +
+          '<circle cx="12.5" cy="15.4" r=".8" fill="#475569"/></g>' +
+        '<g class="ca-vag-hjul"><circle cx="33.5" cy="15.4" r="4.1" fill="#17122e"/>' +
+          '<circle cx="33.5" cy="15.4" r="2.4" fill="url(#ca-vag-falg)"/>' +
+          '<rect x="33.1" y="13" width=".8" height="4.8" fill="#64748b"/>' +
+          '<circle cx="33.5" cy="15.4" r=".8" fill="#475569"/></g>' +
       '</svg>' +
       '<div class="ca-vag-solsken"></div>' +
       '</div>';
