@@ -211,6 +211,7 @@ Kolla ocksa: tomt carMake eller carModel, och om rating fortfarande ar null pa a
 - Egen rubrik **Vardeminskning** enligt punkten om falskt negativt.
 - Egen rubrik **Kommandevakten** enligt 3b - annonskollens fem domar, och nattens korader klassade (a)/(b)/(c).
 - Egen rubrik **Marknadsregeln** enligt 3c.
+- Egen rubrik **Splashvakten** enligt avsnitt 14.
 - Avslutning: N av M bra for nattens rader och for hela fonstret, samlad lista over foreslagna raderingar, och hogsta id i fonstret.
 - **Sist: rubriken Morgonfixen enligt avsnitt 9** - den skrivs EFTER att resten star fardig, aldrig i stallet for nagon del av den.
 
@@ -313,5 +314,15 @@ Elbilsassistenten visar ett riktpris per laddnatverk (IONITY, Allego, Tesla, Mer
 - **FORMAT:** {"natverk": "ionity", "pris": "~6,49 kr/kWh", "kalla": "https://...", "kontrollerad": "YYYY-MM-DD"}. `natverk` i gemener och samma nyckel som i reservtabellen (lasbar i Elbilsladdnings OperatorPriceService via GitHub - elitrobban89/Elbilsladdning). Varierar priset med effekt eller tid: ta det hogsta ordinarie DC-priset och skriv det i loggboken.
 - **VAKTER hos mottagaren** (du behover inte gissa dem, men undvik att trigga dem): bara 1-15 kr/kWh, och aldrig mer an 60 % fran reserven - ett sadant hopp avvisas och star kvar i Elbilsladdnings logg. Ar ett verkligt pris utanfor det: skriv det i rapporten under "Vantar pa dig", inte i filen.
 - Hogst 10 prisandringar per mandag. Under Morgonfixen: "Laddpriser: N kontrollerade, M andrade" med gammalt -> nytt.
+
+=== 14. SPLASHVAKTEN - alla webbprojektens uppstartsskarmar, VARJE natt (sedan 2026-09-29) ===
+Uppstartsskarmarna i MiniPrisTaget, Bankomat 2.0, Elbilsladdning, CarAdvice och VaderKlader visar Java-version, PostgreSQL-version, autodeployens commit och live-siffror. Siffrorna lases redan live av apparna; vakten kontrollerar att kopplingen mellan kod och skarm haller.
+- **KOR:** `node scripts/splash-vakt.js` (bara GET, ingen nyckel; satt GITHUB_TOKEN om den finns - utan den racker GitHubs 60 anrop/timme till en korning). Den tar nagra minuter nar tjansterna sover. Exitkod 2 = LARM.
+- **VAD DEN KONTROLLERAR:** (1) Java i drift mot `java.version` i pom.xml, (2) att appar med databas far ett PostgreSQL-svar, (3) att den driftsatta commiten ar toppen av master/main, (4) att live-siffrorna finns, (5) att varje extern API-varde i koden syns i splashen.
+- **RAPPORTERA** under egen rubrik **Splashvakten**: domen, sedan varje LARM och VARNING ordagrant. OK-rader sammanfattas ("5 appar, Java 27, PostgreSQL 18.4 i tre"). INFO-rader bara om de ar nya sedan gar.
+- **LARM:** en Java-version som inte matchar pom.xml, en databas som saknas eller inte ar PostgreSQL, eller en live-siffra som saknas. Laga det ALDRIG i natt - det ar drift eller kod i ett annat repo. Skriv det overst i rapporten under "Vantar pa dig".
+- **VARNING "okand extern varde":** nagon har lagt till en ny integration utan splashrad. Namn vardet och filen, och foresla raden (ikon, rubrik, undertext) i rapporten. Splashfilerna ligger i andra repon - skriv forslaget, andra dem inte.
+- **VARNING om deployen:** en commit som inte ar grenens topp kan betyda att Renders autodeploy fastnat. Ar skillnaden kvar tva natter i rad: LARM.
+- Vakten sjalv ar `scripts/` och andras aldrig av rutinen (ramarna rad 2). Provet ar `node src/test/js/splash-vakt-prov.js`.
 
 === SLUT PA NATTRUTINEN ===

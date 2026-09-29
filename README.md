@@ -393,6 +393,7 @@ nattkedjan 23:00 UTC ─► rutinen 00:30 UTC ─► auto/morgonfix ─► CI gr
 - **Rutinen läser appens logg själv**: `LoggBuffert` håller de senaste 500 varningarna och felen i minnet och `GET /api/admin/logg?sok=…&niva=ERROR` visar dem. Förut sa regeln "be om Render-loggen" på ett dussin ställen — och varje sådan avvikelse stannade hos mig. Bufferten töms vid omstart; rutinen läser `uptimeSeconds` bredvid och ber om Render-loggen först när en deploy kommit emellan
 - **Laddtipsen skrivs av rutinen**: elbilsassistentens karusell fick förut sina tips ur insikterna handskrivna i `ev-app.js`, en fil i två repon som rutinen inte får röra. Nu skriver rutinen dem i `morgonfix/laddtips.json` — så fort den ser ett nytt, rimligt och aktuellt tips, högst 3 per natt — och assistenten hämtar dem via `GET /api/laddtips`. Siffrorna stäms av mot `ev_spec` innan tipset skrivs (insikterna är AI-extraherade; Puma Gen-E 08-18 och id 1509/1510 bar alla fel siffror). **Två lås mot injektion**, eftersom det är maskinskriven text som visas publikt: `LaddtipsService` avvisar varje tips med en tagg, och `ev-app.js` escapar texten innan `**fetstil**` blir `<strong>`. Ett tips försvinner av sig självt efter 180 dagar, eller när en insikt det vilar på döljs, parkeras eller raderas
 - **Marknadsfakta och laddpriser håller sig färska själva**: de tidsbundna raderna i elbilskarusellen — årets mest sålda elbil, Mobility Swedens prognos, Årets Bil, marknadsandelar — flyttades ur `ev-app.js` till samma `laddtips.json` (typ `marknad`). Där har de ett datum, faller bort efter 180 dagar och ersätts av rutinen när en ny siffra finns; en gammal siffra försvinner hellre än står kvar. Laddpriserna per nätverk kontrollerar rutinen varje måndag mot nätverkens **egna** prissidor och skriver i `morgonfix/laddpriser.json` (bara https-källa och datum godkänns); elbilsassistenten hämtar dem var sjätte timme och avvisar själv priser utanför 1–15 kr/kWh och hopp på mer än 60 % mot sin reservtabell
+- **Splash-vakten kontrollerar alla fem webbprojektens uppstartsskärmar** (2026-09-29): `scripts/splash-vakt.js` körs varje natt (nattrutinen avsnitt 14) mot MiniPrisTåget, Bankomat 2.0, Elbilsladdning, CarAdvice och VäderKläder, med bara GET mot apparna och GitHub. Den kontrollerar att (1) den körande Java-versionen är den i `pom.xml`, (2) apparna med databas får ett PostgreSQL-svar, (3) den driftsatta commiten är toppen av `master`/`main`, (4) live-siffrorna finns och (5) varje extern API-värd i koden syns i splashen. Punkt 5 läser varje repos källkod från GitHub, så en **ny integration utan splashrad flaggas** natten efter att den kom in; en känd källa bakom en befintlig rad (Chargeprice bakom Laddpriser, motortidningarna bakom Expertdata) redovisas som INFO. Exitkod 2 vid LARM. Splasharna läser redan sina tal live: Java ur JVM:en, PostgreSQL ur anslutningen och autodeployens commit ur Renders `RENDER_GIT_COMMIT`, via `GET /api/system` i varje app. Därför syns en uppgradering till Java 28 av sig själv, och vakten ser till att kopplingen mellan kod och skärm håller. **16 prov** med `node src/test/js/splash-vakt-prov.js`. Första skarpa körningen 2026-09-29: fem appar på Java 27, PostgreSQL 18.4 i tre, alla deployer på grenens topp
 - **Veckosammanfattning på söndagar** överst i rapporten — veckans domar, fixar, reverter, databasbeslut och det som väntar på mig — och en PR som fastnat i mer än tre dygn flyttas till en egen gren så att nattens arbete inte blockeras
 - Molnmiljön har Java 27 (Liberica via setupskript) och kör hela testsviten
 
@@ -1136,6 +1137,14 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 | `GROQ_API_KEY` saknas | **503** | `{ "status": "UNCONFIGURED" }` |
 
 **UptimeRobot:** lägg till en HTTP-monitor mot `https://caradvice.onrender.com/api/health/groq` — 503 larmar automatiskt.
+
+### `GET /api/system`
+
+Plattformen till uppstartsskärmens rad **☕🐘 Java · PostgreSQL**, läst ur det som faktiskt kör: Java-versionen ur JVM:en, databasens namn och version ur anslutningen (`DatabaseMetaData`, läst en gång och sparad) och autodeployens branch och commit ur Renders miljövariabler. Öppen endpoint. Samma endpoint finns i Elbilsladdning och VäderKläder; splash-vakten läser alla.
+
+```json
+{ "java": "27", "springBoot": "3.5.16", "deployCommit": "c2c627e", "deployBranch": "master", "db": "PostgreSQL 18.4" }
+```
 
 ### `GET /api/version`
 
