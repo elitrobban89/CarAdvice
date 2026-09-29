@@ -465,6 +465,58 @@
         .ca-chat-header{animation:none;background-position:50% 50%;}
       }
       .ca-chat-header-title { display:flex;align-items:center;gap:8px; }
+      /* ── Rubrikens bil ─────────────────────────────────────────────────────
+         Lever med samtalet: vilar och vaggar i 3D, KÖR (hjul snurrar, vägen rullar,
+         avgaser puffar) medan svaret tas fram, blinkar med strålkastarna när det är
+         klart, tutar vid klick och vrider sig mot muspekaren. Knappen bär lutningen
+         mot pekaren (--ca-ry/--ca-rx), SVG:n bär vaggningen — två olika element, så
+         transformerna krockar inte. */
+      .ca-hdr-bil {
+        width:44px;height:34px;flex-shrink:0;padding:0;cursor:pointer;
+        border-radius:11px;border:1px solid rgba(255,255,255,.22);
+        background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.28),rgba(255,255,255,.06) 60%,rgba(46,16,101,.25));
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 3px 10px rgba(20,6,50,.35);
+        display:flex;align-items:center;justify-content:center;overflow:hidden;
+        transform:perspective(140px) rotateY(var(--ca-ry,0deg)) rotateX(var(--ca-rx,0deg));
+        transition:transform .25s ease-out,box-shadow .2s;
+      }
+      .ca-hdr-bil:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 14px rgba(254,240,138,.45);}
+      .ca-hdr-bil:focus-visible{outline:2px solid #fef08a;outline-offset:2px;}
+      .ca-hdr-bil svg{overflow:hidden;filter:drop-shadow(0 1.5px 1px rgba(20,6,50,.5));animation:ca-hdr-vagga 5s ease-in-out infinite;}
+      @keyframes ca-hdr-vagga{0%,100%{transform:rotateY(-18deg);}50%{transform:rotateY(18deg);}}
+      .ca-hdr-hjul{transform-box:fill-box;transform-origin:center;}
+      .ca-hdr-kaross{transform-box:fill-box;transform-origin:50% 100%;}
+      .ca-hdr-vag,.ca-hdr-rok,.ca-hdr-stral{opacity:0;}
+      .ca-hdr-rok{transform-box:fill-box;transform-origin:center;}
+      /* Kör: medan frågan väntar på svar */
+      .ca-hdr-bil.ca-kor svg{animation:none;transform:none;}
+      .ca-hdr-bil.ca-kor .ca-hdr-hjul{animation:ca-hdr-snurr .45s linear infinite;}
+      .ca-hdr-bil.ca-kor .ca-hdr-kaross{animation:ca-hdr-skaka .3s ease-in-out infinite;}
+      .ca-hdr-bil.ca-kor .ca-hdr-vag{opacity:1;animation:ca-hdr-vag .5s linear infinite;}
+      .ca-hdr-bil.ca-kor .ca-hdr-rok{animation:ca-hdr-puff 1s ease-out infinite;}
+      .ca-hdr-bil.ca-kor .ca-hdr-rok:nth-of-type(2){animation-delay:.5s;}
+      @keyframes ca-hdr-snurr{to{transform:rotate(360deg);}}
+      @keyframes ca-hdr-skaka{0%,100%{transform:translateY(0);}50%{transform:translateY(-.7px) rotate(-.6deg);}}
+      @keyframes ca-hdr-vag{from{transform:translateX(0);}to{transform:translateX(-18px);}}
+      @keyframes ca-hdr-puff{0%{opacity:.85;transform:translate(0,0) scale(.6);}100%{opacity:0;transform:translate(-7px,-4px) scale(1.8);}}
+      /* Tut: hopp, snabba hjul, helljus */
+      .ca-hdr-bil.ca-tuta .ca-hdr-kaross{animation:ca-hdr-hopp .7s cubic-bezier(.3,1.6,.5,1);}
+      .ca-hdr-bil.ca-tuta .ca-hdr-hjul{animation:ca-hdr-snurr .35s linear 2;}
+      .ca-hdr-bil.ca-tuta .ca-hdr-stral,.ca-hdr-bil.ca-svarat .ca-hdr-stral{animation:ca-hdr-blixt .8s ease-out;}
+      .ca-hdr-bil.ca-tuta .ca-hdr-lampa,.ca-hdr-bil.ca-svarat .ca-hdr-lampa{animation:ca-hdr-lampa .8s ease-out;}
+      @keyframes ca-hdr-hopp{0%{transform:none;}30%{transform:translateY(-3.5px) rotate(-4deg);}60%{transform:translateY(.6px) rotate(1.5deg);}100%{transform:none;}}
+      @keyframes ca-hdr-blixt{0%,100%{opacity:0;}15%,55%{opacity:1;}35%{opacity:.15;}}
+      @keyframes ca-hdr-lampa{0%,100%{fill:#fef08a;}15%,55%{fill:#fffef5;}35%{fill:#facc15;}}
+      .ca-hdr-text{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+      .ca-hdr-status{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:rgba(255,255,255,.72);letter-spacing:.02em;}
+      .ca-hdr-status b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .ca-hdr-status i{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.6);animation:ca-hdr-prick 2.2s ease-out infinite;}
+      .ca-hdr-status[data-lage="tanker"] i{background:#fbbf24;--ca-prick:rgba(251,191,36,.6);animation-duration:1s;}
+      .ca-hdr-status[data-lage="skriver"] i{background:#c4b5fd;--ca-prick:rgba(196,181,253,.6);animation-duration:1s;}
+      @keyframes ca-hdr-prick{0%{box-shadow:0 0 0 0 var(--ca-prick,rgba(74,222,128,.6));}100%{box-shadow:0 0 0 7px rgba(0,0,0,0);}}
+      @media (prefers-reduced-motion:reduce){
+        .ca-hdr-bil,.ca-hdr-bil *,.ca-hdr-status i{animation:none!important;transition:none!important;}
+      }
       .ca-chat-header-actions { display:flex;align-items:center;gap:6px; }
       .ca-chat-header-clear {
         background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);
@@ -743,7 +795,47 @@
             <div id="ca-chat-img-wrap" style="width:40px;height:28px;flex-shrink:0;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.08);display:none;margin-right:6px">
               <img id="ca-chat-car-img" src="" alt="" style="width:100%;height:100%;object-fit:contain">
             </div>
-            <span>🚗 Bilrådgivaren</span>
+            <button class="ca-hdr-bil" id="ca-hdr-bil" type="button" title="Tuta!" aria-label="Tuta på bilrådgivaren">
+              <svg viewBox="0 0 56 40" width="38" height="27" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Rubrikens bil: samma kaross som knappens 3D-bil men med EGNA gradient-id:n.
+                     Knappens SVG kan ligga i en display:none-förälder, och då slutar gradienter
+                     som pekar dit att rita i flera webbläsare. -->
+                <defs>
+                  <linearGradient id="caHdrLack" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="42%" stop-color="#ece6ff"/><stop offset="100%" stop-color="#9f8fe0"/></linearGradient>
+                  <linearGradient id="caHdrRuta" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#5b21b6"/><stop offset="100%" stop-color="#2e1065"/></linearGradient>
+                  <radialGradient id="caHdrFalg" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#cbd5e1"/><stop offset="100%" stop-color="#64748b"/></radialGradient>
+                  <radialGradient id="caHdrSken" cx="0%" cy="50%" r="100%"><stop offset="0%" stop-color="#fef08a" stop-opacity=".95"/><stop offset="100%" stop-color="#fef08a" stop-opacity="0"/></radialGradient>
+                </defs>
+                <!-- vägen: syns bara när bilen "kör" (medan svaret tas fram) -->
+                <g class="ca-hdr-vag"><path d="M-20 38.6 H-10 M-2 38.6 H8 M16 38.6 H26 M34 38.6 H44 M52 38.6 H62 M70 38.6 H80" stroke="rgba(255,255,255,.6)" stroke-width="1.1" stroke-linecap="round"/></g>
+                <ellipse cx="28" cy="36.8" rx="22" ry="1.6" fill="#000" opacity=".35"/>
+                <!-- avgaspuffar bakom bilen -->
+                <circle class="ca-hdr-rok" cx="3" cy="29" r="1.8" fill="#e9e3ff"/>
+                <circle class="ca-hdr-rok" cx="3" cy="29" r="1.4" fill="#e9e3ff"/>
+                <!-- strålkastarljuset, blinkar vid tut och när svaret är klart -->
+                <path class="ca-hdr-stral" d="M52 21 L56 15 L56 30 L52 24 Z" fill="url(#caHdrSken)"/>
+                <g class="ca-hdr-kaross">
+                  <path d="M4 27 Q4 21.2 10 20.2 L17 19.2 Q21.5 11.2 27.5 10.6 L35.5 10.6 Q41 11.2 45 18.6 L49.5 19.6 Q53 20.6 53 25 L53 29 Q53 31 51 31 L6 31 Q4 31 4 29 Z" fill="url(#caHdrLack)" stroke="#7c6bc4" stroke-width=".7"/>
+                  <path d="M19.5 17.6 Q23 12.4 27.8 11.9 L34.6 11.9" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+                  <path d="M8 22.4 Q18 20.9 30 20.9 L48 21.2" stroke="#fff" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".8"/>
+                  <path d="M19.2 19 Q22.6 13 27.6 12.6 L30.2 12.6 L30.2 19 Z" fill="url(#caHdrRuta)"/>
+                  <path d="M32 12.6 L35.4 12.6 Q39.4 13.1 42.6 19 L32 19 Z" fill="url(#caHdrRuta)"/>
+                  <path d="M23.5 18.4 L27.4 13.4 L28.8 13.4 L24.9 18.4 Z" fill="#fff" opacity=".45"/>
+                  <path d="M25.6 21.2 L23.6 25.4 L25.4 25 L24.4 28.6 L27.4 23.8 L25.5 24.2 Z" fill="#facc15" stroke="#ca8a04" stroke-width=".35" stroke-linejoin="round"/>
+                  <rect x="3.8" y="21.8" width="2.4" height="2.6" rx="1" fill="#f43f5e"/>
+                  <rect class="ca-hdr-lampa" x="49.6" y="21.2" width="3.4" height="2.4" rx="1.1" fill="#fef08a"/>
+                  <path d="M8.2 31 A6.8 6.8 0 0 1 21.8 31 Z" fill="#2e1065"/>
+                  <path d="M35.2 31 A6.8 6.8 0 0 1 48.8 31 Z" fill="#2e1065"/>
+                </g>
+                <!-- hjulen har ekrar, annars syns det inte att de snurrar -->
+                <g class="ca-hdr-hjul"><circle cx="15" cy="31" r="5.6" fill="#17122e"/><circle cx="15" cy="31" r="3.3" fill="url(#caHdrFalg)"/><path d="M15 27.9 V34.1 M11.9 31 H18.1" stroke="#64748b" stroke-width=".9"/><circle cx="15" cy="31" r="1.1" fill="#475569"/></g>
+                <g class="ca-hdr-hjul"><circle cx="42" cy="31" r="5.6" fill="#17122e"/><circle cx="42" cy="31" r="3.3" fill="url(#caHdrFalg)"/><path d="M42 27.9 V34.1 M38.9 31 H45.1" stroke="#64748b" stroke-width=".9"/><circle cx="42" cy="31" r="1.1" fill="#475569"/></g>
+              </svg>
+            </button>
+            <div class="ca-hdr-text">
+              <span>Bilrådgivaren</span>
+              <span class="ca-hdr-status" id="ca-hdr-status" data-lage="redo"><i></i><b>Redo att hjälpa</b></span>
+            </div>
           </div>
           <div class="ca-chat-header-actions">
             <button class="ca-chat-header-clear" id="ca-chat-clear">Rensa</button>
@@ -789,6 +881,7 @@
     document.getElementById("ca-chat-close").addEventListener("click", caChatToggle);
     document.getElementById("ca-chat-send").addEventListener("click", caChatSend);
     document.getElementById("ca-chat-clear").addEventListener("click", caChatClear);
+    caHdrBilKoppla();
     document.getElementById("ca-chat-input").addEventListener("keydown", function(e) { if (e.key === "Enter") caChatSend(); });
     document.querySelectorAll(".ca-chat-quick-btn").forEach(function(btn) {
       btn.addEventListener("click", function() { caChatSendMessage(btn.dataset.q); });
@@ -1132,7 +1225,73 @@
     outer.appendChild(wrap);
   }
 
+  // ── Rubrikens bil: speglar samtalets läge ─────────────────────────────────
+  var CA_HDR_TEXT = { redo: "Redo att hjälpa", tanker: "Letar bland bilarna…", skriver: "Skriver svar…" };
+  var CA_HDR_TUT = ["Tut tut! 🚗", "Vroom! Vad letar du efter?", "Full tank och redo!",
+    "Fråga om räckvidd, skatt eller bagage", "Jag jämför gärna två bilar åt dig"];
+  var caHdrLageNu = "redo", caHdrTutTimer = null;
+
+  function caHdrLage(lage) {
+    caHdrLageNu = lage;
+    var bil = document.getElementById("ca-hdr-bil");
+    var status = document.getElementById("ca-hdr-status");
+    if (!bil || !status) return;
+    bil.classList.toggle("ca-kor", lage !== "redo");
+    status.dataset.lage = lage;
+    status.querySelector("b").textContent = CA_HDR_TEXT[lage];
+  }
+
+  // Tar bort och sätter tillbaka klassen så att animationen startar om även vid
+  // snabba upprepade klick (samma klass två gånger i rad spelas annars inte).
+  function caHdrBlinka(klass, ms) {
+    var bil = document.getElementById("ca-hdr-bil");
+    if (!bil) return;
+    bil.classList.remove(klass);
+    void bil.offsetWidth;
+    bil.classList.add(klass);
+    setTimeout(function () { bil.classList.remove(klass); }, ms);
+  }
+
+  function caHdrBilKoppla() {
+    var bil = document.getElementById("ca-hdr-bil");
+    var header = bil && bil.closest(".ca-chat-header");
+    if (!bil || !header) return;
+    bil.addEventListener("click", function () {
+      caHdrBlinka("ca-tuta", 850);
+      if (caHdrLageNu !== "redo") return; // pågående svar går före skämten
+      var b = document.querySelector("#ca-hdr-status b");
+      b.textContent = CA_HDR_TUT[Math.floor(Math.random() * CA_HDR_TUT.length)];
+      clearTimeout(caHdrTutTimer);
+      caHdrTutTimer = setTimeout(function () { if (caHdrLageNu === "redo") caHdrLage("redo"); }, 2600);
+    });
+    // Bilen vrider sig mot pekaren — bara med mus, på pekskärm finns ingen hovring.
+    if (!window.matchMedia || !window.matchMedia("(hover:hover) and (pointer:fine)").matches || caMindreRorelse()) return;
+    header.addEventListener("mousemove", function (e) {
+      var r = bil.getBoundingClientRect();
+      var dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      bil.style.setProperty("--ca-ry", Math.max(-28, Math.min(28, dx / 6)) + "deg");
+      bil.style.setProperty("--ca-rx", Math.max(-14, Math.min(14, -dy / 3)) + "deg");
+    });
+    header.addEventListener("mouseleave", function () {
+      bil.style.setProperty("--ca-ry", "0deg");
+      bil.style.setProperty("--ca-rx", "0deg");
+    });
+  }
+
+  // Omslaget sköter bilens läge för ALLA utgångar ur samtalet (fel, 429, avbrott,
+  // reservvägen utan strömning) — de returnerar var för sig och hade annars lämnat
+  // bilen körande för evigt.
   async function caChatSendMessage(message) {
+    caHdrLage("tanker");
+    try {
+      await caChatSendMessageInner(message);
+    } finally {
+      caHdrLage("redo");
+      caHdrBlinka("ca-svarat", 850);
+    }
+  }
+
+  async function caChatSendMessageInner(message) {
     document.getElementById("ca-chat-quick").style.display = "none";
     caChatAppendUser(message);
     caChatHistory.push({ role: "user", content: message });
@@ -1203,6 +1362,7 @@
     }
 
     // Streaming bubble
+    caHdrLage("skriver");
     var outer = document.createElement("div");
     var bubble = document.createElement("div");
     bubble.className = "ca-chat-bubble bot";
