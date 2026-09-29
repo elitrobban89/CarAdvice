@@ -575,8 +575,62 @@
     // Badgesarna bär nu en ikon först; luften mellan ikon och text kommer från ordmellanslaget
     // och behöver ingen egen regel. Radhöjden däremot: emoji är högre än siffrorna och sköt
     // isär raderna olika mycket beroende på vilka badges som råkade hamna där.
-    ".ev-spec-row .ev-spec-badge{line-height:1.5;}";
+    ".ev-spec-row .ev-spec-badge{line-height:1.5;}" +
+
+    // ── Bakgrunden bakom appen (2026-09-29) ─────────────────────────────────────
+    // .ev-app har ingen egen botten, så WP-temats vita sektion syntes mellan och runt de
+    // mörka korten — och sidans ljusa text (källraden, "Tillåt platsåtkomst") gick knappt att
+    // läsa. Nu får SEKTIONEN appen står i (temats alignfull-grupp, se installeraBakgrund)
+    // appens mörka botten och ett lager glöd i appens egna färger som driver långsamt, som
+    // i bilrådgivningen. Sidhuvud och sidfot rörs inte: de är temats, med temats text.
+    // Bara transform och opacity animeras — inte hue-rotate, som i CarAdvice mättes till en
+    // omritning per bildruta på en så här stor yta.
+    ".ev-sektion{background:#060c1a!important;position:relative;isolation:isolate;}" +
+    ".ev-sektion h2.wp-block-heading{color:#e8efff!important;}" +
+    // max-width och margin nollas med flit: temats is-layout-constrained ger VARJE barn en
+    // maxbredd på 672 px, och lagret blev ett ljusare band med raka kanter mitt i sidan.
+    ".ev-sidbakgrund{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;max-width:none!important;margin:0!important;}" +
+    ".ev-sidbakgrund span{position:absolute;display:block;border-radius:50%;will-change:transform,opacity;}" +
+    ".ev-glod-bla{left:-15%;top:-10%;width:70%;height:60%;"
+      + "background:radial-gradient(closest-side,rgba(59,130,246,.42),transparent);animation:ev-glod-a 26s ease-in-out infinite alternate;}" +
+    ".ev-glod-gron{right:-18%;top:22%;width:62%;height:55%;"
+      + "background:radial-gradient(closest-side,rgba(34,197,94,.30),transparent);animation:ev-glod-b 32s ease-in-out infinite alternate;}" +
+    ".ev-glod-lila{left:18%;bottom:-18%;width:70%;height:55%;"
+      + "background:radial-gradient(closest-side,rgba(129,140,248,.34),transparent);animation:ev-glod-a 38s ease-in-out -9s infinite alternate-reverse;}" +
+    // Ett svagt rutnät, som ett kretskort — syns knappt, men ytan blir inte platt.
+    ".ev-sidbakgrund::after{content:'';position:absolute;inset:0;"
+      + "background-image:linear-gradient(rgba(147,197,253,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(147,197,253,.035) 1px,transparent 1px);"
+      + "background-size:44px 44px;mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000,transparent);"
+      + "-webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000,transparent);}" +
+    "@keyframes ev-glod-a{0%{transform:translate3d(0,0,0) scale(1);opacity:.75;}100%{transform:translate3d(8%,6%,0) scale(1.12);opacity:1;}}" +
+    "@keyframes ev-glod-b{0%{transform:translate3d(0,0,0) scale(1.05);opacity:1;}100%{transform:translate3d(-9%,-5%,0) scale(.95);opacity:.7;}}" +
+    // Glas: korten släpper igenom glöden i stället för att ligga som massiva plattor.
+    ".ev-sektion .ev-controls{background:rgba(13,21,38,.62)!important;"
+      + "-webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);"
+      + "box-shadow:0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);}" +
+    "@media (prefers-reduced-motion:reduce){.ev-sidbakgrund span{animation:none!important;}}";
     document.head.appendChild(s);
+  })();
+
+  /**
+   * Lägger bakgrundslagret i sektionen appen står i. Sektionen letas upp från .ev-app och
+   * inte med ett id: WP-sidan är en manuell kopia, och temats klassnamn är det enda som är
+   * stabilt. Hittas ingen alignfull-grupp (sidan byggd annorlunda) får .ev-app lagret själv.
+   */
+  (function installeraBakgrund() {
+    function gor() {
+      const app = document.querySelector(".ev-app");
+      if (!app || document.querySelector(".ev-sidbakgrund")) return;
+      const sektion = app.closest(".alignfull") || app;
+      sektion.classList.add("ev-sektion");
+      const lager = document.createElement("div");
+      lager.className = "ev-sidbakgrund";
+      lager.setAttribute("aria-hidden", "true");
+      lager.innerHTML = '<span class="ev-glod-bla"></span><span class="ev-glod-gron"></span><span class="ev-glod-lila"></span>';
+      sektion.insertBefore(lager, sektion.firstChild);
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", gor);
+    else gor();
   })();
 
   function renderMap(userLat, userLon, stations) {
@@ -2893,6 +2947,12 @@
       .ev-chat-fab-ring {
         position:relative;display:flex;align-items:center;justify-content:center;
       }
+      /* Gubben svävar: hela ringen (knapp, gnistor, halo) guppar mjukt så att man lägger märke
+         till den utan att den blinkar. Ringen har ingen egen transform, så inget krockar med
+         knappens hover-skala eller uppvakningen. */
+      .ev-chat-fab-ring{animation:ev-gubbe-svav 3.4s ease-in-out infinite;will-change:transform;}
+      @keyframes ev-gubbe-svav{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+      @media (prefers-reduced-motion:reduce){.ev-chat-fab-ring{animation:none;}}
       .ev-chat-spark {
         position:absolute;font-size:14px;line-height:1;pointer-events:none;
         animation:ev-spark 2.4s ease-in-out infinite;
@@ -2915,6 +2975,12 @@
            positionerade lagren over knappen och roboten bleks bort. */
         position:relative;z-index:1;
       }
+      /* 3D-illusionen: figuren vrider sig långsamt i perspektiv. Djupet i själva bilden
+         kommer från glans och skuggning i SVG:n; vridningen gör att det läser som en kropp. */
+      .ev-chat-fab{perspective:140px;}
+      .ev-chat-fab svg{transform-origin:50% 60%;filter:drop-shadow(0 2px 1.5px rgba(8,20,60,.45)) drop-shadow(0 0 6px rgba(147,197,253,.35));animation:ev-gubbe-3d 6s ease-in-out infinite;}
+      @keyframes ev-gubbe-3d{0%,100%{transform:rotateY(-16deg) rotateX(4deg);}50%{transform:rotateY(16deg) rotateX(-2deg) translateY(-1px);}}
+      @media (prefers-reduced-motion:reduce){.ev-chat-fab svg{animation:none;}}
       .ev-chat-fab:hover{transform:scale(1.1);box-shadow:0 6px 22px rgba(29,78,216,.7);}
 
       /* ── Chatboten vaknar ────────────────────────────────────────────────
@@ -3270,37 +3336,59 @@
           <span class="ev-chat-spark">⚡</span>
           <span class="ev-chat-spark">⚡</span>
         <button class="ev-chat-fab" id="ev-chat-fab" title="Fråga EV-assistenten">
-          <svg viewBox="0 0 44 52" width="34" height="40" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 44 52" width="36" height="42" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- EL-GUBBEN (2026-09-29): egen figur, pärlvita rullar som en laddkabel i ringar,
+                 laddkontakt som antenn och batterimärke på bröstet. Ritad helt i SVG — de gamla
+                 gnistorna var emoji i <text>, som renderades olika i varje webbläsare. -->
             <defs>
-              <radialGradient id="hg" cx="38%" cy="32%"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#f59e0b"/></radialGradient>
-              <radialGradient id="bg" cx="38%" cy="30%"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#d97706"/></radialGradient>
+              <radialGradient id="evGubbeHuvud" cx="36%" cy="30%" r="75%"><stop offset="0%" stop-color="#ffffff"/><stop offset="70%" stop-color="#e3ecfb"/><stop offset="100%" stop-color="#b9cbee"/></radialGradient>
+              <radialGradient id="evGubbeRulle" cx="38%" cy="28%" r="80%"><stop offset="0%" stop-color="#ffffff"/><stop offset="65%" stop-color="#dbe6f8"/><stop offset="100%" stop-color="#9fb6e3"/></radialGradient>
+              <linearGradient id="evGubbeSkugga" x1="0" y1="0" x2="0" y2="1"><stop offset="45%" stop-color="#1e3a8a" stop-opacity="0"/><stop offset="100%" stop-color="#1e3a8a" stop-opacity=".32"/></linearGradient>
+              <radialGradient id="evGubbeGolv" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000" stop-opacity=".45"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+              <linearGradient id="evGubbeBatteri" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#16a34a"/></linearGradient>
             </defs>
-            <!-- antenna -->
-            <line x1="22" y1="1" x2="22" y2="6" stroke="#92400e" stroke-width="1.8" stroke-linecap="round"/>
-            <circle class="ev-bot-antenna" cx="22" cy="1" r="2" fill="#fbbf24"/>
-            <!-- head -->
-            <ellipse cx="22" cy="13" rx="10" ry="9" fill="url(#hg)" stroke="#d97706" stroke-width="0.8"/>
-            <!-- eyes -->
-            <ellipse class="ev-bot-eye" cx="18.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
-            <ellipse class="ev-bot-eye" cx="25.5" cy="12" rx="2" ry="2.2" fill="#1e3a8a"/>
-            <circle cx="19.2" cy="11.2" r="0.7" fill="#fff"/>
-            <circle cx="26.2" cy="11.2" r="0.7" fill="#fff"/>
-            <!-- smile -->
-            <path d="M17.5 16.5 Q22 20.5 26.5 16.5" stroke="#92400e" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-            <!-- neck -->
-            <rect x="19.5" y="21" width="5" height="3" rx="1" fill="#f59e0b"/>
-            <!-- body (3 rolls like michelin) -->
-            <ellipse cx="22" cy="29" rx="12" ry="7" fill="url(#bg)" stroke="#d97706" stroke-width="0.7"/>
-            <ellipse cx="22" cy="37" rx="10" ry="6" fill="url(#bg)" stroke="#d97706" stroke-width="0.7"/>
-            <ellipse cx="22" cy="44" rx="8" ry="5" fill="url(#bg)" stroke="#d97706" stroke-width="0.7"/>
-            <!-- arms -->
-            <ellipse cx="9" cy="31" rx="4.5" ry="6.5" fill="url(#bg)" stroke="#d97706" stroke-width="0.7" transform="rotate(-25 9 31)"/>
-            <ellipse cx="35" cy="31" rx="4.5" ry="6.5" fill="url(#bg)" stroke="#d97706" stroke-width="0.7" transform="rotate(25 35 31)"/>
-            <!-- lightning bolt on chest -->
-            <path d="M20 26 L17 33 L21.5 31 L19 38" fill="#1e3a8a" stroke="#1e3a8a" stroke-width="0.5" stroke-linejoin="round"/>
-            <!-- sparks on arms -->
-            <text x="4" y="28" font-size="7" fill="#fef08a">⚡</text>
-            <text x="32" y="28" font-size="7" fill="#fef08a">⚡</text>
+            <!-- 3D: skugga på golvet under figuren -->
+            <ellipse cx="22" cy="50.2" rx="9" ry="1.6" fill="url(#evGubbeGolv)"/>
+            <!-- laddkontakten på huvudet: två stift och en liten glödande topp -->
+            <rect x="19.2" y="0.6" width="1.5" height="3.2" rx=".6" fill="#94a3b8"/>
+            <rect x="23.3" y="0.6" width="1.5" height="3.2" rx=".6" fill="#94a3b8"/>
+            <rect x="17.8" y="3.2" width="8.4" height="3.4" rx="1.4" fill="#1e3a8a"/>
+            <circle class="ev-bot-antenna" cx="22" cy="4.9" r="1" fill="#4ade80"/>
+            <!-- huvud -->
+            <ellipse cx="22" cy="13.5" rx="10.5" ry="8.6" fill="url(#evGubbeHuvud)" stroke="#7f9bd0" stroke-width=".8"/>
+            <ellipse cx="22" cy="13.5" rx="10.5" ry="8.6" fill="url(#evGubbeSkugga)"/>
+            <ellipse cx="17.4" cy="8.6" rx="3.6" ry="1.7" fill="#fff" opacity=".9" transform="rotate(-18 17.4 8.6)"/>
+            <!-- ögon, glans och rosiga kinder -->
+            <ellipse class="ev-bot-eye" cx="18.2" cy="13" rx="2.1" ry="2.5" fill="#0f1f4d"/>
+            <ellipse class="ev-bot-eye" cx="25.8" cy="13" rx="2.1" ry="2.5" fill="#0f1f4d"/>
+            <circle cx="18.9" cy="12.1" r=".8" fill="#fff"/>
+            <circle cx="26.5" cy="12.1" r=".8" fill="#fff"/>
+            <ellipse cx="14.6" cy="16.4" rx="1.8" ry="1.1" fill="#fda4af" opacity=".75"/>
+            <ellipse cx="29.4" cy="16.4" rx="1.8" ry="1.1" fill="#fda4af" opacity=".75"/>
+            <path d="M18.8 17.2 Q22 20 25.2 17.2" stroke="#1e3a8a" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+            <!-- kroppen: tre rullar, smalare nedåt -->
+            <ellipse cx="22" cy="43.6" rx="8.6" ry="5.2" fill="url(#evGubbeRulle)" stroke="#7f9bd0" stroke-width=".7"/>
+            <ellipse cx="22" cy="43.6" rx="8.6" ry="5.2" fill="url(#evGubbeSkugga)"/>
+            <ellipse cx="18.7" cy="41.0" rx="2.9" ry="1.0" fill="#fff" opacity=".85"/>
+            <ellipse cx="22" cy="36.6" rx="10.6" ry="5.8" fill="url(#evGubbeRulle)" stroke="#7f9bd0" stroke-width=".7"/>
+            <ellipse cx="22" cy="36.6" rx="10.6" ry="5.8" fill="url(#evGubbeSkugga)"/>
+            <ellipse cx="18.0" cy="33.7" rx="3.6" ry="1.2" fill="#fff" opacity=".85"/>
+            <ellipse cx="22" cy="28.8" rx="12" ry="6.3" fill="url(#evGubbeRulle)" stroke="#7f9bd0" stroke-width=".7"/>
+            <ellipse cx="22" cy="28.8" rx="12" ry="6.3" fill="url(#evGubbeSkugga)"/>
+            <ellipse cx="17.4" cy="25.7" rx="4.1" ry="1.3" fill="#fff" opacity=".85"/>
+            <!-- vänster arm vilar, höger arm vinkar -->
+            <ellipse cx="9.2" cy="32" rx="3.9" ry="6.2" fill="url(#evGubbeRulle)" stroke="#7f9bd0" stroke-width=".7" transform="rotate(18 9.2 32)"/>
+            <ellipse cx="9.2" cy="32" rx="3.9" ry="6.2" fill="url(#evGubbeSkugga)" transform="rotate(18 9.2 32)"/>
+            <ellipse cx="7.7" cy="28.9" rx="1.3" ry="1.2" fill="#fff" opacity=".85" transform="rotate(18 9.2 32)"/>
+            <ellipse cx="35.4" cy="23.4" rx="3.7" ry="6.2" fill="url(#evGubbeRulle)" stroke="#7f9bd0" stroke-width=".7" transform="rotate(-32 35.4 23.4)"/>
+            <ellipse cx="35.4" cy="23.4" rx="3.7" ry="6.2" fill="url(#evGubbeSkugga)" transform="rotate(-32 35.4 23.4)"/>
+            <ellipse cx="34.0" cy="20.3" rx="1.3" ry="1.2" fill="#fff" opacity=".85" transform="rotate(-32 35.4 23.4)"/>
+            <!-- gnista vid den vinkande handen -->
+            <path d="M40.2 13.6 L38.4 17.4 L40.4 17 L39.2 20.6 L42.4 15.8 L40.3 16.2 Z" fill="#facc15" stroke="#ca8a04" stroke-width=".4" stroke-linejoin="round"/>
+            <!-- batterimärket på bröstet -->
+            <rect x="17.4" y="25.2" width="9.2" height="7" rx="1.6" fill="url(#evGubbeBatteri)" stroke="#15803d" stroke-width=".6"/>
+            <rect x="26.6" y="27.4" width="1.3" height="2.6" rx=".4" fill="#15803d"/>
+            <path d="M22.8 26.2 L20.2 29.4 L22 29.4 L21 31.4 L23.9 28 L22.1 28 Z" fill="#fef9c3"/>
           </svg>
         </button>
         <span class="ev-chat-halo"></span>
@@ -3514,7 +3602,7 @@
     const calc = state.lastCalc;
     if (calc) {
       let calcStr = "Laddtidskalkylator: " + calc.carName + " · " + calc.fromPct + "% → " + calc.toPct + "% (" + calc.kwhCharge + " kWh) · " + calc.effKw + " kW effektiv · tid " + calc.timeStr;
-      if (calc.cost) calcStr += " · kostnad ~" + calc.cost + " kr";
+      if (calc.cost != null) calcStr += " · kostnad ~" + calc.cost + " kr" + (calc.prisSnitt ? " (räknat på riksgenomsnittet, stationens pris okänt)" : "");
       if (calc.rangeAdded) calcStr += " · räckvidd tillkommer ~" + calc.rangeAdded + " km";
       if (calc.stationName) calcStr += " · vid station: " + calc.stationName;
       contextParts.push(calcStr);
@@ -3769,21 +3857,35 @@
     document.getElementById('ev-calc-to-val').textContent   = toPct;
 
     const kwhCharge  = car.batteryKwh * (toPct - fromPct) / 100;
-    const dcStation  = state.lastData?.stations.find(s => s.connectorType.includes('DC') && s.maxEffKw > 0);
+    // Samma station som kortet visar: bland de visade i första hand, annars närmaste
+    // snabbladdare i hela sökområdet (nearestDc). Förut letade uträkningen bara i listan —
+    // var de fem AC-laddare räknade den med bilens toppeffekt och fick inget pris alls.
+    const data       = state.lastData || {};
+    const dcIListan  = (data.stations || []).find(s => s.connectorType.includes('DC') && s.maxEffKw > 0);
+    const dcStation  = dcIListan || (data.nearestDc && data.nearestDc.maxEffKw > 0 ? data.nearestDc : null);
     const effKw      = dcStation ? Math.min(car.maxDcKw || 50, dcStation.maxEffKw) : (car.maxDcKw || 50);
     const timeMin    = effKw > 0 ? Math.round(kwhCharge / effKw * 60) : 0;
     const timeStr    = timeMin < 60 ? `${timeMin} min` : `${Math.floor(timeMin / 60)} tim ${timeMin % 60} min`;
 
+    // Stationens eget pris i första hand. Saknas det (OCM:s fritext är oftast tom) räknar vi
+    // på riksgenomsnittet ur operatörstabellen och säger det — "Pris saknas" var sant men
+    // gav inget svar på frågan kalkylatorn finns till för.
     const rawPrice   = dcStation?.chargepricePerKwh || dcStation?.usageCost || '';
     const pris       = tolkaLaddpris(rawPrice);
-    const cost       = pris.krPerKwh ? Math.round(kwhCharge * pris.krPerKwh) : null;
+    const snittKr    = state.laddpriser?.avgNationalKr || null;
+    const krPerKwh   = pris.gratis ? 0 : (pris.krPerKwh || snittKr);
+    const arSnitt    = !pris.gratis && !pris.krPerKwh && !!snittKr;
+    const cost       = krPerKwh != null ? Math.round(kwhCharge * krPerKwh) : null;
+    const prisEtikett = pris.gratis ? 'Gratis'
+      : arSnitt ? `Kostnad · riksnitt ${snittKr.toFixed(2).replace('.', ',')} kr/kWh`
+      : krPerKwh ? `Kostnad · ${krPerKwh.toFixed(2).replace('.', ',')} kr/kWh` : 'Kostnad';
 
     const realRange  = car.rangeKm ? Math.round(car.rangeKm * 0.85) : null;
     const rangeAdded = realRange   ? Math.round(realRange * (toPct - fromPct) / 100) : null;
 
     state.lastCalc = {
       carName: car.name, fromPct, toPct, kwhCharge: Math.round(kwhCharge * 10) / 10,
-      effKw: Math.round(effKw), timeStr, cost: cost || null, rangeAdded: rangeAdded || null,
+      effKw: Math.round(effKw), timeStr, cost: cost != null ? cost : null, prisSnitt: arSnitt, rangeAdded: rangeAdded || null,
       stationName: dcStation?.name || null
     };
 
@@ -3794,8 +3896,8 @@
         <div style="font-size:11px;color:rgba(147,197,253,0.5);margin-top:2px">Tid</div>
       </div>
       <div>
-        <div style="font-size:1.35rem;font-weight:800;color:${cost ? '#86efac' : '#6b7280'}">${cost ? '~' + cost + ' kr' : 'Pris saknas'}</div>
-        <div style="font-size:11px;color:rgba(147,197,253,0.5);margin-top:2px">Kostnad</div>
+        <div style="font-size:1.35rem;font-weight:800;color:${cost != null ? '#86efac' : '#6b7280'}">${pris.gratis ? '0 kr' : cost != null ? '~' + cost + ' kr' : 'Pris saknas'}</div>
+        <div style="font-size:11px;color:rgba(147,197,253,0.5);margin-top:2px">${prisEtikett}</div>
       </div>
       ${rangeAdded ? `<div>
         <div style="font-size:1.35rem;font-weight:800;color:#c4b5fd">~${rangeAdded} km</div>

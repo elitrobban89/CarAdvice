@@ -42,7 +42,7 @@
     { ic: '🤖', t: 'Groq AI',        kind: 'groq', tag: 'ONLINE', an: 'robot' },
     // Plattformsraden: rubriken blir "Java 27 · PostgreSQL 17.x" när /api/system svarat —
     // läst ur den körande JVM:en och databasanslutningen, så en uppgradering syns av sig själv.
-    { ic: '🗄️', t: 'Java &amp; PostgreSQL', kind: 'plattform', tag: 'ONLINE', an: 'arkiv' },
+    { ic: '☕🐘', dual: true, t: 'Java &amp; PostgreSQL', kind: 'plattform', tag: 'ONLINE', an: 'arkiv' },
     { ic: '🔋', t: 'Elbilar',        kind: 'cars', an: 'ladda' },
     { ic: '🛣️', t: 'R\xe4ckvidd',     kind: 'rackvidd', an: 'vag' },
     { ic: '⚡',       t: 'Batteri &amp; effekt', kind: 'batteri', an: 'blixt' },
@@ -217,6 +217,8 @@
       '.ev-sp-row.show{opacity:1;transform:translateY(0);}',
       '.ev-sp-row.done{border-color:rgba(52,211,153,.5);background:rgba(34,197,94,.14);',
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(34,197,94,.22);}',
+      // Plattformsraden bär två ikoner: kaffekoppen för Java och elefanten för PostgreSQL.
+      '.ev-sp-ic.ev-sp-dual{width:auto;min-width:22px;letter-spacing:-3px;}',
       '.ev-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;display:inline-block;',
         'filter:grayscale(.75) brightness(.85) drop-shadow(0 0 5px rgba(59,130,246,.3));opacity:.8;',
         'transition:filter .5s ease,opacity .5s ease;',
@@ -426,7 +428,7 @@
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="ev-sp-row" data-i="' + i + '">' +
-        '<span class="ev-sp-ic' + (r.an ? ' ev-ic-' + r.an : '') +
+        '<span class="ev-sp-ic' + (r.dual ? ' ev-sp-dual' : '') + (r.an ? ' ev-ic-' + r.an : '') +
           '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
         '<span class="ev-sp-tx"><b><span class="ev-sp-t">' + (r.kind === 'plattform' ? plattformTitel() : r.t) + '</span>' +
           tagHtml(r.tag) + '</b><i class="ev-sp-suba">' + subFor(r) + '</i></span>' +

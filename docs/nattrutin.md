@@ -207,7 +207,7 @@ Kolla ocksa: tomt carMake eller carModel, och om rating fortfarande ar null pa a
 - Egen rubrik **Kategorivakten**: totalt / iBufferten, uptimeSeconds bredvid, perBil, och varje rad i senaste med bil och motsagelse. Ar totalt 0 skriv **inga utslag sedan senaste omstarten (uptime X h)** - aldrig att vakten aldrig faller.
 - Nattens nya rader: id, kalla, bil och en kort dom. **Var strang** - en rad som sager att ett test finns utan att saga vad det visade ar tunn aven om den ar ett testomdome.
 - Ovriga rader i fonstret, grupperade per trolig natt, kortare.
-- Egen rubrik **De tre nya reglerna** med din bedomning, eller att underlaget var for tunt. Att sakna underlag ar ett giltigt svar.
+- Egen rubrik **Tre regler: skatter, renoveringsobjekt, avvecklade modeller** (TRE REGLER SEDAN 08-10 i avsnitt 6) - en bedomning per regel, eller att underlaget var for tunt. Att sakna underlag ar ett giltigt svar. Avvecklade modeller drar at MOTSATT hall: leta efter overblockering, inte lackor.
 - Egen rubrik **Vardeminskning** enligt punkten om falskt negativt.
 - Egen rubrik **Kommandevakten** enligt 3b - annonskollens fem domar, och nattens korader klassade (a)/(b)/(c).
 - Egen rubrik **Marknadsregeln** enligt 3c.

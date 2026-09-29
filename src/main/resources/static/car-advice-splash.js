@@ -43,7 +43,7 @@
     { ic: '🤖', t: 'Groq AI',        s: 'V\xe4cker spr\xe5kmodellen…', kind: 'groq' },
     // Rubriken blir "Java 27 · PostgreSQL 17.x" när /api/system svarat — läst ur JVM:en och
     // databasanslutningen, så en uppgradering till Java 28 syns utan att någon rör raden.
-    { ic: '🗄️', t: 'Java &amp; PostgreSQL', kind: 'plattform', an: 'puls' },
+    { ic: '☕🐘', dual: true, t: 'Java &amp; PostgreSQL', kind: 'plattform', an: 'puls' },
     { ic: '🚗', t: 'Bildatabas',     kind: 'models', an: 'kor' },
     { ic: '⚡',       t: 'Elbilsdata',     s: 'R\xe4ckvidd, batteri &amp; laddeffekt \xb7 ev-database.org', an: 'blixt' },
     { ic: '⛽',       t: 'F\xf6rbrukning', s: 'Verifierad l/mil &amp; kWh/mil', an: 'pump' },
@@ -174,6 +174,8 @@
         'opacity:0;transform:translateY(8px);transition:opacity .35s ease,transform .35s ease,border-color .3s,background .3s;}',
       '.ca-sp-row.show{opacity:1;transform:translateY(0);}',
       '.ca-sp-row.done{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.06);}',
+      // Plattformsraden bär två ikoner: kaffekoppen för Java och elefanten för PostgreSQL.
+      '.ca-sp-ic.ca-sp-dual{width:auto;min-width:22px;letter-spacing:-3px;}',
       '.ca-sp-ic{font-size:1.05rem;flex-shrink:0;width:22px;text-align:center;display:inline-block;}',
       // Alla ikoner rör sig, inte bara roboten: en lugn andning medan raden laddar, och en
       // egen signaturrörelse när den tänds — bilen gungar, blixten flimrar, klappan smäller.
@@ -372,7 +374,7 @@
   function rowsHtml() {
     return ROWS.map(function (r, i) {
       return '<div class="ca-sp-row" data-i="' + i + '">' +
-        '<span class="ca-sp-ic' + (r.kind === 'groq' ? ' ca-sp-bot' : '') +
+        '<span class="ca-sp-ic' + (r.dual ? ' ca-sp-dual' : '') + (r.kind === 'groq' ? ' ca-sp-bot' : '') +
           (r.an ? ' ca-ic-' + r.an : '') + '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
         '<span class="ca-sp-tx"><b class="ca-sp-t">' + (r.kind === 'plattform' ? plattformTitel() : r.t) + '</b>' +
           '<i class="ca-sp-suba">' + subFor(r) + '</i></span>' +
