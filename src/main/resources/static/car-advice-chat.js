@@ -297,7 +297,16 @@
            positionerade lagren över knappen och bilen bleks bort. */
         position:relative;z-index:1;
       }
-      .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8);}
+      .ca-chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(109,40,217,.8),inset 0 1px 0 rgba(255,255,255,.28);}
+      /* 3D som el-gubben i Elbilsladdning: hela ringen svävar, och bilen vrider sig långsamt
+         i perspektiv. Djupet i själva bilden kommer från glans och skuggning i SVG:n.
+         Ringen har ingen annan transform, så inget krockar med hover eller inkörningen. */
+      .ca-chat-fab{box-shadow:0 4px 20px rgba(109,40,217,.6),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -3px 8px rgba(30,6,70,.35);perspective:160px;}
+      .ca-chat-fab-ring{animation:ca-bil-svav 3.4s ease-in-out infinite;will-change:transform;}
+      @keyframes ca-bil-svav{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+      .ca-chat-fab svg{transform-origin:50% 70%;filter:drop-shadow(0 2px 1.5px rgba(20,6,50,.5)) drop-shadow(0 0 6px rgba(196,181,253,.4));animation:ca-bil-3d 6s ease-in-out infinite;}
+      @keyframes ca-bil-3d{0%,100%{transform:rotateY(-22deg) rotateX(6deg);}50%{transform:rotateY(22deg) rotateX(-2deg) translateY(-1px);}}
+      @media (prefers-reduced-motion:reduce){.ca-chat-fab-ring,.ca-chat-fab svg{animation:none;}}
 
       /* ── Rådgivaren vaknar när besökaren ser appen ────────────────────────────
          Knappen satt stilla i hörnet och sågs inte av den som inte redan visste att
@@ -673,24 +682,52 @@
           <span class="ca-chat-spark">⛽</span>
           <span class="ca-chat-spark">⚡</span>
           <button class="ca-chat-fab" id="ca-chat-fab" title="Fråga bilrådgivaren">
-            <svg viewBox="0 0 52 40" width="38" height="30" xmlns="http://www.w3.org/2000/svg">
-              <!-- car body -->
-              <rect x="4" y="18" width="44" height="14" rx="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
-              <!-- roof -->
-              <path d="M14 18 Q18 8 22 7 L30 7 Q34 8 38 18Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
-              <!-- windows -->
-              <path d="M16 18 Q19 10 22 9 L29 9 Q32 10 35 18Z" fill="rgba(196,181,253,0.25)"/>
-              <!-- wheels -->
-              <circle cx="14" cy="33" r="5.5" fill="#1e1b4b" stroke="rgba(167,139,250,0.6)" stroke-width="1.5"/>
-              <circle cx="14" cy="33" r="2.5" fill="rgba(167,139,250,0.5)"/>
-              <circle cx="38" cy="33" r="5.5" fill="#1e1b4b" stroke="rgba(167,139,250,0.6)" stroke-width="1.5"/>
-              <circle cx="38" cy="33" r="2.5" fill="rgba(167,139,250,0.5)"/>
-              <!-- headlight -->
-              <rect class="ca-bot-lampa" x="44" y="21" width="4" height="3" rx="1.5" fill="#fef08a"/>
-              <!-- lightning bolt (EV) -->
-              <path d="M24 12 L21 19 L25 17 L23 24" fill="#fef08a" stroke="#fef08a" stroke-width="0.4" stroke-linejoin="round"/>
-              <!-- fuel drop (petrol) -->
-              <path d="M31 11 Q33 8 33 12 Q33 15 31 15 Q29 15 29 12 Q29 8 31 11Z" fill="rgba(251,191,36,0.8)"/>
+            <svg viewBox="0 0 56 40" width="49" height="35" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <!-- 3D-BILEN (2026-09-29): samma recept som el-gubben i Elbilsladdning — pärlvit
+                   lack med glans och skuggning i gradienterna, golvskugga under, och vridningen
+                   i perspektiv sköts av CSS:en (.ca-chat-fab svg). -->
+              <defs>
+                <linearGradient id="caBilLack" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="42%" stop-color="#ece6ff"/><stop offset="100%" stop-color="#9f8fe0"/></linearGradient>
+                <linearGradient id="caBilSkugga" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#2e1065" stop-opacity="0"/><stop offset="100%" stop-color="#2e1065" stop-opacity=".38"/></linearGradient>
+                <linearGradient id="caBilRuta" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="55%" stop-color="#5b21b6"/><stop offset="100%" stop-color="#2e1065"/></linearGradient>
+                <radialGradient id="caBilFalg" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#cbd5e1"/><stop offset="100%" stop-color="#64748b"/></radialGradient>
+                <radialGradient id="caBilGolv" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000" stop-opacity=".5"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+                <radialGradient id="caBilSken" cx="0%" cy="50%" r="100%"><stop offset="0%" stop-color="#fef08a" stop-opacity=".8"/><stop offset="100%" stop-color="#fef08a" stop-opacity="0"/></radialGradient>
+              </defs>
+              <!-- golvskuggan -->
+              <ellipse cx="28" cy="37.4" rx="23" ry="2" fill="url(#caBilGolv)"/>
+              <!-- strålkastarens sken framför bilen -->
+              <ellipse cx="52.5" cy="22.4" rx="4" ry="3" fill="url(#caBilSken)"/>
+              <!-- karossen: lack + skuggning nedtill -->
+              <path d="M4 27 Q4 21.2 10 20.2 L17 19.2 Q21.5 11.2 27.5 10.6 L35.5 10.6 Q41 11.2 45 18.6 L49.5 19.6 Q53 20.6 53 25 L53 29 Q53 31 51 31 L6 31 Q4 31 4 29 Z" fill="url(#caBilLack)" stroke="#7c6bc4" stroke-width=".7"/>
+              <path d="M4 27 Q4 21.2 10 20.2 L17 19.2 Q21.5 11.2 27.5 10.6 L35.5 10.6 Q41 11.2 45 18.6 L49.5 19.6 Q53 20.6 53 25 L53 29 Q53 31 51 31 L6 31 Q4 31 4 29 Z" fill="url(#caBilSkugga)"/>
+              <!-- glansen längs taket och axellinjen -->
+              <path d="M19.5 17.6 Q23 12.4 27.8 11.9 L34.6 11.9" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".95"/>
+              <path d="M8 22.4 Q18 20.9 30 20.9 L48 21.2" stroke="#fff" stroke-width=".9" fill="none" stroke-linecap="round" opacity=".8"/>
+              <path d="M7 25.6 L50.5 25.3" stroke="#7c6bc4" stroke-width=".5" fill="none" opacity=".55"/>
+              <!-- rutorna, tonade, med en ljusreflex -->
+              <path d="M19.2 19 Q22.6 13 27.6 12.6 L30.2 12.6 L30.2 19 Z" fill="url(#caBilRuta)"/>
+              <path d="M32 12.6 L35.4 12.6 Q39.4 13.1 42.6 19 L32 19 Z" fill="url(#caBilRuta)"/>
+              <path d="M23.5 18.4 L27.4 13.4 L28.8 13.4 L24.9 18.4 Z" fill="#fff" opacity=".45"/>
+              <path d="M35.6 18.4 L38.3 13.8 L39.2 14.2 L36.8 18.4 Z" fill="#fff" opacity=".35"/>
+              <!-- dörrhandtag och el-märket på dörren -->
+              <rect x="33" y="21.4" width="3.2" height=".9" rx=".45" fill="#7c6bc4" opacity=".8"/>
+              <path d="M25.6 21.2 L23.6 25.4 L25.4 25 L24.4 28.6 L27.4 23.8 L25.5 24.2 Z" fill="#facc15" stroke="#ca8a04" stroke-width=".35" stroke-linejoin="round"/>
+              <!-- baklyse och strålkastare -->
+              <rect x="3.8" y="21.8" width="2.4" height="2.6" rx="1" fill="#f43f5e"/>
+              <rect class="ca-bot-lampa" x="49.6" y="21.2" width="3.4" height="2.4" rx="1.1" fill="#fef08a"/>
+              <!-- hjulhusen -->
+              <path d="M8.2 31 A6.8 6.8 0 0 1 21.8 31 Z" fill="#2e1065"/>
+              <path d="M35.2 31 A6.8 6.8 0 0 1 48.8 31 Z" fill="#2e1065"/>
+              <!-- hjulen: däck, blank fälg, nav och en glansbåge -->
+              <circle cx="15" cy="31" r="5.6" fill="#17122e"/>
+              <circle cx="15" cy="31" r="3.3" fill="url(#caBilFalg)"/>
+              <circle cx="15" cy="31" r="1.1" fill="#475569"/>
+              <path d="M11.2 29 A4.3 4.3 0 0 1 14 26.8" stroke="#fff" stroke-width=".6" fill="none" stroke-linecap="round" opacity=".5"/>
+              <circle cx="42" cy="31" r="5.6" fill="#17122e"/>
+              <circle cx="42" cy="31" r="3.3" fill="url(#caBilFalg)"/>
+              <circle cx="42" cy="31" r="1.1" fill="#475569"/>
+              <path d="M38.2 29 A4.3 4.3 0 0 1 41 26.8" stroke="#fff" stroke-width=".6" fill="none" stroke-linecap="round" opacity=".5"/>
             </svg>
           </button>
           <span class="ca-chat-halo"></span>
