@@ -1,4 +1,4 @@
-/* CarAdvice — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
+/* Elbilsladdning — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
 // EV Laddningsassistent — uppstartssplash (el-tema, Groq-driven boot-sekvens)
 // Extern fil (WordPress blockerar inline <script>). Injiceras av ev-app.js så den
 // live-inbäddade WP-sidan får den utan att markupen behöver klistras om.
@@ -649,6 +649,39 @@
   function markSeen() { try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {} }
   function setPct(el, p) { if (el) el.textContent = Math.round(p) + '% laddat'; }
 
+  // Kortet ska rymmas i den SYNLIGA höjden. Raderna + stapel + bricka blir högre än en
+  // telefon med adress- och verktygsfält visar 650–700 — uppmätt 2026-09-29: på 390×664 klipptes
+  // splashen innan de sista raderna. En fast åtstramning räcker inte:
+  // raderna blir fler med tiden, och telefonerna är olika höga. Därför skalas kortet ned till
+  // exakt det som ryms, mätt på riktigt. Egenskapen scale och inte transform: korten har
+  // inflygningsanimationer på transform, och en animation vinner över en inline-transform.
+  // Skalning ändrar inte layoutmåttet, så observatören triggas inte av sin egen skalning.
+  // Golvet .55 håller texten läsbar; under det hellre klipp.
+  // Samma funktion finns i car-advice-splash.js, vader-splash.js och Bankomatens splash.js.
+  function passaHojd(lager, kort) {
+    if (!lager || !kort) return;
+    function passa() {
+      if (!lager.isConnected) { window.removeEventListener('resize', passa); return; }
+      var cs = getComputedStyle(lager);
+      var ledig = lager.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      var hojd = kort.offsetHeight;
+      if (!ledig || !hojd || hojd <= ledig) { kort.style.scale = ''; lager.style.overflowY = ''; return; }
+      // Var kortet LIGGER avgör varifrån det skalas, inte vad CSS:en säger: ett centrerat
+      // kort som flödar över sticker ut lika mycket uppåt (offsetTop under paddingen) och
+      // skalas runt mitten, medan ett toppförankrat — mobilens flex-start, eller Bankomatens
+      // margin:auto som faller till 0 vid överflöd — skalas från överkanten.
+      var iToppen = kort.offsetTop >= parseFloat(cs.paddingTop) - 1;
+      var s = Math.max(0.55, ledig / hojd);
+      kort.style.transformOrigin = iToppen ? '50% 0' : '50% 50%';
+      kort.style.scale = s.toFixed(4);
+      // Ryms kortet nu släcks rullningslisten, som annars följer det oskalade layoutmåttet.
+      lager.style.overflowY = s > 0.55 ? 'hidden' : '';
+    }
+    passa();
+    window.addEventListener('resize', passa);
+    if (window.ResizeObserver) new ResizeObserver(passa).observe(kort);
+  }
+
   function run() {
     if (document.querySelector('.ev-splash')) return;
     injectStyles();
@@ -657,6 +690,7 @@
     overlay.className = 'ev-splash';
     overlay.innerHTML = template();
     document.body.appendChild(overlay);
+    passaHojd(overlay, overlay.querySelector('.ev-sp-inner'));
     // Lås scroll medan splashen tar över
     var prevOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
