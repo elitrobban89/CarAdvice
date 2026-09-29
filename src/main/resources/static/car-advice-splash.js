@@ -26,11 +26,12 @@
   var CAR_MODELS   = 670;
   var CAR_VARIANTS = 2200;
 
-  var GROQ_ROW   = 0; // språkmodellen (roboten som vaknar + live modellnamn)
-  var MODELS_ROW = 1; // bildatabasen (modeller + varianter)
-  var INS_ROW    = 5; // expertdata (live insiktsantal)
-  var EL_ROW     = 6; // elpriser (live kr/kWh)
-  var FUEL_ROW   = 7; // bränslepriser (live kr/l)
+  var GROQ_ROW      = 0; // språkmodellen (roboten som vaknar + live modellnamn)
+  var PLATTFORM_ROW = 1; // Java- och PostgreSQL-version ur den körande tjänsten
+  var MODELS_ROW    = 2; // bildatabasen (modeller + varianter)
+  var INS_ROW       = 6; // expertdata (live insiktsantal)
+  var EL_ROW        = 7; // elpriser (live kr/kWh)
+  var FUEL_ROW      = 8; // bränslepriser (live kr/l)
 
   var FORCE = /[?&]splash=1/.test(location.search);
 
@@ -40,6 +41,9 @@
   // de finns i serverns cache; annars står den beskrivande texten kvar.
   var ROWS = [
     { ic: '🤖', t: 'Groq AI',        s: 'V\xe4cker spr\xe5kmodellen…', kind: 'groq' },
+    // Rubriken blir "Java 27 · PostgreSQL 17.x" när /api/system svarat — läst ur JVM:en och
+    // databasanslutningen, så en uppgradering till Java 28 syns utan att någon rör raden.
+    { ic: '🗄️', t: 'Java &amp; PostgreSQL', kind: 'plattform', an: 'puls' },
     { ic: '🚗', t: 'Bildatabas',     kind: 'models', an: 'kor' },
     { ic: '⚡',       t: 'Elbilsdata',     s: 'R\xe4ckvidd, batteri &amp; laddeffekt \xb7 ev-database.org', an: 'blixt' },
     { ic: '⛽',       t: 'F\xf6rbrukning', s: 'Verifierad l/mil &amp; kWh/mil', an: 'pump' },
@@ -53,6 +57,15 @@
 
   // Live-datapunkter från /api/stats.live — tomma tills servern svarat.
   var live = { model: '', bensin95: 0, diesel: 0, elHemma: 0, elSnabb: 0 };
+  var plattform = { java: '', springBoot: '', db: '' };
+
+  function plattformTitel() {
+    if (!plattform.java) return 'Java &amp; PostgreSQL';
+    return 'Java ' + plattform.java.split('.')[0] + (plattform.db ? ' \xb7 ' + plattform.db : '');
+  }
+  function plattformText() {
+    return (plattform.springBoot ? 'Spring Boot ' + plattform.springBoot + ' \xb7 ' : '') + 'bildatabasen ansluten';
+  }
 
   function kr(n, dec) { return n.toLocaleString('sv-SE', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
 
@@ -259,6 +272,15 @@
         'border:1px solid rgba(52,211,153,.55);color:#34d399;font-size:11px;font-weight:900;',
         'display:flex;align-items:center;justify-content:center;animation:ca-sp-pop .3s ease;}',
       // Progress (Groq korall → lila)
+      // Render-brickan under stapeln — loggans pil lyfter om och om igen, som en deploy.
+      '.ca-sp-fot{display:flex;justify-content:center;margin-top:10px;}',
+      '.ca-sp-render{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:2px 9px 2px 3px;border-radius:20px;',
+        'background:rgba(139,92,246,.13);border:1px solid rgba(167,139,250,.35);font-size:.6rem;color:rgba(221,214,254,.9);white-space:nowrap;overflow:hidden;}',
+      '.ca-sp-render b{color:#fff;font-weight:700;}',
+      '.ca-sp-render i{font-style:normal;font-family:ui-monospace,Consolas,monospace;color:#c4b5fd;overflow:hidden;text-overflow:ellipsis;}',
+      '.rd-logo{display:block;flex-shrink:0;border-radius:5px;box-shadow:0 0 10px rgba(139,92,246,.55);}',
+      '.rd-pil{animation:rd-lyft 1.6s cubic-bezier(.4,0,.2,1) infinite;}',
+      '@keyframes rd-lyft{0%{transform:translateY(2px);opacity:.3;}45%{transform:translateY(-1px);opacity:1;}100%{transform:translateY(-3px);opacity:0;}}',
       '.ca-sp-bar{width:100%;height:3px;border-radius:3px;margin-top:18px;overflow:hidden;background:rgba(255,255,255,.1);}',
       '.ca-sp-fill{height:100%;width:0;border-radius:3px;',
         'background:linear-gradient(90deg,#f55036,#a855f7,#7c3aed);transition:width .55s ease;',
@@ -328,7 +350,23 @@
     if (row.kind === 'el')       return elText();
     if (row.kind === 'fuel')     return fuelText();
     if (row.kind === 'groq')     return groqText(false);
+    if (row.kind === 'plattform') return plattformText();
     return row.s;
+  }
+
+  // Render-loggan: moln med en pil som lyfter — koden som åker från GitHub upp i drift.
+  // Samma märke i alla projektens splashar.
+  function renderLogo(id) {
+    return '<svg class="rd-logo" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+      '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#4f46e5"/></linearGradient></defs>' +
+      '<rect width="24" height="24" rx="6" fill="url(#' + id + ')"/>' +
+      '<path d="M7.6 17h8.8a3.1 3.1 0 0 0 .5-6.15A4.6 4.6 0 0 0 8.1 9.7 3.6 3.6 0 0 0 7.6 17Z" fill="rgba(255,255,255,.22)" stroke="#fff" stroke-width="1.2"/>' +
+      '<path class="rd-pil" d="M12 15.4v-4.6m0 0-2 2m2-2 2 2" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '</svg>';
+  }
+  // "master · 9a9e5d0" när /api/system svarat från Render; innan dess vägen koden tar.
+  function deployText(d) {
+    return d && d.deployCommit ? (d.deployBranch ? d.deployBranch + ' · ' : '') + d.deployCommit : 'GitHub → master';
   }
 
   function rowsHtml() {
@@ -336,7 +374,8 @@
       return '<div class="ca-sp-row" data-i="' + i + '">' +
         '<span class="ca-sp-ic' + (r.kind === 'groq' ? ' ca-sp-bot' : '') +
           (r.an ? ' ca-ic-' + r.an : '') + '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
-        '<span class="ca-sp-tx"><b>' + r.t + '</b><i class="ca-sp-suba">' + subFor(r) + '</i></span>' +
+        '<span class="ca-sp-tx"><b class="ca-sp-t">' + (r.kind === 'plattform' ? plattformTitel() : r.t) + '</b>' +
+          '<i class="ca-sp-suba">' + subFor(r) + '</i></span>' +
         '<span class="ca-sp-st"><span class="ca-sp-spin"></span></span>' +
       '</div>';
     }).join('');
@@ -356,6 +395,7 @@
         '<p class="ca-sp-boot"><span class="pr">▸</span><span class="ca-sp-boot-tx"></span><span class="ca-sp-cur"></span></p>' +
         '<div class="ca-sp-rows">' + rowsHtml() + '</div>' +
         '<div class="ca-sp-bar"><div class="ca-sp-fill"></div></div>' +
+        '<div class="ca-sp-fot"><span class="ca-sp-render">' + renderLogo('caSpRd') + '<span>Autodeploy via <b>Render</b></span><i class="ca-sp-deploy">' + deployText(null) + '</i></span></div>' +
       '</div>';
   }
 
@@ -408,6 +448,21 @@
   }
 
   function fetchStats() {
+    // Plattformen: Java-, Spring Boot- och PostgreSQL-versionen ur den körande tjänsten.
+    fetch(API + '/api/system', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.java) return;
+        plattform.java = String(d.java);
+        plattform.springBoot = d.springBoot ? String(d.springBoot) : '';
+        plattform.db = d.db ? String(d.db) : '';
+        var dep = document.querySelector('.ca-sp-deploy'); if (dep) dep.textContent = deployText(d);
+        var el = document.querySelector('.ca-sp-row[data-i="' + PLATTFORM_ROW + '"] .ca-sp-t');
+        if (el) el.innerHTML = plattformTitel();
+        sattSub(PLATTFORM_ROW, plattformText());
+      })
+      .catch(function () {});
+
     fetch(API + '/api/stats')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {

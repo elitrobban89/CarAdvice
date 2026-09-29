@@ -29,6 +29,7 @@
   var ELPRIS_ROW    = 5;  // spotpris per elområde
   var LADDPRIS_ROW  = 6;  // operatörernas kWh-priser
   var BILPRIS_ROW   = 7;  // vad bilarna kostar
+  var PLATTFORM_ROW = 1;  // Java- och PostgreSQL-version
 
   var FORCE = /[?&]splash=1/.test(location.search);
 
@@ -39,7 +40,9 @@
   // rad ändå i stället för en tom siffra. De med tag:'ONLINE' får en pulsande grön pill.
   var ROWS = [
     { ic: '🤖', t: 'Groq AI',        kind: 'groq', tag: 'ONLINE', an: 'robot' },
-    { ic: '🗄️', t: 'PostgreSQL',     s: 'ev_spec-databasen ansluten', tag: 'ONLINE', an: 'arkiv' },
+    // Plattformsraden: rubriken blir "Java 27 · PostgreSQL 17.x" när /api/system svarat —
+    // läst ur den körande JVM:en och databasanslutningen, så en uppgradering syns av sig själv.
+    { ic: '🗄️', t: 'Java &amp; PostgreSQL', kind: 'plattform', tag: 'ONLINE', an: 'arkiv' },
     { ic: '🔋', t: 'Elbilar',        kind: 'cars', an: 'ladda' },
     { ic: '🛣️', t: 'R\xe4ckvidd',     kind: 'rackvidd', an: 'vag' },
     { ic: '⚡',       t: 'Batteri &amp; effekt', kind: 'batteri', an: 'blixt' },
@@ -52,7 +55,8 @@
 
   // Live-siffror; tomma tills respektive anrop svarat.
   var live = {
-    model: '', rackviddSnitt: 0, rackviddMax: 0, rackviddBil: '',
+    model: '', java: '', springBoot: '', db: '',
+    rackviddSnitt: 0, rackviddMax: 0, rackviddBil: '',
     battMin: 0, battMax: 0, effektMax: 0,
     zoner: null, laddSnitt: 0, laddBillig: null, laddDyr: null,
     prisMin: 0, prisMinBil: '', prisSnitt: 0
@@ -64,6 +68,14 @@
   function groqText() {
     return live.model ? '<b>' + live.model + '</b> \xb7 svarar p\xe5 Groq LPU'
                       : 'Spr\xe5kmodell startad';
+  }
+  function plattformTitel() {
+    if (!live.java) return 'Java &amp; PostgreSQL';
+    return 'Java ' + live.java.split('.')[0] + (live.db ? ' \xb7 ' + live.db : '');
+  }
+  function plattformText() {
+    var s = live.springBoot ? 'Spring Boot ' + live.springBoot + ' \xb7 ' : '';
+    return s + 'ev_spec-databasen ansluten';
   }
   function rackviddText() {
     if (!live.rackviddSnitt) return 'WLTP-r\xe4ckvidd f\xf6r varje modell';
@@ -306,6 +318,17 @@
       '.ev-sp-fill::after{content:"";position:absolute;inset:0;',
         'background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);',
         'animation:ev-sp-shine 1.4s linear infinite;}',
+      // Render-brickan delar rad med procenten (mobilen har ingen rad över), och loggans
+      // pil lyfter om och om igen, som en deploy.
+      '.ev-sp-fot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;}',
+      '.ev-sp-fot .ev-sp-pct{margin-top:0;flex-shrink:0;}',
+      '.ev-sp-render{display:inline-flex;align-items:center;gap:6px;min-width:0;padding:2px 9px 2px 3px;border-radius:20px;',
+        'background:rgba(139,92,246,.13);border:1px solid rgba(167,139,250,.35);font-size:.6rem;color:rgba(221,214,254,.9);white-space:nowrap;overflow:hidden;}',
+      '.ev-sp-render b{color:#fff;font-weight:700;}',
+      '.ev-sp-render i{font-style:normal;font-family:ui-monospace,Consolas,monospace;color:#c4b5fd;overflow:hidden;text-overflow:ellipsis;}',
+      '.rd-logo{display:block;flex-shrink:0;border-radius:5px;box-shadow:0 0 10px rgba(139,92,246,.55);}',
+      '.rd-pil{animation:rd-lyft 1.6s cubic-bezier(.4,0,.2,1) infinite;}',
+      '@keyframes rd-lyft{0%{transform:translateY(2px);opacity:.3;}45%{transform:translateY(-1px);opacity:1;}100%{transform:translateY(-3px);opacity:0;}}',
       '.ev-sp-pct{margin-top:9px;font-size:.66rem;font-weight:700;letter-spacing:.08em;',
         'color:rgba(147,197,253,.7);font-family:ui-monospace,Consolas,monospace;}',
       // "Boot complete"-flärt
@@ -370,12 +393,28 @@
   function subFor(row) {
     if (row.kind === 'cars')     return 'L\xe4ser elbilsdatabasen…';
     if (row.kind === 'groq')     return groqText();
+    if (row.kind === 'plattform') return plattformText();
     if (row.kind === 'rackvidd') return rackviddText();
     if (row.kind === 'batteri')  return batteriText();
     if (row.kind === 'elpris')   return elprisText();
     if (row.kind === 'laddpris') return laddprisText();
     if (row.kind === 'bilpris')  return bilprisText();
     return row.s;
+  }
+
+  // Render-loggan: moln med en pil som lyfter — koden som åker från GitHub upp i drift.
+  // Samma märke i alla projektens splashar.
+  function renderLogo(id) {
+    return '<svg class="rd-logo" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+      '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#4f46e5"/></linearGradient></defs>' +
+      '<rect width="24" height="24" rx="6" fill="url(#' + id + ')"/>' +
+      '<path d="M7.6 17h8.8a3.1 3.1 0 0 0 .5-6.15A4.6 4.6 0 0 0 8.1 9.7 3.6 3.6 0 0 0 7.6 17Z" fill="rgba(255,255,255,.22)" stroke="#fff" stroke-width="1.2"/>' +
+      '<path class="rd-pil" d="M12 15.4v-4.6m0 0-2 2m2-2 2 2" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '</svg>';
+  }
+  // "master · 9a9e5d0" när /api/system svarat från Render; innan dess vägen koden tar.
+  function deployText(d) {
+    return d && d.deployCommit ? (d.deployBranch ? d.deployBranch + ' · ' : '') + d.deployCommit : 'GitHub → master';
   }
 
   function tagHtml(tag) {
@@ -389,7 +428,8 @@
       return '<div class="ev-sp-row" data-i="' + i + '">' +
         '<span class="ev-sp-ic' + (r.an ? ' ev-ic-' + r.an : '') +
           '" style="--ikd:' + (i * 0.13).toFixed(2) + 's">' + r.ic + '</span>' +
-        '<span class="ev-sp-tx"><b>' + r.t + tagHtml(r.tag) + '</b><i class="ev-sp-suba">' + subFor(r) + '</i></span>' +
+        '<span class="ev-sp-tx"><b><span class="ev-sp-t">' + (r.kind === 'plattform' ? plattformTitel() : r.t) + '</span>' +
+          tagHtml(r.tag) + '</b><i class="ev-sp-suba">' + subFor(r) + '</i></span>' +
         '<span class="ev-sp-st"><span class="ev-sp-spin"></span></span>' +
       '</div>';
     }).join('');
@@ -410,7 +450,7 @@
           '<p class="ev-sp-boot"><span class="pr">▸</span><span class="ev-sp-boot-tx"></span><span class="ev-sp-cur"></span></p>' +
           '<div class="ev-sp-rows">' + rowsHtml() + '</div>' +
           '<div class="ev-sp-batt"><div class="ev-sp-fill"></div></div>' +
-          '<div class="ev-sp-pct">0% laddat</div>' +
+          '<div class="ev-sp-fot"><span class="ev-sp-render">' + renderLogo('ev-spRd') + '<span>Autodeploy via <b>Render</b></span><i class="ev-sp-deploy">' + deployText(null) + '</i></span>' + '<div class="ev-sp-pct">0% laddat</div></div>' +
         '</div>' +
       '</div>';
   }
@@ -489,6 +529,21 @@
         sattSub(RACKVIDD_ROW, rackviddText());
         sattSub(BATTERI_ROW, batteriText());
         sattSub(BILPRIS_ROW, bilprisText());
+      })
+      .catch(function () {});
+
+    // 1b. Plattformen: Java-, Spring Boot- och PostgreSQL-versionen ur den körande tjänsten.
+    fetch(API + '/api/system', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.java) return;
+        live.java = String(d.java);
+        live.springBoot = d.springBoot ? String(d.springBoot) : '';
+        live.db = d.db ? String(d.db) : '';
+        var dep = document.querySelector('.ev-sp-deploy'); if (dep) dep.textContent = deployText(d);
+        var el = document.querySelector('.ev-sp-row[data-i="' + PLATTFORM_ROW + '"] .ev-sp-t');
+        if (el) el.innerHTML = plattformTitel();
+        sattSub(PLATTFORM_ROW, plattformText());
       })
       .catch(function () {});
 
