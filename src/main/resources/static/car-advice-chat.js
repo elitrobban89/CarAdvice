@@ -41,7 +41,7 @@
 
     // Update FAB label
     var labelEl = document.querySelector('.ca-chat-fab-label');
-    if (labelEl) labelEl.textContent = '💬 Fråga om ' + name;
+    if (labelEl) labelEl.textContent = 'Fråga om ' + name;
 
     // Update chips focused on this specific car
     var quick = document.getElementById('ca-chat-quick');
@@ -82,7 +82,7 @@
 
     // Update FAB label
     var labelEl = document.querySelector('.ca-chat-fab-label');
-    if (labelEl) labelEl.textContent = '💬 Fråga om ' + names[0];
+    if (labelEl) labelEl.textContent = 'Fråga om ' + names[0];
 
     // Update quick chips
     caChatUpdateQuickChips(recs, names);
@@ -267,7 +267,19 @@
         border-radius:20px;white-space:nowrap;letter-spacing:0.04em;
         max-width:min(58vw,240px);overflow:hidden;text-overflow:ellipsis;
         animation:ca-label-pulse 3s ease-in-out infinite;
+        /* Eget typsnitt: utan det ärvs sidans, och i test.html blev det en serif. */
+        font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        display:inline-flex;align-items:center;gap:5px;
       }
+      /* Gnistan före texten är ritad, inte en emoji: WP byter emoji mot <img> som ser olika
+         ut i varje webbläsare, och 🚗 pekade dessutom åt vänster. Texten sätts med
+         textContent på tre ställen, så ikonen måste bo i ::before för att överleva det. */
+      .ca-chat-fab-label::before{
+        content:"";width:10px;height:10px;flex-shrink:0;
+        background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0 L6.2 3.8 L10 5 L6.2 6.2 L5 10 L3.8 6.2 L0 5 L3.8 3.8 Z' fill='%23fde68a'/%3E%3C/svg%3E") center/contain no-repeat;
+        filter:drop-shadow(0 0 3px rgba(253,230,138,.7));
+      }
+      .ca-chat-hej{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
       @keyframes ca-label-pulse {
         0%,100%{opacity:.7;transform:translateY(0)}
         50%{opacity:1;transform:translateY(-2px)}
@@ -278,8 +290,11 @@
       .ca-chat-spark {
         position:absolute;font-size:13px;line-height:1;pointer-events:none;
         animation:ca-spark 2.4s ease-in-out infinite;
+        filter:drop-shadow(0 0 4px rgba(251,191,36,.65));
       }
-      .ca-chat-spark:nth-child(1){top:-16px;left:50%;transform:translateX(-50%);animation-delay:0s;}
+      .ca-chat-spark svg{display:block;}
+      /* Övre vänstra hörnet, inte mitt över: där låg blixten över etikettens text. */
+      .ca-chat-spark:nth-child(1){top:-10px;left:-16px;animation-delay:0s;}
       .ca-chat-spark:nth-child(2){top:16px;left:-18px;animation-delay:.9s;}
       .ca-chat-spark:nth-child(3){top:16px;right:-18px;animation-delay:1.8s;}
       @keyframes ca-spark {
@@ -728,11 +743,13 @@
     var root = document.createElement("div");
     root.innerHTML = `
       <div class="ca-chat-fab-wrap">
-        <span class="ca-chat-fab-label">🚗 Fråga AI</span>
+        <span class="ca-chat-fab-label">Fråga AI</span>
         <div class="ca-chat-fab-ring">
-          <span class="ca-chat-spark">⚡</span>
-          <span class="ca-chat-spark">⛽</span>
-          <span class="ca-chat-spark">⚡</span>
+          <!-- Gnistorna är SVG, inte emoji (⚡⛽): WP gör emoji till <img> med olika utseende
+               i varje webbläsare. Blixt = el, droppe = bensin — rådgivaren kan båda. -->
+          <span class="ca-chat-spark"><svg viewBox="0 0 12 16" width="12" height="16"><defs><linearGradient id="caGnistaBlixt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fef9c3"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs><path d="M7.4 0 L1 9 L5.4 9 L4 16 L11 6.4 L6.6 6.4 Z" fill="url(#caGnistaBlixt)" stroke="#b45309" stroke-width=".6" stroke-linejoin="round"/></svg></span>
+          <span class="ca-chat-spark"><svg viewBox="0 0 12 16" width="11" height="15"><defs><radialGradient id="caGnistaDroppe" cx="35%" cy="55%" r="70%"><stop offset="0" stop-color="#fff7ed"/><stop offset=".45" stop-color="#fbbf24"/><stop offset="1" stop-color="#c2410c"/></radialGradient></defs><path d="M6 .5 C6 .5 11 7 11 10.4 A5 5 0 0 1 1 10.4 C1 7 6 .5 6 .5 Z" fill="url(#caGnistaDroppe)" stroke="#9a3412" stroke-width=".6"/><ellipse cx="4.2" cy="10" rx="1.1" ry="1.8" fill="#fff" opacity=".6"/></svg></span>
+          <span class="ca-chat-spark"><svg viewBox="0 0 12 16" width="12" height="16"><path d="M7.4 0 L1 9 L5.4 9 L4 16 L11 6.4 L6.6 6.4 Z" fill="url(#caGnistaBlixt)" stroke="#b45309" stroke-width=".6" stroke-linejoin="round"/></svg></span>
           <button class="ca-chat-fab" id="ca-chat-fab" title="Fråga bilrådgivaren">
             <svg viewBox="0 0 56 40" width="49" height="35" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <!-- 3D-BILEN (2026-09-29): samma recept som el-gubben i Elbilsladdning — pärlvit
@@ -872,7 +889,7 @@
       var msgsEl = document.getElementById("ca-chat-messages");
       msgsEl.scrollTop = msgsEl.scrollHeight;
       var labelEl = document.querySelector(".ca-chat-fab-label");
-      if (labelEl) labelEl.textContent = "💬 Fortsätt chatten";
+      if (labelEl) labelEl.textContent = "Fortsätt chatten";
     } else {
       caChatAppendBot("Hej! Jag hjälper dig hitta rätt bil — oavsett om det är bensin, diesel, hybrid eller elbil 🚗⚡ Välj ett ämne eller ställ en egen fråga!", false);
     }

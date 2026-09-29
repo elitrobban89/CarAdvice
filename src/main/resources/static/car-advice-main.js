@@ -161,6 +161,12 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
     + 'font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;'
     + 'transition:background .16s,border-color .16s,color .16s,transform .16s,box-shadow .16s;}' +
     '.ca-chip-ikon{font-size:1.15rem;line-height:1;filter:grayscale(.55) opacity(.75);transition:filter .16s,transform .16s;}' +
+    // Kategoriernas SVG-ikoner (CA_KAT_IKON). Vilande ikoner tonas något men avfärgas
+    // mindre än emojin gjorde — pärlvitt blir smutsgrått av grayscale(.55).
+    '.ca-chip-ikon svg{display:block;width:32px;height:24px;overflow:visible;'
+    + 'filter:drop-shadow(0 1.5px 1.5px rgba(20,6,50,.5));}' +
+    '.ca-chip-ikon:has(svg){filter:saturate(.7) opacity(.82);}' +
+    '.ca-chip:hover .ca-chip-ikon:has(svg),.ca-chip-aktiv .ca-chip-ikon:has(svg){filter:drop-shadow(0 0 6px rgba(196,181,253,.55));}' +
     '.ca-chip-txt{text-align:center;line-height:1.2;}' +
     // Prislappen: mindre och tystare an namnet, men inte sa tyst att den blir dekoration -
     // det ar den som talar om vad knappen faktiskt staller in.
@@ -1663,9 +1669,82 @@ function caForvalKorstracka() {
 // märkesväljaren använder mot sin dolda select.
 var caChipsRader = [];
 
+// \u2500\u2500 Kategoriernas 3D-ikoner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Kategorierna var emoji: platta, gr\u00E5 i vila och olika i varje webbl\u00E4sare (WP g\u00F6r dem
+// dessutom till <img>). Nu \u00E4r de SVG i samma p\u00E4rlvita lack som bilen i chatten och vid
+// rubriken. Tre bilar som skiljer sig i FORM \u2014 liten halvkombi, l\u00E5ng kombi, h\u00F6g SUV med
+// st\u00F6rre hjul \u2014 s\u00E5 att man ser skillnaden utan att l\u00E4sa. Varje ikon har egna gradient-id:n
+// (ca-ik-<kategori>-\u2026): en gradient som bor i en annan knapps SVG slutar rita om den
+// knappen d\u00F6ljs.
+function caIkonHjul(p, cx, cy, r) {
+  return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#17122e"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r * 0.58).toFixed(2) + '" fill="url(#' + p + 'falg)"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r * 0.2).toFixed(2) + '" fill="#475569"/>';
+}
+function caIkonBil(p, kaross, rutor, glans, hjul, extra) {
+  return '<svg viewBox="0 0 32 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>'
+    + '<linearGradient id="' + p + 'lack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#ece6ff"/><stop offset="1" stop-color="#9f8fe0"/></linearGradient>'
+    + '<linearGradient id="' + p + 'ruta" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset=".55" stop-color="#5b21b6"/><stop offset="1" stop-color="#2e1065"/></linearGradient>'
+    + '<radialGradient id="' + p + 'falg" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#cbd5e1"/><stop offset="1" stop-color="#64748b"/></radialGradient>'
+    + '</defs>'
+    + '<ellipse cx="16" cy="22.4" rx="13" ry="1.2" fill="#000" opacity=".35"/>'
+    + (extra || '')
+    + '<path d="' + kaross + '" fill="url(#' + p + 'lack)" stroke="#7c6bc4" stroke-width=".5"/>'
+    + rutor.map(function (d) { return '<path d="' + d + '" fill="url(#' + p + 'ruta)"/>'; }).join('')
+    + '<path d="' + glans + '" stroke="#fff" stroke-width=".7" fill="none" stroke-linecap="round" opacity=".9"/>'
+    + hjul
+    + '</svg>';
+}
+var CA_KAT_IKON = {
+  smaabil: caIkonBil('ca-ik-sm-',
+    'M3 17 Q3 13 6 12.4 L9 12 Q11 6 16 5.6 L19 5.6 Q23 6 25.4 11.6 L27.6 12.4 Q29.5 13 29.5 15.6 L29.5 17.4 Q29.5 18.6 28.3 18.6 L4.2 18.6 Q3 18.6 3 17.4 Z',
+    ['M10.6 12 Q12.4 7.4 16 7.1 L17.3 7.1 L17.3 12 Z', 'M18.7 7.1 L19.2 7.1 Q22.4 7.4 24 12 L18.7 12 Z'],
+    'M5 14 Q14 13 27.5 13.6',
+    caIkonHjul('ca-ik-sm-', 9, 18.6, 3.4) + caIkonHjul('ca-ik-sm-', 23.5, 18.6, 3.4)),
+  familjebil: caIkonBil('ca-ik-fa-',
+    'M2.5 17 L2.5 8.4 Q2.5 6.4 4.5 6.4 L19.5 6.4 Q21.2 6.4 22.4 7.6 L26 11.6 L28.6 12.2 Q30.4 12.8 30.4 15.2 L30.4 17.4 Q30.4 18.6 29.2 18.6 L3.7 18.6 Q2.5 18.6 2.5 17.4 Z',
+    ['M4.3 11.4 L4.3 8.6 Q4.3 8 4.9 8 L10 8 L10 11.4 Z', 'M11.4 8 L16.6 8 L16.6 11.4 L11.4 11.4 Z', 'M18 8 L19.3 8 Q20.2 8 20.9 8.8 L23.6 11.4 L18 11.4 Z'],
+    'M4 13.4 L28.6 13.6',
+    caIkonHjul('ca-ik-fa-', 8.5, 18.6, 3.3) + caIkonHjul('ca-ik-fa-', 24.5, 18.6, 3.3),
+    // Takr\u00E4cket: det \u00E4r det som g\u00F6r en kombi till en familjebil p\u00E5 en blick
+    '<path d="M4.6 5.2 L19 5.2" stroke="#cbd5e1" stroke-width="1" stroke-linecap="round"/>'),
+  suv: caIkonBil('ca-ik-suv-',
+    'M2.5 15.8 L2.5 6.8 Q2.5 4.4 4.8 4.4 L19 4.4 Q20.8 4.4 22 5.8 L25 9.8 L28.4 10.6 Q30 11.1 30 13.2 L30 15.8 Q30 17 28.8 17 L3.7 17 Q2.5 17 2.5 15.8 Z',
+    ['M4.4 9.6 L4.4 6.6 Q4.4 6 5 6 L11 6 L11 9.6 Z', 'M12.4 6 L18.6 6 Q19.6 6 20.3 6.8 L22.8 9.6 L12.4 9.6 Z'],
+    'M4 11.6 L28 11.8',
+    // M\u00F6rka hjulhus och st\u00F6rre hjul: markfrig\u00E5ngen \u00E4r det som skiljer en SUV fr\u00E5n en kombi
+    '<path d="M3.8 17 A4.7 4.7 0 0 1 13.2 17 Z" fill="#2e1065"/><path d="M19.3 17 A4.7 4.7 0 0 1 28.7 17 Z" fill="#2e1065"/>'
+      + caIkonHjul('ca-ik-suv-', 8.5, 18, 4.1) + caIkonHjul('ca-ik-suv-', 24, 18, 4.1)),
+  elbil: '<svg viewBox="0 0 32 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>'
+    + '<radialGradient id="ca-ik-el-bot" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#bbf7d0"/><stop offset=".55" stop-color="#22c55e"/><stop offset="1" stop-color="#14532d"/></radialGradient>'
+    + '<linearGradient id="ca-ik-el-blixt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fef08a"/></linearGradient>'
+    + '</defs>'
+    + '<ellipse cx="16" cy="22.6" rx="8" ry="1.1" fill="#000" opacity=".35"/>'
+    + '<circle cx="16" cy="11.6" r="10" fill="url(#ca-ik-el-bot)" stroke="#166534" stroke-width=".6"/>'
+    + '<ellipse cx="12.6" cy="6.4" rx="4.2" ry="2" fill="#fff" opacity=".45" transform="rotate(-22 12.6 6.4)"/>'
+    + '<path d="M17.6 3.6 L10.6 13 L15.4 13 L13.8 19.8 L21.4 9.8 L16.6 9.8 Z" fill="url(#ca-ik-el-blixt)" stroke="#15803d" stroke-width=".6" stroke-linejoin="round"/>'
+    + '</svg>',
+  laddhybrid: '<svg viewBox="0 0 32 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>'
+    + '<linearGradient id="ca-ik-ph-kropp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9f8fe0"/><stop offset=".35" stop-color="#fff"/><stop offset="1" stop-color="#b6a9ea"/></linearGradient>'
+    + '<linearGradient id="ca-ik-ph-stift" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#94a3b8"/><stop offset=".5" stop-color="#f1f5f9"/><stop offset="1" stop-color="#64748b"/></linearGradient>'
+    + '<radialGradient id="ca-ik-ph-droppe" cx="35%" cy="55%" r="70%"><stop offset="0" stop-color="#fff7ed"/><stop offset=".45" stop-color="#fbbf24"/><stop offset="1" stop-color="#c2410c"/></radialGradient>'
+    + '</defs>'
+    + '<ellipse cx="16" cy="22.6" rx="10" ry="1.1" fill="#000" opacity=".35"/>'
+    // Kabeln f\u00F6rst s\u00E5 att kontakten ligger \u00F6ver den
+    + '<path d="M13 17.5 Q13 21.6 8 21.4 Q4 21.2 4 18" stroke="#2e1065" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    + '<rect x="9.4" y="1.4" width="1.9" height="5.4" rx=".7" fill="url(#ca-ik-ph-stift)"/>'
+    + '<rect x="14.7" y="1.4" width="1.9" height="5.4" rx=".7" fill="url(#ca-ik-ph-stift)"/>'
+    + '<path d="M6.6 6.4 L19.4 6.4 L19.4 12.4 Q19.4 17.6 13 17.6 Q6.6 17.6 6.6 12.4 Z" fill="url(#ca-ik-ph-kropp)" stroke="#7c6bc4" stroke-width=".6"/>'
+    + '<circle cx="13" cy="11.4" r="1.4" fill="#4ade80"/><circle cx="13" cy="11.4" r="2.6" fill="#4ade80" opacity=".25"/>'
+    // Droppen: laddhybriden g\u00E5r ocks\u00E5 p\u00E5 bensin
+    + '<path d="M25 7 C25 7 29.4 12.4 29.4 15.2 A4.4 4.4 0 0 1 20.6 15.2 C20.6 12.4 25 7 25 7 Z" fill="url(#ca-ik-ph-droppe)" stroke="#9a3412" stroke-width=".5"/>'
+    + '<ellipse cx="23.4" cy="14.8" rx="1" ry="1.6" fill="#fff" opacity=".6"/>'
+    + '</svg>'
+};
+
 var CA_IKONER = {
-  'ca-category':     { familjebil: '\uD83D\uDC6A', suv: '\uD83D\uDE99', elbil: '\u26A1',
-                       laddhybrid: '\uD83D\uDD0C', smaabil: '\uD83D\uDE97' },
+  'ca-category':     { familjebil: CA_KAT_IKON.familjebil, suv: CA_KAT_IKON.suv, elbil: CA_KAT_IKON.elbil,
+                       laddhybrid: CA_KAT_IKON.laddhybrid, smaabil: CA_KAT_IKON.smaabil },
   'ca-fuel':         { 'spelar ingen roll': '\u2728', bensin: '\u26FD', diesel: '\uD83D\uDEE2\uFE0F',
                        hybrid: '\u267B\uFE0F', el: '\u26A1' },
   'ca-transmission': { 'spelar ingen roll': '\u2728', manuell: '\uD83D\uDD79\uFE0F', automat: '\uD83D\uDD04' },
