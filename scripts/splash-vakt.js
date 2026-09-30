@@ -127,9 +127,13 @@ function bedomIntegrationer(vardar, text, sekundarHar = {}) {
 
 // ── Hämtning ─────────────────────────────────────────────────────────────────────────────
 
+// Molnsandlådan sätter själv ett GITHUB_TOKEN för sin git-proxy, och det ger 401 mot api.github.com.
+// Vid 401 görs anropet om utan token — publika repon svarar ändå (60 anrop/h räcker för vakten).
 const gh = process.env.GITHUB_TOKEN ? { Authorization: 'Bearer ' + process.env.GITHUB_TOKEN } : {};
 async function hamta(url, som = 'json', huvud = {}) {
-  const r = await fetch(url, { headers: { 'User-Agent': 'splash-vakt', ...huvud }, signal: AbortSignal.timeout(TIMEOUT) });
+  const hamtaMed = h => fetch(url, { headers: { 'User-Agent': 'splash-vakt', ...h }, signal: AbortSignal.timeout(TIMEOUT) });
+  let r = await hamtaMed(huvud);
+  if (r.status === 401 && huvud.Authorization) r = await hamtaMed({});
   if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
   return som === 'json' ? r.json() : r.text();
 }
