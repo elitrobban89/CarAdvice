@@ -1,5 +1,56 @@
 # Morgonfix-logg
 
+## 2026-09-30
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:35, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (f3f615f), status OK, uptime
+~8,1 h (ingen omstart i natt), Groq 3/3 modeller, vPIC 291 kontrollerade / 275 anrop / 0
+avvikelser (10:e natten i rad utan avvikelse), kontrollräkningen (cargo total 1731 + evSpecs
+599 + ice_consumption 960 = 3290 = variants) stämmer, drivmedelsräknaren 482/397/85/16 (ingen
+flip, samma som baslinjen), kategorivakten fångade två nya kontradiktioner i natt (Ford Focus
+och Volkswagen ID.3, båda redan i STORA_MODELLER sedan 09-27/09-28 — vakten gjorde sitt jobb,
+inget hål), medVolym+bagageMissar rörde sig som ett par (994/781, båda upp — enligt 3f:s
+domregel är det OK oavsett), generationsåren still (291/19, väntat till fönstret 2026-10-20).
+Annonskollen (kommandevakten) gav 0 LARM på 33 rader / 15 bilar — tre nya, korrekt parkerade
+bilar (VW ID. Tiguan x6, VW ID. Polo GTI, Lynk & Co 10; alla ej sålda i Sverige ännu).
+Splashvakten gav sitt eget Dom: LARM, men det beror på att den här molnsessionens
+nätverkspolicy nekar tre av de fem värdarna (tag-k5we.onrender.com, bankomat2-0.onrender.com,
+vaderklader-1.onrender.com) — bekräftat mot miljöns dokumentation, inte bevis för att apparna
+är trasiga. CarAdvice och Elbilsladdning svarade friskt (Java 27, PostgreSQL 18.4, egna
+livesiffror på plats); bara GitHub-avstämningen (commit-topp, integrationer) föll på HTTP 401,
+sannolikt ett ogiltigt GITHUB_TOKEN i miljön. Se rapporten för fullständig text. Dagens dom
+blev KOLLA — inget trasigt i CarAdvice självt, men nya rader att döma och Splashvaktens
+nätverksspärr kräver användarens beslut.
+
+**Kobeslut (`src/main/resources/morgonfix/atgarder.json`):** filen rensad till en tom lista.
+De två sedan tidigare exekverade raderna (id 1661 Volvo EX60, id 1387 Lexus NX 450h+, båda
+"slappt" 2026-09-28 enligt `/api/admin/morgonfix-atgarder`) togs bort ur filen enligt formatet
+("skriv över listan varje natt med bara nattens beslut"). Annonskollen gav 0 LARM i natt och
+inga av kommande-kons 33 rader hade nytt underlag för slapp/parkera/dölj — de tre nya bilarna
+(ID. Tiguan, ID. Polo GTI, Lynk & Co 10) ligger redan korrekt parkerade som INGA_ANNONSER.
+Provet `MorgonfixAtgarderTest.verkligaFilenArGiltig` grönt mot den tomma listan.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, ingen parserfel, inga siffror som gick
+att belägga för en fix — kategorifelen som dök upp (Ford Focus, VW ID.3) fångades redan av
+vakten sedan tidigare fixar, ingen ny modell att lägga till.
+
+**Laddtips:** inga nya. `ev-fact-candidates` gav två kandidater (Omoda 9, poäng 3, laddhybrid;
+Mitsubishi Outlander, poäng 1) men ingen kändes tillräckligt stark för att verifieras och
+publiceras i natt — fylls inte på för att fylla.
+
+**Laddpriser:** ej måndag, ingen kontroll i natt.
+
+**Bygg- och provresultat:** `mvn -q test` grönt: 1219 tester, 0 failures, 0 errors
+(körning direkt efter atgarder.json-ändringen, innan commit).
+
+**Lämnat därhän (kräver beslut, inte kod):**
+- **Splashvaktens LARM för MiniPrisTåget, Bankomat 2.0 och VäderKläder** — den här
+  molnsessionens nätverkspolicy nekar dessa tre värdar. En människa behöver antingen bredda
+  nätverksåtkomsten för den här typen av körning, eller bekräfta apparna via annan väg.
+- **GITHUB_TOKEN-miljövariabeln** gav HTTP 401 mot GitHubs API i splash-vakten (både för
+  CarAdvice och Elbilsladdning) — ser ut som ett ogiltigt eller för kort värde, värt att
+  kontrolleras.
+
 ## 2026-09-28
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:29:42, inom väntat fönster
