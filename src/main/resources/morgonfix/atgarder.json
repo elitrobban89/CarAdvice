@@ -1,7 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera. Högst 12 nya per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {"datum": "2026-09-28", "typ": "slapp", "id": 1661, "skal": "Volvo EX60 finns redan i katalogen (ev_spec-varianter P6/P10 AWD/P12 AWD) och leasas aktivt (Business Lease 6995-7995 kr/mån för 2027 års modell enligt Blocket) - bestallningsbar, anvandarens linje"},
-    {"datum": "2026-09-28", "typ": "slapp", "id": 1387, "skal": "Lexus NX 450h+ är redan såld i Sverige (annonser 2019/2022, modellen finns i katalogen sedan 2021); insikten beskriver en ansiktslyftning under samma modellnamn (ökad elektrisk räckvidd) - ARSMODELLSREGELN"}
-  ]
+  "atgarder": []
 }
