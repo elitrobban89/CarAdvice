@@ -127,15 +127,29 @@ function bedomIntegrationer(vardar, text, sekundarHar = {}) {
 
 // ── Hämtning ─────────────────────────────────────────────────────────────────────────────
 
-// Molnsandlådan sätter själv ett GITHUB_TOKEN för sin git-proxy, och det ger 401 mot api.github.com.
-// Vid 401 görs anropet om utan token — publika repon svarar ändå (60 anrop/h räcker för vakten).
-const gh = process.env.GITHUB_TOKEN ? { Authorization: 'Bearer ' + process.env.GITHUB_TOKEN } : {};
 async function hamta(url, som = 'json', huvud = {}) {
-  const hamtaMed = h => fetch(url, { headers: { 'User-Agent': 'splash-vakt', ...h }, signal: AbortSignal.timeout(TIMEOUT) });
-  let r = await hamtaMed(huvud);
-  if (r.status === 401 && huvud.Authorization) r = await hamtaMed({});
+  const r = await fetch(url, { headers: { 'User-Agent': 'splash-vakt', ...huvud }, signal: AbortSignal.timeout(TIMEOUT) });
   if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
   return som === 'json' ? r.json() : r.text();
+}
+// GitHub läses med git, inte REST-API:t: i molnrutinen lägger proxyn in en token som bara gäller
+// CarAdvice, så api.github.com svarar 403 för de andra repona. git och raw-filerna går för alla.
+const { execFileSync } = require('child_process');
+const fs = require('fs'), os = require('os'), path = require('path');
+const repoUrl = app => `https://github.com/${GITHUB}/${app.repo}`;
+const git = args => execFileSync('git', args, { encoding: 'utf8', timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'] });
+function gitTopp(app) {
+  const rad = git(['ls-remote', repoUrl(app), 'refs/heads/' + app.gren]).trim();
+  if (!/^[0-9a-f]{40}\s/.test(rad)) throw new Error(`git ls-remote ${app.repo} gav inget för ${app.gren}`);
+  return rad.slice(0, 40);
+}
+/** Filnamnen i grenens topp — en grund klon utan filinnehåll, städad efteråt. */
+function gitFiler(app) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'splash-vakt-'));
+  try {
+    git(['clone', '-q', '--depth', '1', '--filter=blob:none', '--no-checkout', '-b', app.gren, repoUrl(app), dir]);
+    return git(['-C', dir, 'ls-tree', '-r', '--name-only', 'HEAD']).split('\n').filter(Boolean);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 const raw = (app, fil) => hamta(`https://raw.githubusercontent.com/${GITHUB}/${app.repo}/${app.gren}/${fil}`, 'text');
 
@@ -176,8 +190,7 @@ async function granska(app) {
 
   // 3. Deployen mot grenens topp
   try {
-    const gren = await hamta(`https://api.github.com/repos/${GITHUB}/${app.repo}/commits/${app.gren}`, 'json', gh);
-    const topp = gren.sha.slice(0, 7);
+    const topp = gitTopp(app).slice(0, 7);
     if (!d.deployCommit) f('VARNING', 'ingen deployCommit — körs tjänsten utanför Render?');
     else if (d.deployCommit !== topp) f('VARNING', `kör ${d.deployCommit} men ${app.gren} står på ${topp} — autodeployen har inte tagit senaste`);
     else f('OK', `autodeploy: ${app.gren} · ${topp}`);
@@ -192,8 +205,7 @@ async function granska(app) {
 
   // 5. Integrationer i koden mot splashens text
   try {
-    const trad = await hamta(`https://api.github.com/repos/${GITHUB}/${app.repo}/git/trees/${app.gren}?recursive=1`, 'json', gh);
-    const filer = trad.tree.map(t => t.path).filter(p => p.startsWith(app.rot + 'src/main/')
+    const filer = gitFiler(app).filter(p => p.startsWith(app.rot + 'src/main/')
       && /\.(java|properties)$/.test(p));
     const vardar = new Set();
     for (let i = 0; i < filer.length; i += 8) {
