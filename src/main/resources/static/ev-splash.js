@@ -1,5 +1,5 @@
 /* Elbilsladdning — (c) 2026 Robert Andersson Kopler. Alla rattigheter forbehallna. */
-// EV Laddningsassistent — uppstartssplash (el-tema, Groq-driven boot-sekvens)
+// EVLadd & Köpråd för elbilar — uppstartssplash (el-tema, Groq-driven boot-sekvens)
 // Extern fil (WordPress blockerar inline <script>). Injiceras av ev-app.js så den
 // live-inbäddade WP-sidan får den utan att markupen behöver klistras om.
 // Lägger ett fullskärms-takeoverlager över appen: en pulserande laddningskärna (batteri
@@ -447,7 +447,7 @@
             '<span class="ev-sp-pulse"></span><span class="ev-sp-pulse p2"></span>' +
             '<span class="ev-sp-node">' + BATT_SVG + '<span class="ev-sp-bolt">' + BOLT_SVG + '</span></span>' +
           '</div>' +
-          '<h3 class="ev-sp-title">EV Laddningsassistent</h3>' +
+          '<h3 class="ev-sp-title">EVLadd &amp; Köpråd för elbilar</h3>' +
           '<span class="ev-sp-chip">' + BOLT_SVG + ' Powered by Groq AI</span>' +
           '<p class="ev-sp-boot"><span class="pr">▸</span><span class="ev-sp-boot-tx"></span><span class="ev-sp-cur"></span></p>' +
           '<div class="ev-sp-rows">' + rowsHtml() + '</div>' +

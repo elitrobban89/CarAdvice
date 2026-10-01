@@ -151,7 +151,7 @@ function bcGuardBuildPaywallCard(isLoggedIn) {
     : 'Logga in f\xf6r att anv\xe4nda kalkylatorn';
   var text = isLoggedIn
     ? 'Ditt konto saknar aktiv prenumeration. Prenumerera f\xf6r 49\xa0kr/m\xe5n och f\xe5 full \xe5tkomst till alla tre tj\xe4nsterna.'
-    : 'Br\xe4nslekostnadsber\xe4kning, EV Laddningsassistenten och AI Bilr\xe5dgivning ing\xe5r i prenumerationen p\xe5 49\xa0kr/m\xe5n.';
+    : 'Br\xe4nslekostnadsber\xe4kning, EVLadd &amp; Köpråd och AI Bilr\xe5dgivning ing\xe5r i prenumerationen p\xe5 49\xa0kr/m\xe5n.';
   var btnText = isLoggedIn
     ? 'Prenumerera – 49\xa0kr/m\xe5n'
     : 'Logga in / Prenumerera';
@@ -161,7 +161,7 @@ function bcGuardBuildPaywallCard(isLoggedIn) {
     '<p id="bc-paywall-text">' + text + '</p>' +
     '<ul class="bc-features">' +
       '<li>Br\xe4nslekostnadsber\xe4kning</li>' +
-      '<li>EV Laddningsassistenten</li>' +
+      '<li>EVLadd &amp; Köpråd</li>' +
       '<li>AI Bilr\xe5dgivning (elitrobban.se/bilradgivning)</li>' +
       '<li>Obegr\xe4nsad AI-chatt</li>' +
       '<li>Avbryt n\xe4r som helst</li>' +

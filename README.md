@@ -324,7 +324,7 @@ Appen är funktionellt klar för produktion. Återstående steg för live-lanser
 
 ### Korsåtkomst — båda tjänsterna ingår
 
-En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** — AI Bilrådgivning (den här) och AI EV Laddningsassistenten — med samma konto och token.
+En prenumeration på **49 kr/mån** ger tillgång till **båda tjänsterna** — AI Bilrådgivning (den här) och AI EVLadd & Köpråd — med samma konto och token.
 
 `ca_token` lagras i `localStorage` under domänen `elitrobban.se` och delas automatiskt mellan sidorna. `ev-charging.js` (serveras av CarAdvice-backenden) agerar access guard på elbilsladdning-sidan — kontrollerar token mot `/api/auth/me` och visar antingen innehållet eller ett betalvägg-kort.
 
