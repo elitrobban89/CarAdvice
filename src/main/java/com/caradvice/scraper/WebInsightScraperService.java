@@ -1003,7 +1003,7 @@ public class WebInsightScraperService {
             // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda. Den får
             // bilens namn med sig: tre rader i drift 2026-09-22 var veteraner som BARA modellen
             // avslöjade — texten bar varken årtal eller samlarord.
-            String carMake  = blankToNull(ins.path("car_make").asText(""));
+            String carMake  = normaliseraMarke(blankToNull(ins.path("car_make").asText("")));
             String carModel = blankToNull(ins.path("car_model").asText(""));
             String veteran = InsightTaxonomy.veteranInnehall(insightText, carMake, carModel);
             String fuelType = veteran == null
@@ -1460,6 +1460,20 @@ public class WebInsightScraperService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    // Promptregeln ovan räcker inte: id 1635 (2026-09-25) sparades som "VW" och id 1704 som
+    // "Volkswagen", och annonskollen grupperar på make + model — samma ID. Polo GTI blev två
+    // bilar i kommande-kön. Därför samma stavning i koden, oavsett vad AI:n skrev.
+    static String normaliseraMarke(String make) {
+        if (make == null) return null;
+        String m = make.trim();
+        if (m.equalsIgnoreCase("VW")) return "Volkswagen";
+        if (m.equalsIgnoreCase("Mercedes-Benz") || m.equalsIgnoreCase("Mercedes-AMG")
+                || m.equalsIgnoreCase("Mercedes Benz") || m.equalsIgnoreCase("Mercedes AMG")) {
+            return "Mercedes";
+        }
+        return m;
     }
 
     // category/fuel_type matchar användarens sökpreferenser i buildExpertContext — ett påhittat

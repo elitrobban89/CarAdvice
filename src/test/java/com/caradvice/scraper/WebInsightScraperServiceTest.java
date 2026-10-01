@@ -1390,6 +1390,19 @@ class WebInsightScraperServiceTest {
                 .isEqualTo(insikt);
     }
 
+    @Test
+    void markesstavningenNormaliserasSaSammaBilBlirEnBil() {
+        // 1635 "VW" och 1704 "Volkswagen" blev två bilar i kommande-kön (2026-10-01)
+        assertThat(WebInsightScraperService.normaliseraMarke("VW")).isEqualTo("Volkswagen");
+        assertThat(WebInsightScraperService.normaliseraMarke("vw")).isEqualTo("Volkswagen");
+        assertThat(WebInsightScraperService.normaliseraMarke("Mercedes-Benz")).isEqualTo("Mercedes");
+        assertThat(WebInsightScraperService.normaliseraMarke("Mercedes-AMG")).isEqualTo("Mercedes");
+        assertThat(WebInsightScraperService.normaliseraMarke("Mercedes AMG")).isEqualTo("Mercedes");
+        assertThat(WebInsightScraperService.normaliseraMarke(" Volkswagen ")).isEqualTo("Volkswagen");
+        assertThat(WebInsightScraperService.normaliseraMarke("Volvo")).isEqualTo("Volvo");
+        assertThat(WebInsightScraperService.normaliseraMarke(null)).isNull();
+    }
+
     private WebInsightScraperService serviceWith(JdbcTemplate jdbc) {
         return new WebInsightScraperService(mock(ExpertInsightRepository.class), jdbc,
                 mock(JobStatusService.class), mock(UpcomingInsightService.class), vaktStats);
