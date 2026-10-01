@@ -250,7 +250,8 @@ public class EvDatabaseScraperService {
                     match.setMaxAcKw((double) scraped.acKw());
                     changed = true;
                 }
-                if (scraped.priceKr() > 0 && (match.getPriceKr() == null || match.getPriceKr() == 0)) {
+                if (prisBorUppdateras(match.getPriceKr(), scraped.priceKr())) {
+                    log.info("Pris {}: {} → {} kr", match.getCarName(), match.getPriceKr(), scraped.priceKr());
                     match.setPriceKr(scraped.priceKr());
                     changed = true;
                 }
@@ -467,6 +468,25 @@ public class EvDatabaseScraperService {
             if (kw.find()) return (int) Math.round(Integer.parseInt(kw.group(1)) * 1.3596);
         }
         return 0;
+    }
+
+    /** Ändring under så här många procent räknas som avrundningsbrus och skrivs inte. */
+    static final double PRIS_TROSKEL_PROCENT = 3.0;
+
+    /**
+     * Sant när det skrapade priset ska ersätta det sparade.
+     *
+     * <p>Förut fylldes priset bara i när raden saknade pris, så en bil behöll sitt
+     * lanseringspris för alltid — prissänkningar och nya årsmodeller nådde aldrig tabellen,
+     * medan räckvidd, batteri och laddeffekt ovanför skrevs om vid varje ändring.
+     *
+     * <p>Små skillnader skrivs inte: priset räknas om från euro och avrundas till tusental, så
+     * några tusenlappars glidning är brus och inte en prisändring.
+     */
+    static boolean prisBorUppdateras(Integer sparat, int skrapat) {
+        if (skrapat <= 0) return false;
+        if (sparat == null || sparat <= 0) return true;
+        return Math.abs(skrapat - sparat) * 100.0 / sparat > PRIS_TROSKEL_PROCENT;
     }
 
     private int extractPrice(String text) {

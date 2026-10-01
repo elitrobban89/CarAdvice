@@ -1411,7 +1411,9 @@
     const rangeMil  = c.rangeKm ? Math.round(c.rangeKm / 10) : null;
     const realMil   = rangeMil ? Math.round(rangeMil * 0.85) : null;
     const freqBadge = chargingFreqBadge(rangeMil);
-    const priceStr  = c.priceKr ? `från ${(c.priceKr / 1000).toFixed(0)} tkr` : null;
+    // Databasens pris är ett europeiskt listpris i euro, omräknat — därför "ca" och "EU". Det
+    // visas bara tills Blockets svenska priser kommit, se laddaMarknadspris nedan.
+    const priceStr  = c.priceKr ? `ca ${(c.priceKr / 1000).toFixed(0)} tkr ny (EU-listpris)` : null;
     // TRE RADER, inte en radbrytande. Allt låg förut i samma flexrad, och radbrytningen
     // hamnade där bredden råkade ta slut — mellan "mil WLTP" och "mil verklig" på en smal
     // skärm, eller mitt i kontakttyperna. Läsaren fick alltså gruppera själv, och grupperna
@@ -1439,12 +1441,59 @@
     // som ett trasigt ikonplacehold, medan 📏 säger "avstånd" och håller sig läsbar i 12 px.
     if (rangeMil) rader.push(["Räckvidd",
       `<span class="ev-spec-badge badge-range">📏 ~${rangeMil} mil WLTP · ~${realMil} mil verklig</span>`]);
-    if (priceStr) rader.push(["Pris",
-      `<span class="ev-spec-badge badge-price">💰 ${priceStr}</span>`]);
-    box.innerHTML = rader.map(function (r) {
-      return `<span class="ev-spec-rubrik">${r[0]}</span><div class="ev-spec-row">${r[1]}</div>`;
+    // Prisraden finns alltid, så att Blockets priser har en plats att landa på även för en bil
+    // som saknar pris i databasen.
+    rader.push(["Pris", priceStr
+      ? `<span class="ev-spec-badge badge-price">💰 ${priceStr}</span>`
+      : `<span class="ev-spec-badge badge-price">💰 Hämtar priser från Blocket…</span>`]);
+    box.innerHTML = rader.map(function (r, i) {
+      const id = i === rader.length - 1 ? ' id="ev-spec-pris"' : "";
+      return `<span class="ev-spec-rubrik">${r[0]}</span><div class="ev-spec-row"${id}>${r[1]}</div>`;
     }).join("");
     renderChargingNotice(true);
+    laddaMarknadspris(c, state.carIndex);
+  }
+
+  /**
+   * Svenska priser från Blocket för den valda bilen: ny hos handlare och begagnad.
+   *
+   * Ersätter EU-priset i prisraden när svaret kommit. Gäller modellen i alla versioner
+   * ("Volvo EX30"), för Blockets versionstext är fritext som handlarna skriver som de vill.
+   * Byter användaren bil innan svaret kommit kastas det, annars hade fel bils pris hamnat
+   * under den nya bilens specar.
+   */
+  function laddaMarknadspris(car, carIndex) {
+    fetch(API + "/api/car-market?car=" + encodeURIComponent(car.name))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (state.carIndex !== carIndex) return;
+        const rad = document.getElementById("ev-spec-pris");
+        if (!rad) return;
+        const tkr = kr => Math.round(kr / 1000).toLocaleString("sv-SE") + " tkr";
+        const delar = [];
+        if (d && d.ny && d.ny.antal > 0) {
+          delar.push(`<span class="ev-spec-badge badge-price" title="Nya bilar till salu hos handlare på Blocket idag. Median ${tkr(d.ny.medianKr)} bland ${d.ny.antal} annonser.">🆕 Ny från ${tkr(d.ny.billigastKr)}</span>`);
+        }
+        if (d && d.begagnad && d.begagnad.antal > 0) {
+          const ar = d.begagnad.arsmodellFran
+            ? (d.begagnad.arsmodellFran === d.begagnad.arsmodellTill
+                ? ` · ${d.begagnad.arsmodellFran}`
+                : ` · ${d.begagnad.arsmodellFran}–${d.begagnad.arsmodellTill}`)
+            : "";
+          delar.push(`<span class="ev-spec-badge badge-price" title="Begagnade till salu på Blocket idag, högst 15 000 mil. Billigaste ${tkr(d.begagnad.billigastKr)}.">🔁 Begagnad ~${tkr(d.begagnad.medianKr)} (${d.begagnad.antal} st${ar})</span>`);
+        }
+        if (delar.length) {
+          rad.innerHTML = delar.join("") + `<span class="ev-spec-badge badge-con" title="${esc(d.kalla || "Blocket")}">Källa: Blocket</span>`;
+        } else if (!car.priceKr) {
+          rad.innerHTML = `<span class="ev-spec-badge badge-price">💰 Inga annonser på Blocket just nu</span>`;
+        }
+        // Inga Blocket-träffar men ett EU-pris: det står kvar som det är.
+      })
+      .catch(() => {
+        if (state.carIndex !== carIndex || car.priceKr) return;
+        const rad = document.getElementById("ev-spec-pris");
+        if (rad) rad.innerHTML = `<span class="ev-spec-badge badge-price">💰 Pris saknas</span>`;
+      });
   }
 
   /**
