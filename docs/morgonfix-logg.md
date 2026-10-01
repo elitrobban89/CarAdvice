@@ -1,5 +1,83 @@
 # Morgonfix-logg
 
+## 2026-10-01
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:22, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (6316f17), status OK, uptime
+~18,6 h (ingen omstart i natt), Groq 3/3 modeller (friskt). ev-specs updated 31 (något över
+vanliga 0-25 men långt från 290-larmet). cargo-specs gav 0/0/0 i natt (tyst natt, cargo total
+oförändrat 1731 vilket stämmer med 0 nya bilnamn). Kontrollräkningen (cargo total 1731 +
+evSpecs 613 + ice_consumption 960 = 3304 = variants) stämmer exakt. medVolym+bagageMissar
+rörde sig 994→995 / 781→781 (medVolym upp = OK enligt 3f:s domregel, oavsett att
+cargo-specs-jobbet själv loggade 0 bagagevolymer – en liten (±1) avvikelse mellan jobbloggen
+och cargo-coverage, för liten för att larma men värd att hålla ögonen på om den växer).
+Generationsåren still (291/19, väntat till fönstret 2026-10-20, forsöktDag fortfarande
+2026-09-20). vPIC 291 kontrollerade / 275 anrop / 0 avvikelser (ingen förändring mot
+baslinjen - flera nätter i rad utan avvikelse). Drivmedelsräknaren 483/398/85/16 (+1 total/+1
+el, ingen flip, manuella oförändrat 16). Kategorivakten fångade två kontradiktioner i natt
+(Polestar 2 "ingen SUV" och Saab 900 "årsmodell 1988 är 30 år eller äldre") - båda vakten som
+gjorde sitt jobb, inget hål. Kontrollerade specifikt om GTI-badgade nya rader (Volkswagen ID.
+Polo GTI id 1704, Peugeot E-208 GTi id 1715, båda "smaabil") var samma läcka som VW ID.3 GTI
+09-17 - de är INTE det: InsightTaxonomy.LYX_OCH_SPORTMODELLER utesluter GTI-varianter med
+flit ("en egen gränsdragning som användaren äger"), och STORA_MODELLER träffar bara
+Golf-klass och uppåt - Polo och 208 är riktiga småbilar. Ingen åtgärd.
+
+Annonskollen (kommandevakten) gav 0 LARM på 41 rader / 19 bilar (6 GRANSKA: Range Rover
+Sport, Volvo XC70, Mazda 6e, Mitsubishi Pajero, Hyundai Santa Fe, Hyundai Tucson - alla redan
+avgjorda eller normalt utfall för nästa-generation-rader; 1 ANNAN_DRIVLINA: Range Rover,
+sedan tidigare avgjord). Nattens 8 nya köade rader (1704, 1713-1720) är alla korrekt
+parkerade (Range Rover Sport Electric x5, Peugeot E-208 GTi, Volkswagen ID. Polo GTI, samt
+plain "Range Rover Sport" som GRANSKA) - annonskollen gav INGA_ANNONSER/GRANSKA på samtliga,
+ingen av dem säljs i Sverige än. **Fynd att lämna till användaren:** samma bil, Volkswagen
+ID. Polo GTI, ligger nu som TVÅ separata "bilar" i kön eftersom car_make stavas olika
+("VW" på id 1635 från 09-25, "Volkswagen" på id 1704 från i natt) - UpcomingAdCheckService
+grupperar bokstavligt på `make + " " + model` så duplikaten räknas som skilda bilar i
+19-talet. Ingen kodfix i natt (ingen enskild, namngiven källa för hur grupperingen borde
+normaliseras, och car_make-stavningen varierar på fler ställen än bara den här bilen -
+kräver användarens beslut, inte en gissning).
+
+**Vardeminskning/tillförlitlighet:** 1 rad i fönstret med anknytning (id 1699, Jaguar
+I-Pace - "dyr att äga... risker för reservdelar när modellen lagts ner"), men ingen renodlad
+värdeminsknings- eller restvärdesrad med siffra. Frågan är fortfarande öppen enligt
+nattrutinens punkt om falskt negativt.
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Avvecklade modeller: id 1699 (Jaguar I-Pace, nedlagd modell,
+tidigare såld i Sverige) behölls korrekt som relevant tillförlitlighetsinsikt - inget tecken
+på överblockering.
+
+**Kobeslut (`src/main/resources/morgonfix/atgarder.json`):** ingen ändring - filen var redan
+en tom lista sedan 09-30, och annonskollen gav 0 LARM i natt så inget nytt underlag för
+slapp/parkera/dölj. Ingen rad i kommande-kön krävde ett beslut.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten (GTI-frågan kontrollerad och avfärdad,
+se ovan), ingen parserfel, inga siffror som gick att belägga för en fix. VW/Volkswagen-
+dubbletten i kön är ett namngivet fynd för användaren, inte en kodfix med entydig källa.
+
+**Laddtips:** inga nya - nattens nya rader gäller bilar som ännu inte säljs i Sverige
+(kommande-kön), och laddtipsregeln kräver bilar som går att köpa här i dag.
+
+**Laddpriser:** torsdag, ingen kontroll i natt (bara måndagar).
+
+**Splashvakten:** Dom: splasharna stämmer, alla fem appar OK (Java 27, Spring Boot 3.5.16,
+PostgreSQL 18.4 i tre). De tre apparna som gav LARM i natten mot 09-30
+(MiniPrisTåget/Bankomat 2.0/VäderKläder, nekade av nätverkspolicyn) svarade friskt i natt -
+nätverksåtkomsten verkar ha vidgats sedan dess. GITHUB_TOKEN-401:an som nämndes 09-30 syns
+inte heller i natt (kodhistoriken visar att Splashvakten bytt till git-baserad GitHub-läsning
+41aaeaf/6316f17 sedan dess).
+
+**Bygg- och provresultat:** inga kodändringar i natt, så inget Maven-bygge krävdes utöver
+baslinjens egen körning (`node scripts/mat-baslinje.js`), som skrev ut
+"kontrollrakning GAR IHOP 3304 / 3304".
+
+**Baslinjen:** uppdaterad till natten mått (se docs/baslinje.json), commit 6316f17.
+
+**Lämnat därhän (kräver beslut, inte kod):**
+- **VW/Volkswagen ID. Polo GTI-dubbletten i kommande-kön** (id 1635 vs 1704) - samma bil
+  under två stavningar av car_make, räknas som två "bilar" av annonskollen. Antingen rätta
+  car_make för hand (admin-PATCH) eller normalisera i scrapern - båda kräver ett beslut om
+  vilken stavning som ska vara facit.
+
 ## 2026-09-30
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:35, inom väntat fönster
