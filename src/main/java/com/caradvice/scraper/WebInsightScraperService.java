@@ -976,6 +976,10 @@ public class WebInsightScraperService {
         for (JsonNode ins : filterKnownDuplicates(filterStrict(expert, filterIrrelevant(insights)))) {
             String insightText = ins.path("insight").asText("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
+            if (isPlaceringUtanForstaplats(insightText)) {
+                log.info("Web insights: hoppar över placering utan förstaplats: {}", truncate(insightText, LOG_INSIGHT_CHARS));
+                continue;
+            }
 
             // Insikter utan märke visas aldrig (ExpertInsightService utesluter carMake == null
             // överallt) — spara dem inte.
@@ -1497,6 +1501,33 @@ public class WebInsightScraperService {
     static boolean isTemplateEcho(JsonNode ins) {
         return "insight".equalsIgnoreCase(ins.path("insight").asText("").trim())
                 || "car_make".equalsIgnoreCase(ins.path("car_make").asText("").trim());
+    }
+
+    private static final Pattern PLACERING = Pattern.compile(
+            "(?iu)(?:näst|andra|tredje|fjärde|femte|sjätte|sjunde|åttonde|nionde|tionde)\\s+mest\\s+(?:sål(?:d|da|t)|säljande|registrerade?)"
+                    + "|(?:andra|tredje|fjärde|femte|sjätte|sjunde|åttonde|nionde|tionde)\\s*plats"
+                    + "|topp\\s*(?:tre|fem|tio|3|5|10)(?![\\wåäö])");
+    private static final Pattern FORSALJNING = Pattern.compile("(?iu)sål[dt]|registr|försälj|modelltopp");
+    private static final Pattern FORSTAPLATS = Pattern.compile(
+            "(?iu)först(?:a)?\\s*(?:på|plats)|förstaplats|(?<![\\wåäö])etta(?![\\wåäö])|toppar|tronen");
+
+    /**
+     * Försäljningsstatistik utan förstaplats — "tredje mest såld elbil i september".
+     *
+     * <p>{@code SYSTEM_PROMPT} har uteslutit sådana rader sedan länge ("en placering långt ner i en
+     * lista säger ingenting om bilen"), men natten mot 2026-10-02 kom Volvo EX30 (id 1729) in ändå.
+     * Samma lärdom som kategorivakten: en regel som ska hålla måste stå i kod.
+     *
+     * <p>Mätt mot alla 1266 rader i drift samma dag: 14 hade fallit, alla försäljningsplaceringar.
+     * Två avgränsningar bär det resultatet. Placeringen måste stå i en FÖRSÄLJNINGSmening — utan
+     * det föll också "tredje plats" i batterihälsotest och räckviddslistor (id 817–819, 947, 949),
+     * som är just de testfakta vi vill ha. Och förstaplatsen måste vara en plats — ett bart "först"
+     * räddade varje rad med "första halvåret". Nämner raden ÄVEN en riktig förstaplats ("näst mest
+     * sålda i september men först på topplistan för jan–sep", id 1728) behålls den.
+     */
+    static boolean isPlaceringUtanForstaplats(String text) {
+        return PLACERING.matcher(text).find() && FORSALJNING.matcher(text).find()
+                && !FORSTAPLATS.matcher(text).find();
     }
 
     /**
