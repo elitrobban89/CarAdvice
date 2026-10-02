@@ -19,16 +19,19 @@ OK 126, INGEN_DATA 165, AVVIKER 0 - åttonde mätningen i rad utan avvikelse. Dr
 korrekta). Kategorivakten: totalt 0 utslag sedan omstart (uptime 14,9 h) - ingen ny kontradiktion.
 
 **Kommandevakten (annonskollen):** 0 LARM på 41 rader / 18 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
-11 INGA_ANNONSER - samma mönster som tidigare, inga nya LARM-värdiga fynd). Nattens 8 nya
-köade rader (1704, 1713-1720) är alla korrekt parkerade: Range Rover Sport Electric (5 rader),
-Peugeot E-208 GTi, Volkswagen ID. Polo GTI (duplicerad bil, se nedan) och "Range Rover Sport"
-som GRANSKA (nästa-generation-rad, normalt utfall). Ingen av dem säljs i Sverige än enligt
-annonskollen. **Uppföljning av 10-01:** gårdagens observation om att VW/Volkswagen ID. Polo
-GTI räknades som två skilda "bilar" i kön p.g.a. stavningsskillnad är löst - commit 8dd763b
+11 INGA_ANNONSER). **Rättelse:** raderna 1704 och 1713-1720 (Range Rover Sport Electric,
+Peugeot E-208 GTi, Volkswagen ID. Polo GTI, "Range Rover Sport" GRANSKA) hör till FÖRRA
+nattens körning (09-30→10-01, redan utredda i gårdagens logg) - INTE till natten mot 10-02.
+Nattens 9 nya rader (1721-1729) gäller uteslutande redan säljbara bilar (Volvo EX30/EX40,
+Tesla Model Y, BMW iX3-klustret, VW Passat eHybrid) och gav INGA nya köade rader i natt.
+Annonskollens 41/18 är alltså oförändrat köinnehåll sedan 10-01, bara ombedömt i natt - inget
+nytt LARM. **Uppföljning av 10-01:** gårdagens observation om att VW/Volkswagen ID. Polo GTI
+räknades som två skilda "bilar" i kön p.g.a. stavningsskillnad är löst - commit 8dd763b
 ("Insikter: normalisera markesstavningen vid sparandet") normaliserar nu car_make till
-"Volkswagen", och ikväll grupperar annonskollen id 1635 och 1704 korrekt som EN bil.
+"Volkswagen", och ikväll grupperar annonskollen id 1635 och 1704 korrekt som EN bil (19→18).
 
-**Fynd i natt - dubblett:** insikt 1704 ("GTI-derivatet av Volkswagen ID. Polo har tagit
+**Fynd i natt - dubblett (raden är från förra nattens körning, beslutet tas i natt):** insikt
+1704 ("GTI-derivatet av Volkswagen ID. Polo har tagit
 klivet in i den helelektriska eran", Auto Motor & Sport 2026-10-01) upprepar ordagrant samma
 faktum som insikt 1635 ("GTI-derivatet av VW ID. Polo har gått över till hel-elektrisk
 drivlina", Auto Motor & Sport 2026-09-25) - samma källa, samma bil, bara omskriven text.
