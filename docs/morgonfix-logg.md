@@ -1,5 +1,97 @@
 # Morgonfix-logg
 
+## 2026-10-02
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:39:09, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (a93747b), status OK, uptime
+~14,9 h (ingen omstart i natt). Groq 3/3 modeller (friskt). ev-specs updated **96** - klart
+över vanliga 0-25 och en fortsättning av gårdagens 31 (31→96), fortfarande långt från
+290-larmet men en stigande trend värd att hålla ögonen på kommande nätter. cargo-specs gav
+3/0/0 (3 nya bilnamn, 0 bagagevolymer, 0 generationsår - N inom 2-20, inget larm).
+Kontrollräkningen (cargo total 1734 + evSpecs 613 + ice_consumption 960 = 3307 = variants)
+stämmer exakt, liksom /api/stats (models 2187, insights 1266) och /api/cars (1974) mot
+nattens +3/+3/+9. medVolym+bagageMissar: 995→996 / 781→784 (medVolym upp = OK enligt 3f,
+oavsett bagageMissar). Samma ±1-glapp mellan cargo-specs-jobbets egna "bagagevolymer: 0" och
+cargo-coverages medVolym-ökning som noterades 10-01 fortsätter (fortfarande för litet för
+larm). Generationsåren still (291/19, väntat till fönstret 2026-10-20). vPIC: 291/0/275,
+OK 126, INGEN_DATA 165, AVVIKER 0 - åttonde mätningen i rad utan avvikelse. Drivmedelsräknaren
+484/399/85/16 (+1 total/+1 el, ingen flip, manuella oförändrat 16, alla 16 handsatta rader
+korrekta). Kategorivakten: totalt 0 utslag sedan omstart (uptime 14,9 h) - ingen ny kontradiktion.
+
+**Kommandevakten (annonskollen):** 0 LARM på 41 rader / 18 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
+11 INGA_ANNONSER - samma mönster som tidigare, inga nya LARM-värdiga fynd). Nattens 8 nya
+köade rader (1704, 1713-1720) är alla korrekt parkerade: Range Rover Sport Electric (5 rader),
+Peugeot E-208 GTi, Volkswagen ID. Polo GTI (duplicerad bil, se nedan) och "Range Rover Sport"
+som GRANSKA (nästa-generation-rad, normalt utfall). Ingen av dem säljs i Sverige än enligt
+annonskollen. **Uppföljning av 10-01:** gårdagens observation om att VW/Volkswagen ID. Polo
+GTI räknades som två skilda "bilar" i kön p.g.a. stavningsskillnad är löst - commit 8dd763b
+("Insikter: normalisera markesstavningen vid sparandet") normaliserar nu car_make till
+"Volkswagen", och ikväll grupperar annonskollen id 1635 och 1704 korrekt som EN bil.
+
+**Fynd i natt - dubblett:** insikt 1704 ("GTI-derivatet av Volkswagen ID. Polo har tagit
+klivet in i den helelektriska eran", Auto Motor & Sport 2026-10-01) upprepar ordagrant samma
+faktum som insikt 1635 ("GTI-derivatet av VW ID. Polo har gått över till hel-elektrisk
+drivlina", Auto Motor & Sport 2026-09-25) - samma källa, samma bil, bara omskriven text.
+Dold i natt med typ "dolj" i atgarder.json (se nedan), id 1635 kvarstår oförändrad som
+representant för bilen i kön.
+
+**Kontrollerat och avfärdat (ingen åtgärd):** Peugeot E-208 GTi (id 1715) kategoriserad
+"smaabil" trots 280 hk/206 kW - samma mönster som VW ID. Polo GTI (1704) och ID.3 GTI-lackan
+09-17. Detta är **redan utrett och avfärdat i gårdagens logg (10-01)**: InsightTaxonomy
+utesluter GTI-varianter med flit från LYX_OCH_SPORTMODELLER, och Polo/208 är riktiga
+småbilar efter fysisk storlek - stängd fråga, tas inte upp igen.
+
+**PROMPTMISS att lämna öppen:** insikt 1729 (Volvo EX30, "tredje mest sålda elbilen i
+september med 853 registreringar... 5 323 under jan-sep") är marknadsstatistik utan
+förstaplats - SYSTEM_PROMPT (rad ~305) kräver uttryckligen FÖRSTAPLATSEN, "en placering
+långt ner i en lista säger ingenting om bilen". Raden borde ha uteslutits av extraktionen.
+Ingen åtgärd (ändrade prompter i skrapan är förbjudet enligt 9c/ramarna) - lämnas som fynd
+till användaren. Angränsande rad 1728 (Volvo EX40, "näst mest sålda i september MEN först på
+topplistan för hela perioden jan-sep") innehåller en äkta förstaplats (helårsperioden) och
+bedöms INTE som promptmiss.
+
+**Värdeminskning:** 0 rader i fönstret i natt med anknytning till värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Frågan är fortfarande öppen (falskt negativt-regeln,
+avsnitt 6).
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Jaguar I-Pace (id 1699, kvar i fönstret sedan tidigare, nedlagd
+modell) behölls korrekt - inget tecken på överblockering i natt.
+
+**Kobeslut (`atgarder.json`):** en rad - dolj id 1704 (dubblett, se ovan). Inget LARM från
+annonskollen att slappa, inga kommande-bilar som behövde parkeras explicit (alla redan
+korrekt GRANSKA/INGA_ANNONSER).
+
+**Laddtips:** 1 nytt - BMW i3 40 xDrive (374 hk, 82,8 kWh, 710 km WLTP). Källa för
+grundkandidaten var insikt 1700 (M3); siffrorna kontrollerade och bekräftade exakt mot
+`/api/ev-spec?car=BMW i3 40 xDrive` (82,8 kWh, 710 km WLTP, 300 kW DC - matchar kandidaten).
+**Avfärdade kandidater:** BMW iX3 40 xDrive (id 1723/1724, poäng 4) - kunde INTE beläggas:
+`/api/ev-spec` har bara EN post för "BMW iX3" och den visar 108,7 kWh / 805 km (matchar den
+redan publicerade iX3 50 xDrive-posten i ev-app.js, inte de påstådda 82,6 kWh / 621 km för
+40 xDrive) - ingen 40 xDrive-post att stämma av mot, tipset skrivs inte. Tesla Model Y
+laddkostnad (id 1711, poäng 3) - insikten anger 70 kWh batteri men `/api/ev-spec?car=Tesla
+Model Y` visar 60,0 kWh - siffran går inte ihop, tipset skrivs inte.
+
+**Laddpriser:** fredag, ingen kontroll i natt (bara måndagar).
+
+**Splashvakten:** Dom "splasharna stämmer" (exitkod 0). Alla fem appar OK (Java 27, Spring
+Boot 3.5.16, PostgreSQL 18.4 i tre). Elbilsladdning hade samma INFO-rader som tidigare
+(Blocket/Elbilsvaruhuset/API Ninjas/Pressflöden/Chargeprice/NOBIL/YouTube nämns inte i
+splashen) - ingen jämförelse med gårdagens exakta lista gjordes, så de rapporteras inte som
+nya.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, inga parserfel, inga tal som gick att
+belägga som fel. Byggt och testat grönt: `mvn -q -DskipTests package` grönt, `mvn test`
+1224/1224 gröna (0 fel, 0 skippade).
+
+**Baslinjen:** uppdateras till nattens mått (se docs/baslinje.json), commit a93747b.
+
+**Lämnat därhän (kräver beslut, inte kod):**
+- **Insikt 1729 (Volvo EX30, tredje plats)** - promptmiss enligt SYSTEM_PROMPT:s egen regel,
+  se ovan. Ingen åtgärd möjlig inom nattrutinens ramar (prompter rörs inte).
+- **ev-specs updated-trenden (31→96)** - ingen loggrad pekar på en orsak, men två nätter i
+  rad över det väntade 0-25-intervallet är värt att bevaka natten efter natt.
+
 ## 2026-10-01
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:22, inom väntat fönster
