@@ -1,5 +1,89 @@
 # Morgonfix-logg
 
+## 2026-10-03
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:16, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (ee6ffd5), status OK, uptime
+~16,7 h (ingen omstart i natt). Groq 3/3 modeller (friskt). ev-specs updated **18** - inom
+0-25. cargo-specs gav 1/1/0 (1 nytt bilnamn, 1 bagagevolym, 0 generationsår - N inom 2-20,
+inget larm). Kontrollräkningen (cargo total 1736 + evSpecs 617 + ice_consumption 960 = 3313
+= variants) stämmer exakt, liksom /api/stats (models 2192, insights 1281) och /api/cars
+(1979). medVolym+bagageMissar: 996→998 / 784→784 (medVolym upp = OK enligt 3f, oavsett
+bagageMissar). Generationsåren still (291/19, väntat till fönstret 2026-10-20). vPIC:
+291/0/275, OK 126, INGEN_DATA 165, AVVIKER 0 - nionde mätningen i rad utan avvikelse.
+Drivmedelsräknaren 485/400/85/16 (+1 total/+1 el, ingen flip, manuella oförändrat 16, alla
+16 handsatta rader korrekta). Kategorivakten: totalt 0 utslag sedan omstart (uptime 16,7 h)
+- ingen ny kontradiktion.
+
+**Scrape-status, ny formatering värd att notera:** Teknikens Värld rapporterade i natt
+"MAGERT UTBUD (2 artikel-URL:er)" i stället för det vanliga "X av Y lästa", och Folksam
+"0" utan "av N lästa". Inget av detta är ett larm (Folksam är normalt en tyst källa, och
+Teknikens Värld gav ändå lästa artiklar via de andra jobben), men formatet skiljer sig från
+det tidigare mönstret - värt att hålla ögonen på om det återkommer.
+
+**Kommandevakten (annonskollen):** 0 LARM på 41 rader / 18 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
+11 INGA_ANNONSER) - oförändrat innehåll sedan baslinjen 10-02, inga nya köade rader i natt
+(nattens 15 nya rader, 1730-1744, gäller uteslutande redan säljbara bilar: Hyundai Tucson,
+Range Rover P400e Autobiography, Volvo V70, Volvo EX60, VW ID.7 Tourer, Tesla Model S).
+
+**Uppföljning av gårdagens PROMPTMISS (insikt 1729):** redan åtgärdad - användaren committade
+direkt på master (ee6ffd5, "Insikter: kodvakt mot forsaljningsplaceringar utan forstaplats")
+efter gårdagens rapport, med en kodvakt (isPlaceringUtanForstaplats) som stoppar
+försäljningsplaceringar utan förstaplats framåt, och dolde 1729 via atgarder.json (bekräftat
+i /api/admin/insights/dolda, hidden_at 09:51:34). Ingen ny åtgärd behövs.
+
+**Kvalitetsnotering, ingen känd regel att hänga den på:** id 1741-1742 (CarUp, Volvo V70)
+beskriver en enskild begagnad bils skick (70 000 mil, utbytt motor, buckla, däcktryckslampa)
+snarare än ett generaliserbart modellfaktum. Ingen av de kända lacktyperna i avsnitt 6 täcker
+exakt detta (inte skatterad, inte renoveringsobjekt, inte en anekdot om en privatpersons
+preferens), så ingen döljning föreslås - lämnas som en observation att väga in om fler CarUp-
+rader av samma typ dyker upp.
+
+**Kontrollerat och avfärdat (ingen åtgärd):** inga nya kategorifel, inga veteran-/samlarrader,
+inga specialutgåvor, inga skatterader eller renoveringsobjekt i fönstret i natt.
+
+**Värdeminskning:** insikt 1736 (CarUp, Range Rover P400e Autobiography - "tappat 65 % av
+sitt nypris på fem år, motsvarande 1,1 miljoner kronor") är en värdeminskningsrad som
+sparades i natt. Detta är den första raden sedan regeln infördes (avsnitt 6) - frågan om
+raderna försvann i extraktionen kan nu anses delvis besvarad (minst en sparas), men fortsätts
+bevakas.
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Kobeslut (`atgarder.json`):** inga nya i natt - annonskollen gav 0 LARM och kommande-kön är
+oförändrad. Gårdagens två beslut (dolj 1704, dolj 1729) är bekräftat utförda
+(/api/admin/morgonfix-atgarder, inga FEL). Filen skrivs över till tom lista.
+
+**Laddtips:** 1 nytt - BMW i3 50 xDrive (469 hk, 108,7 kWh, 912 km WLTP), siffrorna
+kontrollerade och bekräftade exakt mot `/api/ev-spec?car=BMW i3 50 xDrive`. **Avfärdade
+kandidater:** BMW iX3 40 xDrive (id 1724, "upp till 300 kW") - `/api/ev-spec?car=BMW iX3` har
+bara en post (108,7 kWh/805 km, maxDcKw 400) och den visar 400 kW, inte 300 - siffran går inte
+att belägga för 40 xDrive-varianten, samma typ av avslag som igår för samma bilkluster. Tesla
+Model Y laddkostnad (id 1711, poäng 3) - insikten anger 70 kWh batteri men `/api/ev-spec`
+visar 60,0 kWh, samma avslag som igår. Range Rover P400e Autobiography (id 1738, "41 km EV-
+räckvidd") - `/api/ev-spec?car=Range Rover P400e Autobiography` svarar tomt, ingen post att
+stämma av mot. VW ID.7 Tourer (id 1743, poäng 1) - insikten saknar en konkret siffra
+("förbättrad batterihantering och längre räckvidd" utan tal), inget tips att skriva.
+
+**Laddpriser:** lördag, ingen kontroll i natt (bara måndagar).
+
+**Splashvakten:** Dom "splasharna stämmer" (exitkod 0). Alla fem appar OK (Java 27, Spring
+Boot 3.5.16, PostgreSQL 18.4 i tre). Elbilsladdning hade samma sju INFO-rader som i gårdagens
+logg (Blocket/Elbilsvaruhuset/API Ninjas/Pressflöden/Chargeprice/NOBIL/YouTube nämns inte i
+splashen) - oförändrat, inga nya.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, inga parserfel, inga tal som gick att
+belägga som fel. Byggt och testat grönt: `mvn -q -DskipTests package` grönt, `mvn -q test`
+grönt (inga fel), riktade körningar av `MorgonfixAtgarderTest` och `LaddtipsServiceTest` gröna.
+
+**Grenen:** `auto/morgonfix` låg kvar sedan 10-02 med en odokumenterad, oplushad commit
+(dae19c4, en ren loggrättelse - ingen öppen PR fanns för den). Mergad med `origin/master`
+utan konflikt (`docs/morgonfix-logg.md` auto-mergades rent). Ingen fast PR att flytta
+(avsnitt 11 gäller inte - under 3 dygn, och ingen PR är öppen just nu).
+
+**Baslinjen:** uppdateras till nattens mått (se docs/baslinje.json), commit ee6ffd5.
+
 ## 2026-10-02
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:39:09, inom väntat fönster
@@ -19,16 +103,19 @@ OK 126, INGEN_DATA 165, AVVIKER 0 - åttonde mätningen i rad utan avvikelse. Dr
 korrekta). Kategorivakten: totalt 0 utslag sedan omstart (uptime 14,9 h) - ingen ny kontradiktion.
 
 **Kommandevakten (annonskollen):** 0 LARM på 41 rader / 18 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
-11 INGA_ANNONSER - samma mönster som tidigare, inga nya LARM-värdiga fynd). Nattens 8 nya
-köade rader (1704, 1713-1720) är alla korrekt parkerade: Range Rover Sport Electric (5 rader),
-Peugeot E-208 GTi, Volkswagen ID. Polo GTI (duplicerad bil, se nedan) och "Range Rover Sport"
-som GRANSKA (nästa-generation-rad, normalt utfall). Ingen av dem säljs i Sverige än enligt
-annonskollen. **Uppföljning av 10-01:** gårdagens observation om att VW/Volkswagen ID. Polo
-GTI räknades som två skilda "bilar" i kön p.g.a. stavningsskillnad är löst - commit 8dd763b
+11 INGA_ANNONSER). **Rättelse:** raderna 1704 och 1713-1720 (Range Rover Sport Electric,
+Peugeot E-208 GTi, Volkswagen ID. Polo GTI, "Range Rover Sport" GRANSKA) hör till FÖRRA
+nattens körning (09-30→10-01, redan utredda i gårdagens logg) - INTE till natten mot 10-02.
+Nattens 9 nya rader (1721-1729) gäller uteslutande redan säljbara bilar (Volvo EX30/EX40,
+Tesla Model Y, BMW iX3-klustret, VW Passat eHybrid) och gav INGA nya köade rader i natt.
+Annonskollens 41/18 är alltså oförändrat köinnehåll sedan 10-01, bara ombedömt i natt - inget
+nytt LARM. **Uppföljning av 10-01:** gårdagens observation om att VW/Volkswagen ID. Polo GTI
+räknades som två skilda "bilar" i kön p.g.a. stavningsskillnad är löst - commit 8dd763b
 ("Insikter: normalisera markesstavningen vid sparandet") normaliserar nu car_make till
-"Volkswagen", och ikväll grupperar annonskollen id 1635 och 1704 korrekt som EN bil.
+"Volkswagen", och ikväll grupperar annonskollen id 1635 och 1704 korrekt som EN bil (19→18).
 
-**Fynd i natt - dubblett:** insikt 1704 ("GTI-derivatet av Volkswagen ID. Polo har tagit
+**Fynd i natt - dubblett (raden är från förra nattens körning, beslutet tas i natt):** insikt
+1704 ("GTI-derivatet av Volkswagen ID. Polo har tagit
 klivet in i den helelektriska eran", Auto Motor & Sport 2026-10-01) upprepar ordagrant samma
 faktum som insikt 1635 ("GTI-derivatet av VW ID. Polo har gått över till hel-elektrisk
 drivlina", Auto Motor & Sport 2026-09-25) - samma källa, samma bil, bara omskriven text.
