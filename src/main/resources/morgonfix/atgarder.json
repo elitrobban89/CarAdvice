@@ -1,6 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera. Högst 12 nya per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-02", "typ": "dolj", "id": 1704, "skal": "DUBBLETT: upprepar ordagrant samma faktum som insikt 1635 (Auto Motor & Sport, 2026-09-25) om att GTI-derivatet av VW/Volkswagen ID. Polo gått över till helelektrisk drivlina - samma källa, samma bil, bara omskriven text."}
+    {"datum": "2026-10-02", "typ": "dolj", "id": 1704, "skal": "DUBBLETT: upprepar ordagrant samma faktum som insikt 1635 (Auto Motor & Sport, 2026-09-25) om att GTI-derivatet av VW/Volkswagen ID. Polo gått över till helelektrisk drivlina - samma källa, samma bil, bara omskriven text."},
+    {"datum": "2026-10-02", "typ": "dolj", "id": 1729, "skal": "PROMPTMISS: tredje mest sålda elbil i september - försäljningsplacering utan förstaplats, som SYSTEM_PROMPT utesluter. Nattloggen 10-02 flaggade raden; kodvakten isPlaceringUtanForstaplats stoppar sådana rader framåt."}
   ]
 }

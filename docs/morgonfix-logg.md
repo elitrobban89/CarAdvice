@@ -95,6 +95,17 @@ belägga som fel. Byggt och testat grönt: `mvn -q -DskipTests package` grönt, 
 - **ev-specs updated-trenden (31→96)** - ingen loggrad pekar på en orsak, men två nätter i
   rad över det väntade 0-25-intervallet är värt att bevaka natten efter natt.
 
+**Uppföljning dagtid 10-02:**
+- **1729 åtgärdad:** dold via atgarder.json, och ny kodvakt `isPlaceringUtanForstaplats` i
+  `saveInsights` stoppar försäljningsplaceringar utan förstaplats framåt. Mätt mot alla 1266
+  rader i drift: 14 hade fallit, alla försäljningsplaceringar; testrankningar (batterihälsa
+  817-819, räckvidd 947/949) och 1728 behålls. Gamla rader lämnas orörda (bilhistoria).
+- **ev-specs 96 är förklarad:** a93747b (deployad 10-01 förmiddag) låter skrapan skriva över
+  ett pris som ändrats mer än 3 % - förut fylldes bara tomma priser. Första natten efter
+  ändringen rättade alltså en hel bunt lanseringspriser. Siffran bör sjunka tillbaka mot 0-25;
+  stannar den högt flera nätter är det växelkursglidning värd att titta på (loggraden
+  "Pris X: a → b kr" är INFO och syns inte i /api/admin/logg).
+
 ## 2026-10-01
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:22, inom väntat fönster

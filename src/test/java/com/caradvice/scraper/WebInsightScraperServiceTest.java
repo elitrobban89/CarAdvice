@@ -1403,6 +1403,38 @@ class WebInsightScraperServiceTest {
         assertThat(WebInsightScraperService.normaliseraMarke(null)).isNull();
     }
 
+    @Test
+    void placeringUtanForstaplatsFaller() {
+        // id 1729, natten mot 2026-10-02
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Volvo EX30 placerade sig som tredje mest såld elbil i september med 853 registreringar")).isTrue();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Tredje mest registrerade bilen i Sverige första halvåret 2026 (4 862 st)")).isTrue();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Ligger på andra plats i modelltoppen för privatpersoner")).isTrue();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats("Åttonde mest sålda bilen")).isTrue();
+    }
+
+    @Test
+    void testrankningarBehalls() {
+        // id 817 och 947: placeringar i test, inte i försäljning
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Kia EV6 visar cirka 95,95 % batterihälsa efter 10 000 mil och hamnar på tredje plats i listan.")).isFalse();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Volvo EX60 har 809 km WLTP, vilket placerar den på fjärde plats i Top Gears lista")).isFalse();
+    }
+
+    @Test
+    void forstaplatsOchVanligaRaderBehalls() {
+        // id 1728: placeringen bär en äkta förstaplats för helåret
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Volvo EX40 var näst mest sålda i september men först på topplistan för jan-sep")).isFalse();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats("Sveriges mest sålda elbil 2025")).isFalse();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats("Återtog tronen som mest sålda")).isFalse();
+        assertThat(WebInsightScraperService.isPlaceringUtanForstaplats(
+                "Andra raden rymmer tre vuxna och bagaget 500 liter")).isFalse();
+    }
+
     private WebInsightScraperService serviceWith(JdbcTemplate jdbc) {
         return new WebInsightScraperService(mock(ExpertInsightRepository.class), jdbc,
                 mock(JobStatusService.class), mock(UpcomingInsightService.class), vaktStats);
