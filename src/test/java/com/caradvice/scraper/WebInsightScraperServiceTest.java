@@ -67,6 +67,30 @@ class WebInsightScraperServiceTest {
                 .hasMessageContaining("Connect timed out");
     }
 
+    /**
+     * Teknikens Världs sitemap är delad per månad. Den 3:e i månaden har den nyaste filen
+     * bara ett par artiklar. Förra månadens fil måste läsas också, annars blir det MAGERT
+     * UTBUD varje månadsskifte och månadens sista olästa artiklar försvinner ur synhåll.
+     */
+    @Test
+    void sitemapLaserForraManadenOcksa() throws Exception {
+        var service = org.mockito.Mockito.spy(service());
+        org.mockito.Mockito.doReturn("<sitemapindex>"
+                        + "<sitemap><loc>https://tv.se/articles-2026-08.xml</loc></sitemap>"
+                        + "<sitemap><loc>https://tv.se/articles-2026-09.xml</loc></sitemap>"
+                        + "<sitemap><loc>https://tv.se/articles-2026-10.xml</loc></sitemap></sitemapindex>")
+                .when(service).fetchRaw("https://tv.se/sitemap.xml");
+        org.mockito.Mockito.doReturn("<url><loc>https://tv.se/a/okt</loc><lastmod>2026-10-02</lastmod></url>")
+                .when(service).fetchRaw("https://tv.se/articles-2026-10.xml");
+        org.mockito.Mockito.doReturn("<url><loc>https://tv.se/a/sep1</loc><lastmod>2026-09-29</lastmod></url>"
+                        + "<url><loc>https://tv.se/a/sep2</loc><lastmod>2026-09-30</lastmod></url>")
+                .when(service).fetchRaw("https://tv.se/articles-2026-09.xml");
+
+        assertThat(service.discoverSitemap("https://tv.se/sitemap.xml"))
+                .containsExactly("https://tv.se/a/okt", "https://tv.se/a/sep2", "https://tv.se/a/sep1");
+        verify(service, org.mockito.Mockito.never()).fetchRaw("https://tv.se/articles-2026-08.xml");
+    }
+
     /** Källa med två kommaseparerade wp-json-endpoints, formen Elbilen hade före 08-23. */
     private static WebInsightScraperService.Source tvaEndpointKalla() {
         return new WebInsightScraperService.Source("Exempel",

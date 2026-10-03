@@ -1647,15 +1647,24 @@ public class WebInsightScraperService {
         return links;
     }
 
-    /** WordPress-sitemapindex: ta senaste post-sitemapen och returnera dess nyaste URL:er. */
-    private List<String> discoverSitemap(String url) throws Exception {
+    /**
+     * Sitemapindex: läs de två senaste post-sitemaparna och returnera de nyaste URL:erna.
+     *
+     * <p><b>Två, inte en.</b> Teknikens Värld delar sitemapen per månad
+     * ({@code articles-2026-10.xml}). Natten 2026-10-03 hade oktoberfilen 3 artiklar, så
+     * källan flaggades MAGERT UTBUD, och septembers sista olästa artiklar var redan ur synhåll.
+     * Det händer i början av varje månad.
+     */
+    List<String> discoverSitemap(String url) throws Exception {   // paketsynlig: testerna spionerar på fetchRaw
         String index = fetchRaw(url);
         List<String> children = matchAll(index, "<loc>([^<]+)</loc>");
         List<String> postMaps = children.stream().filter(c -> c.toLowerCase().contains("post")).toList();
         if (postMaps.isEmpty()) postMaps = children;
         if (postMaps.isEmpty()) return List.of();
 
-        String xml = fetchRaw(postMaps.get(postMaps.size() - 1)); // nyaste post-sitemapen ligger sist
+        // nyaste post-sitemapen ligger sist
+        StringBuilder xml = new StringBuilder(fetchRaw(postMaps.get(postMaps.size() - 1)));
+        if (postMaps.size() > 1) xml.append(fetchRaw(postMaps.get(postMaps.size() - 2)));
         Matcher m = Pattern.compile("<url>\\s*<loc>([^<]+)</loc>(?:\\s*<lastmod>([^<]+)</lastmod>)?").matcher(xml);
         List<String[]> entries = new ArrayList<>();
         while (m.find()) entries.add(new String[]{m.group(1), m.group(2) == null ? "" : m.group(2)});
