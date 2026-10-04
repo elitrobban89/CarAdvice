@@ -1,5 +1,103 @@
 # Morgonfix-logg
 
+## 2026-10-04
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:25:12, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (dead1eb), status OK, uptime
+~12,5 h (ingen omstart under natten - appen startade 14:06 dagen innan). Groq 3/3 modeller
+(friskt). ev-specs updated **12** - inom 0-25. cargo-specs gav 0/0/0 (0 nya bilnamn, 0
+bagagevolymer, 0 generationsår). Kontrollräkningen (cargo total 1736 + evSpecs 617 +
+ice_consumption 960 = 3313 = variants) stämmer exakt, liksom /api/cars (1979).
+
+**medVolym+bagageMissar still tre mätningar i rad (998/784 sedan 10-02) - bedömt som OK, inte
+avvikelse.** Domregeln i 3f säger att still+oförändrad är en avvikelse om inte svepet är klart;
+utanVolym har legat fryst på 738 i tre baslinjemätningar i rad (10-02, 10-03, 10-04) efter att
+ha sjunkit stadigt från 855 (09-23), och ligger nu nära bagageMissar (784) - samma mönster som
+"listan slut" i 3f. Tolkat som att den initiala svepningen är avklarad och att det som är kvar
+är den sporadiska 30-dagars-återcirkulationen, analogt med generationsårens stillestånd (3a).
+Loggen bar inga WARN/ERROR från CargoSpecService i natt (inga hämtningsfel), så H=0 är
+konsekvent med tolkningen. **Håll ögonen på det:** om talen fortsätter stå still bortom ett
+30-dagarsfönster utan att några missar åldras ut är det skäl att se över CREATE TABLE
+cargo_spec_miss enligt 3f:s andra felmöjlighet.
+
+**Generationsåren still (291/19, väntat till fönstret 2026-10-20).** vPIC: 291/0/275, OK 126,
+INGEN_DATA 165, AVVIKER 0 - tionde mätningen i rad utan avvikelse. Drivmedelsräknaren
+485/400/85/16, oförändrat sedan 10-03, ingen flip, alla 16 handsatta rader korrekta.
+Kategorivakten: totalt 1 utslag sedan omstart (uptime 12,5 h) - Volkswagen Passat Alltrack
+(web-insights), kategorin "suv" motsagd och strippad. Vakten gjorde sitt jobb, inget nytt hål.
+
+**Mätfälla upptäckt i natt - se tillägg i docs/nattrutin.md avsnitt 8:** hogstaInsiktsId växte
+från 1744 (baslinjen) till 1766 - 22 nya rader - men scrape-status visade bara 6 nya från
+web-insights (+3 från mobility-stats = 9 väntade). En WARN-rad (WebInsightScraperService,
+2026-10-03 14:16:11) visar att jobbet körde en extra gång mitt på dagen, 10 minuter efter en
+deploy (startedAt 12:06 UTC/14:06 CEST) - scrape-status visar bara senaste körningen (känt
+sedan avsnitt 1), så den körningens egna newInsights skrevs över av nattens. De 19 extra
+raderna (15 CarUp, 3 Teknikens Värld, 1 Folksam) är granskade nedan som en del av fönstret och
+ingen av dem är skräp. Lagt till som ny rad i avsnitt 8 (matfällor) så nästa natt vet att
+stämma av mot id-intervallet i stället för jobbets eget tal när de inte går ihop.
+
+**Kommandevakten (annonskollen):** 0 LARM på 41 rader / 18 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
+11 INGA_ANNONSER) - oförändrat sedan baslinjen 10-03, inga nya köade rader i natt. Inga
+regressioner mot TESTBEVISREGELN eller ÅRSMODELLSREGELN; Mazda 6e- och Range Rover 1578-
+avgörandena står kvar som tidigare.
+
+**Nattens 22 nya rader (id 1745-1766):** granskade mot avsnitt 6. Tre Mobility Sweden-rader
+(1764-1766, UTMÄRKELSEUNDANTAGET uppfyllt - förstaplats, svensk marknad, september 2026) och
+en Folksam-rad (1757, säkerhetsutmärkelse, inget sälj-undantag). Resten är CarUp-reparations-/
+tillförlitlighetsfakta (1748-1763, flera artiklar per rapporterat antal - X>Y är normalt, se
+avsnitt 1) och tre Teknikens Värld-specrader om Polestar 3 (1745-1747). Inga kategorifel, inga
+veteran-/samlarrader, inga specialutgåvor, inga skatterader eller dubbletter. Insikt 1758
+(Mercedes E 300 de, enskild bils prisrabatt) är tunn men faller inte under någon namngiven
+lacktyp - lämnas, samma typ av observation som 1741-1742 i gårdagens logg.
+
+**Värdeminskning/tillförlitlighet:** åtta rader i natt (1751, 1752, 1754, 1759, 1760, 1761,
+1762, 1763) rör tillförlitlighet eller reparationskostnad - ingen av dem föll bort i
+extraktionen. Fortsätter stödja att FALSKA NEGATIV-oron från avsnitt 6 inte är ett aktivt
+problem just nu.
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** inga nya i natt - annonskollen gav 0 LARM och kommande-kön är
+oförändrad, filen stod redan tom och lämnas tom. Gårdagens två dolda rader (1704, 1729) är
+bara ~2 dygn gamla, under 7-dygnsgränsen för radera - ingen uppföljning än.
+
+**Laddtips:** 0 nya - samma fyra kandidater som igår, avvisade av samma skäl: BMW iX3 40
+xDrive (id 1724, "300 kW") mot `/api/ev-spec?car=BMW iX3` som visar 400 kW; Tesla Model Y (id
+1711, "70 kWh") mot ev-spec som visar 60,0 kWh; Range Rover P400e Autobiography (id 1738, "41
+km") mot ett tomt ev-spec-svar; VW ID.7 Tourer (id 1743) utan konkret siffra att skriva tips av.
+**Marknadsfakta uppdaterade (2 st):** ersatte den inaktuella EX40-raden (2025/H1 2026, 8 788)
+med januari-september 2026-siffran **8 897** ur insikt 1765 (samma ämne, färsk siffra). Lade
+till en ny rad för insikt 1764 (Volvo XC60, Sveriges mest registrerade bil totalt
+januari-september 2026, 10 669) - inget tidigare ämne i filen täckte detta. Kontrollerade mot
+`src/main/resources/static/ev-app.js` (`dynamicRankFacts`, en separat live elbilsranking från
+elbilsvaruhuset.se) - annat ämne/period, ingen dubblett. Avstod från insikt 1766 (Tesla Model Y,
+enskild månad september) för att inte skriva tre marknadsrader samma natt.
+
+**Laddpriser:** onsdag, ingen kontroll i natt (bara måndagar).
+
+**Splashvakten:** Dom "splasharna stämmer" (exitkod 0). Alla fem appar OK (Java 27, Spring
+Boot 3.5.16, PostgreSQL 18.4 i tre). Elbilsladdning hade samma sju INFO-rader som tidigare -
+oförändrat, inga nya.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, ingen parser som slutat träffa, inget tal
+som gick att belägga som fel bortom det som redan är känt (laddtips-kandidaternas avslag).
+Byggt och testat grönt: `mvn -q -DskipTests package` grönt, `mvn -q test` grönt (hela sviten,
+inga oväntade fel), riktade körningar av `LaddtipsServiceTest` och `MorgonfixAtgarderTest` gröna.
+
+**Regeländring i docs/nattrutin.md (avsnitt 8, +2 rader):** dokumenterade mätfällan ovan
+(scrape-status visar bara senaste körningen av ett jobb som körts mer än en gång) så att en
+framtida natt stämmer av mot id-intervallet i stället för att lita på ett enskilt jobbs
+newInsights när de inte går ihop. Skärper bara mätningen - inget larm sänkt, inget tak höjt.
+
+**Grenen:** `auto/morgonfix` fanns inte (borttagen av auto-merge efter 10-03:s PR). Skapad
+på nytt från `origin/master` (dead1eb). Ingen fast PR att flytta (avsnitt 11 gäller inte).
+
+**Baslinjen:** uppdaterad till nattens mått (se docs/baslinje.json), commit dead1eb,
+kontrollräkning 3313/3313.
+
 ## 2026-10-03
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:16, inom väntat fönster
