@@ -19,6 +19,8 @@ Den har filen (docs/nattrutin.md) ar rutinens instruktioner och ligger i repot s
 
 Admin-nyckel: miljovariabeln $ADMIN_KEY (satt i molnmiljon sedan 2026-09-27, star inte langre i klartext har), alltid inom DUBBLA citattecken: -H "X-Admin-Key: $ADMIN_KEY". Skriv aldrig ut vardet. Ger `echo ${#ADMIN_KEY}` 0 ar variabeln tom - da ar det ett MILJOFEL: skriv det overst som LARM ("ADMIN_KEY saknas i molnmiljon") i stallet for att tolka 403-svaren som att API:t ar trasigt.
 
+**DATUM OCH VECKODAG - RAKNA, GISSA ALDRIG (sedan 2026-10-04):** kor `TZ=Europe/Stockholm date '+%F %A'` FORST och anvand dess svar overallt: loggens rubrik, sondagens Veckan (avsnitt 10) och mandagens laddpriser (avsnitt 13). Natten 10-04 skrev rutinen "onsdag" pa en sondag och hoppade darfor over veckosammanfattningen - samma gissning hade kunnat hoppa over en mandagskontroll.
+
 === LOGGEN - las den SJALV (sedan 2026-09-27) ===
 curl -s -H "X-Admin-Key: $ADMIN_KEY" "https://caradvice.onrender.com/api/admin/logg?sok=<text>&niva=ERROR&limit=100"
 Appen haller sina senaste 500 varningar och fel i minnet: {"iBufferten":N,"count":N,"uptimeSeconds":N,"rader":[{tid,niva,kalla,meddelande,undantag}]}, nyast forst. `sok` ar en delstrang i meddelande eller kalla (skiftlagesokanslig), `niva=ERROR` ger bara fel, utelamnad ger WARN+ERROR.

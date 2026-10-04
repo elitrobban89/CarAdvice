@@ -1,5 +1,6 @@
 package com.caradvice.scraper;
 
+import com.caradvice.data.DataLoader;
 import com.caradvice.model.EvSpec;
 import com.caradvice.repository.EvSpecRepository;
 import org.jsoup.Jsoup;
@@ -218,6 +219,14 @@ public class EvDatabaseScraperService {
                     continue;
                 }
 
+                // Rader DataLoader äger: ev-database har inte bilen, och det som matchade hit är
+                // en annan generation. Förut skrevs de om varje natt och återställdes bara vid
+                // nästa uppstart (Kona Electric 64 kWh fick 64,8/510 km).
+                if (DataLoader.agerBatteri(match.getCarName())) {
+                    log.debug("Hoppar över {}: DataLoader äger raden {}", scraped.name(), match.getCarName());
+                    continue;
+                }
+
                 String firstClaimant = claimRow(claims, normalize(match.getCarName()), scraped.name());
                 if (firstClaimant != null) {
                     log.error("SCRAPER ALERT: '{}' matchar DB-raden '{}' som redan tagits av '{}' i samma "
@@ -250,7 +259,8 @@ public class EvDatabaseScraperService {
                     match.setMaxAcKw((double) scraped.acKw());
                     changed = true;
                 }
-                if (prisBorUppdateras(match.getPriceKr(), scraped.priceKr())) {
+                if (!DataLoader.agerPris(match.getCarName())
+                        && prisBorUppdateras(match.getPriceKr(), scraped.priceKr())) {
                     log.info("Pris {}: {} → {} kr", match.getCarName(), match.getPriceKr(), scraped.priceKr());
                     match.setPriceKr(scraped.priceKr());
                     changed = true;

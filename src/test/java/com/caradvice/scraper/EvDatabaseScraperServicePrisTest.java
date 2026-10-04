@@ -1,5 +1,6 @@
 package com.caradvice.scraper;
 
+import com.caradvice.data.DataLoader;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,5 +35,23 @@ class EvDatabaseScraperServicePrisTest {
     @Test
     void ettSaknatSkrapatPrisRaderAldrigEttSparat() {
         assertThat(EvDatabaseScraperService.prisBorUppdateras(425_000, 0)).isFalse();
+    }
+
+    @Test
+    void svenskaListpriserAgsAvDataLoader() {
+        // Natten skrev EUR x 11,5 över dem och bara nästa uppstart rättade tillbaka.
+        assertThat(DataLoader.agerPris("Kia EV3 Long Range")).isTrue();
+        assertThat(DataLoader.agerPris("Volvo EX60 P6")).isTrue();
+        assertThat(DataLoader.agerPris("Volvo EX90 Twin Motor")).isTrue();
+        assertThat(DataLoader.agerPris("Kia EV6 GT 77.4 kWh")).isTrue();
+        assertThat(DataLoader.agerPris("MG4 Urban Standard Range")).isFalse();
+    }
+
+    @Test
+    void utgangnaGenerationerRorsInteAvSynken() {
+        assertThat(DataLoader.agerBatteri("Hyundai Kona Electric 64 kWh")).isTrue();
+        assertThat(DataLoader.agerBatteri("MG4 Standard Range")).isTrue();
+        assertThat(DataLoader.agerBatteri("Tesla Model S")).isTrue();
+        assertThat(DataLoader.agerBatteri("Volvo EX60 P6")).isFalse();
     }
 }

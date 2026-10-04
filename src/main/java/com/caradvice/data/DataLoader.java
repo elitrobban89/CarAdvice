@@ -433,9 +433,11 @@ public class DataLoader implements CommandLineRunner {
      * En skanning av alla 595 rader 2026-09-20 hittade monstret hos fem modellfamiljer.
      *
      * <p><b>Att satta priset har biter, till skillnad fran batteri och rackvidd.</b> Synken
-     * skriver pris ENBART nar faltet ar tomt ({@code getPriceKr() == null || == 0}), sa det som
-     * star har overlever natten. Darfor duger det INTE att nolla ett pris man inte vet: nasta
-     * synk fyller i EUR-vardet igen.
+     * hoppar over priset pa raderna i {@link #agerPris} - sedan 2026-10-01 skriver den annars
+     * over varje pris som andrats mer an 3 %, och da skrev natten EUR-vardet tillbaka och bara
+     * nasta uppstart rattade det (sex WARN-rader vid varje deploy, EX60 P6 736 000 i drift
+     * 2026-10-04). Att nolla ett pris man inte vet duger fortfarande INTE: synken fyller i
+     * EUR-vardet pa en rad som inte star har.
      *
      * <p><b>Talen och deras kallor</b> (alla hamtade 2026-09-20):
      * <ul>
@@ -450,6 +452,9 @@ public class DataLoader implements CommandLineRunner {
      *   <li>Subaru Solterra AWD 73.1 kWh 534 900 - Subaru Sverige, Limited 26MY (Touring
      *       564 900, Touring+ 574 900). <b>Att den NYA bilen ar billigare an den gamla ar
      *       SANT</b> - Subaru sankte priset med faceliftet. Den inversionen ska sta kvar.</li>
+     *   <li>Volvo EX60 P6 689 000, P10 AWD 729 000, P12 AWD 809 000 - Volvos visning
+     *       21 januari 2026, samma tal som raderna laggs till med nedan. Fram till 2026-10-04
+     *       sattes de bara nar raden skapades, och synken hade hunnit skriva 736/770/839 000.</li>
      * </ul>
      */
     static final java.util.Map<String, Integer> SVENSKA_LISTPRISER = java.util.Map.of(
@@ -458,7 +463,34 @@ public class DataLoader implements CommandLineRunner {
             "Hyundai IONIQ 5",              603_800,
             "BMW i4 eDrive40",              599_900,
             "Subaru Solterra AWD",          579_900,
-            "Subaru Solterra AWD 73.1 kWh", 534_900);
+            "Subaru Solterra AWD 73.1 kWh", 534_900,
+            "Volvo EX60 P6",                689_000,
+            "Volvo EX60 P10 AWD",           729_000,
+            "Volvo EX60 P12 AWD",           809_000);
+
+    /** Rader vars pris satts i uppstarten ovan, i switchen och inte i nagon tabell. */
+    private static final java.util.Set<String> PRISER_I_SWITCHEN = java.util.Set.of(
+            "Volvo EX90 Single Motor", "Volvo EX90 Twin Motor", "Volvo EX60");
+
+    /**
+     * Sant nar DataLoader ager radens pris och nattsynken inte far skriva over det. Utan
+     * sparren skrev synken EUR x 11,5 over raderna varje natt och uppstarten tillbaka - priset
+     * var ratt bara mellan en deploy och nasta natt.
+     */
+    public static boolean agerPris(String carName) {
+        return SVENSKA_LISTPRISER.containsKey(carName) || EV6_PRISER.containsKey(carName)
+                || PRISER_I_SWITCHEN.contains(carName);
+    }
+
+    /**
+     * Sant nar DataLoader ager radens batteri och rackvidd: rader ev-database inte har (forsta
+     * generationens MG4, utgangna generationer) och kollisionsoffer. Synken ska inte rora dem
+     * alls - det den matchar dit ar en annan generation, sa aven effekt och laddning blir fel.
+     */
+    public static boolean agerBatteri(String carName) {
+        return MG4_GEN1.containsKey(carName) || UTGANGNA_GENERATIONER.containsKey(carName)
+                || FELSKRIVNA_AV_SYNKEN.containsKey(carName);
+    }
 
     /**
      * Rader vars pris ser fel ut men INTE rattas, och varfor. Listan finns for att nasta
