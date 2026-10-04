@@ -224,6 +224,7 @@ Kolla ocksa: tomt carMake eller carModel, och om rating fortfarande ar null pa a
 - **Texterna bar U+202F (smalt mellanslag) och U+2011 (hardt bindestreck).** Ordagranna fragment missar - normalisera innan du jamfor.
 - **Nyckla aldrig en rad pa ett PREFIX av texten.** Bilprovningens rader delar boilerplate-inledning, och ett 70-teckensprefix gav tre kollisioner i ett svep.
 - **Skriv ALDRIG en -o-fil i ett skript och las en ANNAN fil efterat.** 09-06 hamtades insikterna till j0/j1 medan mataren las i0/i1 - svaret blev en falsk tappade rader-signal. Kontrollera att filnamnen i hamtningen och lasningen ar samma.
+- **scrape-status visar BARA senaste korningen av varje jobb (se avsnitt 1).** Kors web-insights mer an en gang - t.ex. en daggkorning utanfor nattkedjan - ser newInsights bara den sista korningens tal. Matt 10-04: en WARN-rad (WebInsightScraperService) kl 14:16 dagen innan visade att jobbet kort mitt pa dagen, 10 min efter en deploy 14:06; natten efter visade scrape-status bara 6 nya trots att hogsta insikts-id vuxit med 22 sedan baslinjen. **Stam av mot id-intervallet (baslinjens hogstaInsiktsId mot dagens max-id), inte mot jobbets egna newInsights-tal, nar de inte gar ihop.**
 Om scrape-status sager nagot annat an OK, eller om newInsights ar 0, rapportera det tydligt - da ar det korningen som ar problemet, inte kvaliteten. Granska anda hela fonstret pa 50 rader enligt punkt 5.
 
 === 9. MORGONFIXEN - DET ENDA STALLET DAR DU FAR SKRIVA ===
