@@ -1,5 +1,83 @@
 # Morgonfix-logg
 
+## 2026-10-05
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:28:54, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (277021a), status OK, uptime
+~15,4 h (ingen omstart i natt). Groq 3/3 modeller (friskt). ev-specs updated **3** - inom
+0-25. cargo-specs gav 0/0/0 (0 nya bilnamn, 0 bagagevolymer, 0 generationsår).
+Kontrollräkningen (cargo total 1736 + evSpecs 617 + ice_consumption 960 = 3313 = variants)
+stämmer exakt, liksom /api/stats (models 2192, insights 1308) och /api/cars (1979).
+
+**medVolym+bagageMissar still på 998/784 - fjärde baslinjemätningen i rad (10-02 till 10-05)
+med samma tal.** Fortsätter bedömas som OK enligt 10-04:s tolkning (svepet avklarat, kvar är
+bara den sporadiska 30-dagars-återcirkulationen): `/cargo-specs/missar` visar att inga nya
+missar skrivits sedan 2026-10-01 (sista 3 st), och de äldsta (2026-09-21, 150 st) åldras
+tidigast ut 2026-10-21 - helt konsekvent med att arbetslistan är tom just nu, inte att
+skrivvägen är trasig. Ingen WARN/ERROR-rad i loggen om "auto-data bagage" (iBufferten 183,
+ingen trunkering), så inget tecken på fel åt det hållet heller.
+
+**Generationsåren still (291/19, väntat till fönstret 2026-10-20).** vPIC: 291/0/275, OK 126,
+INGEN_DATA 165, AVVIKER 0. Drivmedelsräknaren 485/400/85/16, oförändrat, ingen flip, alla 16
+handsatta rader korrekta. Kategorivakten: totalt 0 utslag sedan omstart (uptime 15,4 h).
+
+**Kommandevakten (annonskollen):** 0 LARM på 42 rader / 19 bilar (6 GRANSKA, 1 ANNAN_DRIVLINA,
+12 INGA_ANNONSER). Nattens enda nya köad rad (1767, Smart #3 Brabus, Teknikens Värld) var en
+FELAKTIG parkering: `/api/ev-spec?car=Smart %233` och `/api/cars` visar att Smart #3 (Brabus,
+Premium, Pro+) redan finns i katalogen med svenskt pris (552 000 kr, WLTP 415 km) sedan
+tidigare. Insikten är ett eget uppmätt testomdöme (428 hk, 0-100 på 3,7s, testförarens egna
+intryck av styrning/bromsar) - TESTBEVISREGELN: ett sådant test bevisar i sig att bilen finns
+att köpa. Släppt i atgarder.json i natt (se nedan) i stället för att ligga kvar som en
+regression i kön.
+
+**Nattens 7 nya rader (id 1767-1773):** 1767 Smart #3 Brabus-test (se ovan, släppt). 1768
+Volkswagen Golf GTI (Teknikens Värld, familjebil, jämförelsetext mot Smart #3) - korrekt
+storleksmässigt (Golf-baserad, ingen kategorivakt-kontradiktion), men samma nameplate som 1234
+(Golf GTI, TOM kategori under KATEGORIFELET) - ingen säker regression, bara en observation att
+hålla ögonen på om fler GTI-rader får en fylld kategori. 1769-1773 är fem tillförlitlighetsrader
+från CarUp (Bo Ericsson): Mazda3 (smaabil), Toyota RAV4, Lexus NX, Subaru Forester, Mazda CX-5
+(alla suv) - sällan motor-/växellådsskador, ingen av dem säljstatistik eller annan namngiven
+lacktyp. Kategorifördelningen (suv 558→562, smaabil 185→187, familjebil 241→242) går exakt ihop
+med raderna - inget nytt hål.
+
+**Värdeminskning/tillförlitlighet:** 5 rader i natt (1769-1773), alla tillförlitlighet. Stödjer
+fortsatt att FALSKA NEGATIV-oron från avsnitt 6 inte är ett aktivt problem.
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** en rad - slapp 1767 (Smart #3 Brabus, se ovan, TESTBEVISREGELN).
+Gårdagens två dolda rader (1704, 1729) är nu 3 dygn gamla, fortfarande under 7-dygnsgränsen för
+radera.
+
+**Laddtips:** 0 nya - samma tre kandidater som tidigare, avvisade av samma skäl (BMW iX3 40
+xDrive 1724 "300 kW" mot ev-specs 400 kW; VW ID.7 Tourer 1743 utan konkret siffra; Range Rover
+P400e Autobiography 1738 mot tomt ev-spec-svar). Ingen ny marknadsfaktarad - inget nytt ämne med
+färsk siffra i natt.
+
+**Laddpriser (måndag):** försökte nå nätverkens egna prissidor (Ionity, Tesla, Circle K,
+Vattenfall InCharge, E.ON, Mer, Allego, Clever) - samtliga antingen blockerade (403/000, troligen
+molnmiljöns utgående allowlist eller bot-skydd) eller JavaScript-renderade utan statiskt
+prisdata i HTML-svaret (Ionity, Circle K). 0 kontrollerade, 0 ändrade - reserven i
+`laddpriser.json` står kvar oförändrad enligt regeln "kan du inte nå sidan, hoppa över
+nätverket".
+
+**Splashvakten:** Dom "splasharna stämmer" (exitkod 0). Alla fem appar OK (Java 27, Spring Boot
+3.5.16, PostgreSQL 18.4 i tre). Elbilsladdning hade samma sju INFO-rader som tidigare -
+oförändrat.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, ingen parser som slutat träffa, inget tal
+som gick att belägga som fel bortom det redan kända (laddtips-kandidaternas avslag, Golf
+GTI-observationen som inte är entydig nog att fixa). Byggt och testat grönt: se nedan.
+
+**Grenen:** `auto/morgonfix` fanns inte (borttagen av auto-merge efter 10-04:s PR). Skapad på
+nytt från `origin/master` (277021a). Ingen fast PR att flytta (avsnitt 11 gäller inte).
+
+**Baslinjen:** uppdaterad till nattens mått (se docs/baslinje.json), commit 277021a,
+kontrollräkning 3313/3313.
+
 ## 2026-10-04
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:25:12, inom väntat fönster
