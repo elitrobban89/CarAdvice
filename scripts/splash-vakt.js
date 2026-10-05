@@ -66,6 +66,7 @@ const INTEGRATIONER = [
   { vard: /trafikinfo\.trafikverket\.se$/,    namn: 'Trafikverket Open Data API',    ord: ['trafikverket'] },
   { vard: /openchargemap\.io$/,               namn: 'Open Charge Map',               ord: ['open charge map', 'openchargemap'] },
   { vard: /open-meteo\.com$/,                 namn: 'Open-Meteo',                    ord: ['open-meteo'] },
+  { vard: /(^|\.)met\.no$/,                   namn: 'MET Norway',                    ord: ['met norway'] },
   { vard: /ev-database\.org$/,                namn: 'ev-database.org',               ord: ['ev-database'] },
   { vard: /blocket\.se$/,                     namn: 'Blocket',                       ord: ['blocket'] },
   { vard: /(youtube\.com|googleapis\.com|ytimg\.com)$/, namn: 'YouTube',             ord: ['youtube'] },
