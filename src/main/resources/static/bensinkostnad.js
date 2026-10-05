@@ -3238,8 +3238,32 @@ if (document.readyState === 'loading') {
     { ic: '🔋', t: 'Elf\xf6rbrukning', s: 'kWh/mil f\xf6r elbilar \xb7 CarAdvice', an: 'ladda' },
     { ic: '🛢️', t: 'F\xf6rbrukning', s: 'l/mil bensin, diesel &amp; hybrid', an: 'tunna' },
     { ic: '🗺️', t: 'Ruttber\xe4kning', s: 'Verklig str\xe4cka via v\xe4gn\xe4tet', an: 'karta' },
-    { ic: '💰', t: 'Sparkalkyl',   s: 'J\xe4mf\xf6r bensin, diesel &amp; el', an: 'mynt' }
+    { ic: '💰', t: 'Sparkalkyl',   s: 'J\xe4mf\xf6r bensin, diesel &amp; el', an: 'mynt' },
+    { ic: '🖥️', t: 'Server', kind: 'plattform', tag: 'ONLINE', an: 'server' }
   ];
+  var PLATTFORM_ROW = 7;
+
+  // Node.js- och Express-versionen ur den körande tjänsten (/health), inte hårdkodade —
+  // en uppgradering syns här utan att någon rör raden. Svarar tjänsten inte (den sover
+  // på gratisplanen) står raden kvar utan versionsnummer i stället för med gissade.
+  var plattform = null;
+  function plattformText() {
+    if (!plattform || !plattform.node) return 'Node.js \xb7 Express \xb7 Docker p\xe5 Render';
+    return '<b>Node.js ' + plattform.node + '</b>' +
+      (plattform.express ? ' \xb7 Express ' + plattform.express : '') + ' \xb7 Docker p\xe5 Render';
+  }
+  function hamtaPlattform() {
+    if (plattform || typeof fetch !== 'function') return;
+    fetch('https://bilresa.onrender.com/health', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.node) return;
+        plattform = d;
+        var el = suba(PLATTFORM_ROW);
+        if (el) el.innerHTML = plattformText();
+      })
+      .catch(function () {});
+  }
 
   var BOOT_PHRASES = ['l\xe4ser in br\xe4nslepriser', 'h\xe4mtar elpris SE1–SE4', 'kalibrerar f\xf6rbrukning per mil', 'r\xe4knar ut din kostnad'];
 
@@ -3391,6 +3415,12 @@ if (document.readyState === 'loading') {
         '55%{transform:perspective(70px) rotateY(0) translateY(-1px);}',
         '85%{transform:perspective(70px) rotateY(330deg) translateY(0);}',
         '100%{transform:perspective(70px) rotateY(360deg) translateY(0);}}',
+      // Servern blinkar till som en lysdiod och lyfter lätt — aldrig stilla.
+      '.bcsp-row.done .bcsp-i-server{filter:drop-shadow(0 0 7px rgba(74,222,128,.7));animation:bcsp-i-server 2.3s ease-in-out var(--ikd,0s) infinite;}',
+      '@keyframes bcsp-i-server{0%,100%{transform:translateY(0) scale(1);opacity:1;}',
+        '25%{transform:translateY(-1.5px) scale(1.07);opacity:.85;}',
+        '50%{transform:translateY(0) scale(.96);opacity:1;}',
+        '75%{transform:translateY(-1px) scale(1.04);opacity:.9;}}',
       '.bcsp-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25;}',
       '.bcsp-tx b{font-size:.83rem;font-weight:700;color:#fff6e6;display:flex;align-items:center;gap:7px;}',
       '.bcsp-tx i{font-size:.69rem;font-style:normal;color:rgba(253,230,138,.78);',
@@ -3473,6 +3503,7 @@ if (document.readyState === 'loading') {
 
   function subFor(row) {
     if (row.kind === 'cars') return 'R\xe4knar bilmodeller…';
+    if (row.kind === 'plattform') return plattformText();
     return row.s;
   }
 
@@ -3560,6 +3591,7 @@ if (document.readyState === 'loading') {
   function run() {
     if (document.querySelector('.bcsp')) return;
     injectStyles();
+    hamtaPlattform();
 
     var overlay = document.createElement('div');
     overlay.className = 'bcsp';
