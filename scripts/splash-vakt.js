@@ -50,7 +50,7 @@ const APPAR = [
   // Node-appen: versionerna mäts mot package.json/package-lock.json i stället för pom.xml.
   // Splashen ligger SIST i kalkylatorns egen fil — `splashFran` klipper bort kalkylatorn, annars
   // "syns" varje värd redan i dess egna fetch-anrop. `kod` = filerna integrationerna läses ur.
-  { namn: 'Bränslekostnad', repo: 'Bilresa', gren: 'main', rot: '', plattform: 'node',
+  { namn: 'Bränslekostnad', repo: 'BensinKostnad', gren: 'main', rot: '', plattform: 'node',
     system: 'https://bilresa.onrender.com/health', db: false,
     splash: ['src/bensinkostnad-wpcode.js'], splashFran: 'uppstartssplash',
     kod: ['server.js', 'src/bensinkostnad-wpcode.js'] },
