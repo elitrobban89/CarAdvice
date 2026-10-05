@@ -3248,7 +3248,26 @@ function caRenderCards(recommendations) {
         if (window.caChatFocusCar) window.caChatFocusCar(parseInt(btn.dataset.idx), title);
       });
     });
+    caScrollaTillForstaBilen(container.querySelector('.ca-card-1'));
   }, 250);
+}
+
+/**
+ * Rullar ned till första bilen när ett resultat ritats (sökning, historik eller sparad sökning).
+ *
+ * Laddaren står mitt i bild när svaret kommer, och korten ritas under den — förr fick man själv
+ * leta sig ned till resultatet. Rullar bara när det behövs: står bil 1:s överkant redan i övre
+ * delen av skärmen sitter sidan still. 16 px luft ovanför kortet så att kanten syns.
+ */
+function caScrollaTillForstaBilen(kort) {
+  if (!kort) return;
+  try {
+    var r = kort.getBoundingClientRect();
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top >= 0 && r.top < h * 0.35) return;
+    var stilla = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: r.top + (window.scrollY || 0) - 16, behavior: stilla ? 'auto' : 'smooth' });
+  } catch (_) { /* en utebliven rullning får aldrig fälla resultatet */ }
 }
 
 // Hämtar DB-insikter (Teknikens Värld, Vi Bilägare, car.info-ägare, Folksam m.fl.) per bilkort
