@@ -101,14 +101,14 @@ class CarVideoServiceTest {
     }
 
     /** Varje par är kanal + titel, i den ordning YouTube returnerade dem. */
-    private static com.fasterxml.jackson.databind.JsonNode items(String... channelAndTitle) throws Exception {
+    private static tools.jackson.databind.JsonNode items(String... channelAndTitle) throws Exception {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < channelAndTitle.length; i += 2) {
             if (i > 0) sb.append(',');
             sb.append("{\"id\":{\"videoId\":\"v").append(i / 2).append("\"},\"snippet\":{\"channelTitle\":\"")
               .append(channelAndTitle[i]).append("\",\"title\":\"").append(channelAndTitle[i + 1]).append("\"}}");
         }
-        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(sb.append(']').toString());
+        return new tools.jackson.databind.ObjectMapper().readTree(sb.append(']').toString());
     }
 
     @Test
@@ -182,7 +182,7 @@ class CarVideoServiceTest {
     }
 
     /** Ett enda item, for de prov som mater spraket och inte rankningen. */
-    private static com.fasterxml.jackson.databind.JsonNode en(String kanal, String titel) throws Exception {
+    private static tools.jackson.databind.JsonNode en(String kanal, String titel) throws Exception {
         return items(kanal, titel).get(0);
     }
 
@@ -218,8 +218,8 @@ class CarVideoServiceTest {
                 "Peter Esse ", "Volvo EX60 provkörning"))).isEqualTo("v0");
     }
 
-    private static String pickedId(com.fasterxml.jackson.databind.JsonNode items) {
-        return CarVideoService.pickBest(items).path("id").path("videoId").asText();
+    private static String pickedId(tools.jackson.databind.JsonNode items) {
+        return CarVideoService.pickBest(items).path("id").path("videoId").asString();
     }
 
     @Test

@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -141,11 +141,11 @@ public class BlocketPriceService {
          */
         boolean matches(JsonNode doc) {
             if (!fuels.isEmpty()) {
-                String f = doc.path("fuel").asText("");
+                String f = doc.path("fuel").asString("");
                 if (f.isBlank() || fuels.stream().noneMatch(f::equalsIgnoreCase)) return false;
             }
             if (gearbox != null) {
-                String g = doc.path("transmission").asText("");
+                String g = doc.path("transmission").asString("");
                 if (!gearbox.equalsIgnoreCase(g)) return false;
             }
             return true;
@@ -461,7 +461,7 @@ public class BlocketPriceService {
      */
     private static boolean matchesModel(JsonNode doc, String modelDigits) {
         if (modelDigits == null) return true;
-        String makeModel = doc.path("make").asText("") + doc.path("model").asText("");
+        String makeModel = doc.path("make").asString("") + doc.path("model").asString("");
         return makeModel.contains(modelDigits);
     }
 

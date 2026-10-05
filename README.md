@@ -418,7 +418,7 @@ Bagagevolymerna (cargo-specs-ledet, 150 försök per natt med 30 dagars missminn
 
 | Del | Teknologi |
 |-----|-----------|
-| Backend | Java 27, Spring Boot 3.5.16 |
+| Backend | Java 27, Spring Boot 4.1.1 |
 | AI | Groq API (`openai/gpt-oss-120b` rekommendationer, `openai/gpt-oss-20b` chatt/fallback, `qwen/qwen3.8-27b` reserv) |
 | HTML-parsning | Jsoup 1.17 (EV-skraparen) |
 | Databas | PostgreSQL (Render) / H2 in-memory (lokal dev) |
@@ -1143,7 +1143,7 @@ Verifierar att de konfigurerade Groq-modellerna fortfarande finns i Groqs `/mode
 Plattformen till uppstartsskärmens rad **☕🐘 Java · PostgreSQL**, läst ur det som faktiskt kör: Java-versionen ur JVM:en, databasens namn och version ur anslutningen (`DatabaseMetaData`, läst en gång och sparad) och autodeployens branch och commit ur Renders miljövariabler. Öppen endpoint. Samma endpoint finns i Elbilsladdning och VäderKläder; splash-vakten läser alla.
 
 ```json
-{ "java": "27", "springBoot": "3.5.16", "deployCommit": "c2c627e", "deployBranch": "master", "db": "PostgreSQL 18.4" }
+{ "java": "27", "springBoot": "4.1.1", "deployCommit": "c2c627e", "deployBranch": "master", "db": "PostgreSQL 18.4" }
 ```
 
 ### `GET /api/version`
@@ -1458,7 +1458,7 @@ kriterier är inte problemet", just för att felet annars läses som att söknin
 | Groq-modellhälsokoll | Ny `GET /api/health/groq` verifierar `groq.model` + `groq.chat.model` mot Groqs `/models`-lista (1h-cache) och svarar 503 `MODEL_MISSING` vid avveckling — UptimeRobot larmar. Transienta Groq-fel ger 200 `UNKNOWN` (inga falsklarm) och cachas inte |
 | Robustare AI-JSON-parsning | `extractJson` hanterar svar med bare root-array (behöll tidigare inte hakparenteserna → array-fallbacken triggades aldrig); `convertRecommendations` fångar schemafel och ger begripligt fel istället för 500; `@JsonIgnoreProperties(ignoreUnknown=true)` på `CarRecommendation` så AI:ns påhittade extrafält inte fäller parsningen |
 | `extract_insights.py` avvecklad modell | Scriptet körde `llama-3.3-70b-versatile` (avvecklad 2026-06-29) → `openai/gpt-oss-120b` med `reasoning_effort: low` och `GROQ_MODEL`-env-override |
-| Mockito på Java 25 | Spring Boot 3.5 pinnar Mockito 5.17 som inte kan mocka klasser på Java 25 — versions-override i `pom.xml` till Mockito 5.23 (Byte Buddy lämnas till Boot) |
+| Spring Boot 4 + Jackson 3 | Uppgraderad från Boot 3.5.16 till 4.1.1: JSON-koden använder Jackson 3 (`tools.jackson`), testerna `@MockitoBean` och `spring-boot-starter-webmvc-test`. Boots egen Mockito-version räcker nu — override:n i `pom.xml` är borttagen. `spring.jackson.deserialization.fail-on-null-for-primitives=false` behåller Boot 3-beteendet för `null` i int-/boolean-fält |
 | Java 27 utan Temurin-avbildningar (2026-09-22) | Java 27 gick GA 2026-09-15 och `<java.version>` är nu 27 — verifierat lokalt på JDK 27+35 med klassfilsversion **71** och 1 149 gröna tester, utan att Mockito eller Byte Buddy (1.17.8) behövde röras. Det som INTE fanns var byggmiljön: `eclipse-temurin:27-jdk`, `eclipse-temurin:27-jre` och `maven:3.9-eclipse-temurin-27` svarade alla **404** på Docker Hub, och Adoptium listar visserligen utgåvan `jdk-27+35` men har inga binärer publicerade — så både Dockerfilen och `setup-java` hade fallit på det gamla receptet. Fix: **Liberica** i båda leden (`liberica-openjdk-debian:27` bygger, `liberica-openjre-debian:27` kör, `distribution: 'liberica'` i CI), och Maven kommer från en **wrapper i repot** (3.9.16, samma som byggdes lokalt) eftersom ingen `maven`-avbildning har JDK 27 än. Wrappern laddar ner sig själv med wget, curl **eller bara java**, så den ställer inga krav på vad basavbildningen råkar ha installerat. Byt tillbaka till Temurin när deras 27 dyker upp — det är ett namnbyte på två rader |
 | TCO leasing-kalkyl | `caParseLeaseMonthly` läste köppriser (t.ex. "330 000 kr") som månadskostnad → TCO visades som ~18 miljoner. Fixat: parsar nu bara som månadsbelopp om strängen innehåller "mån"; faller tillbaka på användarens budget-slider som leasingkostnad |
 | Elbilar: "obligatorisk årsavgift" | Chatbotten påstod att BYD/MG4 m.fl. har en obligatorisk årsavgift på 1 800 kr — det finns ingen sådan generell avgift i svensk lag. System-prompt korrigerad med faktaanvisning |

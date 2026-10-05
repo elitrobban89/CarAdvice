@@ -1,6 +1,6 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,7 +18,7 @@ class LeasingPriceServiceTest {
     private final LeasingPriceService service = new LeasingPriceService();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    private com.fasterxml.jackson.databind.JsonNode skodaSvar() throws Exception {
+    private tools.jackson.databind.JsonNode skodaSvar() throws Exception {
         return mapper.readTree("""
             [
               {"title":"Enyaq","preamble":"Privatleasing från 5 295 kr/mån",

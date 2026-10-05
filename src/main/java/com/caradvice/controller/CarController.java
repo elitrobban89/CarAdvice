@@ -22,8 +22,8 @@ import com.caradvice.service.NewCarPriceService;
 import com.caradvice.service.SafetyRatingService;
 import com.caradvice.service.UpcomingInsightService;
 import com.caradvice.service.UserService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -787,7 +787,7 @@ public class CarController {
                     if ("[DONE]".equals(data)) break;
                     try {
                         JsonNode node = mapper.readTree(data);
-                        String token = node.at("/choices/0/delta/content").asText("");
+                        String token = node.at("/choices/0/delta/content").asString("");
                         if (!token.isEmpty()) {
                             fickInnehall[0] = true;
                             outputStream.write(("data: " + mapper.writeValueAsString(token) + "\n\n").getBytes(StandardCharsets.UTF_8));

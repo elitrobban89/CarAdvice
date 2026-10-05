@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -128,9 +128,9 @@ public class CarVideoService {
             // och svaret cachas som alla andra.
             if (hit == null && canLookUp()) hit = pickBest(sprakfiltrera(search(car, false)));
             if (hit != null) {
-                videoId = hit.path("id").path("videoId").asText("");
-                title = hit.path("snippet").path("title").asText("");
-                channel = hit.path("snippet").path("channelTitle").asText("");
+                videoId = hit.path("id").path("videoId").asString("");
+                title = hit.path("snippet").path("title").asString("");
+                channel = hit.path("snippet").path("channelTitle").asString("");
             }
             // Även en miss skrivs — annars kostar samma bil 100 enheter vid varje visning
             writeCache(car, videoId, title, channel);
@@ -292,7 +292,7 @@ public class CarVideoService {
         if (sprak.isEmpty()) return items;   // uppslaget gick inte igenom: doma inte
         var kvar = mapper.createArrayNode();
         for (JsonNode item : items) {
-            String id = item.path("id").path("videoId").asText("");
+            String id = item.path("id").path("videoId").asString("");
             if (sprakOk(sprak.get(id))) kvar.add(item);
         }
         return kvar.isEmpty() ? null : kvar;
@@ -309,7 +309,7 @@ public class CarVideoService {
     private Map<String, String> sprakFor(JsonNode items) {
         StringBuilder ids = new StringBuilder();
         for (JsonNode item : items) {
-            String id = item.path("id").path("videoId").asText("");
+            String id = item.path("id").path("videoId").asString("");
             if (!id.isBlank()) ids.append(ids.length() == 0 ? "" : ",").append(id);
         }
         if (ids.length() == 0) return Map.of();
@@ -321,9 +321,9 @@ public class CarVideoService {
             Map<String, String> ut = new LinkedHashMap<>();
             for (JsonNode v : mapper.readTree(resp.body()).path("items")) {
                 JsonNode sn = v.path("snippet");
-                String kod = sn.path("defaultAudioLanguage").asText("");
-                if (kod.isBlank()) kod = sn.path("defaultLanguage").asText("");
-                ut.put(v.path("id").asText(""), kod);
+                String kod = sn.path("defaultAudioLanguage").asString("");
+                if (kod.isBlank()) kod = sn.path("defaultLanguage").asString("");
+                ut.put(v.path("id").asString(""), kod);
             }
             return ut;
         } catch (InterruptedException e) {
@@ -430,8 +430,8 @@ public class CarVideoService {
      * bilkort utan videorad är bättre än en recension tittaren inte förstår.
      */
     static boolean tillatetSprak(JsonNode item) {
-        String titel = item.path("snippet").path("title").asText("");
-        String kanal = item.path("snippet").path("channelTitle").asText("");
+        String titel = item.path("snippet").path("title").asString("");
+        String kanal = item.path("snippet").path("channelTitle").asString("");
         // Markesnamn plockas bort FORE teckenprovet. "Skoda" skrivs med S-caron aven pa
         // svenska, och utan undantaget hade filtret fallt varje svensk Skoda-recension - felet
         // syntes forst nar cachen granskades och tva traffar flaggades pa just det tecknet.
@@ -468,8 +468,8 @@ public class CarVideoService {
 
     /** Lägre är bättre: kanalklassen dominerar, titeln skiljer inom klassen. */
     private static int score(JsonNode item) {
-        String channel = item.path("snippet").path("channelTitle").asText("").toLowerCase(Locale.ROOT);
-        String title = item.path("snippet").path("title").asText("").toLowerCase(Locale.ROOT);
+        String channel = item.path("snippet").path("channelTitle").asString("").toLowerCase(Locale.ROOT);
+        String title = item.path("snippet").path("title").asString("").toLowerCase(Locale.ROOT);
         int tier = matches(channel, SWEDISH_CHANNELS) ? 0 : matches(channel, ENGLISH_CHANNELS) ? 1 : 2;
         return tier * 10 + (matches(title, REVIEW_WORDS) ? 0 : 1);
     }

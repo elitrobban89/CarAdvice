@@ -1,6 +1,6 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -220,7 +220,7 @@ public class UpcomingAdCheckService {
             String namn = annonsnamn(doc);
             if (!annonsenNamnerModellen(model, namn)) continue;
             annonser++;
-            String drivmedel = doc.path("fuel").asText("").trim();
+            String drivmedel = doc.path("fuel").asString("").trim();
             if (!drivmedel.isBlank()) kandDrivlina++;
             if (drivmedel.equalsIgnoreCase("El")) elAnnonser++;
             if (exempel.size() < MAX_EXEMPEL) exempel.add(exempeltext(doc, namn));
@@ -293,8 +293,8 @@ public class UpcomingAdCheckService {
 
     /** Rubrik + trimnivå: "Hyundai IONIQ" ensamt räcker inte, "3 Long Range Trend" sitter i specen. */
     static String annonsnamn(JsonNode doc) {
-        String rubrik = doc.path("heading").asText("");
-        String spec = doc.path("model_specification").asText("");
+        String rubrik = doc.path("heading").asString("");
+        String spec = doc.path("model_specification").asString("");
         return (rubrik + " " + spec).trim();
     }
 
@@ -322,7 +322,7 @@ public class UpcomingAdCheckService {
         List<String> delar = new ArrayList<>();
         // Drivmedlet står först, eftersom det är beviset bakom ANNAN_DRIVLINA: "Diesel, 2010"
         // säger på en rad varför 49 träffar på namnet Range Rover inte är el-Range Rovern.
-        String drivmedel = doc.path("fuel").asText("").trim();
+        String drivmedel = doc.path("fuel").asString("").trim();
         if (!drivmedel.isBlank()) delar.add(drivmedel);
         int ar = doc.path("year").asInt(0);
         if (ar > 0) delar.add(String.valueOf(ar));

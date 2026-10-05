@@ -1,8 +1,8 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -124,9 +124,9 @@ public class VideoSentimentService {
         JsonNode verdictJson = classify(comments);
         if (verdictJson == null) return Map.of();   // Groq-fel: skriv inget, prova igen senare
 
-        String verdict = verdictJson.path("verdict").asText("").toLowerCase(java.util.Locale.ROOT);
+        String verdict = verdictJson.path("verdict").asString("").toLowerCase(java.util.Locale.ROOT);
         int relevant = verdictJson.path("relevanta").asInt(0);
-        String summary = verdictJson.path("summary").asText("");
+        String summary = verdictJson.path("summary").asString("");
         if (!List.of("bra", "blandat", "daligt").contains(verdict)) verdict = "";
         write(carName, videoId, verdict, summary, relevant);
         return toResult(verdict, summary, relevant);
@@ -188,7 +188,7 @@ public class VideoSentimentService {
             }
             for (JsonNode item : mapper.readTree(resp.body()).path("items")) {
                 String text = item.path("snippet").path("topLevelComment").path("snippet")
-                        .path("textDisplay").asText("").replace('\n', ' ').trim();
+                        .path("textDisplay").asString("").replace('\n', ' ').trim();
                 if (!text.isBlank()) {
                     out.add(text.length() > MAX_COMMENT_CHARS ? text.substring(0, MAX_COMMENT_CHARS) : text);
                 }
@@ -255,7 +255,7 @@ public class VideoSentimentService {
                 return null;
             }
             String content = mapper.readTree(resp.body()).path("choices").path(0)
-                    .path("message").path("content").asText("");
+                    .path("message").path("content").asString("");
             return parseJson(content);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

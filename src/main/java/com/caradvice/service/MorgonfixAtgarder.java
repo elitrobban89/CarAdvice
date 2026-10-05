@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -252,10 +252,10 @@ public class MorgonfixAtgarder {
             JsonNode rot = json.readTree(in);
             List<Atgard> ut = new ArrayList<>();
             for (JsonNode n : rot.path("atgarder")) {
-                String datum = n.path("datum").asText("");
-                String typ = n.path("typ").asText("");
+                String datum = n.path("datum").asString("");
+                String typ = n.path("typ").asString("");
                 long id = n.path("id").asLong(0);
-                String skal = n.path("skal").asText("").trim();
+                String skal = n.path("skal").asString("").trim();
                 if (!datum.matches("\\d{4}-\\d{2}-\\d{2}") || !TYPER.contains(typ) || id <= 0 || skal.isEmpty()) {
                     log.warn("Morgonfix-åtgärd ogiltig, hoppas över: {}", n);
                     continue;

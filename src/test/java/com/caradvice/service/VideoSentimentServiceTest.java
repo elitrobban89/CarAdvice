@@ -89,7 +89,7 @@ class VideoSentimentServiceTest {
         // Reasoning-modellen ramar gärna in svaret i prosa
         VideoSentimentService s = service();
         assertThat(s.parseJson("Här kommer domen: {\"verdict\":\"bra\",\"relevanta\":20} hoppas det hjälper")
-                .path("verdict").asText()).isEqualTo("bra");
+                .path("verdict").asString()).isEqualTo("bra");
         assertThat(s.parseJson("ingen json alls")).isNull();
         assertThat(s.parseJson("")).isNull();
     }

@@ -5,8 +5,9 @@ import com.caradvice.model.EvSpecDto;
 import com.caradvice.model.CarPreferences;
 import com.caradvice.model.CarRecommendation;
 import com.caradvice.model.InsightTaxonomy;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -600,11 +601,11 @@ public class GroqService {
 
     private List<CarRecommendation> extractAndParse(HttpResponse<String> response, String label) throws Exception {
         JsonNode json = mapper.readTree(response.body());
-        String content = json.at("/choices/0/message/content").asText();
+        String content = json.at("/choices/0/message/content").asString();
         if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning").asText();
+            content = json.at("/choices/0/message/reasoning").asString();
         if (content.isBlank()) {
-            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            String finishReason = json.at("/choices/0/finish_reason").asString("unknown");
             log.warn("Groq empty content {} finish_reason={} body={}", label, finishReason, response.body());
             throw new RuntimeException("AI-tjänsten returnerade tomt svar. Försök igen.");
         }
@@ -618,8 +619,8 @@ public class GroqService {
             // VILKEN modell som skrev det oläsbara svaret är hela frågan sedan kedjan fick en
             // fjärde modell. parseRecommendations känner bara innehållet; modellnamnet står i
             // Groqs svarskuvert och finns bara här.
-            String modell = json.at("/model").asText("okand");
-            String finishReason = json.at("/choices/0/finish_reason").asText("unknown");
+            String modell = json.at("/model").asString("okand");
+            String finishReason = json.at("/choices/0/finish_reason").asString("unknown");
             log.warn("Otolkbart svar {} — modell={} finish_reason={} langd={}", label,
                     modell, finishReason, content.length());
             // Loggen hjälper bara den som kan läsa värdens logg. Bufferten gör samma fakta
@@ -3488,7 +3489,7 @@ public class GroqService {
             List<CarRecommendation> raw = mapper.convertValue(
                     node, mapper.getTypeFactory().constructCollectionType(List.class, CarRecommendation.class));
             return raw == null ? null : raw.stream().map(GroqService::withNormalizedTitle).toList();
-        } catch (IllegalArgumentException e) {
+        } catch (JacksonException e) {
             log.warn("AI recommendations did not match expected schema: {}", e.getMessage());
             return null;
         }
@@ -3583,7 +3584,7 @@ public class GroqService {
         log.warn("Groq 429 rakropp: {}", body == null ? "(null)" : body.substring(0, Math.min(body.length(), 600)));
         try {
             JsonNode err = mapper.readTree(body);
-            String msg = err.at("/error/message").asText("");
+            String msg = err.at("/error/message").asString("");
             if (msg.contains("per day") || msg.contains("RPD") || msg.contains("TPD")) {
                 return "Dagsgränsen för AI-anrop är nådd. Försök igen om " + parseRetryTime(body) + ".";
             }
@@ -3601,7 +3602,7 @@ public class GroqService {
     String buildGroqErrorMessage(int status, String body) {
         try {
             JsonNode err = mapper.readTree(body);
-            String code = err.at("/error/code").asText("");
+            String code = err.at("/error/code").asString("");
             if ("json_validate_failed".equals(code))
                 return "AI-svaret blev ofullständigt. Försök igen.";
         } catch (Exception ignored) {}
@@ -3678,7 +3679,7 @@ public class GroqService {
         if (resp.statusCode() != 200) throw new RuntimeException("Groq /models svarade " + resp.statusCode());
         JsonNode data = mapper.readTree(resp.body()).get("data");
         List<String> ids = new ArrayList<>();
-        if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asText()));
+        if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asString()));
         return ids.stream().sorted().toList();
     }
 
@@ -3705,7 +3706,7 @@ public class GroqService {
     Set<String> tillgangliga(String modelsResponseBody) throws Exception {
         JsonNode data = mapper.readTree(modelsResponseBody).get("data");
         Set<String> available = new HashSet<>();
-        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asText()));
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString()));
         return available;
     }
 
@@ -3758,7 +3759,7 @@ public class GroqService {
     List<String> missingModels(String modelsResponseBody) throws Exception {
         JsonNode data = mapper.readTree(modelsResponseBody).get("data");
         Set<String> available = new HashSet<>();
-        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asText()));
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString()));
         return configuredModels().stream().filter(m -> !available.contains(m)).toList();
     }
 
@@ -3788,15 +3789,15 @@ public class GroqService {
             throw new RuntimeException("Groq svarade " + response.statusCode());
 
         JsonNode json = mapper.readTree(response.body());
-        String svar = json.at("/choices/0/message/content").asText("");
+        String svar = json.at("/choices/0/message/content").asString("");
         // TOMT content betyder inte tomt svar: resonemangsmodellerna lägger ibland allt i
         // "reasoning" och lämnar content tomt — kortvägen har haft den reservläsningen sedan
         // länge (se extractAndParse), men chatten svarade "" rakt ut. Uppmätt 2026-09-04 med
         // ett skarpt prov mot /api/chat: HTTP 200 och {"reply":""}.
-        if (svar.isBlank()) svar = json.at("/choices/0/message/reasoning").asText("");
+        if (svar.isBlank()) svar = json.at("/choices/0/message/reasoning").asString("");
         if (svar.isBlank()) {
             log.warn("Groq tomt chattsvar, finish_reason={}",
-                    json.at("/choices/0/finish_reason").asText("unknown"));
+                    json.at("/choices/0/finish_reason").asString("unknown"));
             return "Jag fick inget svar från AI-tjänsten den här gången. Ställ frågan igen.";
         }
         return svar;

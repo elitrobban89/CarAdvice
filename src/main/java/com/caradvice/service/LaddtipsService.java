@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,8 +112,8 @@ public class LaddtipsService {
                 }
                 List<Long> ids = new ArrayList<>();
                 n.path("insikter").forEach(i -> ids.add(i.asLong()));
-                ut.add(new Tips(n.path("datum").asText(), n.path("ikon").asText(),
-                        n.path("text").asText().trim(), n.path("kalla").asText().trim(), ids));
+                ut.add(new Tips(n.path("datum").asString(), n.path("ikon").asString(),
+                        n.path("text").asString().trim(), n.path("kalla").asString().trim(), ids));
             }
             return ut;
         } catch (Exception e) {
@@ -124,10 +124,10 @@ public class LaddtipsService {
 
     /** @return skälet till att tipset inte godkänns, eller null */
     static String fel(JsonNode n) {
-        String datum = n.path("datum").asText("");
-        String text = n.path("text").asText("").trim();
-        String kalla = n.path("kalla").asText("").trim();
-        String ikon = n.path("ikon").asText("");
+        String datum = n.path("datum").asString("");
+        String text = n.path("text").asString("").trim();
+        String kalla = n.path("kalla").asString("").trim();
+        String ikon = n.path("ikon").asString("");
         if (!datum.matches("\\d{4}-\\d{2}-\\d{2}")) return "datum";
         try { LocalDate.parse(datum); } catch (Exception e) { return "datum"; }
         if (text.length() < 40) return "text för kort";

@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -302,8 +302,8 @@ public class LeasingPriceService {
     }
 
     private void addOffer(List<LeasingOffer> offers, JsonNode node, String brand) {
-        String model = cleanModel(node.path("title").asText(""));
-        Integer monthly = monthlyFrom(node.path("preamble").asText(""));
+        String model = cleanModel(node.path("title").asString(""));
+        Integer monthly = monthlyFrom(node.path("preamble").asString(""));
         if (!model.isEmpty() && monthly != null) offers.add(new LeasingOffer(model, monthly, brand));
     }
 

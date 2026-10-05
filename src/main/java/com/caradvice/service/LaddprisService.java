@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -65,10 +65,10 @@ public class LaddprisService {
                     continue;
                 }
                 Map<String, Object> m = new LinkedHashMap<>();
-                m.put("natverk", n.path("natverk").asText().trim().toLowerCase());
-                m.put("pris", n.path("pris").asText().trim());
-                m.put("kalla", n.path("kalla").asText().trim());
-                m.put("kontrollerad", n.path("kontrollerad").asText());
+                m.put("natverk", n.path("natverk").asString().trim().toLowerCase());
+                m.put("pris", n.path("pris").asString().trim());
+                m.put("kalla", n.path("kalla").asString().trim());
+                m.put("kontrollerad", n.path("kontrollerad").asString());
                 ut.add(m);
             }
             return ut;
@@ -80,10 +80,10 @@ public class LaddprisService {
 
     /** @return skälet att inte publicera priset, eller null */
     static String fel(JsonNode n) {
-        String natverk = n.path("natverk").asText("").trim();
-        String pris = n.path("pris").asText("").trim();
-        String kalla = n.path("kalla").asText("").trim();
-        String datum = n.path("kontrollerad").asText("");
+        String natverk = n.path("natverk").asString("").trim();
+        String pris = n.path("pris").asString("").trim();
+        String kalla = n.path("kalla").asString("").trim();
+        String datum = n.path("kontrollerad").asString("");
         if (natverk.length() < 3) return "nätverk";
         if (!pris.toLowerCase().startsWith("gratis") && !pris.matches("~?\\d{1,2}([,.]\\d{1,2})? kr/kWh"))
             return "inte ett pris i kr/kWh";

@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -110,7 +110,7 @@ public class ValueRetentionClient {
         StringBuilder sb = new StringBuilder();
         sb.append("VÄRDETAPP elbilar (årsmodell 2021, fem år gamla). Kvar av nypris, störst tapp först:\n");
         for (JsonNode m : modeller) {
-            String namn = m.path("model").asText("");
+            String namn = m.path("model").asString("");
             int kvar = m.path("retentionPct").asInt(0);
             if (namn.isEmpty() || kvar == 0) continue;
             sb.append("- ").append(namn)
@@ -125,8 +125,8 @@ public class ValueRetentionClient {
         // Källorna följer med i prompten, inte bara i koden. Modellen ska kunna skriva ut varifrån
         // talen kommer — nypriset och medianen har OLIKA ursprung, och ett svar som klumpar ihop
         // dem till "enligt Blocket" är fel om nypriset kom från Kvdbil.
-        sb.append("Källa nypris: ").append(rot.path("nyprisKalla").asText("Kvdbil/Bilpriser")).append(". ");
-        sb.append("Källa dagspris: ").append(rot.path("prisKalla").asText("median på Blocket")).append(".\n");
+        sb.append("Källa nypris: ").append(rot.path("nyprisKalla").asString("Kvdbil/Bilpriser")).append(". ");
+        sb.append("Källa dagspris: ").append(rot.path("prisKalla").asString("median på Blocket")).append(".\n");
         sb.append("Frågar någon vilken elbil som tappat mest i värde, om fynd på begagnade elbilar "
                 + "eller om värdeminskning på el: svara med en MARKDOWN-TABELL av raderna ovan "
                 + "(kolumner: Modell | Kvar av nypris | Nypris | Median idag), störst tapp först, "

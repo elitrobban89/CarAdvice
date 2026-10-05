@@ -2,8 +2,8 @@ package com.caradvice.service;
 
 import com.caradvice.model.User;
 import com.caradvice.repository.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Customer;
@@ -92,9 +92,9 @@ public class StripeService {
 
         switch (type) {
             case "checkout.session.completed" -> {
-                String userIdStr = data.path("metadata").path("userId").asText(null);
-                String customerId = data.path("customer").asText(null);
-                String subscriptionId = data.path("subscription").asText(null);
+                String userIdStr = data.path("metadata").path("userId").asString(null);
+                String customerId = data.path("customer").asString(null);
+                String subscriptionId = data.path("subscription").asString(null);
                 log.info("checkout.session.completed — userId={} customerId={} subscriptionId={}", userIdStr, customerId, subscriptionId);
                 if (userIdStr != null && customerId != null) {
                     LocalDateTime endsAt = fetchSubscriptionEnd(subscriptionId);
@@ -111,14 +111,14 @@ public class StripeService {
                 }
             }
             case "customer.subscription.created", "customer.subscription.resumed", "invoice.payment_succeeded" -> {
-                String customerId = data.path("customer").asText(null);
+                String customerId = data.path("customer").asString(null);
                 long periodEnd = data.path("current_period_end").asLong(0);
                 LocalDateTime endsAt = toLocalDateTime(periodEnd > 0 ? periodEnd : null);
                 log.info("{} — customerId={} endsAt={}", type, customerId, endsAt);
                 activateByCustomerId(customerId, endsAt);
             }
             case "customer.subscription.updated" -> {
-                String customerId = data.path("customer").asText(null);
+                String customerId = data.path("customer").asString(null);
                 boolean cancelAtEnd = data.path("cancel_at_period_end").asBoolean(false);
                 // current_period_end moved to items in newer Stripe API versions — use cancel_at as fallback
                 long endTs = data.path("current_period_end").asLong(0);
@@ -134,7 +134,7 @@ public class StripeService {
                 }
             }
             case "customer.subscription.deleted", "customer.subscription.paused" -> {
-                String customerId = data.path("customer").asText(null);
+                String customerId = data.path("customer").asString(null);
                 log.info("{} — customerId={}", type, customerId);
                 if (customerId != null) {
                     userRepo.findByStripeCustomerId(customerId).ifPresent(u -> {

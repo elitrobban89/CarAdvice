@@ -1,7 +1,7 @@
 package com.caradvice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -272,7 +272,7 @@ public class VpicYearCheckService {
             JsonNode resultat = mapper.readTree(json).path("Results");
             if (!resultat.isArray()) return ut;
             for (JsonNode rad : resultat) {
-                String namn = rad.path("Model_Name").asText(null);
+                String namn = rad.path("Model_Name").asString(null);
                 if (namn != null && !namn.isBlank()) ut.add(normalisera(namn));
             }
         } catch (Exception e) {

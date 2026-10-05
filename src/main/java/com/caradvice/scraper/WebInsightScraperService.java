@@ -4,9 +4,9 @@ import com.caradvice.model.ExpertInsight;
 import com.caradvice.model.InsightTaxonomy;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.service.UpcomingInsightService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -974,7 +974,7 @@ public class WebInsightScraperService {
     int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
         int saved = 0;
         for (JsonNode ins : filterKnownDuplicates(filterStrict(expert, filterIrrelevant(insights)))) {
-            String insightText = ins.path("insight").asText("");
+            String insightText = ins.path("insight").asString("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
             if (isPlaceringUtanForstaplats(insightText)) {
                 log.info("Web insights: hoppar över placering utan förstaplats: {}", truncate(insightText, LOG_INSIGHT_CHARS));
@@ -983,7 +983,7 @@ public class WebInsightScraperService {
 
             // Insikter utan märke visas aldrig (ExpertInsightService utesluter carMake == null
             // överallt) — spara dem inte.
-            if (ins.path("car_make").asText("").isBlank()) {
+            if (ins.path("car_make").asString("").isBlank()) {
                 log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
@@ -991,13 +991,13 @@ public class WebInsightScraperService {
             // Utan modell hamnar insikten i findForCarTitle:s makeOnly-hink och visas på VARJE
             // bil av märket — en N47-dieselvarning dyker upp på ett BMW i4-kort. Kuraterade
             // CSV-rader får fortsatt vara märkesbreda; skrapade får inte.
-            if (ins.path("car_model").asText("").isBlank()) {
+            if (ins.path("car_model").asString("").isBlank()) {
                 log.info("Web insights: hoppar över märkesbred insikt utan modell: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
 
             if (dedupExpert != null) {
-                String ref = ins.path("source_ref").asText("").trim();
+                String ref = ins.path("source_ref").asString("").trim();
                 String key = dedupExpert + "|" + (ref.isBlank()
                         ? insightText.substring(0, Math.min(60, insightText.length())) : ref);
                 if (isSeen(key)) continue;
@@ -1007,11 +1007,11 @@ public class WebInsightScraperService {
             // Veteranvakten fäller BÅDA fälten på en gång, så den prövas före dem båda. Den får
             // bilens namn med sig: tre rader i drift 2026-09-22 var veteraner som BARA modellen
             // avslöjade — texten bar varken årtal eller samlarord.
-            String carMake  = normaliseraMarke(blankToNull(ins.path("car_make").asText("")));
-            String carModel = blankToNull(ins.path("car_model").asText(""));
+            String carMake  = normaliseraMarke(blankToNull(ins.path("car_make").asString("")));
+            String carModel = blankToNull(ins.path("car_model").asString(""));
             String veteran = InsightTaxonomy.veteranInnehall(insightText, carMake, carModel);
             String fuelType = veteran == null
-                    ? InsightTaxonomy.validFuel(ins.path("fuel_type").asText("")) : null;
+                    ? InsightTaxonomy.validFuel(ins.path("fuel_type").asString("")) : null;
             String category = veteran == null ? kategoriFor(ins) : veteranUtanPool(ins, veteran);
 
             ExpertInsight stored = insightRepo.save(new ExpertInsight(
@@ -1086,8 +1086,8 @@ public class WebInsightScraperService {
             JsonNode ins = insights.get(i);
             markUpcoming(ins);
             log.info("Web insights: kommandevakten markerar {} {} som kommande modell: {}",
-                    ins.path("car_make").asText(), ins.path("car_model").asText(),
-                    truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                    ins.path("car_make").asString(), ins.path("car_model").asString(),
+                    truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
         }
     }
 
@@ -1152,8 +1152,8 @@ public class WebInsightScraperService {
                 // markUpcoming biter bara på ObjectNode — logga det som faktiskt hände
                 if (isUpcoming(ins)) {
                     log.info("Web insights: ärver kommande-markering inom batchen för {} {}: {}",
-                            ins.path("car_make").asText(), ins.path("car_model").asText(),
-                            truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                            ins.path("car_make").asString(), ins.path("car_model").asString(),
+                            truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 }
             }
             (isUpcoming(ins) ? kommande : saljs).add(ins);
@@ -1192,8 +1192,8 @@ public class WebInsightScraperService {
             if (kvar.contains(ins)) continue;
             log.warn("Web insights: extravakten [{}/kommande] fällde {} {} — raden PARKERAS i kön "
                             + "i stället för att kastas, granska den vid nästa köstädning: {}",
-                    expert, ins.path("car_make").asText(), ins.path("car_model").asText(),
-                    truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                    expert, ins.path("car_make").asString(), ins.path("car_model").asString(),
+                    truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
         }
     }
 
@@ -1243,8 +1243,8 @@ public class WebInsightScraperService {
             JsonNode ins = insights.get(i);
             if (irrelevant.contains(i)) {
                 log.info("Web insights: {} stoppar {} {}: {}", label,
-                        ins.path("car_make").asText(), ins.path("car_model").asText(),
-                        truncate(ins.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                        ins.path("car_make").asString(), ins.path("car_model").asString(),
+                        truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 continue;
             }
             kept.add(ins);
@@ -1284,8 +1284,8 @@ public class WebInsightScraperService {
 
     /** null när märke eller modell saknas — se {@link #upcomingCarKeys}. */
     private static String carKey(JsonNode ins) {
-        String make = ins.path("car_make").asText("").trim().toLowerCase(Locale.ROOT);
-        String model = ins.path("car_model").asText("").trim().toLowerCase(Locale.ROOT);
+        String make = ins.path("car_make").asString("").trim().toLowerCase(Locale.ROOT);
+        String model = ins.path("car_model").asString("").trim().toLowerCase(Locale.ROOT);
         return make.isEmpty() || model.isEmpty() ? null : make + " " + model;
     }
 
@@ -1295,9 +1295,9 @@ public class WebInsightScraperService {
         StringBuilder sb = new StringBuilder("INSIKTER:\n");
         for (int i = 0; i < insights.size(); i++) {
             JsonNode c = insights.get(i);
-            sb.append(i).append(" (").append(c.path("car_make").asText("").trim()).append(" ")
-                    .append(c.path("car_model").asText("").trim()).append("): ")
-                    .append(c.path("insight").asText("")).append("\n");
+            sb.append(i).append(" (").append(c.path("car_make").asString("").trim()).append(" ")
+                    .append(c.path("car_model").asString("").trim()).append("): ")
+                    .append(c.path("insight").asString("")).append("\n");
         }
         return sb.toString();
     }
@@ -1315,9 +1315,9 @@ public class WebInsightScraperService {
         List<JsonNode> candidates = new ArrayList<>();
         Map<String, List<String>> existingByCar = new LinkedHashMap<>();
         for (JsonNode ins : insights) {
-            String text = ins.path("insight").asText("");
-            String make = ins.path("car_make").asText("").trim();
-            String model = ins.path("car_model").asText("").trim();
+            String text = ins.path("insight").asString("");
+            String make = ins.path("car_make").asString("").trim();
+            String model = ins.path("car_model").asString("").trim();
             if (text.isBlank() || make.isBlank() || model.isBlank()) {
                 kept.add(ins);
                 continue;
@@ -1344,8 +1344,8 @@ public class WebInsightScraperService {
                 JsonNode c = candidates.get(i);
                 if (dups.contains(i)) {
                     log.info("Web insights: hoppar över parafras-dubblett för {} {}: {}",
-                            c.path("car_make").asText(), c.path("car_model").asText(),
-                            truncate(c.path("insight").asText(""), LOG_INSIGHT_CHARS));
+                            c.path("car_make").asString(), c.path("car_model").asString(),
+                            truncate(c.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 } else {
                     kept.add(c);
                 }
@@ -1409,7 +1409,7 @@ public class WebInsightScraperService {
     static String buildDedupUserContent(List<JsonNode> candidates, Map<String, List<String>> existingByCar) {
         Set<String> cars = new LinkedHashSet<>();
         for (JsonNode c : candidates) {
-            cars.add(c.path("car_make").asText("").trim() + " " + c.path("car_model").asText("").trim());
+            cars.add(c.path("car_make").asString("").trim() + " " + c.path("car_model").asString("").trim());
         }
         StringBuilder sb = new StringBuilder("BEFINTLIGA INSIKTER:\n");
         for (String car : cars) {
@@ -1421,9 +1421,9 @@ public class WebInsightScraperService {
         sb.append("\nNYA KANDIDATER:\n");
         for (int i = 0; i < candidates.size(); i++) {
             JsonNode c = candidates.get(i);
-            sb.append(i).append(" (").append(c.path("car_make").asText("").trim()).append(" ")
-                    .append(c.path("car_model").asText("").trim()).append("): ")
-                    .append(c.path("insight").asText("")).append("\n");
+            sb.append(i).append(" (").append(c.path("car_make").asString("").trim()).append(" ")
+                    .append(c.path("car_model").asString("").trim()).append("): ")
+                    .append(c.path("insight").asString("")).append("\n");
         }
         return sb.toString();
     }
@@ -1499,8 +1499,8 @@ public class WebInsightScraperService {
 
     /** AI:n ekar ibland fältmallen tillbaka som en rad ("car_make car_model" / "insight") — hittades 6 st i DB. */
     static boolean isTemplateEcho(JsonNode ins) {
-        return "insight".equalsIgnoreCase(ins.path("insight").asText("").trim())
-                || "car_make".equalsIgnoreCase(ins.path("car_make").asText("").trim());
+        return "insight".equalsIgnoreCase(ins.path("insight").asString("").trim())
+                || "car_make".equalsIgnoreCase(ins.path("car_make").asString("").trim());
     }
 
     private static final Pattern PLACERING = Pattern.compile(
@@ -1559,27 +1559,27 @@ public class WebInsightScraperService {
      * rapporten att det var mer än kategorin som föll.
      */
     private String veteranUtanPool(JsonNode ins, String motivering) {
-        String kategori = InsightTaxonomy.canonicalCategory(ins.path("category").asText(""));
-        String drivmedel = InsightTaxonomy.validFuel(ins.path("fuel_type").asText(""));
-        String bil = (ins.path("car_make").asText("") + " " + ins.path("car_model").asText("")).trim();
+        String kategori = InsightTaxonomy.canonicalCategory(ins.path("category").asString(""));
+        String drivmedel = InsightTaxonomy.validFuel(ins.path("fuel_type").asString(""));
+        String bil = (ins.path("car_make").asString("") + " " + ins.path("car_model").asString("")).trim();
         log.warn("Web insights: veteran-/samlarbil ({}) — {} sparas utan kategori och drivmedel",
                 motivering, bil);
         kategoriVaktStats.registrera("web-insights [veteran]",
                 (kategori == null ? "-" : kategori) + " + " + (drivmedel == null ? "-" : drivmedel),
-                bil, motivering, ins.path("insight").asText(""));
+                bil, motivering, ins.path("insight").asString(""));
         return null;
     }
 
     private String kategoriFor(JsonNode ins) {
-        String varde = ins.path("category").asText("");
-        String make = ins.path("car_make").asText("");
-        String model = ins.path("car_model").asText("");
+        String varde = ins.path("category").asString("");
+        String make = ins.path("car_make").asString("");
+        String model = ins.path("car_model").asString("");
         String motsagelse = InsightTaxonomy.kategoriMotsagelse(varde, make, model);
         if (motsagelse == null) return InsightTaxonomy.canonicalCategory(varde);
         log.warn("Web insights: kategorin \"{}\" motsägs av bilen ({}) — raden sparas utan kategori",
                 InsightTaxonomy.canonicalCategory(varde), motsagelse);
         kategoriVaktStats.registrera("web-insights", InsightTaxonomy.canonicalCategory(varde),
-                (make + " " + model).trim(), motsagelse, ins.path("insight").asText(""));
+                (make + " " + model).trim(), motsagelse, ins.path("insight").asString(""));
         return null;
     }
 
@@ -1589,7 +1589,7 @@ public class WebInsightScraperService {
             return (r >= 1 && r <= 10) ? r : null;
         }
         try {
-            int r = Integer.parseInt(node.asText("").trim());
+            int r = Integer.parseInt(node.asString("").trim());
             return (r >= 1 && r <= 10) ? r : null;
         } catch (NumberFormatException e) {
             return null;
@@ -1641,7 +1641,7 @@ public class WebInsightScraperService {
     List<String> parseWpJsonLinks(String json) throws Exception {
         List<String> links = new ArrayList<>();
         for (JsonNode post : mapper.readTree(json)) {
-            String link = post.path("link").asText("");
+            String link = post.path("link").asString("");
             if (!link.isBlank()) links.add(link);
         }
         return links;
@@ -1819,7 +1819,7 @@ public class WebInsightScraperService {
 
     private String contentOf(String responseBody) throws Exception {
         String content = mapper.readTree(responseBody)
-                .path("choices").path(0).path("message").path("content").asText("").trim();
+                .path("choices").path(0).path("message").path("content").asString("").trim();
         if (content.startsWith("```")) {
             content = content.replaceAll("(?s)^```(?:json)?\\s*", "").replaceAll("(?s)```\\s*$", "");
         }

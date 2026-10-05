@@ -3,7 +3,7 @@ package com.caradvice.scraper;
 import com.caradvice.model.InsightTaxonomy;
 import com.caradvice.repository.ExpertInsightRepository;
 import com.caradvice.service.UpcomingInsightService;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -247,7 +247,7 @@ class WebInsightScraperServiceTest {
     private static String groqResponse(String content) {
         return """
             {"choices":[{"message":{"content":%s}}]}
-            """.formatted(com.fasterxml.jackson.databind.node.TextNode.valueOf(content).toString());
+            """.formatted(tools.jackson.databind.node.StringNode.valueOf(content).toString());
     }
 
     @Test
@@ -258,7 +258,7 @@ class WebInsightScraperServiceTest {
             """;
         List<JsonNode> result = service().parseInsightJson(groqResponse(content), "test");
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).path("car_make").asText()).isEqualTo("Volvo");
+        assertThat(result.get(0).path("car_make").asString()).isEqualTo("Volvo");
         assertThat(result.get(0).path("rating").asInt()).isEqualTo(8);
     }
 
@@ -292,7 +292,7 @@ class WebInsightScraperServiceTest {
     @Test
     void mallEkoRaderIdentifieras() throws Exception {
         // AI:n ekade fältmallen som riktiga rader ("car_make car_model" / "insight") — 6 st hittades i DB
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         assertThat(WebInsightScraperService.isTemplateEcho(
                 mapper.readTree("{\"car_make\":\"car_make\",\"insight\":\"insight\"}"))).isTrue();
         assertThat(WebInsightScraperService.isTemplateEcho(
@@ -336,7 +336,7 @@ class WebInsightScraperServiceTest {
     void exaktDubblettFiltrerasMotBefintliga() throws Exception {
         var service = serviceWithExisting(new com.caradvice.model.ExpertInsight(
                 "CarUp", "BYD", "Shark", null, null, "Bilen har en maximal dragvikt på 2 500 kg.", null));
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode dubblett = mapper.readTree(
                 "{\"car_make\":\"BYD\",\"car_model\":\"Shark\",\"insight\":\"Bilen har en maximal dragvikt på 2500 kg!\"}");
         assertThat(service.filterKnownDuplicates(List.of(dubblett))).isEmpty();
@@ -345,7 +345,7 @@ class WebInsightScraperServiceTest {
     @Test
     void insiktUtanModellEllerUtanBefintligaBehalls() throws Exception {
         var service = serviceWithExisting();
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode utanModell = mapper.readTree("{\"car_make\":\"\",\"car_model\":\"\",\"insight\":\"Generell insikt.\"}");
         JsonNode nyBil = mapper.readTree("{\"car_make\":\"Kia\",\"car_model\":\"EV3\",\"insight\":\"Ny insikt.\"}");
         assertThat(service.filterKnownDuplicates(List.of(utanModell, nyBil))).hasSize(2);
@@ -356,7 +356,7 @@ class WebInsightScraperServiceTest {
         // AMG CLA 45 kom in dubbelt: "Mercedes-Benz CLA 45 4MATIC+" och "Mercedes AMG CLA 45 4Matic+"
         var service = serviceWithExisting(new com.caradvice.model.ExpertInsight(
                 "TV", "Mercedes-Benz", "CLA 45 4MATIC+", null, null, "Bilen levererar 680 hk.", null));
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode dubblett = mapper.readTree(
                 "{\"car_make\":\"Mercedes\",\"car_model\":\"AMG CLA 45 4Matic+\",\"insight\":\"Bilen levererar 680 hk!\"}");
         assertThat(service.filterKnownDuplicates(List.of(dubblett))).isEmpty();
@@ -365,7 +365,7 @@ class WebInsightScraperServiceTest {
     @Test
     void exaktUpprepningInomSammaBatchFiltreras() throws Exception {
         var service = serviceWithExisting();
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode forsta = mapper.readTree(
                 "{\"car_make\":\"Mini\",\"car_model\":\"Cooper Cabrio\",\"insight\":\"Billig som cabriolet.\"}");
         JsonNode upprepning = mapper.readTree(
@@ -379,7 +379,7 @@ class WebInsightScraperServiceTest {
         // och kändisnotiser utan bil kom ändå in i DB via scrapen
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode utanMarke = mapper.readTree("{\"car_make\":\"\",\"insight\":\"Studie om återcirkulation.\"}");
         JsonNode medMarke = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
         assertThat(service.saveInsights("TV", List.of(utanMarke, medMarke), null)).isEqualTo(1);
@@ -398,7 +398,7 @@ class WebInsightScraperServiceTest {
         org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any())).thenReturn(sparad);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming, vaktStats);
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree("{\"car_make\":\"Mercedes\",\"car_model\":\"GLA\","
                 + "\"insight\":\"Tre varianter.\",\"" + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
 
@@ -411,7 +411,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var upcoming = mock(UpcomingInsightService.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), upcoming, vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode vanlig = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX30\",\"insight\":\"Bra bil.\"}");
 
@@ -429,7 +429,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
                 mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode forStor = mapper.readTree(
                 "{\"car_make\":\"Saab\",\"car_model\":\"9-3\",\"category\":\"smaabil\",\"insight\":\"Takata-krockkudden bör bytas.\"}");
 
@@ -449,7 +449,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
                 mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode lagBil = mapper.readTree("{\"car_make\":\"Kia\",\"car_model\":\"Niro\",\"category\":\"suv\",\"insight\":\"Lag crossover.\"}");
         vaktStats.nollstall();
 
@@ -470,7 +470,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
                 mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode veteran = mapper.readTree(
                 "{\"car_make\":\"Saab\",\"car_model\":\"9000 Turbo\",\"category\":\"familjebil\","
                 + "\"fuel_type\":\"bensin\",\"insight\":\"Saab 9000 Turbo från 1987 har endast"
@@ -500,7 +500,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
                 mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode vanlig = mapper.readTree(
                 "{\"car_make\":\"Mazda\",\"car_model\":\"6\",\"category\":\"familjebil\","
                 + "\"fuel_type\":\"bensin\",\"insight\":\"Mazda 6 (2002-2012) lider av rostproblem"
@@ -521,7 +521,7 @@ class WebInsightScraperServiceTest {
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
                 mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode smaabil = mapper.readTree(
                 "{\"car_make\":\"Toyota\",\"car_model\":\"Aygo X\",\"category\":\"småbil\",\"insight\":\"Billig i drift.\"}");
 
@@ -538,7 +538,7 @@ class WebInsightScraperServiceTest {
         // märket — CarUps N47-dieselvarning hade annars dykt upp på ett BMW i4-kort
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode utanModell = mapper.readTree(
                 "{\"car_make\":\"BMW\",\"car_model\":\"\",\"insight\":\"N47-dieseln kan få kamkedjebrott.\"}");
         JsonNode medModell = mapper.readTree(
@@ -560,7 +560,7 @@ class WebInsightScraperServiceTest {
 
     @Test
     void dedupPromptListarBefintligaOchIndexeradeKandidater() throws Exception {
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode kandidat = mapper.readTree(
                 "{\"car_make\":\"BYD\",\"car_model\":\"Shark\",\"insight\":\"Blade-batteriet är på 32,2 kWh.\"}");
         String user = WebInsightScraperService.buildDedupUserContent(
@@ -581,7 +581,7 @@ class WebInsightScraperServiceTest {
 
     @Test
     void relevansPromptListarIndexeradeInsikter() throws Exception {
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree(
                 "{\"car_make\":\"Nissan\",\"car_model\":\"Tekton\",\"insight\":\"Säljs enbart i Afrika och Mellanöstern.\"}");
         String user = WebInsightScraperService.buildRelevanceUserContent(List.of(ins));
@@ -591,7 +591,7 @@ class WebInsightScraperServiceTest {
     @Test
     void relevansvaktenSlapperIgenomAlltUtanApiNyckel() throws Exception {
         // apiKey är null i testtjänsten — vakten ska då vara helt passiv (fail open)
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}");
         assertThat(service().filterIrrelevant(List.of(ins))).hasSize(1);
         assertThat(service().filterIrrelevant(List.of())).isEmpty();
@@ -615,7 +615,7 @@ class WebInsightScraperServiceTest {
                     ? "{\"upcoming\":[1]}" : "{\"irrelevant\":[0]}");
         }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode skrot = mapper.readTree(
                 "{\"car_make\":\"Dodge\",\"car_model\":\"Charger\",\"insight\":\"Restomod med 650 hk.\"}");
         JsonNode ex60 = mapper.readTree(
@@ -644,7 +644,7 @@ class WebInsightScraperServiceTest {
                         ? "inte json alls" : "{\"irrelevant\":[]}"))
                 .when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"Räckvidden är 55-60 mil.\"}");
 
@@ -1011,7 +1011,7 @@ class WebInsightScraperServiceTest {
         // (Deras KOMMANDE-rader granskas däremot, se nästa test.) Allt om Elbil har samma
         // nyhetsprofil och lades till med vakten från start 2026-09-26.
         assertThat(WebInsightScraperService.STRICT_SOURCES).containsExactlyInAnyOrder("CarUp", "Allt om Elbil");
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         List<JsonNode> insikter = List.of(mapper.readTree("{\"car_make\":\"Volvo\",\"insight\":\"Bra bil.\"}"));
         assertThat(service().filterStrict("Teknikens Värld", insikter)).isSameAs(insikter);
     }
@@ -1032,7 +1032,7 @@ class WebInsightScraperServiceTest {
             return groqResponse("{\"irrelevant\":[0]}");
         }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX60\",\"insight\":\"Volvo planerar att öka produktionen.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1086,7 +1086,7 @@ class WebInsightScraperServiceTest {
             return groqResponse("{\"irrelevant\":[0]}");
         }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX50\",\"insight\":\"Produktionsvolymen blir 90 000 bilar per år.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1113,7 +1113,7 @@ class WebInsightScraperServiceTest {
                 .when(service).postGroq(anyString(), anyString(), anyString(),
                         org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode v40 = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"V40\",\"insight\":\"Fick Bra val i Folksams rapport 2025.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1134,7 +1134,7 @@ class WebInsightScraperServiceTest {
         org.mockito.Mockito.doReturn(null).when(service).postGroq(anyString(), anyString(), anyString(),
                 org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode kommande = mapper.readTree(
                 "{\"car_make\":\"Volvo\",\"car_model\":\"EX50\",\"insight\":\"Byggs på SPA3.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1158,7 +1158,7 @@ class WebInsightScraperServiceTest {
             return groqResponse("{\"irrelevant\":[0]}");
         }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode saljsFalld = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Fem meter lång.\"}");
         JsonNode saljsKvar = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC60\",\"insight\":\"Sliten vevaxelremskiva.\"}");
         JsonNode kommandeFalld = mapper.readTree(
@@ -1192,7 +1192,7 @@ class WebInsightScraperServiceTest {
             return groqResponse("{\"irrelevant\":[]}");
         }).when(service).postGroq(anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
 
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode markerad = mapper.readTree(
                 "{\"car_make\":\"Audi\",\"car_model\":\"A2 e-tron\",\"insight\":\"Väger 1 500–1 650 kg.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1214,7 +1214,7 @@ class WebInsightScraperServiceTest {
     @Test
     void kommandeMarkeringenArvsInteViaTomtMarkeEllerModell() throws Exception {
         // En tom nyckel hade dragit ihop orelaterade rader till en och samma "bil"
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode markeradUtanModell = mapper.readTree(
                 "{\"car_make\":\"Audi\",\"car_model\":\"\",\"insight\":\"Kommande modell.\",\""
                         + WebInsightScraperService.UPCOMING_FIELD + "\":true}");
@@ -1231,7 +1231,7 @@ class WebInsightScraperServiceTest {
 
     @Test
     void extravaktenBevararOrdningenNarKommandeBlandas() throws Exception {
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode vanlig = mapper.readTree("{\"car_make\":\"Volvo\",\"car_model\":\"XC90\",\"insight\":\"Fem meter lång.\"}");
         JsonNode kommande = mapper.readTree(
                 "{\"car_make\":\"Audi\",\"car_model\":\"Q9\",\"insight\":\"5,31 m lång.\",\""
@@ -1247,7 +1247,7 @@ class WebInsightScraperServiceTest {
         // apiKey är null i testtjänsten → extravakten ska vara passiv, inte blockera CarUp helt
         var repo = mock(ExpertInsightRepository.class);
         var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         JsonNode ins = mapper.readTree(
                 "{\"car_make\":\"Volkswagen\",\"car_model\":\"Arteon\",\"insight\":\"Mest begagnade är laddhybrider.\"}");
         assertThat(service.saveInsights("CarUp", List.of(ins), null)).isEqualTo(1);
