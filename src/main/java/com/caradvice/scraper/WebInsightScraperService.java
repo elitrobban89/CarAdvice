@@ -1086,7 +1086,7 @@ public class WebInsightScraperService {
             JsonNode ins = insights.get(i);
             markUpcoming(ins);
             log.info("Web insights: kommandevakten markerar {} {} som kommande modell: {}",
-                    ins.path("car_make").asString(), ins.path("car_model").asString(),
+                    ins.path("car_make").asString(""), ins.path("car_model").asString(""),
                     truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
         }
     }
@@ -1152,7 +1152,7 @@ public class WebInsightScraperService {
                 // markUpcoming biter bara på ObjectNode — logga det som faktiskt hände
                 if (isUpcoming(ins)) {
                     log.info("Web insights: ärver kommande-markering inom batchen för {} {}: {}",
-                            ins.path("car_make").asString(), ins.path("car_model").asString(),
+                            ins.path("car_make").asString(""), ins.path("car_model").asString(""),
                             truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 }
             }
@@ -1192,7 +1192,7 @@ public class WebInsightScraperService {
             if (kvar.contains(ins)) continue;
             log.warn("Web insights: extravakten [{}/kommande] fällde {} {} — raden PARKERAS i kön "
                             + "i stället för att kastas, granska den vid nästa köstädning: {}",
-                    expert, ins.path("car_make").asString(), ins.path("car_model").asString(),
+                    expert, ins.path("car_make").asString(""), ins.path("car_model").asString(""),
                     truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
         }
     }
@@ -1243,7 +1243,7 @@ public class WebInsightScraperService {
             JsonNode ins = insights.get(i);
             if (irrelevant.contains(i)) {
                 log.info("Web insights: {} stoppar {} {}: {}", label,
-                        ins.path("car_make").asString(), ins.path("car_model").asString(),
+                        ins.path("car_make").asString(""), ins.path("car_model").asString(""),
                         truncate(ins.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 continue;
             }
@@ -1344,7 +1344,7 @@ public class WebInsightScraperService {
                 JsonNode c = candidates.get(i);
                 if (dups.contains(i)) {
                     log.info("Web insights: hoppar över parafras-dubblett för {} {}: {}",
-                            c.path("car_make").asString(), c.path("car_model").asString(),
+                            c.path("car_make").asString(""), c.path("car_model").asString(""),
                             truncate(c.path("insight").asString(""), LOG_INSIGHT_CHARS));
                 } else {
                     kept.add(c);
@@ -1454,7 +1454,7 @@ public class WebInsightScraperService {
             JsonNode arr = mapper.readTree(content).path(field);
             if (!arr.isArray()) return null;
             Set<Integer> out = new HashSet<>();
-            arr.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt()); });
+            arr.forEach(n -> { if (n.canConvertToInt()) out.add(n.asInt(0)); });
             return out;
         } catch (Exception e) {
             log.warn("Web insights: kunde inte parsa {}-svar: {}", field, e.getMessage());
@@ -1585,7 +1585,7 @@ public class WebInsightScraperService {
 
     private static Integer parseRating(JsonNode node) {
         if (node.canConvertToInt()) {
-            int r = node.asInt();
+            int r = node.asInt(0);
             return (r >= 1 && r <= 10) ? r : null;
         }
         try {

@@ -329,7 +329,7 @@ public class UpcomingAdCheckService {
         long pris = doc.path("price").path("amount").asLong(0);
         JsonNode matare = doc.path("mileage");
         if (pris > 0) delar.add(pris + (arManadsavgift(pris, matare) ? " kr/mån" : " kr"));
-        if (matare.isNumber()) delar.add(matare.asLong() + " mil");
+        if (matare.isNumber()) delar.add(matare.asLong(0) + " mil");
         return delar.isEmpty() ? namn : namn + " (" + String.join(", ", delar) + ")";
     }
 
@@ -359,7 +359,7 @@ public class UpcomingAdCheckService {
      */
     static boolean arManadsavgift(long pris, JsonNode matare) {
         if (pris >= BlocketPriceService.LOWEST_PLAUSIBLE_CAR_PRICE_KR) return false;
-        return !matare.isNumber() || matare.asLong() < SLITEN_BIL_MIL;
+        return !matare.isNumber() || matare.asLong(0) < SLITEN_BIL_MIL;
     }
 
     static boolean sagerAttBilenArKommande(String text) {

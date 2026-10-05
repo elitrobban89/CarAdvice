@@ -111,9 +111,9 @@ public class LaddtipsService {
                     continue;
                 }
                 List<Long> ids = new ArrayList<>();
-                n.path("insikter").forEach(i -> ids.add(i.asLong()));
-                ut.add(new Tips(n.path("datum").asString(), n.path("ikon").asString(),
-                        n.path("text").asString().trim(), n.path("kalla").asString().trim(), ids));
+                n.path("insikter").forEach(i -> ids.add(i.asLong(0)));
+                ut.add(new Tips(n.path("datum").asString(""), n.path("ikon").asString(""),
+                        n.path("text").asString("").trim(), n.path("kalla").asString("").trim(), ids));
             }
             return ut;
         } catch (Exception e) {

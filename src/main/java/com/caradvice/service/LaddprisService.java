@@ -65,10 +65,10 @@ public class LaddprisService {
                     continue;
                 }
                 Map<String, Object> m = new LinkedHashMap<>();
-                m.put("natverk", n.path("natverk").asString().trim().toLowerCase());
-                m.put("pris", n.path("pris").asString().trim());
-                m.put("kalla", n.path("kalla").asString().trim());
-                m.put("kontrollerad", n.path("kontrollerad").asString());
+                m.put("natverk", n.path("natverk").asString("").trim().toLowerCase());
+                m.put("pris", n.path("pris").asString("").trim());
+                m.put("kalla", n.path("kalla").asString("").trim());
+                m.put("kontrollerad", n.path("kontrollerad").asString(""));
                 ut.add(m);
             }
             return ut;

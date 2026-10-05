@@ -115,11 +115,11 @@ public class ValueRetentionClient {
             if (namn.isEmpty() || kvar == 0) continue;
             sb.append("- ").append(namn)
               .append(": ").append(kvar).append(" % kvar (tappat ").append(100 - kvar).append(" %)")
-              .append(", nypris ").append(m.path("newPriceKr").asInt()).append(" kr")
-              .append(", median idag ").append(m.path("medianPriceKr").asInt()).append(" kr");
+              .append(", nypris ").append(m.path("newPriceKr").asInt(0)).append(" kr")
+              .append(", median idag ").append(m.path("medianPriceKr").asInt(0)).append(" kr");
             if (m.path("cheapestPriceKr").isNumber())
-                sb.append(", billigast ").append(m.path("cheapestPriceKr").asInt()).append(" kr");
-            sb.append(" (").append(m.path("adCount").asInt()).append(" annonser)\n");
+                sb.append(", billigast ").append(m.path("cheapestPriceKr").asInt(0)).append(" kr");
+            sb.append(" (").append(m.path("adCount").asInt(0)).append(" annonser)\n");
         }
 
         // Källorna följer med i prompten, inte bara i koden. Modellen ska kunna skriva ut varifrån

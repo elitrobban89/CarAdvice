@@ -551,8 +551,8 @@ public class GroqService {
             if (usage.isMissingNode()) return;
             String modell = (body instanceof Map<?, ?> m && m.get("model") != null)
                     ? String.valueOf(m.get("model")) : "okänd";
-            int prompt = usage.path("prompt_tokens").asInt();
-            int svar = usage.path("completion_tokens").asInt();
+            int prompt = usage.path("prompt_tokens").asInt(0);
+            int svar = usage.path("completion_tokens").asInt(0);
             int reserverat = (body instanceof Map<?, ?> m2 && m2.get("max_tokens") instanceof Integer i) ? i : 0;
             tokenStatistik.registrera(modell, prompt, svar, reserverat);
             log.info("Groq {}: prompt {} + svar {} tokens (reserverat {}, mot minuttaket räknas {})",
@@ -601,9 +601,9 @@ public class GroqService {
 
     private List<CarRecommendation> extractAndParse(HttpResponse<String> response, String label) throws Exception {
         JsonNode json = mapper.readTree(response.body());
-        String content = json.at("/choices/0/message/content").asString();
+        String content = json.at("/choices/0/message/content").asString("");
         if (content.isBlank())
-            content = json.at("/choices/0/message/reasoning").asString();
+            content = json.at("/choices/0/message/reasoning").asString("");
         if (content.isBlank()) {
             String finishReason = json.at("/choices/0/finish_reason").asString("unknown");
             log.warn("Groq empty content {} finish_reason={} body={}", label, finishReason, response.body());
@@ -3679,7 +3679,7 @@ public class GroqService {
         if (resp.statusCode() != 200) throw new RuntimeException("Groq /models svarade " + resp.statusCode());
         JsonNode data = mapper.readTree(resp.body()).get("data");
         List<String> ids = new ArrayList<>();
-        if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asString()));
+        if (data != null && data.isArray()) data.forEach(n -> ids.add(n.path("id").asString("")));
         return ids.stream().sorted().toList();
     }
 
@@ -3706,7 +3706,7 @@ public class GroqService {
     Set<String> tillgangliga(String modelsResponseBody) throws Exception {
         JsonNode data = mapper.readTree(modelsResponseBody).get("data");
         Set<String> available = new HashSet<>();
-        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString()));
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString("")));
         return available;
     }
 
@@ -3759,7 +3759,7 @@ public class GroqService {
     List<String> missingModels(String modelsResponseBody) throws Exception {
         JsonNode data = mapper.readTree(modelsResponseBody).get("data");
         Set<String> available = new HashSet<>();
-        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString()));
+        if (data != null && data.isArray()) data.forEach(n -> available.add(n.path("id").asString("")));
         return configuredModels().stream().filter(m -> !available.contains(m)).toList();
     }
 
