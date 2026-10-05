@@ -24,6 +24,38 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
   (document.head || document.documentElement).appendChild(s);
 })();
 
+/**
+ * Emoji-bilder som inte laddar blir emoji-text igen (2026-10-06).
+ *
+ * WordPress emoji-skript byter varje emoji mot en {@code <img class="emoji">} från s.w.org.
+ * Svarar inte den värden (avbrott, annonsblockerare, nät som stoppar den) ska skriptet byta
+ * tillbaka till texten — men dess onerror läser {@code twemoji.parentNode} i stället för
+ * bildens, så ingenting händer och ALLA ikoner står som trasiga bilder. Sett i drift på
+ * 💳/⚡-knapparna; med s.w.org blockerat stod 33 trasiga bilder kvar på sidan.
+ *
+ * Här görs det skriptet menade: bilden byts mot sin alt-text. {@code data-error="load-failed"}
+ * sätts först, för det är just den markeringen som får skriptets egen MutationObserver att
+ * låta bli att göra om texten till en ny bild som felar igen.
+ */
+(function caLagaTrasigaEmoji() {
+  try {
+    function laga(img) {
+      if (!img.parentNode || !img.alt) return;
+      img.setAttribute('data-error', 'load-failed');
+      img.parentNode.replaceChild(document.createTextNode(img.alt), img);
+    }
+    function arEmoji(el) {
+      return el && el.tagName === 'IMG' && el.classList && el.classList.contains('emoji');
+    }
+    // error bubblar inte, men fångas på vägen ned i capture-fasen
+    document.addEventListener('error', function (e) { if (arEmoji(e.target)) laga(e.target); }, true);
+    // Bilder som hann fela innan lyssnaren fanns
+    document.querySelectorAll('img.emoji').forEach(function (img) {
+      if (img.complete && img.naturalWidth === 0) laga(img);
+    });
+  } catch (_) { /* utan lagningen ser sidan ut som förut */ }
+})();
+
 // Mobil-CSS för formuläret injiceras här (samma regler som @media(max-width:520px) i
 // WP-snippeten) så befintliga WordPress-sidor får den kompaktare mobil-layouten utan att
 // snippet-HTML:en klistras om. Läggs sist i <body> så den vinner över snippetens inline-<style>.
