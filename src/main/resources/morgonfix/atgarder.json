@@ -1,4 +1,6 @@
 {
-  "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera. Högst 12 nya per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
+  "atgarder": [
+    {"datum": "2026-10-05", "typ": "slapp", "id": 1767, "skal": "Smart #3 Brabus redan i handeln i Sverige (ev_spec: 552000 kr, WLTP 415 km) - testförarens egna uppmätta värden (428 hk, 0-100 på 3,7s) bevisar att bilen finns att köpa, TESTBEVISREGELN"}
+  ]
 }
