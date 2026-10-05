@@ -107,6 +107,12 @@ function javaMajor(v) {
   return d[0] === '1' ? Number(d[1]) : Number(d[0]);
 }
 
+/** Spring Boot-versionen ur spring-boot-starter-parent i en pom.xml, eller null. */
+function bootIPom(pom) {
+  const m = String(pom || '').match(/<artifactId>\s*spring-boot-starter-parent\s*<\/artifactId>\s*<version>\s*([^<\s]+)/);
+  return m ? m[1] : null;
+}
+
 /** Bedömer en apps integrationer: vilka värdar saknar splashrad? */
 function bedomIntegrationer(vardar, text, sekundarHar = {}) {
   const fynd = [];
@@ -178,7 +184,12 @@ async function granska(app) {
     const kor = javaMajor(d.java);
     if (!kor) f('LARM', 'splashen får ingen Java-version');
     else if (onskad && kor !== onskad) f('LARM', `kör Java ${kor} men pom.xml säger ${onskad} — uppgraderingen är inte driftsatt`);
-    else f('OK', `Java ${d.java}` + (d.springBoot ? ` · Spring Boot ${d.springBoot}` : ''));
+    else f('OK', `Java ${d.java}`);
+    // 1b. Spring Boot mot pom.xml — samma fälla: en uppgradering som ligger i koden men inte kör
+    const onskadBoot = bootIPom(pom);
+    if (!d.springBoot) f('LARM', 'splashen får ingen Spring Boot-version');
+    else if (onskadBoot && d.springBoot !== onskadBoot) f('LARM', `kör Spring Boot ${d.springBoot} men pom.xml säger ${onskadBoot} — uppgraderingen är inte driftsatt`);
+    else f('OK', `Spring Boot ${d.springBoot}`);
   } catch (e) { f('VARNING', 'kunde inte läsa pom.xml: ' + e.message); }
 
   // 2. Databasen
@@ -239,4 +250,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { vardarI, splashText, javaMajor, bedomIntegrationer, INTEGRATIONER, IGNORERA };
+module.exports = { vardarI, splashText, javaMajor, bootIPom, bedomIntegrationer, INTEGRATIONER, IGNORERA };

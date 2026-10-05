@@ -36,6 +36,9 @@ prov('"27" → 27', v.javaMajor('27') === 27, v.javaMajor('27'));
 prov('"27.0.1" → 27', v.javaMajor('27.0.1') === 27, v.javaMajor('27.0.1'));
 prov('"1.8.0_392" → 8', v.javaMajor('1.8.0_392') === 8, v.javaMajor('1.8.0_392'));
 prov('tomt → null', v.javaMajor('') === null, v.javaMajor(''));
+const POM_BOOT = '<parent>\n  <groupId>org.springframework.boot</groupId>\n  <artifactId>spring-boot-starter-parent</artifactId>\n  <version>4.1.1</version>\n</parent>\n<artifactId>caradvice</artifactId>\n<version>0.0.1</version>';
+prov('pom: starter-parent 4.1.1 → "4.1.1"', v.bootIPom(POM_BOOT) === '4.1.1', v.bootIPom(POM_BOOT));
+prov('pom utan starter-parent → null', v.bootIPom('<artifactId>annat</artifactId><version>1.0</version>') === null);
 
 // --- integrationerna ---
 const b = v.bedomIntegrationer(['api.groq.com', 'api.chargeprice.app', 'ny-tjanst.example.io', 'tag-k5we.onrender.com'],
