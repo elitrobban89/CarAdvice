@@ -10,6 +10,7 @@ import com.stripe.model.Customer;
 import com.stripe.model.Event;
 import com.stripe.model.Subscription;
 import com.stripe.model.SubscriptionCollection;
+import com.stripe.model.SubscriptionItem;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.SubscriptionListParams;
@@ -74,6 +75,25 @@ public class StripeService {
         return LocalDateTime.ofEpochSecond(epochSeconds, 0, ZoneOffset.UTC);
     }
 
+    /** current_period_end ligger på prenumerationens items sedan Stripe API 2025-03-31 (stripe-java 29+). */
+    static Long periodEnd(Subscription sub) {
+        if (sub == null || sub.getItems() == null || sub.getItems().getData() == null) return null;
+        return sub.getItems().getData().stream()
+                .map(SubscriptionItem::getCurrentPeriodEnd)
+                .filter(t -> t != null && t > 0)
+                .max(Long::compare)
+                .orElse(null);
+    }
+
+    /** Samma sak för rå webhook-JSON: äldre API-versioner har fältet på prenumerationen, nyare på items. */
+    static long periodEnd(JsonNode subscription) {
+        long ts = subscription.path("current_period_end").asLong(0);
+        for (JsonNode item : subscription.path("items").path("data")) {
+            ts = Math.max(ts, item.path("current_period_end").asLong(0));
+        }
+        return ts;
+    }
+
     public void handleWebhook(String payload, String sigHeader) throws Exception {
         Stripe.apiKey = secretKey;
 
@@ -112,7 +132,7 @@ public class StripeService {
             }
             case "customer.subscription.created", "customer.subscription.resumed", "invoice.payment_succeeded" -> {
                 String customerId = data.path("customer").asString(null);
-                long periodEnd = data.path("current_period_end").asLong(0);
+                long periodEnd = periodEnd(data);
                 LocalDateTime endsAt = toLocalDateTime(periodEnd > 0 ? periodEnd : null);
                 log.info("{} — customerId={} endsAt={}", type, customerId, endsAt);
                 activateByCustomerId(customerId, endsAt);
@@ -120,8 +140,8 @@ public class StripeService {
             case "customer.subscription.updated" -> {
                 String customerId = data.path("customer").asString(null);
                 boolean cancelAtEnd = data.path("cancel_at_period_end").asBoolean(false);
-                // current_period_end moved to items in newer Stripe API versions — use cancel_at as fallback
-                long endTs = data.path("current_period_end").asLong(0);
+                // Periodslutet (på prenumerationen eller dess items); cancel_at som reserv
+                long endTs = periodEnd(data);
                 if (endTs == 0) endTs = data.path("cancel_at").asLong(0);
                 LocalDateTime endsAt = toLocalDateTime(endTs > 0 ? endTs : null);
                 log.info("subscription.updated — customerId={} cancelAtEnd={} endsAt={}", customerId, cancelAtEnd, endsAt);
@@ -160,7 +180,7 @@ public class StripeService {
                 .setCancelAtPeriodEnd(false)
                 .build());
         user.setCancelAtPeriodEnd(false);
-        Long periodEnd = updated.getCurrentPeriodEnd();
+        Long periodEnd = periodEnd(updated);
         if (periodEnd != null && periodEnd > 0) user.setSubscriptionEndsAt(toLocalDateTime(periodEnd));
         userRepo.save(user);
         log.info("Subscription reactivated for user={}", user.getEmail());
@@ -188,7 +208,7 @@ public class StripeService {
         if (subscriptionId == null) return null;
         try {
             Subscription sub = Subscription.retrieve(subscriptionId);
-            return toLocalDateTime(sub.getCurrentPeriodEnd());
+            return toLocalDateTime(periodEnd(sub));
         } catch (Exception e) {
             log.warn("Could not fetch subscription {}: {}", subscriptionId, e.getMessage());
             return null;
