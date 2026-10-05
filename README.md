@@ -428,7 +428,7 @@ Bagagevolymerna (cargo-specs-ledet, 150 försök per natt med 30 dagars missminn
 | Frontend | HTML/CSS/JS (WordPress Anpassad HTML) |
 | Deploy | Render.com (Docker) |
 | Monitorering | UptimeRobot |
-| Tester | JUnit 5, Mockito, AssertJ — körs i GitHub Actions på varje push |
+| Tester | JUnit 6, Mockito, AssertJ — körs i GitHub Actions på varje push |
 
 ---
 
