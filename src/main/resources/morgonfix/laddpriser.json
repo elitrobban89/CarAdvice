@@ -1,4 +1,11 @@
 {
   "_om": "DC-laddpriser per natverk (utan abonnemang), belagda av nattrutinen mot natverkets EGEN prissida (docs/nattrutin.md avsnitt 13). Elbilsladdning hamtar dem via GET /api/laddpriser och lagger dem over sin reservtabell. natverk = gemener, samma nyckel som i OperatorPriceService (ionity, allego, tesla, mer, circle k ...). pris = \"~6,96 kr/kWh\" eller \"Gratis ...\".",
-  "priser": []
+  "priser": [
+    {"natverk": "ionity", "pris": "~6,09 kr/kWh", "kalla": "https://www.ionity.eu/network/access-and-payments", "kontrollerad": "2026-10-05"},
+    {"natverk": "allego", "pris": "~6,30 kr/kWh", "kalla": "https://www.allego.eu/pricing/", "kontrollerad": "2026-10-05"},
+    {"natverk": "mer", "pris": "~5,10 kr/kWh", "kalla": "https://se.mer.eco/laddstationer/priser/", "kontrollerad": "2026-10-05"},
+    {"natverk": "circle k", "pris": "~6,09 kr/kWh", "kalla": "https://www.circlek.se/laddning/priser", "kontrollerad": "2026-10-05"},
+    {"natverk": "circlek", "pris": "~6,09 kr/kWh", "kalla": "https://www.circlek.se/laddning/priser", "kontrollerad": "2026-10-05"},
+    {"natverk": "lidl", "pris": "~5,80 kr/kWh", "kalla": "https://www.lidl.se/c/ladda-hos-lidl/s10018428", "kontrollerad": "2026-10-05"}
+  ]
 }
