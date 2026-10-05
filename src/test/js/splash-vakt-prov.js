@@ -39,6 +39,19 @@ prov('tomt → null', v.javaMajor('') === null, v.javaMajor(''));
 const POM_BOOT = '<parent>\n  <groupId>org.springframework.boot</groupId>\n  <artifactId>spring-boot-starter-parent</artifactId>\n  <version>4.1.1</version>\n</parent>\n<artifactId>caradvice</artifactId>\n<version>0.0.1</version>';
 prov('pom: starter-parent 4.1.1 → "4.1.1"', v.bootIPom(POM_BOOT) === '4.1.1', v.bootIPom(POM_BOOT));
 prov('pom utan starter-parent → null', v.bootIPom('<artifactId>annat</artifactId><version>1.0</version>') === null);
+prov('package.json engines ">=24" → 24', v.nodeIPaket('{"engines":{"node":">=24"}}') === 24);
+prov('package.json utan engines → null', v.nodeIPaket('{"name":"x"}') === null);
+prov('trasig package.json → null', v.nodeIPaket('{inte json') === null);
+prov('låst express ur package-lock', v.lastVersion('{"packages":{"node_modules/express":{"version":"5.2.1"}}}', 'express') === '5.2.1');
+prov('paket som saknas i låsfilen → null', v.lastVersion('{"packages":{}}', 'express') === null);
+// Bränslesplashen ligger sist i kalkylatorns fil — kalkylatorns egna fetch-anrop får inte räknas som splashtext
+const KALKYL = "fetch('https://nominatim.openstreetmap.org/x');\n// BRÄNSLEKOSTNAD — uppstartssplash\nvar ROWS = [{ s: 'OSRM-rutt' }];";
+prov('splashDel klipper bort koden före markören', !v.splashDel(KALKYL, 'uppstartssplash').includes('nominatim')
+  && v.splashDel(KALKYL, 'uppstartssplash').includes('OSRM'));
+prov('splashDel utan markör → hela texten', v.splashDel(KALKYL) === KALKYL);
+prov('splashDel med markör som saknas → tomt (vakten larmar)', v.splashDel(KALKYL, 'finns-inte') === '');
+const nom = v.INTEGRATIONER.find(i => i.vard.test('nominatim.openstreetmap.org'));
+prov('nominatim.openstreetmap.org räknas som Nominatim, inte som kartan', nom && nom.namn === 'Nominatim', nom && nom.namn);
 
 // --- integrationerna ---
 const b = v.bedomIntegrationer(['api.groq.com', 'api.chargeprice.app', 'ny-tjanst.example.io', 'tag-k5we.onrender.com'],

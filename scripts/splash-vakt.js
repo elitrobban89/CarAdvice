@@ -47,6 +47,13 @@ const APPAR = [
   { namn: 'VäderKläder', repo: 'VaderKlader', gren: 'main', rot: '',
     system: 'https://vaderklader-1.onrender.com/api/system', db: false,
     splash: ['src/main/resources/static/vader-splash.js'] },
+  // Node-appen: versionerna mäts mot package.json/package-lock.json i stället för pom.xml.
+  // Splashen ligger SIST i kalkylatorns egen fil — `splashFran` klipper bort kalkylatorn, annars
+  // "syns" varje värd redan i dess egna fetch-anrop. `kod` = filerna integrationerna läses ur.
+  { namn: 'Bränslekostnad', repo: 'Bilresa', gren: 'main', rot: '', plattform: 'node',
+    system: 'https://bilresa.onrender.com/health', db: false,
+    splash: ['src/bensinkostnad-wpcode.js'], splashFran: 'uppstartssplash',
+    kod: ['server.js', 'src/bensinkostnad-wpcode.js'] },
 ];
 
 /**
@@ -71,6 +78,12 @@ const INTEGRATIONER = [
     namn: 'Motortidningarna', ord: ['teknikens', 'vi bil', 'expertdata'], sekundar: 'källor bakom Expertdata-raden' },
   { vard: /(mobilitysweden\.se|vpic\.nhtsa\.dot\.gov|auto-data\.net|bilweb\.se|volvocars\.com|vwfs\.io)$/,
     namn: 'Bildata (registreringar, VIN, specar, nypriser)', ord: ['bildatabas'], sekundar: 'källor bakom Bildatabas-raden' },
+  { vard: /globalpetrolprices\.com$/,         namn: 'GlobalPetrolPrices',            ord: ['globalpetrolprices'] },
+  { vard: /elprisetjustnu\.se$/,              namn: 'Elpriset just nu',              ord: ['elprisetjustnu'] },
+  // Nominatim före den allmänna OSM-raden — första träffen vinner.
+  { vard: /nominatim\.openstreetmap\.org$/,   namn: 'Nominatim',                     ord: ['nominatim'] },
+  { vard: /project-osrm\.org$/,               namn: 'OSRM',                          ord: ['osrm'] },
+  { vard: /(^|\.)openstreetmap\.org$/,        namn: 'OpenStreetMap-kartan',          ord: ['leaflet', 'openstreetmap'] },
 ];
 
 /** Egna tjänster och sådant som inte är en integration. */
@@ -111,6 +124,27 @@ function javaMajor(v) {
 function bootIPom(pom) {
   const m = String(pom || '').match(/<artifactId>\s*spring-boot-starter-parent\s*<\/artifactId>\s*<version>\s*([^<\s]+)/);
   return m ? m[1] : null;
+}
+
+/** Node-majorn ur package.json:s engines.node (">=24", "^24.1", "24.x") → 24, annars null. */
+function nodeIPaket(paketJson) {
+  try {
+    const m = String(JSON.parse(paketJson).engines?.node || '').match(/(\d+)/);
+    return m ? Number(m[1]) : null;
+  } catch { return null; }
+}
+
+/** Den låsta versionen av ett paket ur package-lock.json (lockfileVersion 2/3), annars null. */
+function lastVersion(lasJson, paket) {
+  try { return JSON.parse(lasJson).packages?.['node_modules/' + paket]?.version || null; }
+  catch { return null; }
+}
+
+/** Bara splashdelen av en fil som också bär annan kod: från första raden med `markor`. */
+function splashDel(js, markor) {
+  if (!markor) return String(js);
+  const i = String(js).indexOf(markor);
+  return i < 0 ? '' : String(js).slice(i);
 }
 
 /** Bedömer en apps integrationer: vilka värdar saknar splashrad? */
@@ -177,8 +211,23 @@ async function granska(app) {
   try { d = app.html ? await bankomatData(app.html) : await hamta(app.system); }
   catch (e) { f('LARM', 'tjänsten svarade inte: ' + e.message); return { app: app.namn, fynd }; }
 
+  // 1 (Node). Node mot package.json, Express mot package-lock.json
+  if (app.plattform === 'node') {
+    try {
+      const onskad = nodeIPaket(await raw(app, app.rot + 'package.json'));
+      const kor = javaMajor(d.node);
+      if (!kor) f('LARM', 'splashen får ingen Node.js-version');
+      else if (onskad && kor !== onskad) f('LARM', `kör Node.js ${kor} men package.json säger ${onskad} — uppgraderingen är inte driftsatt`);
+      else f('OK', `Node.js ${d.node}`);
+      const onskadExpress = lastVersion(await raw(app, app.rot + 'package-lock.json'), 'express');
+      if (!d.express) f('LARM', 'splashen får ingen Express-version');
+      else if (onskadExpress && d.express !== onskadExpress) f('LARM', `kör Express ${d.express} men package-lock.json säger ${onskadExpress} — uppgraderingen är inte driftsatt`);
+      else f('OK', `Express ${d.express}`);
+    } catch (e) { f('VARNING', 'kunde inte läsa package.json: ' + e.message); }
+  }
+
   // 1. Java mot pom.xml
-  try {
+  if (app.plattform !== 'node') try {
     const pom = await raw(app, app.rot + 'pom.xml');
     const onskad = Number((pom.match(/<java\.version>\s*(\d+)/) || [])[1]);
     const kor = javaMajor(d.java);
@@ -216,14 +265,16 @@ async function granska(app) {
 
   // 5. Integrationer i koden mot splashens text
   try {
-    const filer = gitFiler(app).filter(p => p.startsWith(app.rot + 'src/main/')
+    const filer = app.kod || gitFiler(app).filter(p => p.startsWith(app.rot + 'src/main/')
       && /\.(java|properties)$/.test(p));
     const vardar = new Set();
     for (let i = 0; i < filer.length; i += 8) {
       const texter = await Promise.all(filer.slice(i, i + 8).map(p => raw(app, p).catch(() => '')));
       texter.forEach(t => vardarI(t).forEach(v => vardar.add(v)));
     }
-    const text = (await Promise.all(app.splash.map(p => raw(app, p)))).map(splashText).join('\n');
+    const text = (await Promise.all(app.splash.map(p => raw(app, p))))
+      .map(js => splashText(splashDel(js, app.splashFran))).join('\n');
+    if (!text.trim()) f('LARM', `hittar inte splashen i ${app.splash.join(', ')} (markören "${app.splashFran}")`);
     fynd.push(...bedomIntegrationer([...vardar], text, app.sekundar));
   } catch (e) { f('VARNING', 'kunde inte granska integrationerna: ' + e.message); }
 
@@ -250,4 +301,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { vardarI, splashText, javaMajor, bootIPom, bedomIntegrationer, INTEGRATIONER, IGNORERA };
+module.exports = { vardarI, splashText, javaMajor, bootIPom, nodeIPaket, lastVersion, splashDel, bedomIntegrationer, INTEGRATIONER, IGNORERA };

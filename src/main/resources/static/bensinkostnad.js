@@ -3232,12 +3232,12 @@ if (document.readyState === 'loading') {
   var FORCE = /[?&]splash=1/.test(location.search);
 
   var ROWS = [
-    { ic: '⛽', t: 'Br\xe4nslepriser',  s: 'Dagsaktuella bensin &amp; diesel', tag: 'ONLINE', an: 'pump' },
+    { ic: '⛽', t: 'Br\xe4nslepriser',  s: 'globalpetrolprices.com \xb7 bensin &amp; diesel', tag: 'ONLINE', an: 'pump' },
     { ic: '🚗', t: 'Bildatabas',  kind: 'cars', an: 'kor' },
     { ic: '⚡', t: 'Elpriser',        s: 'elprisetjustnu.se \xb7 SE1–SE4 spotpris', tag: 'LIVE', an: 'blixt' },
     { ic: '🔋', t: 'Elf\xf6rbrukning', s: 'kWh/mil f\xf6r elbilar \xb7 CarAdvice', an: 'ladda' },
     { ic: '🛢️', t: 'F\xf6rbrukning', s: 'l/mil bensin, diesel &amp; hybrid', an: 'tunna' },
-    { ic: '🗺️', t: 'Ruttber\xe4kning', s: 'Verklig str\xe4cka via v\xe4gn\xe4tet', an: 'karta' },
+    { ic: '🗺️', t: 'Ruttber\xe4kning', s: 'OSRM-rutt \xb7 Nominatim \xb7 Leaflet-karta', an: 'karta' },
     { ic: '💰', t: 'Sparkalkyl',   s: 'J\xe4mf\xf6r bensin, diesel &amp; el', an: 'mynt' },
     { ic: '🖥️', t: 'Server', kind: 'plattform', tag: 'ONLINE', an: 'server' }
   ];
@@ -3588,6 +3588,32 @@ if (document.readyState === 'loading') {
   function markSeen() { try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {} }
   function setPct(el, p) { if (el) el.textContent = Math.round(p) + '% klart'; }
 
+  // Kortet skalas till den synliga höjden. En telefon med adress- och verktygsfält visar
+  // 650–700 px, och på 390×664 slutade kortet vid 750 px (åtta rader + mätaren). Egenskapen
+  // scale och inte transform: kortet har inflygningsanimationer på transform, och en animation
+  // vinner över en inline-transform. Golvet .55 håller texten läsbar; under det hellre klipp.
+  // Samma funktion finns i car-advice-splash.js, ev-splash.js, vader-splash.js och Bankomatens splash.js.
+  function passaHojd(lager, kort) {
+    if (!lager || !kort) return;
+    function passa() {
+      if (!lager.isConnected) { window.removeEventListener('resize', passa); return; }
+      var cs = getComputedStyle(lager);
+      var ledig = lager.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      var hojd = kort.offsetHeight;
+      if (!ledig || !hojd || hojd <= ledig) { kort.style.scale = ''; lager.style.overflowY = ''; return; }
+      // Var kortet LIGGER avgör varifrån det skalas: ett centrerat kort som flödar över sticker
+      // ut lika mycket uppåt och skalas runt mitten, ett toppförankrat skalas från överkanten.
+      var iToppen = kort.offsetTop >= parseFloat(cs.paddingTop) - 1;
+      var s = Math.max(0.55, ledig / hojd);
+      kort.style.transformOrigin = iToppen ? '50% 0' : '50% 50%';
+      kort.style.scale = s.toFixed(4);
+      lager.style.overflowY = s > 0.55 ? 'hidden' : '';
+    }
+    passa();
+    window.addEventListener('resize', passa);
+    if (window.ResizeObserver) new ResizeObserver(passa).observe(kort);
+  }
+
   function run() {
     if (document.querySelector('.bcsp')) return;
     injectStyles();
@@ -3597,6 +3623,7 @@ if (document.readyState === 'loading') {
     overlay.className = 'bcsp';
     overlay.innerHTML = template();
     document.body.appendChild(overlay);
+    passaHojd(overlay, overlay.querySelector('.bcsp-inner'));
     var prevOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
 
