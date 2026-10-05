@@ -22,6 +22,30 @@
 //
 // Samma regler som de andra landningsrullningarna: en gång, aldrig över en djuplänk, aldrig
 // när besökaren själv redan tagit tag i sidan, och aldrig när ramen redan syns.
+// Trasiga WP-emojibilder blir emoji-text igen (2026-10-06). WordPress byter varje emoji mot en
+// <img class="emoji"> från s.w.org, men dess onerror läser twemoji.parentNode i stället för
+// bildens — svarar inte s.w.org står ALLA ikoner som trasiga bilder. data-error sätts först så
+// att WP:s MutationObserver låter texten vara. Samma lagning i alla skript som laddas på en
+// WP-sida; flaggan kopplar den en gång per sida. Bakgrund: caLagaTrasigaEmoji i car-advice-main.js.
+(function () {
+  try {
+    if (window.elitrobbanEmojiLagad) return;
+    window.elitrobbanEmojiLagad = true;
+    function laga(img) {
+      if (!img.parentNode || !img.alt) return;
+      img.setAttribute('data-error', 'load-failed');
+      img.parentNode.replaceChild(document.createTextNode(img.alt), img);
+    }
+    document.addEventListener('error', function (e) {
+      var t = e.target;
+      if (t && t.tagName === 'IMG' && t.classList && t.classList.contains('emoji')) laga(t);
+    }, true);
+    document.querySelectorAll('img.emoji').forEach(function (img) {
+      if (img.complete && img.naturalWidth === 0) laga(img);
+    });
+  } catch (_) { /* utan lagningen ser sidan ut som förut */ }
+})();
+
 (function () {
   'use strict';
 

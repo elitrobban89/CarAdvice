@@ -39,6 +39,9 @@ var CA_API_BASE = window.CA_API_URL || 'https://caradvice.onrender.com';
  */
 (function caLagaTrasigaEmoji() {
   try {
+    // Samma lagning ligger i de andra WP-sidornas skript; flaggan kopplar den en gång per sida
+    if (window.elitrobbanEmojiLagad) return;
+    window.elitrobbanEmojiLagad = true;
     function laga(img) {
       if (!img.parentNode || !img.alt) return;
       img.setAttribute('data-error', 'load-failed');
