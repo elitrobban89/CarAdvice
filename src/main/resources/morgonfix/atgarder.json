@@ -1,6 +1,10 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-05", "typ": "slapp", "id": 1767, "skal": "Smart #3 Brabus redan i handeln i Sverige (ev_spec: 552000 kr, WLTP 415 km) - testförarens egna uppmätta värden (428 hk, 0-100 på 3,7s) bevisar att bilen finns att köpa, TESTBEVISREGELN"}
+    {"datum": "2026-10-06", "typ": "parkera", "id": 1792, "skal": "GRANSKA: annonskollen visar bara nuvarande BMW i3-generationen (60 Ah, 2014-2015); raden gäller Neue Klasse-generationen som ännu inte säljs i Sverige"},
+    {"datum": "2026-10-06", "typ": "parkera", "id": 1788, "skal": "INGA_ANNONSER: BMW iX5 (Neue Klasse) säljs inte ännu i Sverige enligt annonskollen"},
+    {"datum": "2026-10-06", "typ": "parkera", "id": 1787, "skal": "INGA_ANNONSER: nya BMW 7-serien (producerad från juli 2026) säljs inte ännu i Sverige enligt annonskollen"},
+    {"datum": "2026-10-06", "typ": "parkera", "id": 1785, "skal": "GRANSKA: annonskollen visar bara nuvarande Tucson-generationens annonser; raden gäller nästa generations Tucson (2027) som ännu inte säljs i Sverige"},
+    {"datum": "2026-10-06", "typ": "parkera", "id": 1783, "skal": "GRANSKA: samma skäl som 1785 - raden gäller nästa generations Hyundai Tucson (2027) som ännu inte säljs i Sverige"}
   ]
 }

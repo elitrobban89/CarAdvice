@@ -1,5 +1,82 @@
 # Morgonfix-logg
 
+## 2026-10-06
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:38:26, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (ba5c2da), status OK, uptime
+~2,27 h (ingen omstart under nattkedjan - appen startade 22:20:30 UTC, före kedjans 23:00 UTC).
+Groq 3/3 modeller (friskt). ev-specs updated **3** - inom 0-25. cargo-specs gav 1/0/0 (1 nytt
+bilnamn, 0 bagagevolymer, 0 generationsår) - under larmgränsen 50. Kontrollräkningen
+(cargo-coverage total 1737 + evSpecs 617 + ice_consumption 960 = 3314 = /api/stats variants)
+stämmer exakt, liksom models (2192→2193) och /api/cars (1979→1980) - allt konsekvent med
+cargo-specs-ledets +1 bilnamn, ingen tappad rad.
+
+**medVolym+bagageMissar: 998/784 → 998/785 - still/+1, enligt domregeln i 3f VÄNTAT** (sopet
+är sedan tidigare avklarat, kvar är bara enstaka 30-dagars-återcirkulation). Generationsåren
+still (291/19, väntat till fönstret 2026-10-20, forsøktDag fortfarande 2026-09-20). vPIC:
+291/0/275, OK 126, INGEN_DATA 165, AVVIKER 0 - oförändrat. Drivmedelsräknaren 485/400/85/16,
+oförändrat, ingen flip, alla 16 handsatta rader korrekta. Kategorivakten: totalt 2 utslag sedan
+omstart (BMW 7-serie/7-serien, Highway Assistant-raderna 1787/1775) - vakten strök kategorin
+korrekt (7-serien är en lyxbil, inte familjebil); inget hål.
+
+**Splashvakten: DOM LARM** (exitkod 2) - **rapportens viktigaste fynd, väntar på dig:**
+MiniPrisTåget (HTTP 503), VäderKläder (HTTP 503) och Bränslekostnad (HTTP 403) svarade inte.
+CarAdvice själv är OK i alla punkter (Java 27, PostgreSQL 18.4, autodeploy ba5c2da, alla
+live-siffror på plats). De tre trasiga tjänsterna är drift/kod i andra repon - lagas INTE
+härifrån enligt regeln i avsnitt 14.
+
+**Kommandevakten (annonskollen):** 0 LARM på 46 rader / 21 bilar (7 GRANSKA, 1 ANNAN_DRIVLINA,
+13 INGA_ANNONSER). Nattens 5 nya köade rader (1792 BMW i3, 1788 BMW iX5, 1787 BMW 7-serie, 1785
+och 1783 Hyundai Tucson 2027) är alla nästa-generations-modeller som ännu inte säljs i Sverige
+- parkerade i atgarder.json i natt med annonskollens dom som källa (se nedan).
+
+**Öppen fråga, ingen fix:** insikt **1784** (Vi Bilägare, "Laddhybridvarianten av Hyundai
+Tucson 2027 har en elektrisk räckvidd...") beskriver samma nya Tucson 2027 som 1783/1785 men
+hamnade INTE i kommande-kön (`/api/admin/insights/upcoming` saknar den, `ev-fact-candidates`
+listar den som en vanlig kandidat). Sannolik lucka i kommande-klassificeringen (UPCOMING_PROMPT
+är en AI-prompt, inte kod - FORBJUDET att ändra enligt 9c). Ingen atgarder.json-rad skrevs för
+1784 eftersom den inte går att slå upp via `/upcoming`-listan som 9h kräver; flaggas här för
+granskning i stället för en gissad skrivning.
+
+**Nattens 21 nya rader (id 1774-1794):** sex rader är samma Highway Assistant-nyhet applicerad
+på flera BMW-modeller (3-serie/3-serien x2, 7-serie/7-serien x2, X5, iX3) - klunga av sanna
+per-modell-fakta ur en artikel, ingen bugg (jfr Safety Coach-klungan 1253-1257). Fem rader är
+tillvalspriser för uppvärmda säten/baksäten (VW ID.7, Mercedes GLC, Volvo EX60, BMW iX3, Mini
+Cooper) - inga lackor. Resten är bilbegagnatkostnader (CarUp/Skoda Enyaq, Porsche Taycan) och
+leasingpriser (Kia EV2, Renault 4) samt de fem kommande-raderna ovan. Inget kategorifel utöver
+7-serie-strykningen (redan nämnd). Vardeminskning/restvärde: 1 rad i natt (1789, Porsche Taycan
+Cross Turismo 4S, -49 % på tre år) - stödjer fortsatt att FALSKA NEGATIV inte är ett aktivt
+problem.
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** fem rader - parkera 1792 (BMW i3, GRANSKA), 1788 (BMW iX5,
+INGA_ANNONSER), 1787 (BMW 7-serie, INGA_ANNONSER), 1785 och 1783 (Hyundai Tucson 2027, GRANSKA)
+- samtliga nästa-generations-modeller som annonskollen visar ännu inte säljs i Sverige.
+
+**Laddtips:** 0 nya. Samma tre kandidater som tidigare avvisade (BMW iX3 40 xDrive 1724 mot
+ev-specs; VW ID.7 Tourer 1743 utan konkret siffra i själva insikten, trots att ev-spec har data;
+Range Rover P400e Autobiography 1738 - ev-spec fortfarande tomt). Ny kandidat 1784 (Hyundai
+Tucson 2027) utesluten med flit - gäller en bil som inte går att köpa i Sverige än (samma skäl
+som kommande-parkeringen ovan), oavsett att fyndlistan inte själv märkt den "kommande-modell".
+
+**Laddpriser:** ej måndag, ingen kontroll i natt.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten (7-serien är vakten som fungerar), ingen
+parser som slutat träffa, inget tal som gick att belägga som fel. Splashvakten pekar på drift i
+andra repon, inte kod här. Byggt och testat grönt: `mvn -q -DskipTests package` grönt,
+`mvn test` 1235 prov / 0 fel / 0 failures (inkl. `MorgonfixAtgarderTest.verkligaFilenArGiltig`
+mot den verkliga filen).
+
+**Grenen:** `auto/morgonfix` fanns inte (borttagen av auto-merge efter 10-05:s PR). Skapad på
+nytt från `origin/master` (ba5c2da). Ingen fast PR att flytta (avsnitt 11 gäller inte).
+
+**Baslinjen:** INTE uppdaterad i natt - domen är LARM (splashvakten), så enligt BASLINJEN-regeln
+ligger gårdagens baslinje (commit 277021a, 2026-10-05) kvar oförändrad.
+
 ## 2026-10-05
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:28:54, inom väntat fönster
