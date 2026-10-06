@@ -170,8 +170,40 @@ function bedomIntegrationer(vardar, text, sekundarHar = {}) {
 
 async function hamta(url, som = 'json', huvud = {}) {
   const r = await fetch(url, { headers: { 'User-Agent': 'splash-vakt', ...huvud }, signal: AbortSignal.timeout(TIMEOUT) });
-  if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
+  if (!r.ok) {
+    const nekad = r.headers.get('x-deny-reason');
+    const e = new Error(url + ' HTTP ' + r.status + (nekad ? ` — molnets proxy nekade (x-deny-reason: ${nekad}), värden saknas i Allowed domains` : ''));
+    e.status = r.status; e.nekad = nekad;
+    throw e;
+  }
   return som === 'json' ? r.json() : r.text();
+}
+
+/**
+ * Ska ett misslyckat anrop mot en egen tjänst göras om? 2026-10-06 larmade vakten på 503/503/403
+ * från tre gratistjänster som alla svarade 200 en stund senare: de väcktes samtidigt efter två
+ * timmars sömn, och ETT försök gjorde en uppvakning till ett haveri. Men proxyns nej är ett annat
+ * nej — det blir inte ja av att vänta, och tre försök hade bara gömt det.
+ */
+function forsokIgen(status, nekad) {
+  if (nekad) return false;
+  if (status === undefined) return true;              // nätverksfel eller timeout
+  return status >= 500 || status === 403 || status === 429;
+}
+
+const FORSOK = 3, PAUS_MS = 20000;
+/** hamta() mot en Render-tjänst som kan sova: upp till tre försök. */
+async function hamtaVaken(url, som = 'json') {
+  for (let n = 1; ; n++) {
+    try { return await hamta(url, som); }
+    catch (e) {
+      if (n >= FORSOK || !forsokIgen(e.status, e.nekad)) {
+        if (n > 1) e.message += ` (efter ${n} försök)`;
+        throw e;
+      }
+      await new Promise(r => setTimeout(r, PAUS_MS));
+    }
+  }
 }
 // GitHub läses med git, inte REST-API:t: i molnrutinen lägger proxyn in en token som bara gäller
 // CarAdvice, så api.github.com svarar 403 för de andra repona. git och raw-filerna går för alla.
@@ -196,7 +228,7 @@ const raw = (app, fil) => hamta(`https://raw.githubusercontent.com/${GITHUB}/${a
 
 /** Bankomat har ingen /api/system: siffrorna står i menysidans body-attribut. */
 async function bankomatData(url) {
-  const html = await hamta(url, 'text');
+  const html = await hamtaVaken(url, 'text');
   const body = (html.match(/<body[^>]*>/) || [''])[0];
   const attr = n => { const m = body.match(new RegExp('data-' + n + '="([^"]*)"')); return m ? m[1] : undefined; };
   return { java: attr('java'), springBoot: attr('boot'), db: attr('db'), deployCommit: attr('commit'),
@@ -209,7 +241,7 @@ async function granska(app) {
 
   // Driftens svar
   let d;
-  try { d = app.html ? await bankomatData(app.html) : await hamta(app.system); }
+  try { d = app.html ? await bankomatData(app.html) : await hamtaVaken(app.system); }
   catch (e) { f('LARM', 'tjänsten svarade inte: ' + e.message); return { app: app.namn, fynd }; }
 
   // 1 (Node). Node mot package.json, Express mot package-lock.json
@@ -260,7 +292,7 @@ async function granska(app) {
   // 4. Live-siffrorna
   for (const [namn, ok] of (app.siffror ? app.siffror(d) : [])) f(ok ? 'OK' : 'LARM', ok ? `${namn} på plats` : `${namn} saknas i splashen`);
   if (app.extra) {
-    try { const j = await hamta(app.extra.url); f(app.extra.ok(j) ? 'OK' : 'LARM', `${app.extra.namn}: ` + (app.extra.ok(j) ? 'på plats' : 'tomt svar')); }
+    try { const j = await hamtaVaken(app.extra.url); f(app.extra.ok(j) ? 'OK' : 'LARM', `${app.extra.namn}: ` + (app.extra.ok(j) ? 'på plats' : 'tomt svar')); }
     catch (e) { f('LARM', `${app.extra.namn}: ${e.message}`); }
   }
 
@@ -302,4 +334,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { vardarI, splashText, javaMajor, bootIPom, nodeIPaket, lastVersion, splashDel, bedomIntegrationer, INTEGRATIONER, IGNORERA };
+module.exports = { vardarI, splashText, javaMajor, bootIPom, nodeIPaket, lastVersion, splashDel, bedomIntegrationer, forsokIgen, INTEGRATIONER, IGNORERA };

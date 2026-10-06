@@ -66,5 +66,12 @@ prov('känd huvudkälla som saknas → VARNING', b2[0] && b2[0].niva === 'VARNIN
 const b3 = v.bedomIntegrationer(['www.blocket.se'], 'ingenting', { 'Blocket': 'begagnatpriser' });
 prov('per-app-undantag gör huvudkällan sekundär', b3[0] && b3[0].niva === 'INFO', JSON.stringify(b3));
 
+// --- omförsök (2026-10-06: 503/503/403 under en samtidig uppvakning blev LARM) ---
+prov('503 under uppvakning → försök igen', v.forsokIgen(503, null) === true, '');
+prov('403 utan proxyns nej → försök igen', v.forsokIgen(403, null) === true, '');
+prov('nätverksfel/timeout (ingen status) → försök igen', v.forsokIgen(undefined, null) === true, '');
+prov('proxyns nej (x-deny-reason) → ge upp direkt', v.forsokIgen(403, 'host_not_allowed') === false, '');
+prov('404 → ge upp (fel adress blir inte rätt av att vänta)', v.forsokIgen(404, null) === false, '');
+
 console.log(fel ? '\n' + fel + ' prov FÖLL' : '\nAlla prov gröna');
 process.exit(fel ? 1 : 0);
