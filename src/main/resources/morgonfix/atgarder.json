@@ -1,10 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-06", "typ": "parkera", "id": 1792, "skal": "GRANSKA: annonskollen visar bara nuvarande BMW i3-generationen (60 Ah, 2014-2015); raden gäller Neue Klasse-generationen som ännu inte säljs i Sverige"},
-    {"datum": "2026-10-06", "typ": "parkera", "id": 1788, "skal": "INGA_ANNONSER: BMW iX5 (Neue Klasse) säljs inte ännu i Sverige enligt annonskollen"},
-    {"datum": "2026-10-06", "typ": "parkera", "id": 1787, "skal": "INGA_ANNONSER: nya BMW 7-serien (producerad från juli 2026) säljs inte ännu i Sverige enligt annonskollen"},
-    {"datum": "2026-10-06", "typ": "parkera", "id": 1785, "skal": "GRANSKA: annonskollen visar bara nuvarande Tucson-generationens annonser; raden gäller nästa generations Tucson (2027) som ännu inte säljs i Sverige"},
-    {"datum": "2026-10-06", "typ": "parkera", "id": 1783, "skal": "GRANSKA: samma skäl som 1785 - raden gäller nästa generations Hyundai Tucson (2027) som ännu inte säljs i Sverige"}
+    {"datum": "2026-10-07", "typ": "slapp", "id": 1797, "skal": "Leapmotor B03X finns redan i ev_spec (310000 kr, WLTP 382 km, 53 kWh) och annonskollen hittar 24 Blocket-annonser på nya bilar (t.ex. 319900 kr, 0 mil) - bilen är beställningsbar/levererbar i Sverige nu, inte en kommande modell, användarens linje"}
   ]
 }
