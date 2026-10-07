@@ -229,7 +229,10 @@ public class EvDatabaseScraperService {
 
                 String firstClaimant = claimRow(claims, normalize(match.getCarName()), scraped.name());
                 if (firstClaimant != null) {
-                    log.error("SCRAPER ALERT: '{}' matchar DB-raden '{}' som redan tagits av '{}' i samma "
+                    // INFO, inte ERROR: spärren slår till ~100 gånger varje natt (trimvarianter som
+                    // delar vår rad) och är avsiktlig sedan 08-10. Som ERROR fyllde de LoggBuffertens
+                    // 500 platser och fick nattrutinen att larma 10-07. Summeringen nedan är WARN.
+                    log.info("Kollisionsspärr: '{}' matchar DB-raden '{}' som redan tagits av '{}' i samma "
                             + "körning — troligen olika varianter eller generationer som delar namnord. "
                             + "Bilen hoppas över; raden behöver antagligen en egen post.",
                             scraped.name(), match.getCarName(), firstClaimant);

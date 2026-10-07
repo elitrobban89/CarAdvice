@@ -224,6 +224,22 @@ function gitFiler(app) {
     return git(['-C', dir, 'ls-tree', '-r', '--name-only', 'HEAD']).split('\n').filter(Boolean);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
+/**
+ * Filerna som ändrats mellan två commits på grenen. Render bygger inte om för en ren
+ * README-commit (Elbilsladdning 10-07: kördes 6cee8ef medan main stod på README-commiten c803bf3),
+ * så vakten måste kunna se vad som skiljer — annars blir varje dokumentrad en "fastnad deploy".
+ */
+function gitAndrade(app, fran, till) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'splash-vakt-'));
+  try {
+    git(['clone', '-q', '--depth', '50', '--filter=blob:none', '--no-checkout', '-b', app.gren, repoUrl(app), dir]);
+    return git(['-C', dir, 'diff', '--name-only', fran, till]).split('\n').filter(Boolean);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+/** Bara dokumentation (README, *.md, docs/) — inget som ändrar vad tjänsten kör. Tom lista = nej. */
+function baraDokument(filer) {
+  return filer.length > 0 && filer.every(f => /\.md$/i.test(f) || /^docs\//.test(f) || /(^|\/)(LICENSE|NOTICE)$/.test(f));
+}
 const raw = (app, fil) => hamta(`https://raw.githubusercontent.com/${GITHUB}/${app.repo}/${app.gren}/${fil}`, 'text');
 
 /** Bankomat har ingen /api/system: siffrorna står i menysidans body-attribut. */
@@ -285,7 +301,12 @@ async function granska(app) {
   try {
     const topp = gitTopp(app).slice(0, 7);
     if (!d.deployCommit) f('VARNING', 'ingen deployCommit — körs tjänsten utanför Render?');
-    else if (d.deployCommit !== topp) f('VARNING', `kör ${d.deployCommit} men ${app.gren} står på ${topp} — autodeployen har inte tagit senaste`);
+    else if (d.deployCommit !== topp) {
+      let filer = [];
+      try { filer = gitAndrade(app, d.deployCommit, topp); } catch { /* okänd skillnad → varna som förut */ }
+      if (baraDokument(filer)) f('OK', `autodeploy: ${app.gren} · ${d.deployCommit} (${topp} rör bara dokumentation, ${filer.join(', ')} — Render bygger inte om för det)`);
+      else f('VARNING', `kör ${d.deployCommit} men ${app.gren} står på ${topp} — autodeployen har inte tagit senaste`);
+    }
     else f('OK', `autodeploy: ${app.gren} · ${topp}`);
   } catch (e) { f('VARNING', 'kunde inte läsa GitHub: ' + e.message); }
 
@@ -334,4 +355,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { vardarI, splashText, javaMajor, bootIPom, nodeIPaket, lastVersion, splashDel, bedomIntegrationer, forsokIgen, INTEGRATIONER, IGNORERA };
+module.exports = { vardarI, splashText, javaMajor, bootIPom, nodeIPaket, lastVersion, baraDokument, splashDel, bedomIntegrationer, forsokIgen, INTEGRATIONER, IGNORERA };

@@ -50,6 +50,7 @@ status ska vara OK. Notera kortid, newInsights och perSource. Tabellen har EN ra
 === 1b. ev-specs-JOBBET (jobs['ev-specs']) ===
 newInsights = antal ev_spec-rader som **andrades** i kedjans forsta led (uppdateringar, inte nya rader). **Vantat 0-25.** Jamfor mot evSpecs i /api/health.
 - Fallet fran 290-299 till ensiffrigt 08-11 ar KORREKT (kollisionssparr). Fragan ar STANGD - be inte om loggraden.
+- "Kollisionssparr: ... matchar DB-raden" (fore 10-07: "SCRAPER ALERT: ... matchar DB-raden", ERROR) ar samma sparr, ~100 per natt, NORMALT. Raden loggas nu pa INFO; bara WARN-summeringen "N bilar hoppades over" syns i /api/admin/logg. Avvikelse forst om evSpecs star still flera natter medan cargo-specs hittar nya namn.
 - **Stiger talet tillbaka mot 290 ar det en AVVIKELSE** - da har sparren slutat verka.
 - LARDOM: bevaka `updated` i ABSOLUTA tal, inte som andel. En kvot vars namnare kan ga mot noll ar ett daligt larmvarde.
 

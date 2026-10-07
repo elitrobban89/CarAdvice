@@ -44,6 +44,12 @@ prov('package.json utan engines → null', v.nodeIPaket('{"name":"x"}') === null
 prov('trasig package.json → null', v.nodeIPaket('{inte json') === null);
 prov('låst express ur package-lock', v.lastVersion('{"packages":{"node_modules/express":{"version":"5.2.1"}}}', 'express') === '5.2.1');
 prov('paket som saknas i låsfilen → null', v.lastVersion('{"packages":{}}', 'express') === null);
+
+// --- deploy bakom grenen: bara dokumentation är ingen fastnad deploy (Elbilsladdning 10-07) ---
+prov('README ensam = bara dokument', v.baraDokument(['README.md']));
+prov('docs/ + NOTICE = bara dokument', v.baraDokument(['docs/nattrutin.md', 'NOTICE']));
+prov('kod bredvid README = inte bara dokument', !v.baraDokument(['README.md', 'backend/src/main/resources/static/ev-app.js']));
+prov('okänd skillnad (tom lista) = inte bara dokument', !v.baraDokument([]));
 // Bränslesplashen ligger sist i kalkylatorns fil — kalkylatorns egna fetch-anrop får inte räknas som splashtext
 const KALKYL = "fetch('https://nominatim.openstreetmap.org/x');\n// BRÄNSLEKOSTNAD — uppstartssplash\nvar ROWS = [{ s: 'OSRM-rutt' }];";
 prov('splashDel klipper bort koden före markören', !v.splashDel(KALKYL, 'uppstartssplash').includes('nominatim')
