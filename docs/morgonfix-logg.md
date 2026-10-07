@@ -1,5 +1,103 @@
 # Morgonfix-logg
 
+## 2026-10-07
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:29, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (e625527), status OK, uptime
+~17,7 h (ingen omstart i natt). Groq 3/3 modeller (friskt). ev-specs updated **11** - inom
+0-25. cargo-specs gav 16/1/0 (16 nya bilnamn, 1 bagagevolym, 0 generationsår) - under
+larmgränsen 50. Kontrollräkningen (cargo-coverage total 1753 + evSpecs 618 + ice_consumption
+960 = 3331 = /api/stats variants) stämmer exakt.
+
+**Baslinjen (2026-10-05, commit 277021a) jämfördes mot i natt, med 10-06:s LARM-natt som
+mellansteg (ingen baslinje skrevs då):** models 2192→2210, cargo total 1736→1753 (+17 över två
+nätter, konsekvent med cargo-specs-ledets +1 (10-06) och +16 (i natt)), evSpecs 617→618,
+apiCars 1979→1997. Inget tal har FALLIT.
+
+**medVolym+bagageMissar: 998/784 → 999/800 över två nätter - medVolym UPPÅT, enligt domregeln
+i 3f OK oavsett bagageMissar.** Generationsåren still (291/19, väntat till fönstret
+2026-10-20, forsøktDag fortfarande 2026-09-20 - kontrollerat i ice-generations/missar).
+vPIC: 291/0/275, OK 126, INGEN_DATA 165, **AVVIKER 0** - oförändrat, nu 9+ mätningar i rad
+utan avvikelse. Drivmedelsräknaren 485/400/85/16, oförändrat, ingen flip, alla 16 handsatta
+rader korrekta. Kategorivakten: totalt 0 utslag sedan omstart (uptime 17,7 h).
+
+**Ny upptäckt, ingen fix i natt:** Render-loggen (ERROR) visar gott om rader från
+`EvDatabaseScraperService` i formatet "SCRAPER ALERT: '<variant>' matchar DB-raden '<namn>'
+som redan tagits ... i samma körning", t.ex. Fiat 500e Cabrio/Hatchback, Opel Zafira Electric
+XL, BYD Dolphin Surf, flera Ford/Hyundai/Kia-varianter. Buffertens iBufferten stod på 212 vid
+avläsning (100 av dem SCRAPER ALERT i urvalet jag drog), alla från ev-specs-jobbets körning
+01:05-01:12. Ingen tidigare morgonfix-logg nämner detta mönster, så jag vet inte om det är
+nytt eller bara aldrig sökts fram förut - flaggar det i stället för att gissa en fix. Troligen
+samma namnkollisionsskydd som redan finns i cargo-specs (avsnitt 1c), men här för
+ev_spec-varianter: flera trim/batteri-varianter av samma modell hoppas över i stället för att
+få egna rader. Ingen siffra har fallit på grund av det (evSpecs rörde sig uppåt), men värt att
+hålla ögonen på om evSpecs börjar stå still trots att cargo-specs fortsätter hitta nya namn.
+
+**Kommandevakten (annonskollen):** 0 LARM på 45 rader / 21 bilar (8 GRANSKA, 1 ANNAN_DRIVLINA,
+12 INGA_ANNONSER). Nattens enda nya köade rad (**1797 Leapmotor B03X**, Auto Motor & Sport)
+fick GRANSKA (24 annonser) - men till skillnad från de övriga GRANSKA-raderna påstår insikten
+INTE att bilen gäller nästa generation, och annonserna är genuina nybilsannonser (t.ex.
+"Leapmotor B03X Design Promax 53 kWh 382km WLTP ... Serviceavtal", 319 900 kr, 0 mil).
+`/api/ev-spec?car=Leapmotor B03X` bekräftar: 310 000 kr, WLTP 382 km, 53,0 kWh - matchar
+annonserna. Bilen är alltså redan i katalogen med svenskt pris, inte en kommande modell -
+SLÄPPT i atgarder.json i natt (se nedan), enligt användarens linje.
+
+**Öppen fråga sedan 10-06, oförändrad:** insikt 1784 (Hyundai Tucson 2027, laddhybrid-räckvidd)
+saknas fortfarande i kommande-kön trots att 1783/1785 om samma bil är köade - samma lucka i
+UPCOMING_PROMPT som tidigare, ingen kod att ändra härifrån (FÖRBJUDET enligt 9c).
+**Också oförändrat:** de fyra gamla Tucson-raderna i kön (1274, 1293-1295, från 08-20/08-22)
+grupperas av annonskollen med samma 49 annonser som 1783/1785 och får GRANSKA - en blandning av
+dagens Tucson-annonser (inkl. leasingannonser med 2026/2027 årsmodell) och begagnade äldre
+bilar gör det osäkert om dessa fyra rader beskriver en redan såld generation eller den
+kommande 2027-faceliften. Ingen ny information i natt för att avgöra det - lämnas parkerat,
+flaggas för mänsklig granskning (över en månad gammal fråga nu).
+
+**Nattens 9 nya rader (id 1795-1803):** 1795 Citroën C3 Aircross (Vi Bilägare, högst milkostnad
+i långtest - driftskostnad, ingen lacktyp). 1796 Mercedes EQS (M3, steer-by-wire - teknikfakta).
+1797 Leapmotor B03X (se ovan, släppt). 1798 Renault Megane E-Tech (Auto Motor & Sport,
+batteriuppdatering). 1799-1800 Tesla Model 3/Model Y Powershare Home Backup (CarUp, äkta
+per-modell-fakta ur samma nyhet, ingen bugg). 1801-1802 Kia EV9 (CarUp, pris/laddning).
+1803 Tesla Model Y (Allt om Elbil, Autopilot-ändring). Inga kategorifel - samtliga kategorier
+(suv/smaabil/familjebil/elbil) stämmer med modellerna. Värdeminskning/tillförlitlighet/
+livslängd: 0 rader av de 9 (ingen sådan rad i natt - skrivs ut även vid noll enligt avsnitt 6).
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** en rad - slapp 1797 (Leapmotor B03X, se ovan). De två dolda
+raderna (1704, 1729, sedan 10-02) är 5 dygn gamla - under 7-dygnsgränsen för radera.
+
+**Laddtips:** 0 nya. Enda kandidaten (`ev-fact-candidates`, 1802 Kia EV9, poäng 6) avvisas:
+insiktens "WLTP‑räckvidd på 505 km" matchar INTE `/api/ev-spec?car=Kia EV9` (579 km i databasen)
+- siffran går inte att belägga, skriver inte tipset. Andra kandidaten (1784, Hyundai Tucson)
+utesluten - kommande-modell, samma skäl som 10-06.
+
+**Laddpriser:** ej måndag, ingen kontroll i natt.
+
+**Splashvakten: DOM LARM** (en riktig LARM, en ny VARNING):
+- 🚨 LARM: **Bränslekostnad** (bilresa.onrender.com) svarar HTTP 403 - molnets proxy nekar
+  (x-deny-reason: host_not_allowed). Miljöfråga för användaren (Allowed domains), inte ett
+  apphaveri - lagas inte härifrån.
+- ⚠️ VARNING (ny i natt, första gången sedd): **Elbilsladdning** kör 6cee8ef men main står på
+  c803bf3 - autodeployen har inte tagit senaste. Enligt avsnitt 14: LARM bara om skillnaden
+  kvarstår TVÅ nätter i rad - detta är natt 1, så KOLLA räcker. Flaggar för uppföljning imorgon.
+- CarAdvice själv OK i alla punkter (Java 27, Spring Boot 4.1.1, PostgreSQL 18.4, autodeploy
+  e625527, alla live-siffror på plats). MiniPrisTåget, Bankomat 2.0, VäderKläder: OK.
+
+**Ingen kodfix i natt.** Inget hål i kategorivakten, ingen parser som slutat träffa, inget tal
+som gick att belägga som fel (SCRAPER ALERT-fyndet ovan är för löst förstått för en fix, se
+därom). Byggt och testat grönt: `mvn -q -DskipTests package` grönt, `mvn test` **1235 prov /
+0 fel / 0 failures / 0 skipped** (inkl. `MorgonfixAtgarderTest.verkligaFilenArGiltig` och
+`LaddtipsServiceTest` mot de verkliga filerna).
+
+**Grenen:** `auto/morgonfix` fanns inte (borttagen av auto-merge efter 10-06:s PR). Skapad på
+nytt från `origin/master` (e625527). Ingen fast PR att flytta (avsnitt 11 gäller inte).
+
+**Baslinjen:** INTE uppdaterad i natt - domen är LARM (splashvakten), så enligt BASLINJEN-regeln
+ligger baslinjen från 2026-10-05 (commit 277021a) kvar oförändrad.
+
 ## 2026-10-06
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:38:26, inom väntat fönster
