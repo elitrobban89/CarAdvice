@@ -1,5 +1,95 @@
 # Morgonfix-logg
 
+## 2026-10-08
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:35, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (919d349), status OK, uptime
+~18,3 h (ingen omstart i natt). Groq 3/3 modeller (friskt, HTTP 200). ev-specs updated **8** -
+inom 0-25. cargo-specs gav 11/6/0 (11 nya bilnamn, 6 bagagevolymer, 0 generationsår) - under
+larmgränsen 50, inget N högt/M=0/K=0-mönster. Kontrollräkningen (cargo-coverage total 1764 +
+evSpecs 620 + ice_consumption 960 = 3344 = /api/stats variants) stämmer exakt.
+
+**Baslinjen (2026-10-05, commit 277021a) jämförd mot i natt, med 10-06 och 10-07 som
+mellansteg:** models 2192→2223, cargo total 1736→1764, evSpecs 617→620, apiCars 1979→2010.
+Inget tal har FALLIT. medVolym+bagageMissar: 998/784 → 1005/805 över tre nätter - **medVolym
+UPPÅT, enligt domregeln i 3f OK oavsett bagageMissar.** Generationsåren still (291/19, väntat
+till fönstret 2026-10-20). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - oförändrat, matchar referensen exakt. Drivmedelsräknaren 486/401/85/16 (+1
+total/+1 el sedan baslinjen) - ingen flip, alla 16 handsatta rader (11 el + 5 ice) korrekta.
+Kategorivakten: totalt 0 utslag sedan omstart (uptime ~18,3 h).
+
+**EV-synkens kollisionsskydd (gårdagens fynd):** Render-loggen visar WARN-summeringen "176
+bilar hoppades över" från ev-specs-körningen 01:12 - samma normala kollisionsspärr som
+nattrutinen 1b beskriver (per-bil-raden loggas nu INFO sedan gårdagens fix av användaren,
+commit 919d349). Ingen avvikelse - evSpecs rörde sig uppåt (617→620) samtidigt.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK. Bränslekostnad (403 i natt
+10-07) svarar nu normalt. Elbilsladdning 6cee8ef mot README-commiten c803bf3 förklaras nu
+korrekt av skriptet självt (dokumentationsändring, ingen ombyggnad) - ingen VARNING längre.
+Ingenting nytt att flagga.
+
+**Kommandevakten (annonskollen):** 0 LARM på 46 rader / 22 bilar (7 GRANSKA, 1 ANNAN_DRIVLINA,
+14 INGA_ANNONSER). Nattens 2 nya köade rader - **1815 BMW iX4** (Neue Klasse, 0 annonser) och
+**1804 Hyundai Ioniq 3** (ny modell, 0 annonser) - är båda nästa-generations/ej lanserade
+modeller som ännu inte säljs i Sverige. PARKERADE i atgarder.json i natt, källa annonskollens
+INGA_ANNONSER-dom.
+
+**Öppna frågor, oförändrade sedan tidigare nätter (ingen fix, FÖRBJUDET enligt 9c):**
+- Insikt **1784** (Hyundai Tucson 2027, laddhybrid-räckvidd) saknas fortfarande i
+  `/upcoming`-kön trots att 1783/1785 om samma bil är köade - samma UPCOMING_PROMPT-lucka som
+  10-06/10-07. Ingen atgarder.json-rad möjlig för den (går inte att slå upp via `/upcoming`).
+- De fyra gamla Tucson-raderna (1274, 1293-1295) grupperas fortfarande av annonskollen med
+  dagens Tucson-annonser och får GRANSKA - oklart om de beskriver nuvarande eller kommande
+  generationen. Över en och en halv månad gammal fråga nu - väntar på mänsklig granskning.
+
+**Nattens 10 nya rader utanför kön (id 1805-1814, exkl. kommande-kön ovan):** granskade mot
+avsnitt 6. **Ett kategorifel hittat och lagat (se kodfix nedan): id 1807 (Vi Bilägare, Cupra
+Raval) bar `suv`** trots att Raval delar MEB Entry-plattformen och batteristorleken (37-52 kWh)
+med Volkswagen ID.Polo, som samma natt korrekt fick `smaabil` (id 1806, 1809-1812) på samma
+plattform - en halvkombi, inte en SUV. Kategorivaktens egen buffert fångade INTE detta (totalt
+0 i natt) eftersom "raval" saknades i `InsightTaxonomy.LAGA_MODELLER`. Övriga nio rader utan
+kategorifel: 1808 Cupra Terramar (suv - korrekt, Tiguan/Q3-plattform, inte samma fall som
+Raval), 1813 Polestar 5 (tom kategori - vakten gjorde sitt jobb, gränsfall sedan tidigare),
+1814 Ford Maverick (suv - ingen "pickup"-kategori finns i taxonomin, ingen ny lucka). Återkallelser
+(1806, 1808) är relevanta kända fel, ingen lacktyp. Värdeminskning/tillförlitlighet/livslängd:
+0 rader i natt (skrivs ut även vid noll enligt avsnitt 6 - frågan är fortsatt OPRÖVAD).
+
+**Tre regler (skatter/renoveringsobjekt/avvecklade modeller):** inga skatterader eller
+renoveringsobjekt i natt. Inget tecken på överblockering av avvecklade modeller.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** två rader - parkera 1815 (BMW iX4) och parkera 1804 (Hyundai
+Ioniq 3), se ovan. De två dolda raderna (1704, 1729, sedan 10-02) är nu 6 dygn gamla -
+fortfarande under 7-dygnsgränsen för radera (nästa natt de kan raderas är 10-09).
+
+**Laddtips:** 1 nytt. `ev-fact-candidates` gav tre kandidater: **1810 VW ID. Polo GTI**
+(poäng 6, styrkt av 1802+1798) - batteri 51,7/52 kWh, räckvidd 431 km och 105 kW DC matchar
+`/api/ev-spec?car=Volkswagen ID. Polo GTI` exakt - SKREVS. 1784 (Hyundai Tucson 2027)
+uteslöts - kommande-modell, samma skäl som tidigare nätter. 1805 (Skoda Octavia fullhybrid)
+uteslöts - kan inte laddas externt, fel ämne för elbilsassistentens laddtips.
+
+**Laddpriser:** torsdag, ej måndag - ingen kontroll i natt.
+
+**Kodfix (1 fil, hål i kategorivakten, 9c(b)):**
+`src/main/java/com/caradvice/model/InsightTaxonomy.java` rad 110 - lade till `"raval"` i
+`LAGA_MODELLER` (källa: id 1807 ovan + plattformsjämförelsen mot ID.Polo). Provet
+`InsightTaxonomyTest.cupraRavalArIngenSuv` (`src/test/java/com/caradvice/model/InsightTaxonomyTest.java`)
+var RÖTT före fixen (`kategoriMotsagelse("suv", "Cupra", "Raval")` gav `null`) och GRÖNT efter
+(gav `"cupra raval är ingen SUV"`). Ingen annan kodändring i natt.
+
+Byggt och testat grönt: `mvn -q -DskipTests package` grönt, `mvn test`
+**1236 prov / 0 fel / 0 failures / 0 skipped** (inkl. `MorgonfixAtgarderTest.verkligaFilenArGiltig`,
+`LaddtipsServiceTest.verkligaFilenArGiltig` och det nya `InsightTaxonomyTest`-provet mot de
+verkliga filerna/koden). Filer ändrade i natt (kodtaket 9d, exkl. loggbok/atgarder/baslinje):
+**3 av 5** - `InsightTaxonomy.java`, `InsightTaxonomyTest.java`, `laddtips.json`.
+
+**Grenen:** `auto/morgonfix` fanns inte (borttagen av auto-merge efter 10-07:s PR). Skapad på
+nytt från `origin/master` (919d349). Ingen fast PR att flytta (avsnitt 11 gäller inte).
+
+**Baslinjen:** uppdaterad i natt (domen är KOLLA, inte LARM) - committas i samma commit som
+morgonfixen enligt avsnitt BASLINJEN/9.
+
 ## 2026-10-07
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:29, inom väntat fönster

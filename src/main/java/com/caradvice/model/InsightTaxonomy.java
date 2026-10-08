@@ -103,11 +103,15 @@ public final class InsightTaxonomy {
      *
      * <p>Niro och Kona står med efter användarens uttryckliga besked: de marknadsförs som SUV men
      * är inte de höga bilar kategorin lovar. Gränsen går vid XC40/Kamiq-höjd och uppåt.
+     *
+     * <p><b>{@code raval} tillkom 2026-10-08</b> efter id 1807 (Vi Bilägare, Cupra Raval) kom in
+     * som {@code suv}. Raval delar MEB Entry-plattformen och batteristorleken (37-52 kWh) med
+     * Volkswagen ID.Polo, som samma natt fick {@code smaabil} på samma plattform - en halvkombi.
      */
     public static final List<String> LAGA_MODELLER = List.of(
             "mg4", "mg 4", "mg5", "mg 5", "id.3", "id3", "model 3", "polestar 2",
             "zoe", "leaf", "e-golf", "golf", "ioniq 6", "i4", "ë-c4", "e-c4",
-            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat");
+            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat", "raval");
 
     /**
      * Modeller som bevisligen INTE är småbilar — mellanklass och uppåt, plus SUV:ar.
