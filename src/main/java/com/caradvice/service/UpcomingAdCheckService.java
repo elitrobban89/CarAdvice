@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -362,9 +363,27 @@ public class UpcomingAdCheckService {
         return !matare.isNumber() || matare.asLong(0) < SLITEN_BIL_MIL;
     }
 
+    /**
+     * Ett årtal som står ensamt — inte inuti ett längre tal.
+     *
+     * <p><b>Ett framtida årtal är också ett nyhetsord</b> (2026-10-08): id 1784, "Laddhybridvarianten
+     * av Hyundai Tucson 2027 har en elektrisk räckvidd på upp till åtta mil", parkerades för hand
+     * 10-06 bredvid sina köade syskon 1783/1785 och släpptes samma natt av autoslappet — raden bar
+     * inget av orden, och Tucson har annonser. Nattrapporten kallade det sedan en lucka i
+     * kommande-prompten tre morgnar i rad. Åt överblockeringshållet kostar det lika lite som
+     * orden: raden blir {@code GRANSKA} i stället för att släppas.
+     */
+    private static final Pattern ARTAL = Pattern.compile("(?<![\\p{L}\\p{N}])(20\\d\\d)(?![\\p{L}\\p{N}])");
+
     static boolean sagerAttBilenArKommande(String text) {
-        return NYHETSORD.matcher(ExpertInsightService.foldDiacritics(
-                ExpertInsightService.flattenSpaces(text))).find();
+        String folierad = ExpertInsightService.foldDiacritics(ExpertInsightService.flattenSpaces(text));
+        if (NYHETSORD.matcher(folierad).find()) return true;
+        int iAr = java.time.Year.now().getValue();
+        Matcher m = ARTAL.matcher(folierad);
+        while (m.find()) {
+            if (Integer.parseInt(m.group(1)) > iAr) return true;
+        }
+        return false;
     }
 
     /**

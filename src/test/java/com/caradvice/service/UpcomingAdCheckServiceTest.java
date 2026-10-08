@@ -193,6 +193,25 @@ class UpcomingAdCheckServiceTest {
                         + "tunga el‑Range Rover lätt över klippor och leriga underlag")).isFalse();
     }
 
+    /**
+     * Årtalshålet från 2026-10-08: id 1784 parkerades för hand 10-06 men autoslappet släppte den
+     * igen — raden saknar nyhetsord, och "Tucson 2027" räknades inte som framtid.
+     */
+    @Test
+    void framtidaArtalRaknasSomNyhetsord() {
+        int nasta = java.time.Year.now().getValue() + 1;
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Laddhybridvarianten av Hyundai Tucson " + nasta + " har en elektrisk räckvidd "
+                        + "på upp till åtta mil")).isTrue();
+        // Innevarande och gångna år är ingen framtid, och ett årtal inuti ett längre tal räknas inte.
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Tucson " + java.time.Year.now().getValue() + " har en räckvidd på åtta mil")).isFalse();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "E‑Outback kan dra släp på upp till 1 500 kg sedan 2021")).isFalse();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Batteriet rymmer " + nasta + "0 Wh per modul")).isFalse();
+    }
+
     // ── Domarna ───────────────────────────────────────────────────────────────
 
     @Test
