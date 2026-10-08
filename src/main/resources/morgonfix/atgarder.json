@@ -1,6 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-07", "typ": "slapp", "id": 1797, "skal": "Leapmotor B03X finns redan i ev_spec (310000 kr, WLTP 382 km, 53 kWh) och annonskollen hittar 24 Blocket-annonser på nya bilar (t.ex. 319900 kr, 0 mil) - bilen är beställningsbar/levererbar i Sverige nu, inte en kommande modell, användarens linje"}
+    {"datum": "2026-10-08", "typ": "parkera", "id": 1815, "skal": "INGA_ANNONSER: BMW iX4 (Neue Klasse) säljs inte ännu i Sverige enligt annonskollen (0 Blocket-annonser)"},
+    {"datum": "2026-10-08", "typ": "parkera", "id": 1804, "skal": "INGA_ANNONSER: Hyundai Ioniq 3 är en helt ny modell utan Blocket-annonser (0) - säljs inte ännu i Sverige"}
   ]
 }

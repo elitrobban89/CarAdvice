@@ -10,6 +10,7 @@
     {"datum": "2026-09-27", "typ": "marknad", "ikon": "🚀", "text": "Elbilar gick om laddhybrider i försäljning kring årsskiftet 2025/2026 och har inte tittat tillbaka – i april 2026 passerade elbilsförsäljningen till och med diesel och närmade sig bensin, fortfarande den största kategorin.", "kalla": "Carla.se", "insikter": []},
     {"datum": "2026-09-28", "typ": "laddtips", "ikon": "🔋", "text": "**Nissan Leaf** har ett 75 kWh-batteri som räcker till upp till 624 km enligt WLTP, och snabbladdar med upp till 150 kW DC – cirka 30 minuter från 20 till 80 %.", "kalla": "M3", "insikter": [1629, 1631]},
     {"datum": "2026-10-02", "typ": "laddtips", "ikon": "📏", "text": "**BMW i3 40 xDrive** (den nya elbilen, inte föregångaren) har 374 hk och ett 82,8 kWh-batteri som räcker till upp till 710 km enligt WLTP.", "kalla": "M3", "insikter": [1700]},
-    {"datum": "2026-10-03", "typ": "laddtips", "ikon": "📏", "text": "**BMW i3 50 xDrive** har 469 hk och ett 108,7 kWh-batteri som räcker till upp till 912 km enligt WLTP – betydligt mer än 40 xDrive-versionens 710 km.", "kalla": "M3", "insikter": [1701]}
+    {"datum": "2026-10-03", "typ": "laddtips", "ikon": "📏", "text": "**BMW i3 50 xDrive** har 469 hk och ett 108,7 kWh-batteri som räcker till upp till 912 km enligt WLTP – betydligt mer än 40 xDrive-versionens 710 km.", "kalla": "M3", "insikter": [1701]},
+    {"datum": "2026-10-08", "typ": "laddtips", "ikon": "⏱️", "text": "**Volkswagen ID. Polo GTI** har ett 52 kWh-batteri som räcker till upp till 431 km enligt WLTP, och snabbladdar med 105 kW DC – från 10 till 80 % på cirka 24 minuter.", "kalla": "M3", "insikter": [1810, 1802, 1798]}
   ]
 }

@@ -207,6 +207,15 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void cupraRavalArIngenSuv() {
+        // Natten mot 2026-10-08: id 1807 (Vi Bilägare) kom in som suv. Raval delar MEB
+        // Entry-plattformen och batteristorleken (37-52 kWh) med Volkswagen ID.Polo, som
+        // samma natt fick smaabil på samma plattform - en halvkombi, inte en SUV.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "Cupra", "Raval"))
+                .isEqualTo("cupra raval är ingen SUV");
+    }
+
+    @Test
     void okandKategoriArFortfarandeNull() {
         // Whitelisten gäller som förut — vakten läggs till, den ersätter ingenting
         assertThat(InsightTaxonomy.canonicalCategory("sportbil", "Porsche", "911")).isNull();
