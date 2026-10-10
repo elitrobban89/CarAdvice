@@ -1,5 +1,68 @@
 # Morgonfix-logg
 
+## 2026-10-10
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:47, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (876532e), status OK, uptime
+~23,6 h (ingen omstart i natt). Groq 3/3 modeller (friskt, HTTP 200, OK). ev-specs updated **6** -
+inom 0-25. cargo-specs gav 2/0/0 (2 nya bilnamn, 0 bagagevolymer, 0 generationsår) - lågt N, inget
+N högt/M=0/K=0-mönster (det kräver ett HÖGT N). Kontrollräkningen (cargo-coverage total 1775 +
+evSpecs 626 + ice_consumption 960 = 3361 = /api/stats variants) stämmer exakt.
+
+**Baslinjen (2026-10-09, commit c43021f) jämförd mot i natt:** models 2232→2236, variants
+3357→3361, insights 1385→1402 (+17, matchar web-insights newInsights). cargo total 1773→1775,
+evSpecs 624→626, apiCars 2019→2023. Inget tal har FALLIT. medVolym+bagageMissar: medVolym STILL
+(1009→1009) + bagageMissar VUXIT (810→812) - enligt domregeln i 3f är detta VÄNTAT (jobbet betade
+av de 2 nya bilnamnen), inte en avvikelse. Generationsåren still (291/19, väntat till fönstret
+2026-10-20). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+matchar referensen exakt. Drivmedelsräknaren 490→491 total, 405→406 el, ice 85, manuella 16
+(oförändrat) - alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. Kategorivakten:
+totalt 2 utslag sedan omstart (uptime ~23,6 h) - **Volvo 240 och Volvo 760** (web-insights
+[veteran], CarUp), båda med kategori och drivmedel strukna av vakten. Vakten gjorde sitt jobb,
+ingen ny lucka.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK. Inget nytt att flagga.
+
+**Kommandevakten (annonskollen):** 0 LARM på 60 rader / 27 bilar (10 GRANSKA, 1 ANNAN_DRIVLINA,
+16 INGA_ANNONSER). Nattens 2 nya köade rader - **1866 Hyundai Ioniq 4** och **1867 Hyundai
+Ioniq 7** (båda 0 annonser, ännu ej lanserade i Sverige) - korrekt obehandlade, ingen åtgärd krävs.
+Tidigare öppen fråga från 10-08 (1784 saknades i /upcoming) är nu LÖST - 1784 syns i natt
+tillsammans med övriga Tucson-rader, ingen kodändring behövdes från min sida.
+**Tre äldre köade rader flyttade till SLAPP i natt** (se kobeslut nedan) - Kia EV9 (1843),
+Hyundai Ioniq 3 (1824) och Volkswagen ID. Polo (1825) visade sig redan finnas i cargo_spec OCH
+ha aktiva Blocket-leasingerbjudanden med riktiga 2027-priser, trots att radernas egen text talar
+om mässvisning/kommande teknik - användarens linje (beställningsbar = aktuell).
+**Öppen fråga, oförändrad sedan 10-08:** de fyra gamla Tucson-raderna (1274, 1293-1295) grupperas
+fortfarande av annonskollen med dagens Tucson-annonser och får GRANSKA - oklart om nuvarande eller
+kommande generation. Väntar fortsatt på mänsklig granskning.
+
+**Nattens 17 nya rader (id 1851-1867):** granskade mot avsnitt 6. Inget kategorifel (kodvakten
+höll). Inga skatterader, renoveringsobjekt eller tecken på överblockering av avvecklade modeller.
+Värdeminskning/tillförlitlighet/livslängd: 0 rader i natt (frågan fortsatt OPRÖVAD). Två veteranrader
+(1864, 1865 - Volvo 240/760) fångades av veteranvakten, se kategorivakten ovan.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** fem rader. **Slapp:** 1843 (Kia EV9), 1824 (Hyundai Ioniq 3),
+1825 (Volkswagen ID. Polo) - alla tre redan i cargo_spec och med aktiva Blocket-annonser/leasing,
+se ovan. **Radera:** 1704 och 1729 - båda dolda sedan 2026-10-02 (nu 8 dygn, över 7-dygnsgränsen),
+fortsatt bedömda som skräp (DUBBLETT respektive PROMPTMISS) enligt samma regel som när de doldes.
+
+**Laddtips:** 1 nytt. `ev-fact-candidates` gav flera kandidater: **1847 Renault Twingo E-Tech
+Electric** (poäng 6) - batteri 27,5 kWh och räckvidd 263 km matchar `/api/ev-spec?car=Renault
+Twingo` exakt - SKREVS (laddeffekten i tipset satt till spec-värdet 50 kW DC, inte insiktens egna
+ospecificerade siffra). **1830/1828/1849 BMW iX4** uteslöts - bilen är ännu inte köbar i Sverige
+(kommande-kön). **1831 Mercedes GLC 400** uteslöts - `/api/ev-spec?car=Mercedes GLC 400` gav tomt
+svar, gick inte att belägga mot spec-tabellen.
+
+**Laddpriser:** lördag, ej måndag - ingen kontroll i natt.
+
+**Ingen kodfix i natt** - inget kategorifel, inget parserhaveri, ingen entydig kodorsak att laga.
+Allt arbete i natt var databeslut (kobeslut + laddtips) samt baslinjen.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning 3361/3361
+GÅR IHOP.
+
 ## 2026-10-08
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:35, inom väntat fönster
