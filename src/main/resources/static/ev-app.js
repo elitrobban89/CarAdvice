@@ -4159,9 +4159,19 @@
       html += `<div class="ev-route-stop">${dot('',stop.order)}<div class="ev-route-info">
         <div class="ev-route-name">${s.name}</div>
         <div class="ev-route-meta">⚡ ${kw} kW · ${s.connectorType}${price ? ' · ' + price : ''}${s.address ? ' · ' + s.address : ''}</div>
-        <div class="ev-route-meta" style="margin-top:1px">📍 ${stop.distanceFromStartKm} km från start</div>
+        <div class="ev-route-meta" style="margin-top:1px">📍 ${stop.distanceFromStartKm} km från start${s.distanceKm > 15 ? ` · ${Math.round(s.distanceKm)} km från rutten` : ''}</div>
       </div></div>`;
     });
+
+    // Backenden vidgar sökradien till 80 km, men hittas ändå inget ska det SÄGAS: förut
+    // stod "2 laddningar rekommenderat" över ett enda kort, och luckan syntes inte.
+    const saknade = stopsNeeded - stops.length;
+    if (saknade > 0) {
+      html += line();
+      html += `<div style="color:rgba(245,158,11,.85);font-size:.78rem;padding:8px 12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;margin:2px 0 4px;">
+        ⚠️ ${saknade === 1 ? 'Ett laddstopp' : saknade + ' laddstopp'} saknar kompatibel station inom 80 km från rutten. Planera ${saknade === 1 ? 'det' : 'dem'} manuellt via Open Charge Map.
+      </div>`;
+    }
 
     html += line();
     html += `<div class="ev-route-stop">${dot('end','B')}<div class="ev-route-info"><div class="ev-route-name">${eg.display}</div><div class="ev-route-meta">Destination · ${Math.round(totalDistanceKm)} km</div></div></div>`;
