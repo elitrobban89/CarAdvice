@@ -1,11 +1,11 @@
 {
   "_om": "Nattrutinens baslinje. Rutinen skriver in nattens uppmatta tal har varje natt (utom vid LARM) - se docs/nattrutin.md avsnitt BASLINJEN. Talen i sjalva rutintexten ar historik; DENNA fil galler.",
-  "matt": "2026-10-10T00:50:20.560Z",
-  "commit": "876532e",
+  "matt": "2026-10-11T00:47:38.138Z",
+  "commit": "fbc36ce",
   "stats": {
     "models": 2236,
     "variants": 3361,
-    "insights": 1402
+    "insights": 1403
   },
   "kontrollrakning": {
     "cargoTotal": 1775,
@@ -18,9 +18,9 @@
   "apiCars": 2023,
   "iceConsumption": 960,
   "cargo": {
+    "total": 1775,
     "medVolym": 1009,
     "utanVolym": 766,
-    "total": 1775,
     "iceGenerations": 291,
     "evPowers": 516,
     "bagageMissar": 812
@@ -30,8 +30,8 @@
     "missar": 19
   },
   "ko": {
-    "rader": 60,
-    "bilar": 27
+    "rader": 57,
+    "bilar": 24
   },
   "drivmedel": {
     "total": 491,
@@ -49,12 +49,12 @@
       "INGEN_DATA": 165
     }
   },
-  "insiktsraderLasta": 1402,
-  "hogstaInsiktsId": 1867,
+  "insiktsraderLasta": 1403,
+  "hogstaInsiktsId": 1870,
   "kategorier": {
-    "suv": 621,
+    "suv": 624,
     "tom": 158,
-    "smaabil": 200,
+    "smaabil": 198,
     "elbil": 163,
     "familjebil": 247,
     "laddhybrid": 13
