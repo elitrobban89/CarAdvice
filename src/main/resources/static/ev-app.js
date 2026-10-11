@@ -2298,13 +2298,17 @@
     const slides = [];
 
     if (topp) {
+      // Kvartalsvideon (Q3 2026) räknade bara upp namnen i ordning. Utan antal försvinner
+      // kolumnen hellre än att stå full av streck, och rubriken säger "sålda": Studio Esses
+      // kvartalssiffror är leveranser till slutkund, inte nyregistreringar.
+      const medAntal = topp.bilar.every(function (b) { return typeof b.antal === 'number'; });
       const rader = topp.bilar.map(function (b) {
         return '<tr style="border-bottom:1px solid #f3f4f6">'
           + '<td style="padding:6px 10px;color:#9ca3af;font-variant-numeric:tabular-nums">' + b.plats + '</td>'
           + '<td style="padding:6px 10px"><strong>' + esc(b.modell) + '</strong> '
           + '<span style="color:#9ca3af">' + esc(b.marke) + '</span></td>'
-          + '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums">'
-          + b.antal.toLocaleString('sv-SE') + '</td></tr>';
+          + (medAntal ? '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums">'
+          + b.antal.toLocaleString('sv-SE') + '</td>' : '') + '</tr>';
       }).join('');
       // Rubriken säger ELBILAR fast källan skriver "personbilar" — se VroomTopCarsService:
       // samtliga rader är batterielbilar, och en etta på 731 kan inte vara hela nybilsmarknaden.
@@ -2313,13 +2317,15 @@
         + (topp.lank ? ' · <a href="' + esc(topp.lank) + '" target="_blank" rel="noopener">se genomgången</a>' : '');
       slides.push(
         '<div class="ev-vroom-slide" style="display:flex;flex-direction:column;">'
-        + '<div class="ev-funfact-label">Mest registrerade elbilarna · ' + esc(topp.manad) + '</div>'
+        + '<div class="ev-funfact-label">' + (medAntal ? 'Mest registrerade' : 'Mest sålda')
+        + ' elbilarna · ' + esc(topp.manad) + '</div>'
+        + (topp.ingress ? '<div class="ev-funfact-text" style="margin-top:4px;">' + esc(topp.ingress) + '</div>' : '')
         + '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-top:8px;">'
         + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
         + '<thead><tr style="background:#f3f4f6;border-bottom:1px solid #e5e7eb;">'
         + '<th style="padding:6px 10px;text-align:left;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;width:24px;">#</th>'
         + '<th style="padding:6px 10px;text-align:left;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Modell</th>'
-        + '<th style="padding:6px 10px;text-align:right;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Nyreg.</th>'
+        + (medAntal ? '<th style="padding:6px 10px;text-align:right;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Nyreg.</th>' : '')
         + '</tr></thead><tbody>' + rader + '</tbody></table></div>'
         + '<div style="margin-top:8px;font-size:12px;color:#6b7280;">' + kalltext + '</div>'
         + '</div>');
