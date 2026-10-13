@@ -49,6 +49,16 @@ public class CargoSpecSyncService {
      * därför klassbyten, till skillnad från Tailwind-klasserna som ligger runt länkarna.
      */
     private static final String MODEL_LIST_ID = "alla-modeller";
+    /**
+     * Modellfliken inuti {@link #MODEL_LIST_ID}. Natten till 2026-10-13 hade Bilweb gjort om
+     * rutan till två flikar: {@code #tab-models} med modellerna och {@code #tab-attributes} med
+     * samma SEO-filter som 09-17 (årsmodell, bränsle, motortyp, kaross, växellåda) — nu
+     * <i>inuti</i> rutan. Synken ville då lägga till 405 bilar som {@code Honda 2027} och
+     * {@code Honda Bensin}; taket fällde körningen innan något skrevs.
+     */
+    private static final String MODEL_TAB_ID = "tab-models";
+    /** Flikpanelernas klass. Finns den utan {@link #MODEL_TAB_ID} vet vi inte vilken flik som är modellerna. */
+    private static final String TAB_PANEL_CLASS = "model-tab-panel";
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
     private static final int DELAY_MS = 1500;
     /**
@@ -202,6 +212,14 @@ public class CargoSpecSyncService {
     static List<String> parseModels(Document doc, String makeSlug) {
         Element modellista = doc.getElementById(MODEL_LIST_ID);
         if (modellista == null) return null;
+        // Flikad ruta (sedan 2026-10-13): bara modellfliken. Flikar utan modellfliken är ett
+        // okänt upplägg och ger null, aldrig hela rutan — annars blir filterfliken bilar igen.
+        Element modellflik = modellista.getElementById(MODEL_TAB_ID);
+        if (modellflik != null) {
+            modellista = modellflik;
+        } else if (!modellista.getElementsByClass(TAB_PANEL_CLASS).isEmpty()) {
+            return null;
+        }
         Set<String> seen = new LinkedHashSet<>();
         for (Element link : modellista.select("a[href*='/sok/" + makeSlug + "/']")) {
             String raw = link.text().trim();

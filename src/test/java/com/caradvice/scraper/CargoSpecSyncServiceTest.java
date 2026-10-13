@@ -118,6 +118,33 @@ class CargoSpecSyncServiceTest {
         assertThat(CargoSpecSyncService.parseModels(utan, "volvo")).isNull();
     }
 
+    /**
+     * Natten till 2026-10-13 flyttade Bilweb in filterlänkarna i själva modellrutan, som en
+     * andra flik ({@code #tab-attributes}) bredvid {@code #tab-models}. Synken ville lägga till
+     * 405 bilar ("Honda 2027", "Honda Bensin") och taket fällde körningen. Fixturen är rutan
+     * från /sok/volvo hämtad samma morgon — Volvo igen för siffermodellerna bredvid årsfiltren.
+     */
+    @Test
+    void filterflikenIModellrutanArIngaModeller() {
+        var modeller = CargoSpecSyncService.parseModels(fixtur("sok-volvo-flikar.html"), "volvo");
+
+        assertThat(modeller).hasSize(41);
+        assertThat(modeller).contains("142", "244", "XC60", "EX90", "V60", "Amazon");
+        assertThat(modeller).doesNotContain(
+                "2023", "2026", "Bensin", "Diesel", "Laddhybrid", "SUV", "Kombi", "Manuell");
+    }
+
+    /** Flikar utan modellflik = okänt upplägg. Hela rutan får då inte läsas — den bär filtren. */
+    @Test
+    void flikarUtanModellflikGerNull() {
+        Document okand = Jsoup.parse("<div id='alla-modeller'>"
+                + "<div id='tab-x' class='model-tab-panel'><a href='/sok/volvo/v60'>V60</a></div>"
+                + "<div id='tab-attributes' class='model-tab-panel'><a href='/sok/volvo/2023'>2023</a></div>"
+                + "</div>");
+
+        assertThat(CargoSpecSyncService.parseModels(okand, "volvo")).isNull();
+    }
+
     // ---- syncCarNames: spärrarna ------------------------------------------------------------
 
     /** Servar fixturer i stället för nätet, utan hövlighetspaus. */
