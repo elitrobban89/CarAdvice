@@ -1,10 +1,10 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-10", "typ": "slapp", "id": 1843, "skal": "Kia EV9 finns redan i cargo_spec (kia ev9: el) och annonskollen hittar 6 aktiva Blocket-annonser med Business Lease-erbjudanden (GT-Line 7-sits) - bilen säljs redan i Sverige, raden gäller bara en kommande batteriuppgradering för en befintlig modell, inte en ny bil, användarens linje"},
-    {"datum": "2026-10-10", "typ": "slapp", "id": 1824, "skal": "Hyundai Ioniq 3 finns redan i cargo_spec (hyundai ioniq 3 42,2 kWh / 61 kWh) och annonskollen hittar 37 aktiva Blocket-annonser med privatleasing från 3495 kr/mån för 2027 års modell - bilen är beställningsbar/levererbar i Sverige nu trots att raden talar om mässvisning, användarens linje"},
-    {"datum": "2026-10-10", "typ": "slapp", "id": 1825, "skal": "Volkswagen ID. Polo finns redan i cargo_spec (volkswagen id polo: el) och annonskollen hittar 45 aktiva Blocket-annonser med privatleasingkampanjer från 3089 kr/mån för 2027 års modell - bilen är beställningsbar i Sverige nu trots att raden talar om mässvisning, användarens linje"},
-    {"datum": "2026-10-10", "typ": "radera", "id": 1729, "skal": "PROMPTMISS: tredje mest sålda elbil i september - försäljningsplacering utan förstaplats, dold sedan 2026-10-02 (8 dygn), fortsatt bedömd som skräp enligt samma regel"},
-    {"datum": "2026-10-10", "typ": "radera", "id": 1704, "skal": "DUBBLETT av insikt 1635 (GTI-derivatet av VW ID. Polo gått över till helelektrisk drivlina), dold sedan 2026-10-02 (8 dygn), fortsatt bedömd som skräp enligt samma regel"}
+    {"datum": "2026-10-14", "typ": "slapp", "id": 1895, "skal": "PROMPTMISS i kommandevakten: MG MG3 Super Hybrid (1,5 l) säljs redan i Sverige - Blocket visar 5 annonser på 2024 års Luxury Hybrid+ 1.5 194hk för 199 900 kr (ARSMODELLSREGELN: utskrivet svenskt pris). Raden hamnade i kön bara därför att 'nästan NY motor' (motorns ålder i reliabilitetstexten) råkade matcha nyhetsordet 'ny' i UpcomingAdCheckService - ingen av raderna handlar om en kommande modell. Släpps så reliabilitetsfyndet (tunn kamkedja, hål i kolvar) syns på bilkortet."},
+    {"datum": "2026-10-14", "typ": "parkera", "id": 1905, "skal": "GRANSKA: raden själv säger 'den nya generationen av Hyundai Bayon' - nästa generations Bayon, 50 Blocket-annonser gäller nuvarande generationen"},
+    {"datum": "2026-10-14", "typ": "parkera", "id": 1897, "skal": "INGA_ANNONSER: BYD Atto 8 (Flash Charging-raden) säljs inte ännu i Sverige - 0 Blocket-annonser"},
+    {"datum": "2026-10-14", "typ": "parkera", "id": 1898, "skal": "INGA_ANNONSER: BYD Atto 8 (instegsmodellen Design RWD) säljs inte ännu i Sverige - 0 Blocket-annonser"},
+    {"datum": "2026-10-14", "typ": "parkera", "id": 1899, "skal": "INGA_ANNONSER: BYD Atto 8 (toppvarianten Excellence AWD) säljs inte ännu i Sverige - 0 Blocket-annonser"}
   ]
 }
