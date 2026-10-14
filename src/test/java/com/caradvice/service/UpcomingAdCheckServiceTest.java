@@ -194,6 +194,23 @@ class UpcomingAdCheckServiceTest {
     }
 
     /**
+     * "Nästan ny"-hålet från 2026-10-14: id 1895 (MG3) stod som GRANSKA fast raden beskriver en
+     * kolvskada på en såld bil — {@code ny} syftade på motorns ålder.
+     */
+    @Test
+    void nastanNyArEnAlderInteEnNyhet() {
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Redan i en nästan ny motor finns hål i två kolvar")).isFalse();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Nästan nya bilar tappar mest i värde")).isFalse();
+        // Undantaget är smalt: övriga "ny" räknas som förut.
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Den kommer som en helt ny generation")).isTrue();
+        assertThat(UpcomingAdCheckService.sagerAttBilenArKommande(
+                "Nästan ett år senare kommer en ny motor")).isTrue();
+    }
+
+    /**
      * Årtalshålet från 2026-10-08: id 1784 parkerades för hand 10-06 men autoslappet släppte den
      * igen — raden saknar nyhetsord, och "Tucson 2027" räknades inte som framtid.
      */

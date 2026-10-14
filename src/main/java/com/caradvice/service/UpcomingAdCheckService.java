@@ -101,9 +101,17 @@ public class UpcomingAdCheckService {
      * definition inte en bil hos handlaren. Åt överblockeringshållet kostar de nästan ingenting —
      * en svensk lanseringsrad bär nästan alltid {@code ny} också och står därför redan som
      * {@code GRANSKA}.
+     *
+     * <p><b>"Nästan ny" är en ålder, inte en nyhet</b> (2026-10-14): id 1895 — "redan i en nästan
+     * ny motor finns hål i två kolvar" (MG3) — stod som {@code GRANSKA} mot fem annonser på exakt
+     * den motorn, eftersom {@code ny} träffade. Raden beskriver en skada på en såld bil och
+     * släpptes för hand. Undantaget är smalt med flit: bara {@code nastan} direkt före ordet.
+     * {@code helt ny} och {@code som ny} står kvar, eftersom "en helt ny generation" och "kommer
+     * som ny laddhybrid" är just de rader listan finns för. Åt det här hållet kostar ett
+     * undantag högst ett falskt {@code LARM}, aldrig ett släpp.
      */
     static final Pattern NYHETSORD = Pattern.compile(
-            "(?<![\\p{L}\\p{N}])(ny|nya|nytt|nasta generation|kommande|kommer att|planerar|planeras"
+            "(?<![\\p{L}\\p{N}])(?<![Nn]astan )(ny|nya|nytt|nasta generation|kommande|kommer att|planerar|planeras"
             + "|lanseras|lansering|lanseringen|lanserar|lanserat|lanserade|overvager|overvags"
             + "|vantas|premiar|saljstart|introduceras|blir|debuterar)"
             + "(?![\\p{L}\\p{N}])");
