@@ -1,5 +1,80 @@
 # Morgonfix-logg
 
+## 2026-10-14
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:00, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (a7eca27), status OK, uptime
+~13,6 h (omstart 10:57 UTC 10-13 - sammanfaller med gårdagens Bilweb-fix, se nedan, inte en
+nattlig omstart). Groq 3/3 modeller (friskt, HTTP 200). ev-specs updated **16** - inom 0-25.
+cargo-specs gav 2/0/0 (2 nya bilnamn, 0 bagagevolymer, 0 generationsår) - lågt N, status OK.
+Kontrollräkningen (cargo-coverage total 1782 + evSpecs 629 + ice_consumption 960 = 3371 =
+/api/stats variants) stämmer exakt.
+
+**Gårdagens LARM (natten mot 10-13) är åtgärdat utanför rutinen:** Bilweb bytte
+`#alla-modeller` till flikar (`#tab-models`/`#tab-attributes`) och synken ville lägga till 405
+bilar - taket på 400 föll (LARM). Användaren fixade parsern direkt på master samma dag (commit
+a7eca27, läser nu bara `#tab-models`) med ny fixtur och två tester. Ingen baslinje skrevs för
+10-13 (LARM, enligt baslinje-regeln) - i natt jämförs i stället mot baslinjen 10-12, över två
+nätters förändring. Fixet höll: N=2 i natt, ingen ny LARM.
+
+**Baslinjen (2026-10-12) jämförd mot i natt, över två nätter:** models 2236→2243, variants
+3361→3371, insights 1407→1446 (+39, matchar id-intervallet 1875-1913). cargo total 1775→1782,
+evSpecs 626→629, apiCars 2023→2030. Inget tal har FALLIT. medVolym+bagageMissar: medVolym
+UPPÅT (1009→1012) - enligt domregeln i 3f OK oavsett bagageMissar (812→816, också uppåt).
+Generationsåren still (291/19, väntat till fönstret 2026-10-20, forsoktDag fortfarande
+2026-09-20). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+matchar referensen exakt. Drivmedelsräknaren 491→494 total, 406→409 el, ice 85 (oförändrat),
+manuella 16 (oförändrat) - alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip.
+Kategorivakten: totalt 1 utslag sedan omstart (uptime ~13,6 h) - **Tesla Model 3** (web-insights,
+smaabil-motsägelse), vakten gjorde sitt jobb.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK. Elbilsladdning har fem kända
+INFO-rader om källor som inte nämns i splashen (Blocket, Elbilsvaruhuset, API Ninjas,
+Pressflöden, Chargeprice) - inget nytt.
+
+**Kommandevakten (annonskollen):** 0 LARM på 58 rader / 27 bilar (10 GRANSKA, 1 ANNAN_DRIVLINA,
+16 INGA_ANNONSER). **Fynd i natt: id 1895 (MG MG3) var felaktigt GRANSKA** - texten "redan i en
+nästan NY motor finns hål i två kolvar" matchade nyhetsordet "ny" i UpcomingAdCheckService, men
+beskriver en reliabilitetsskada i en redan såld bil, inte en kommande modell. Blocket visar 5
+annonser på exakt den beskrivna motorn (MG3 Luxury Hybrid+ 1,5 194hk, 2024, 199 900 kr) -
+**släppt** (ARSMODELLSREGELN: utskrivet svenskt pris). Dokumenterat som ny mätfälla i
+docs/nattrutin.md (3b). **Nya köade rader i natt/igår:** Hyundai Bayon 1905 (GRANSKA, "den nya
+generationen" - **parkerad**), BYD Atto 8 1897-1899 (INGA_ANNONSER, ej lanserad i Sverige -
+**parkerade**, tillkom 10-13 men var oavgjorda).
+
+**Nattens 14 nya rader (id 1900-1913):** granskade mot avsnitt 6. Inget kategorifel (kodvakten
+höll - Tesla Model 3 ovan var smaabil-motsägelsen som redan fångades). Inga skatterader,
+renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning/tillförlitlighet/livslängd: 0
+rader i natt (frågan fortsatt OPRÖVAD). Volvo EX60 (1890) har tom kategori - ny modell utan
+taxonomi-mappning, ingen avvikelse.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kobeslut (`atgarder.json`):** fem rader. **Slapp:** 1895 (MG MG3, se ovan). **Parkera:** 1905
+(Hyundai Bayon), 1897/1898/1899 (BYD Atto 8, tre rader samma bil).
+
+**Laddtips:** 1 nytt. `ev-fact-candidates` gav tio kandidater: **1882 Smart #2** (poäng 4) -
+82 hk, 130 Nm, 36 kWh och 65 kW DC skrevs (räckvidd 29 mil/290 km matchar `/api/ev-spec?car=Smart
+%232` exakt, batteri 35,8→36 kWh, DC 65 kW exakt) - **priset (259 900 kr) uteslöts**, det
+motsäger spec-tabellens 230 000 kr och gick inte att belägga. **1891/1886 Smart Fortwo**
+(poäng 6, högst) uteslöts helt - `/api/ev-spec?car=Smart Fortwo` gav tomt svar, ingen spec-rad
+att belägga räckvidden (290 km) eller laddtiden mot. **1887 BYD Dolphin G** (förbrukning
+urladdat batteri) uteslöts - `/api/ev-spec` ger bara en annan Dolphin G-variant (427 km/60,5 kWh,
+inte laddhybridens), ingen källa att stämma 4,5 l/100 km mot.
+
+**Laddpriser:** onsdag, ej måndag - ingen kontroll i natt.
+
+**Ingen kodfix i natt** - den ad-check-bugg som hittades (se ovan) är ett regex-hål i
+`UpcomingAdCheckService.NYHETSORD` (ordet "ny" matchar oavsett vad det syftar på), men en patch
+riskerar att släcka legitima "ny/nya generation"-träffar på andra bilar utan ett tydligt,
+smalt villkor och prov - för osäkert för en natt. Lämnas som förslag: smalna av matchningen så
+"ny" inte ensamt räknas som nyhetsord när det föregås av "nästan" (eller motsvarande), och lägg
+ett regressionsprov på id 1895-mönstret. All ändring i natt var kobeslut (atgarder.json) +
+laddtips + dokumentation av mätfällan (nattrutin.md) + baslinjen.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3371/3371 GÅR IHOP.
+
 ## 2026-10-10
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:35:47, inom väntat fönster
