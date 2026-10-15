@@ -983,7 +983,7 @@ public class WebInsightScraperService {
 
             // Insikter utan märke visas aldrig (ExpertInsightService utesluter carMake == null
             // överallt) — spara dem inte.
-            if (ins.path("car_make").asString("").isBlank()) {
+            if (saknarNamn(ins.path("car_make").asString(""))) {
                 log.info("Web insights: hoppar över insikt utan bilmärke: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
@@ -991,7 +991,7 @@ public class WebInsightScraperService {
             // Utan modell hamnar insikten i findForCarTitle:s makeOnly-hink och visas på VARJE
             // bil av märket — en N47-dieselvarning dyker upp på ett BMW i4-kort. Kuraterade
             // CSV-rader får fortsatt vara märkesbreda; skrapade får inte.
-            if (ins.path("car_model").asString("").isBlank()) {
+            if (saknarNamn(ins.path("car_model").asString(""))) {
                 log.info("Web insights: hoppar över märkesbred insikt utan modell: {}", truncate(insightText, LOG_INSIGHT_CHARS));
                 continue;
             }
@@ -1460,6 +1460,13 @@ public class WebInsightScraperService {
             log.warn("Web insights: kunde inte parsa {}-svar: {}", field, e.getMessage());
             return null;
         }
+    }
+
+    // id 1912 (2026-10-15) sparades med carModel "??": AI:n kunde inte namnge Smart-bilen och
+    // skrev ett platshållartecken i stället för att lämna fältet tomt. isBlank() släppte igenom
+    // det. Ett namn utan en enda bokstav eller siffra är inget namn.
+    static boolean saknarNamn(String s) {
+        return s == null || s.codePoints().noneMatch(Character::isLetterOrDigit);
     }
 
     private static String blankToNull(String s) {

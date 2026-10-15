@@ -549,6 +549,23 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void platshallareSomModellnamnSparasInte() throws Exception {
+        // id 1912 (2026-10-15): AI:n skrev "??" när den inte kunde namnge Smart-bilen
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class), mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        JsonNode fragetecken = mapper.readTree(
+                "{\"car_make\":\"Smart\",\"car_model\":\"??\",\"insight\":\"Smart lanserar en liten elbil.\"}");
+        JsonNode streck = mapper.readTree(
+                "{\"car_make\":\"-\",\"car_model\":\"#1\",\"insight\":\"Okänt märke.\"}");
+        JsonNode smartEtt = mapper.readTree(
+                "{\"car_make\":\"Smart\",\"car_model\":\"#1\",\"insight\":\"Smart #1 får större batteri.\"}");
+        assertThat(service.saveInsights("AoE", List.of(fragetecken, streck, smartEtt), null)).isEqualTo(1);
+        org.mockito.Mockito.verify(repo, org.mockito.Mockito.times(1))
+                .save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void sammaBilPaTokenDelmangd() {
         assertThat(WebInsightScraperService.sameCar("CLA 45 4MATIC+", "AMG CLA 45 4Matic+")).isTrue();
         assertThat(WebInsightScraperService.sameCar("EV4", "EV4 AWD")).isTrue();
