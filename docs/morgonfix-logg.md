@@ -1,5 +1,96 @@
 # Morgonfix-logg
 
+## 2026-10-15
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:36:49, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (9b45ccf), status OK, ingen
+omstart i natt (uptime 67071 s). Groq 3/3 modeller (friskt, HTTP 200). ev-specs updated **8** -
+inom 0-25. cargo-specs gav 3/0/0 (3 nya bilnamn, 0 bagagevolymer, 0 generationsår) - lågt N,
+status OK. Kontrollräkningen (cargo-coverage total 1786 + evSpecs 630 + ice_consumption 960 =
+3376 = /api/stats variants) stämmer exakt.
+
+**Baslinjen (2026-10-14) jämförd mot i natt:** models 2243→2247, variants 3371→3376,
+insights 1446→1467 (+21, matchar id-intervallet 1914-1934 exakt). cargo total 1782→1786,
+evSpecs 629→630, apiCars 2030→2034. Inget tal har FALLIT. medVolym+bagageMissar: medVolym
+UPPÅT (1012→1013) - enligt domregeln i 3f OK oavsett bagageMissar (816→819, också uppåt).
+Generationsåren still (291/19, väntat till fönstret 2026-10-20, forsoktDag fortfarande
+2026-09-20). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+matchar referensen exakt. Drivmedelsräknaren 494→495 total, 409→410 el, ice 85 (oförändrat),
+manuella 16 (oförändrat) - alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip.
+Kategorivakten: totalt 4 utslag sedan omstart (uptime ~18,6 h) - Tesla Model 3 (x2), Tesla
+Model 3 Performance, Volkswagen ID.3, alla smaabil-motsägelser som vakten fångade (kategorifältet
+strökt), ingen ny modell att lägga till i InsightTaxonomy.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK, samma fem kända INFO-rader hos
+Elbilsladdning som tidigare.
+
+**Kommandevakten (annonskollen):** 0 LARM på 57 rader / 26 bilar (9 GRANSKA, 1 ANNAN_DRIVLINA,
+16 INGA_ANNONSER). Könedgången från gårdagens 58 rader förklaras helt av att 1895 (MG MG3)
+släpptes i går natt. Inget nytt LARM-fynd i annonskollen själv i natt.
+
+**STÖRRE FYND - kön missar HELA historier, inte bara enstaka tvillingrader (ny mätfälla,
+dokumenterad i docs/nattrutin.md 3b):** id 1902 (Vi Bilägare, "Mercedes C-klass (2026)
+deklarerar en räckvidd på över 76 mil ... en elbil") och id 1904 (Vi Bilägare, "Hyundai Bayon
+kommer som hybrid ...") ligger som VANLIGA insikter, inte i kön - men båda hör till artiklar
+som SAMMA natt gav parkerade kommande-rader (1574-1577 "Mercedes C-klass Electric", respektive
+1905 "Hyundai Bayon"-nästa generation). 1902s 76 mil matchar 1577s 762 km nästan exakt (76,2 mil),
+och `/api/ev-spec?car=Mercedes%20C-klass` samt `?car=Mercedes%20C-klass%20Electric` ger båda
+tomt `{}` - det finns ingen katalograd för en elektrisk C-klass, vilket stöder att 1902 beskriver
+samma overifierade framtidsbil som redan ligger parkerad under ett annat modellnamn. Ingen
+atgärd går att göra i atgarder.json (raden ligger inte i kön - "parkera" förutsätter ett
+insight_id ur /upcoming), och en riktig fix kräver en ändring i UPCOMING_PROMPT/STRICT_UPCOMING_
+PROMPT, förbjudet under morgonfixen (9c). Lämnas åt användaren.
+
+**Ytterligare öppen fråga:** id 1912 (Allt om Elbil) har `carModel` literally `"??"` ("Smart
+lanserar en liten elbil med pris från 259 900 kronor") - extraktionen kunde inte namnge modellen
+och skrev ett platshållartecken i stället för att lämna fältet tomt. Samma prisnivå som de
+tidigare uteslutna Smart Fortwo-kandidaterna (1886/1891, se 10-14-loggen) - möjligen samma bil,
+går inte att belägga. Ingen fix möjlig utan att röra skraparens AI-extraktion (förbjudet).
+Kan vara värt att användaren kollar manuellt vilken Smart-modell det gäller och rättar
+carMake/carModel direkt i databasen.
+
+**Ytterligare öppen fråga:** id 1910 (CarUp, Volkswagen Golf) beskriver EN specifik bils
+motorhaveri och en enskild verkstads bedömning ("kostnaden för en ny motor överstiger bilens
+värde, rekommenderas skrotas") - låter mer som en anekdot om en enskild bil/annons än en
+generell tillförlitlighetssiffra för modellen Golf. För osäkert för att dölja på egen hand
+("en rad du bara TROR är skräp döljer du inte") - flaggas åt användaren i stället.
+
+**Nattens 21 nya rader (id 1914-1934):** granskade mot avsnitt 6. Inget kategorifel utöver det
+kodvakten redan fångade (Tesla Model 3 x3, VW ID.3 - se Kategorivakten ovan). Inga skatterader,
+renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning/tillförlitlighet/livslängd: 0
+rader i natt (frågan fortsatt OPRÖVAD). Flera återkallelserader (Ford Kuga 1900, Mustang Mach-E
+1901, VW ID.4/ID.7/ID.Buzz/ID.3 1916-1919, Audi Q3 1920, Volvo EX30 1926-1928) - alla distinkta
+fakta (olika modeller eller olika återkallelseorsaker för EX30), ingen dubblett. Volvo EX30
+nackstödsåterkallelsen (1926, Auto Motor & Sport) upprepar samma sakuppgift som 1915 (Vi
+Bilägare, samma natt 10-13) - två oberoende källor om samma recall, bedöms INTE som skräp
+(legitim nyhet, inte en AI-genererad upprepning) men noteras.
+
+**Kobeslut (`atgarder.json`):** två rader, båda SLAPP. **Volkswagen ID. Tiguan (1682, 1683):**
+GRANSKA i annonskollen (bygger på nyhetsordet "nya" i de gamla raderna), men bilen är bevisligen
+köpbar nu - nattens egna rader 1921/1922 (Auto Motor & Sport) ger utskrivna svenska priser
+(Life 559 900 kr, Style 606 900 kr), och `/api/ev-spec?car=Volkswagen%20Tiguan` har redan en
+matchande spec (607 km WLTP, 77 kWh, 165 kW DC, 552 000 kr) under namnet utan "ID."-prefix.
+ARSMODELLSREGELN: utskrivet svenskt pris slår annonskollens GRANSKA-dom.
+
+**Laddtips:** 1 nytt. `ev-fact-candidates` gav 60 granskade, topkandidat **1929 Audi A6 e-tron
+performance** (poäng 5) - 280 kW, 94,9 kWh, 270 kW DC enligt insikten, stämmer mot
+`/api/ev-spec?car=Audi A6 e-tron performance` (765 km WLTP, 94,9 kWh exakt, 269 kW DC ~stämmer)
+- skrevs med 269 kW för att matcha specen exakt. Andrakandidaten (1887, BYD Dolphin G,
+förbrukning) uteslöts - redan bedömd 10-14 (ingen matchande ev-spec-rad för laddhybridvarianten).
+
+**Laddpriser:** torsdag, ej måndag - ingen kontroll i natt.
+
+**Regeländring i `docs/nattrutin.md` (3b, 1 rad):** dokumenterade den nya mätfällan ovan
+("kön missar hela historier") som en konkret, namngiven uppföljning till Mazda-lärdomen, så att
+nästa natt känner igen mönstret snabbare och vet att ingen atgarder.json-åtgärd är möjlig för den.
+
+**Ingen kodfix i natt** - inget av nattens fynd (prompt-missarna för kön och för carModel) går
+att laga inom 9c:s gränser utan att röra skraparens prompter, vilket är förbjudet. Allt arbete i
+natt var kobeslut (atgarder.json) + laddtips + en dokumentationsrad (nattrutin.md) + baslinjen.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3376/3376 GÅR IHOP.
+
 ## 2026-10-14
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:37:00, inom väntat fönster
