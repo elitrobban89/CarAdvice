@@ -1,10 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-14", "typ": "slapp", "id": 1895, "skal": "PROMPTMISS i kommandevakten: MG MG3 Super Hybrid (1,5 l) säljs redan i Sverige - Blocket visar 5 annonser på 2024 års Luxury Hybrid+ 1.5 194hk för 199 900 kr (ARSMODELLSREGELN: utskrivet svenskt pris). Raden hamnade i kön bara därför att 'nästan NY motor' (motorns ålder i reliabilitetstexten) råkade matcha nyhetsordet 'ny' i UpcomingAdCheckService - ingen av raderna handlar om en kommande modell. Släpps så reliabilitetsfyndet (tunn kamkedja, hål i kolvar) syns på bilkortet."},
-    {"datum": "2026-10-14", "typ": "parkera", "id": 1905, "skal": "GRANSKA: raden själv säger 'den nya generationen av Hyundai Bayon' - nästa generations Bayon, 50 Blocket-annonser gäller nuvarande generationen"},
-    {"datum": "2026-10-14", "typ": "parkera", "id": 1897, "skal": "INGA_ANNONSER: BYD Atto 8 (Flash Charging-raden) säljs inte ännu i Sverige - 0 Blocket-annonser"},
-    {"datum": "2026-10-14", "typ": "parkera", "id": 1898, "skal": "INGA_ANNONSER: BYD Atto 8 (instegsmodellen Design RWD) säljs inte ännu i Sverige - 0 Blocket-annonser"},
-    {"datum": "2026-10-14", "typ": "parkera", "id": 1899, "skal": "INGA_ANNONSER: BYD Atto 8 (toppvarianten Excellence AWD) säljs inte ännu i Sverige - 0 Blocket-annonser"}
+    {"datum": "2026-10-15", "typ": "slapp", "id": 1682, "skal": "ARSMODELLSREGELN: Volkswagen ID. Tiguan säljs redan i Sverige med utskrivna svenska priser - nattens egna rader 1921/1922 (Auto Motor & Sport) ger Life 559 900 kr / Style 606 900 kr, och bilen finns redan i ev_spec under namnet 'Volkswagen Tiguan' (607 km WLTP, 77 kWh, 165 kW DC, 552 000 kr) samt i drivmedelstabellen som el. Annonskollens GRANSKA-dom byggde bara på nyhetsordet 'nya' i en äldre rad."},
+    {"datum": "2026-10-15", "typ": "slapp", "id": 1683, "skal": "ARSMODELLSREGELN: samma skäl som 1682 - Volkswagen ID. Tiguan är beställningsbar/levererbar i Sverige nu (se 1682), inte en kommande modell."}
   ]
 }
