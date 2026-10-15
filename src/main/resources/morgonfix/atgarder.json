@@ -5,6 +5,7 @@
     {"datum": "2026-10-15", "typ": "slapp", "id": 1683, "skal": "ARSMODELLSREGELN: samma skäl som 1682 - Volkswagen ID. Tiguan är beställningsbar/levererbar i Sverige nu (se 1682), inte en kommande modell."},
     {"datum": "2026-10-15", "typ": "parkera", "id": 1902, "skal": "Kommande elektrisk Mercedes C-klass (76 mil = 1577:s 762 km under 'C-klass Electric', parkerad). ev_spec saknar bilen. Kommandevakten missade raden; parkerad för hand 10-15."},
     {"datum": "2026-10-15", "typ": "parkera", "id": 1904, "skal": "Tvilling till 1905 (nästa generations Hyundai Bayon, parkerad 10-14) - samma Vi Bilägare-artikel, hybriddrivlinan hör till den nya generationen."},
-    {"datum": "2026-10-15", "typ": "dolj", "id": 1912, "skal": "carModel '??' - AI:n kunde inte namnge Smart-bilen. Matchar inget bilkort. Skrapern stoppar platshållarnamn sedan 10-15 (saknarNamn)."}
+    {"datum": "2026-10-15", "typ": "dolj", "id": 1912, "skal": "carModel '??' - AI:n kunde inte namnge Smart-bilen. Matchar inget bilkort. Skrapern stoppar platshållarnamn sedan 10-15 (saknarNamn)."},
+    {"datum": "2026-10-15", "typ": "dolj", "id": 1910, "skal": "Anekdot om EN bils motorhaveri och en verkstads bedömning (CarUp) - ingen generell uppgift om Volkswagen Golf. Dold på användarens beslut 10-15."}
   ]
 }
