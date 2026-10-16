@@ -1,5 +1,70 @@
 # Morgonfix-logg
 
+## 2026-10-16
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:34:55, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (28bdddf), status OK, ingen
+omstart i natt (uptime ~18,5 h). Groq 3/3 modeller (friskt, HTTP 200). ev-specs updated **4** -
+inom 0-25. cargo-specs gav 7/0/0 (7 nya bilnamn, 0 bagagevolymer, 0 generationsår) - lågt N,
+status OK. Kontrollräkningen (cargo-coverage total 1793 + evSpecs 630 + ice_consumption 960 =
+3383 = /api/stats variants) stämmer exakt.
+
+**Baslinjen (2026-10-15) jämförd mot i natt:** models 2247→2254, variants 3376→3383,
+insights 1467→1471 (+4, matchar id-intervallet 1935-1938 exakt). cargo total 1786→1793,
+evSpecs oförändrad 630, apiCars 2034→2041. Inget tal har FALLIT. medVolym+bagageMissar: medVolym
+STILL (1013) + bagageMissar VUXIT (819→826) - enligt domregeln i 3f VÄNTAT (jobbet betade de 7
+nya namnen utan att hitta volym). Generationsåren still (291/19, väntat till fönstret
+2026-10-20). vPIC: 291/0/275, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar referensen exakt.
+Drivmedelsräknaren oförändrad 495/410/85/16 - alla 16 handsatta rader korrekta, ingen flip.
+Kategorivakten: 0 utslag sedan omstart (uptime ~18,5 h).
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK, samma kända INFO-rader hos
+Elbilsladdning som tidigare.
+
+**HUVUDFYND - UpcomingAutoReleaseService åt en manuellt parkerad tvilling:** 1904 (Hyundai
+Bayon) parkerades 10-15 med motiveringen att raden är tvilling till 1905 (nästa generationens
+Bayon, samma Vi Bilägare-artikel). Render-loggen visar att UpcomingAutoReleaseService släppte
+1904 igen 01:35 i natt ("raden säger inget om framtiden") eftersom just den meningen saknar ett
+eget nyhetsord, medan 1905 behöll sitt och stod kvar. Ingen kodfix - tjänstens egen javadoc
+varnar redan för enradiga nyhetsordskontroller (EX40-fallet 09-11) och en patch utan skarpt prov
+riskerar att tysta andra bilars autosläpp. Dokumenterat som ny mätfälla i docs/nattrutin.md
+(3b) så att nästa natt känner igen mönstret direkt. Samma mönster (1936, Audi A6 e-tron) var
+korrekt autosläpp - testomdöme om en redan såld bil som skraparen felaktigt köade.
+
+**Nattens 4 nya rader (id 1935-1938):** granskade mot avsnitt 6. Inget kategorifel, inga
+skatterader, renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning: 1 rad (1937, Tesla
+Model S behåller värde bättre än bensin/diesel enligt norska Nettbil) - marknadsangivelsen
+("norska... Nettbil") uppfyller kravet. Inga nya köade rader i natt (kön gick 57→56, förklaras
+av gårdagens släpp 1682/1683 minus parkeringarna 1902/1904 samt nattens autosläpp av 1904 och
+1936).
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt. Nätet är öppet (kontrollbilen Volvo
+XC40 gav 200/stort svar mot Blockets API).
+
+**Kobeslut (`atgarder.json`):** en rad. **Parkera:** 1904 igen (se huvudfyndet ovan - skälet
+från 10-15 gäller fortfarande, tjänsten åt bara den enskilda meningens nyhetsord).
+
+**Laddtips:** inget nytt. Toppkandidaten (1929, Audi A6 e-tron performance, poäng 5) är redan
+skriven 10-15. Nästa (1887, BYD Dolphin G, poäng 4) saknar fortsatt en matchande ev-spec-rad att
+belägga förbrukningen mot (uteslutet samma skäl 10-13/10-14). Tredje (1938, Nissan Leaf 2010,
+poäng 3) anger 122 hk för originalmotorn - en siffra jag inte kan belägga mot någon källa i natt
+och som avviker från vad jag känner till om bilen; hellre inget tips än en ogrundad siffra.
+
+**Laddpriser:** fredag, ej måndag - ingen kontroll i natt.
+
+**Ingen kodfix i natt** - nattens enda fynd (autosläppet av 1904) är ett medvetet dokumenterat
+avvägningsproblem i UpcomingAutoReleaseService, inte ett entydigt fel med ett tydligt rött/grönt
+prov inom 9c:s gränser. Allt arbete i natt var ett kobeslut (atgarder.json) + en dokumentationsrad
+(nattrutin.md 3b) + baslinjen.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3383/3383 GÅR IHOP.
+
+**Grenanmärkning:** den här körningen committar på `claude/happy-planck-352f12` (sessionens
+tilldelade gren), inte `auto/morgonfix` som avsnitt 9a annars föreskriver - auto-merge-workflowen
+(.github/workflows/morgonfix-automerge.yml) triggar därför INTE automatiskt på den här PR:en.
+Användaren behöver granska och mergea för hand denna gång.
+
 ## 2026-10-15
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:36:49, inom väntat fönster

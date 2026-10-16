@@ -1,11 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-15", "typ": "slapp", "id": 1682, "skal": "ARSMODELLSREGELN: Volkswagen ID. Tiguan säljs redan i Sverige med utskrivna svenska priser - nattens egna rader 1921/1922 (Auto Motor & Sport) ger Life 559 900 kr / Style 606 900 kr, och bilen finns redan i ev_spec under namnet 'Volkswagen Tiguan' (607 km WLTP, 77 kWh, 165 kW DC, 552 000 kr) samt i drivmedelstabellen som el. Annonskollens GRANSKA-dom byggde bara på nyhetsordet 'nya' i en äldre rad."},
-    {"datum": "2026-10-15", "typ": "slapp", "id": 1683, "skal": "ARSMODELLSREGELN: samma skäl som 1682 - Volkswagen ID. Tiguan är beställningsbar/levererbar i Sverige nu (se 1682), inte en kommande modell."},
-    {"datum": "2026-10-15", "typ": "parkera", "id": 1902, "skal": "Kommande elektrisk Mercedes C-klass (76 mil = 1577:s 762 km under 'C-klass Electric', parkerad). ev_spec saknar bilen. Kommandevakten missade raden; parkerad för hand 10-15."},
-    {"datum": "2026-10-15", "typ": "parkera", "id": 1904, "skal": "Tvilling till 1905 (nästa generations Hyundai Bayon, parkerad 10-14) - samma Vi Bilägare-artikel, hybriddrivlinan hör till den nya generationen."},
-    {"datum": "2026-10-15", "typ": "dolj", "id": 1912, "skal": "carModel '??' - AI:n kunde inte namnge Smart-bilen. Matchar inget bilkort. Skrapern stoppar platshållarnamn sedan 10-15 (saknarNamn)."},
-    {"datum": "2026-10-15", "typ": "dolj", "id": 1910, "skal": "Anekdot om EN bils motorhaveri och en verkstads bedömning (CarUp) - ingen generell uppgift om Volkswagen Golf. Dold på användarens beslut 10-15."}
+    {"datum": "2026-10-16", "typ": "parkera", "id": 1904, "skal": "Åter-parkerad: UpcomingAutoReleaseService släppte raden 01:35 i natt ('raden säger inget om framtiden'), men skälet från 10-15 gäller fortfarande oförändrat - 1904 är tvilling till 1905 (nästa generations Hyundai Bayon, samma Vi Bilägare-artikel), hybriddrivlinan hör till den nya generationen. Raden saknar bara ett nyhetsord i just den meningen."}
   ]
 }
