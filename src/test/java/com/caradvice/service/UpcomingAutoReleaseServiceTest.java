@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -95,6 +96,44 @@ class UpcomingAutoReleaseServiceTest {
         assertThat(bil.carModel()).isEqualTo("EX40");
         assertThat(bil.slappta()).containsExactly(1483L, 1473L);
         assertThat(bil.kvar()).containsExactly(1486L, 1474L);
+    }
+
+    @Test
+    void beslutadParkeringSlappsInte() {
+        /*
+         * Hyundai Bayon 10-16: 1904 parkerades 10-15 som tvilling till 1905 ("hybriddrivlinan hör
+         * till den nya generationen") men saknade själv nyhetsord, och autosläppet tog den natten
+         * efter. Ett beslut med skäl väger tyngre än en mening utan nyhetsord.
+         */
+        rapporten(dom("Hyundai", "Bayon", Status.LARM, List.of(1904L, 1930L), List.of(1904L, 1930L)));
+        when(upcoming.beslutIds()).thenReturn(Set.of(1904L));
+
+        var utfall = tjanst.kor(false);
+
+        verify(upcoming, never()).release(1904L);
+        verify(upcoming).release(1930L);
+        assertThat(utfall.per().get(0).slappta()).containsExactly(1930L);
+    }
+
+    @Test
+    void baraBeslutadeRaderGerIngenBil() {
+        rapporten(dom("Hyundai", "Bayon", Status.LARM, List.of(1904L), List.of(1904L)));
+        when(upcoming.beslutIds()).thenReturn(Set.of(1904L));
+
+        var utfall = tjanst.kor(false);
+
+        assertThat(utfall.bilar()).isZero();
+        verify(upcoming, never()).release(anyLong());
+    }
+
+    @Test
+    void olasbaraBeslutSlapperIngenting() {
+        // en tom mängd hade betytt "släpp fritt" - fel håll att tveka åt
+        rapporten(dom("Volvo", "EX40", Status.LARM, List.of(1483L), List.of(1483L)));
+        when(upcoming.beslutIds()).thenThrow(new RuntimeException("DB nere"));
+
+        assertThat(tjanst.kor(false).slappta()).isZero();
+        verify(upcoming, never()).release(anyLong());
     }
 
     @Test

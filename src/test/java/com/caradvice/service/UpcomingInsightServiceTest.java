@@ -107,6 +107,22 @@ class UpcomingInsightServiceTest {
     }
 
     @Test
+    void markBeslutParkerarOchLaser() {
+        service.markBeslut(1904L);
+
+        verify(jdbc).update(eq("INSERT INTO insight_upcoming(insight_id, marked_at) VALUES (?, ?)"), eq(1904L), any());
+        verify(jdbc).update(eq("INSERT INTO insight_upcoming_beslut(insight_id, beslutad_at) VALUES (?, ?)"),
+                eq(1904L), any());
+    }
+
+    @Test
+    void releaseTarBortLaset() {
+        // annars hade en rad som släppts och sedan köats av skraparen ärvt det gamla beslutet
+        service.release(1904L);
+        verify(jdbc).update(eq("DELETE FROM insight_upcoming_beslut WHERE insight_id = ?"), eq(1904L));
+    }
+
+    @Test
     void visaAngrarDolj() {
         when(jdbc.update(eq("DELETE FROM insight_hidden WHERE insight_id = ?"), eq(5L))).thenReturn(1);
         assertThat(service.visa(5L)).isTrue();

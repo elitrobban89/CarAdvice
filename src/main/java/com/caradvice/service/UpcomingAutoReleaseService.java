@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Släpper ur kommande-kön de rader som annonskollen kan döma UTAN mänsklig avvägning:
@@ -39,6 +40,11 @@ import java.util.List;
  * Automatiken hade tagit två av dem. Därför bär {@link Slappt#kvar()} de rader som blev kvar på
  * en bil vi faktiskt släppte ifrån — de är ett kvarstående beslut, inte ett avklarat ärende, och
  * rapporten ska skriva ut dem.
+ *
+ * <p><b>Ett beslut väger tyngre än meningen (2026-10-16).</b> Rader som parkerats genom admin-API:t
+ * eller morgonfixens {@code parkera} ({@link UpcomingInsightService#markBeslut}) släpps aldrig här.
+ * Hyundai Bayon 1904 parkerades 10-15 som tvilling till 1905 och släpptes natten efter, eftersom
+ * just den meningen saknade nyhetsord; Tucson 1784 gick samma väg 10-08.
  *
  * <p><b>Taket är en säkring, inte en optimering.</b> Går annonsuppslaget sönder på ett sätt som
  * gör att allt ser sålt ut töms kön på en natt, och en parkering går inte att återskapa ur
@@ -87,15 +93,31 @@ public class UpcomingAutoReleaseService {
     public Utfall kor(boolean dryRun) {
         Rapport rapport = adCheck.granska(upcoming.list());
 
+        // En rad som parkerats genom ett beslut (admin-API:t, morgonfixens "parkera") bär ett skäl
+        // som meningen själv inte behöver uttrycka - Bayon 1904 10-16. Går låsen inte att läsa
+        // släpps ingenting: utan dem går det inte att skilja beslutet från AI-domen.
+        Set<Long> beslut;
+        try {
+            beslut = upcoming.beslutIds();
+        } catch (Exception e) {
+            log.warn("Autosläpp AVBRUTET: de beslutade parkeringarna gick inte att läsa ({}) — ingenting släpptes",
+                    e.getMessage());
+            return new Utfall(0, 0, dryRun, false, List.of(), rapport);
+        }
+
         List<Slappt> per = new ArrayList<>();
         int kandidater = 0;
         for (Dom dom : rapport.domar()) {
             if (dom.status() != Status.LARM || dom.raderUtanNyhetsord().isEmpty()) continue;
+            List<Long> slapp = dom.raderUtanNyhetsord().stream().filter(id -> !beslut.contains(id)).toList();
+            if (slapp.size() < dom.raderUtanNyhetsord().size())
+                log.info("Autosläpp: {} {} rad(er) {} behålls — parkerade genom ett beslut", dom.carMake(),
+                        dom.carModel(), dom.raderUtanNyhetsord().stream().filter(beslut::contains).toList());
+            if (slapp.isEmpty()) continue;
             List<Long> kvar = new ArrayList<>(dom.rader());
             kvar.removeAll(dom.raderUtanNyhetsord());
-            per.add(new Slappt(dom.carMake(), dom.carModel(), dom.annonser(),
-                    List.copyOf(dom.raderUtanNyhetsord()), List.copyOf(kvar)));
-            kandidater += dom.raderUtanNyhetsord().size();
+            per.add(new Slappt(dom.carMake(), dom.carModel(), dom.annonser(), slapp, List.copyOf(kvar)));
+            kandidater += slapp.size();
         }
 
         if (kandidater > MAX_SLAPP_PER_KORNING) {

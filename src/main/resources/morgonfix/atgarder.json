@@ -1,6 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-16", "typ": "parkera", "id": 1904, "skal": "Åter-parkerad: UpcomingAutoReleaseService släppte raden 01:35 i natt ('raden säger inget om framtiden'), men skälet från 10-15 gäller fortfarande oförändrat - 1904 är tvilling till 1905 (nästa generations Hyundai Bayon, samma Vi Bilägare-artikel), hybriddrivlinan hör till den nya generationen. Raden saknar bara ett nyhetsord i just den meningen."}
+    {"datum": "2026-10-16", "typ": "parkera", "id": 1904, "skal": "Åter-parkerad: UpcomingAutoReleaseService släppte raden 01:35 i natt ('raden säger inget om framtiden'), men skälet från 10-15 gäller fortfarande oförändrat - 1904 är tvilling till 1905 (nästa generations Hyundai Bayon, samma Vi Bilägare-artikel), hybriddrivlinan hör till den nya generationen. Raden saknar bara ett nyhetsord i just den meningen."},
+    {"datum": "2026-10-16", "typ": "parkera", "id": 1784, "skal": "Låser handparkeringen från 10-08 (admin-API:t, utanför filen): Tucson 2027 PHEV gäller femte generationen (avgjort 10-10). Autosläppet tog raden en gång förut; parkera via filen låser den sedan 10-16."}
   ]
 }

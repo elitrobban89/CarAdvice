@@ -107,6 +107,12 @@ public class MorgonfixAtgarder {
     @EventListener(ApplicationReadyEvent.class)
     public void vidUppstart() {
         try {
+            int lasta = lasTidigareParkeringar();
+            if (lasta > 0) log.info("Morgonfixens åtgärder: låste {} tidigare beslutade parkeringar", lasta);
+        } catch (Exception e) {
+            log.warn("Tidigare parkeringar kunde inte låsas: {}", e.getMessage());
+        }
+        try {
             Utfall u = kor();
             if (u.avvisad() || !u.rader().isEmpty())
                 log.info("Morgonfixens åtgärder: {} nya, avvisad={}, {}", u.nya(), u.avvisad(), u.rader());
@@ -123,6 +129,33 @@ public class MorgonfixAtgarder {
                 utfall VARCHAR(300)
             )
             """);
+    }
+
+    /**
+     * Engångsflytt (2026-10-16): parkeringar utförda innan låset fanns låses i efterhand, så att
+     * autosläppet inte äter dem. Körs bara medan låstabellen är tom — därefter är varje lås ett
+     * eget beslut, och ett senare släpp får inte låsas tillbaka av en gammal nyckel. En rad som
+     * en senare {@code slapp}-åtgärd tagit ur kön lämnas, liksom rader som inte längre är köade.
+     */
+    int lasTidigareParkeringar() {
+        ensureTable();
+        if (!kon.beslutIds().isEmpty()) return 0;
+        List<String> nycklar = jdbc.queryForList(
+                "SELECT nyckel FROM morgonfix_atgard WHERE utfall LIKE 'parkerad%'", String.class);
+        Set<String> slapp = Set.copyOf(jdbc.queryForList(
+                "SELECT nyckel FROM morgonfix_atgard WHERE nyckel LIKE '%|slapp|%'", String.class));
+        int lasta = 0;
+        for (String nyckel : nycklar) {
+            String[] d = nyckel.split("\\|");
+            if (d.length != 3 || !d[1].equals("parkera")) continue;
+            long id = Long.parseLong(d[2]);
+            boolean slapptSenare = slapp.stream().map(s -> s.split("\\|"))
+                    .anyMatch(s -> s.length == 3 && s[2].equals(d[2]) && s[0].compareTo(d[0]) >= 0);
+            if (slapptSenare || !kon.isUpcoming(id)) continue;
+            kon.las(id);
+            lasta++;
+        }
+        return lasta;
     }
 
     /** Läser filen och utför de åtgärder som inte redan är utförda. */
@@ -163,7 +196,7 @@ public class MorgonfixAtgarder {
             if (a.typ().equals("dolj"))
                 return kon.dolj(a.id(), a.skal()) ? "dold" : "FEL: kunde inte döljas";
             if (a.typ().equals("radera")) return radera(a);
-            kon.mark(a.id());
+            kon.markBeslut(a.id());
             return kon.isUpcoming(a.id()) ? "parkerad" : "FEL: kunde inte parkeras";
         } catch (Exception e) {
             return "FEL: " + e.getMessage();

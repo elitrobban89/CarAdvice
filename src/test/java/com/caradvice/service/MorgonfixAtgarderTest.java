@@ -69,8 +69,28 @@ class MorgonfixAtgarderTest {
         var u = med(fil(rad("parkera", 5), rad("parkera", 6))).kor();
 
         assertThat(u.rader()).containsExactly("parkera 5: finns inte", "parkera 6: parkerad");
-        verify(kon, never()).mark(5L);
-        verify(kon).mark(6L);
+        verify(kon, never()).markBeslut(5L);
+        verify(kon).markBeslut(6L);
+    }
+
+    @Test
+    void tidigareParkeringarLasesEnGang() {
+        // 1905 parkerad och kvar i kön, 1804 parkerad men släppt dagen efter, 1815 inte längre köad
+        when(jdbc.queryForList(eq("SELECT nyckel FROM morgonfix_atgard WHERE utfall LIKE 'parkerad%'"), eq(String.class)))
+                .thenReturn(java.util.List.of("2026-10-14|parkera|1905", "2026-10-08|parkera|1804", "2026-10-08|parkera|1815"));
+        when(jdbc.queryForList(eq("SELECT nyckel FROM morgonfix_atgard WHERE nyckel LIKE '%|slapp|%'"), eq(String.class)))
+                .thenReturn(java.util.List.of("2026-10-08|slapp|1804"));
+        when(kon.isUpcoming(1905L)).thenReturn(true);
+        when(kon.isUpcoming(1804L)).thenReturn(true);
+
+        assertThat(med(fil()).lasTidigareParkeringar()).isEqualTo(1);
+        verify(kon).las(1905L);
+        verify(kon, never()).las(1804L);
+        verify(kon, never()).las(1815L);
+
+        // finns ett enda lås är flytten gjord - en gammal nyckel får inte låsa om ett senare släpp
+        when(kon.beslutIds()).thenReturn(java.util.Set.of(1905L));
+        assertThat(med(fil()).lasTidigareParkeringar()).isZero();
     }
 
     @Test

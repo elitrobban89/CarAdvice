@@ -315,7 +315,7 @@ public class CarController {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         if (!expertInsightService.exists(id))
             return ResponseEntity.status(404).body(Map.of("error", "Insikt " + id + " finns inte"));
-        upcomingInsightService.mark(id);
+        upcomingInsightService.markBeslut(id);
         if (!upcomingInsightService.isUpcoming(id))
             return ResponseEntity.status(500).body(Map.of("error", "Kunde inte parkera insikt " + id));
         return ResponseEntity.ok(Map.of("marked", id));

@@ -224,20 +224,20 @@ class CarControllerTest {
     void parkeraInsiktKraverNyckelOchAttRadenFinns() throws Exception {
         mvc.perform(post("/api/admin/insights/12/upcoming"))
            .andExpect(status().isForbidden());
-        verify(upcomingInsightService, never()).mark(any());
+        verify(upcomingInsightService, never()).markBeslut(any());
 
         // Okänt id ska aldrig markeras — annars fylls kön med id:n utan rader
         when(expertInsightService.exists(99L)).thenReturn(false);
         mvc.perform(post("/api/admin/insights/99/upcoming").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isNotFound());
-        verify(upcomingInsightService, never()).mark(99L);
+        verify(upcomingInsightService, never()).markBeslut(99L);
 
         when(expertInsightService.exists(12L)).thenReturn(true);
         when(upcomingInsightService.isUpcoming(12L)).thenReturn(true);
         mvc.perform(post("/api/admin/insights/12/upcoming").header("X-Admin-Key", "test-admin"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.marked").value(12));
-        verify(upcomingInsightService).mark(12L);
+        verify(upcomingInsightService).markBeslut(12L);
     }
 
     /** mark() sväljer DB-fel och svarar void, så utan efterkontrollen blir ett haveri en 200:a. */

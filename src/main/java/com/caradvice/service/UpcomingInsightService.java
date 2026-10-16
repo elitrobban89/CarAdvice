@@ -45,6 +45,51 @@ public class UpcomingInsightService {
                 marked_at VARCHAR(40)
             )
             """);
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS insight_upcoming_beslut (
+                insight_id BIGINT PRIMARY KEY,
+                beslutad_at VARCHAR(40)
+            )
+            """);
+    }
+
+    /*
+     * BESLUTADE PARKERINGAR (2026-10-16). Kön fylls från två håll: skraparens kommandevakt (en
+     * AI-dom per mening) och ett uttryckligt beslut — admin-API:t eller morgonfixens "parkera",
+     * som alltid bär ett skäl. Autosläppet kan bara läsa meningen, och 10-16 släppte det Hyundai
+     * Bayon 1904, parkerad dagen innan som tvilling till 1905 ("hybriddrivlinan hör till den nya
+     * generationen"): just den meningen saknade nyhetsord. Samma sak hände Tucson 1784 10-08.
+     * En beslutad parkering släpps därför bara av ett nytt beslut, aldrig av autosläppet.
+     * Egen tabell av samma skäl som insight_upcoming själv: prod kör ddl-auto=validate.
+     */
+
+    /** Parkerar genom ett beslut — autosläppet rör inte raden, bara {@link #release} gör det. */
+    public void markBeslut(Long insightId) {
+        if (insightId == null) return;
+        mark(insightId);
+        las(insightId);
+    }
+
+    /** Låser en rad som redan ligger i kön, utan att röra dess marked_at. */
+    public void las(Long insightId) {
+        try {
+            jdbc.update("DELETE FROM insight_upcoming_beslut WHERE insight_id = ?", insightId);
+            jdbc.update("INSERT INTO insight_upcoming_beslut(insight_id, beslutad_at) VALUES (?, ?)",
+                    insightId, now());
+        } catch (Exception e) {
+            log.warn("Kunde inte låsa parkeringen av insikt {}: {}", insightId, e.getMessage());
+        }
+    }
+
+    /**
+     * De köade rader som ligger där genom ett beslut. Vid DB-fel kastas felet vidare i stället
+     * för en tom mängd: en tom mängd här betyder "släpp fritt", och det är fel håll att tveka åt.
+     */
+    public Set<Long> beslutIds() {
+        ensureTable();
+        return Set.copyOf(jdbc.queryForList(
+                "SELECT b.insight_id FROM insight_upcoming_beslut b JOIN insight_upcoming u ON u.insight_id = b.insight_id",
+                Long.class));
     }
 
     /** Markerar en sparad insikt som "kommande modell". */
@@ -65,6 +110,7 @@ public class UpcomingInsightService {
         try {
             ensureTable();
             int removed = jdbc.update("DELETE FROM insight_upcoming WHERE insight_id = ?", insightId);
+            jdbc.update("DELETE FROM insight_upcoming_beslut WHERE insight_id = ?", insightId);
             cache.clear();
             return removed > 0;
         } catch (Exception e) {
@@ -204,8 +250,9 @@ public class UpcomingInsightService {
         try {
             ensureTable();
             return jdbc.queryForList("""
-                SELECT u.insight_id, u.marked_at, i.expert_name, i.car_make, i.car_model, i.insight
+                SELECT u.insight_id, u.marked_at, b.beslutad_at, i.expert_name, i.car_make, i.car_model, i.insight
                 FROM insight_upcoming u JOIN expert_insight i ON i.id = u.insight_id
+                LEFT JOIN insight_upcoming_beslut b ON b.insight_id = u.insight_id
                 ORDER BY u.insight_id DESC
                 """);
         } catch (Exception e) {
