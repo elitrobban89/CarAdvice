@@ -142,7 +142,10 @@ public class UpcomingAdCheckService {
         LARM,
         /** Blocket svarade inte. Ingen åsikt — och uttryckligen inte ett godkännande. */
         UPPSLAG_MISSLYCKADES,
-        /** Bilen har annonser, men varje köad rad säger själv att den gäller något kommande. */
+        /**
+         * Bilen har annonser, men varje köad rad säger själv att den gäller något kommande — eller
+         * ligger där genom ett beslut ({@link Dom#raderBeslutade}).
+         */
         GRANSKA,
         /**
          * Annonserna bär modellnamnet men <b>ingen av dem har den drivlina raden handlar om</b> —
@@ -156,9 +159,16 @@ public class UpcomingAdCheckService {
     /**
      * @param annonser            annonser vars namn bär modellbeteckningen (inte Blockets råa träffantal)
      * @param raderUtanNyhetsord  de köade id:n som läses som ren fakta om en bil man kan köpa
+     * @param raderBeslutade      köade id:n som parkerats genom ett beslut — se {@link #arBeslutad}
      */
     public record Dom(String carMake, String carModel, Status status, int annonser,
-                      List<Long> rader, List<Long> raderUtanNyhetsord, List<String> exempel) {}
+                      List<Long> rader, List<Long> raderUtanNyhetsord, List<String> exempel,
+                      List<Long> raderBeslutade) {
+        public Dom(String carMake, String carModel, Status status, int annonser,
+                   List<Long> rader, List<Long> raderUtanNyhetsord, List<String> exempel) {
+            this(carMake, carModel, status, annonser, rader, raderUtanNyhetsord, exempel, List.of());
+        }
+    }
 
     public record Rapport(int bilar, int rader, int hoppade,
                           Map<String, Long> perStatus, List<Dom> domar) {}
@@ -213,15 +223,17 @@ public class UpcomingAdCheckService {
     private Dom domFor(String make, String model, List<Map<String, Object>> gruppen, JsonNode docs) {
         List<Long> alla = new ArrayList<>();
         List<Long> utanNyhetsord = new ArrayList<>();
+        List<Long> beslutade = new ArrayList<>();
         for (Map<String, Object> rad : gruppen) {
             Long id = idOf(rad.get("insight_id"));
             if (id == null) continue;
             alla.add(id);
-            if (!sagerAttBilenArKommande(text(rad.get("insight")))) utanNyhetsord.add(id);
+            if (arBeslutad(rad)) beslutade.add(id);
+            else if (!sagerAttBilenArKommande(text(rad.get("insight")))) utanNyhetsord.add(id);
         }
 
         if (docs == null)
-            return new Dom(make, model, Status.UPPSLAG_MISSLYCKADES, 0, alla, utanNyhetsord, List.of());
+            return new Dom(make, model, Status.UPPSLAG_MISSLYCKADES, 0, alla, utanNyhetsord, List.of(), beslutade);
 
         List<String> exempel = new ArrayList<>();
         int annonser = 0, elAnnonser = 0, kandDrivlina = 0;
@@ -241,7 +253,22 @@ public class UpcomingAdCheckService {
         else if (elAnnonser == 0 && kandDrivlina > 0
                 && allaGallerElversion(gruppen, utanNyhetsord, make, model)) status = Status.ANNAN_DRIVLINA;
         else status = Status.LARM;
-        return new Dom(make, model, status, annonser, alla, utanNyhetsord, exempel);
+        return new Dom(make, model, status, annonser, alla, utanNyhetsord, exempel, beslutade);
+    }
+
+    /**
+     * Ligger raden i kön genom ett beslut (admin-API:t, morgonfixens {@code parkera})?
+     *
+     * <p><b>Beslutet har redan läst det kollen gissar på</b> (2026-10-17). Hyundai Bayon 1904
+     * parkerades 10-15 som tvilling till 1905 — hybriddrivlinan hör till nästa generation — och
+     * låstes 10-16. Meningen bär inget nyhetsord, så kollen gav {@code LARM} mot de gamla
+     * bensin-Bayon på Blocket natten efter, och skulle ha gjort det varje natt framöver: ett larm
+     * som är falskt varje dag gör att rapporten slutar läsas. En beslutad rad räknas därför inte
+     * bland {@code raderUtanNyhetsord} utan redovisas i {@code raderBeslutade}, så att den syns
+     * men inte larmar. Raden släpps fortfarande bara av ett nytt beslut.
+     */
+    static boolean arBeslutad(Map<String, Object> rad) {
+        return !text(rad.get("beslutad_at")).isBlank();
     }
 
     /**

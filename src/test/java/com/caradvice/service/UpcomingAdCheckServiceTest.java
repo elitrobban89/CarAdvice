@@ -269,6 +269,47 @@ class UpcomingAdCheckServiceTest {
         assertThat(d.raderUtanNyhetsord()).isEmpty();
     }
 
+    /**
+     * Bayon 1904/1905 ur kön 2026-10-17: båda låsta genom beslut 10-16, och 1904 bär inget
+     * nyhetsord. Utan beslutsläsningen gav kollen LARM mot gamla bensin-Bayon varje natt.
+     */
+    @Test
+    void beslutadRadLarmarInteMenRedovisas() {
+        Map<String, Object> tvilling = rad(1904, "Hyundai", "Bayon",
+                "Hybriddrivlinan kombinerar en 1,6-liters bensinmotor med en elmotor");
+        tvilling.put("beslutad_at", "2026-10-16 09:52:21");
+        Map<String, Object> huvudrad = rad(1905, "Hyundai", "Bayon",
+                "Nästa generations Bayon får hybriddrift");
+        huvudrad.put("beslutad_at", "2026-10-16 09:52:21");
+
+        Rapport r = tjanst().granska(List.of(tvilling, huvudrad),
+                annonser(Map.of("Hyundai Bayon", List.<String[]>of(
+                        new String[] {"Hyundai Bayon", "1.0 T-GDi Essential"}))));
+
+        Dom d = dom(r, "Bayon");
+        assertThat(d.status()).isEqualTo(Status.GRANSKA);
+        assertThat(d.raderUtanNyhetsord()).isEmpty();
+        assertThat(d.raderBeslutade()).containsExactly(1904L, 1905L);
+    }
+
+    @Test
+    void beslutadGrannTystarInteEnOlastFaktarad() {
+        // Låset gäller raden, inte bilen: en olåst faktarad bredvid larmar som förut.
+        Map<String, Object> last = rad(1904, "Hyundai", "Bayon", "Hybriddrivlinan har 141 hk");
+        last.put("beslutad_at", "2026-10-16 09:52:21");
+        Map<String, Object> olast = rad(1950, "Hyundai", "Bayon", "Bagaget rymmer 411 liter");
+        olast.put("beslutad_at", null);
+
+        Rapport r = tjanst().granska(List.of(last, olast),
+                annonser(Map.of("Hyundai Bayon", List.<String[]>of(
+                        new String[] {"Hyundai Bayon", "1.0 T-GDi Essential"}))));
+
+        Dom d = dom(r, "Bayon");
+        assertThat(d.status()).isEqualTo(Status.LARM);
+        assertThat(d.raderUtanNyhetsord()).containsExactly(1950L);
+        assertThat(d.raderBeslutade()).containsExactly(1904L);
+    }
+
     @Test
     void ingenAnnonsBarModellnamnetGerIngaAnnonser() {
         Rapport r = tjanst().granska(

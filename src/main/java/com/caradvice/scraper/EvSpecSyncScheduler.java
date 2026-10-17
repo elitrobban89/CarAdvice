@@ -20,7 +20,8 @@ public class EvSpecSyncScheduler {
     // Första ledet i NattkedjanScheduler (23:00 UTC) — har inget eget klockslag längre
     public void dailySync() {
         log.info("Daily EV spec sync triggered");
-        int updated = jobStatus.track(JobStatusService.JOB_EV_SPECS, scraper::syncFromEvDatabase);
+        // trackDetailed: bagagevolymerna som fylls här måste synas i scrape-status, se syncMedDetalj
+        int updated = jobStatus.trackDetailed(JobStatusService.JOB_EV_SPECS, scraper::syncMedDetalj);
         log.info("Daily sync finished — {} records updated", updated);
     }
 }

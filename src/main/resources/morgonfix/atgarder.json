@@ -1,4 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-10-17", "typ": "dolj", "id": 1940, "skal": "Specialbyggd Mercedes-Maybach S 680 åt en namngiven kändis (Auto Motor & Sport) - engångsbeställning, ingen generell köpinformation. Samma fall som 1910; dold på användarens uppdrag 10-17."}
+  ]
 }

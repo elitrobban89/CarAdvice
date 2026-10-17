@@ -116,12 +116,13 @@ public class EvDatabaseScraperService {
         this.evPowerService = evPowerService;
     }
 
-    public int syncFromEvDatabase() {
+    /** Synken, med delarna redovisade för scrape-status — se {@link JobStatusService.Utfall}. */
+    public JobStatusService.Utfall syncMedDetalj() {
         log.info("Starting EV spec sync from ev-database.org");
         List<EvSpec> existing = repo.findAll();
         if (existing.isEmpty()) {
             log.warn("No existing EvSpec records — seed data first.");
-            return 0;
+            return new JobStatusService.Utfall(0, null);
         }
 
         // Build lookup: normalized name → record
@@ -135,7 +136,7 @@ public class EvDatabaseScraperService {
 
         if (carUrls.isEmpty()) {
             log.error("SCRAPER ALERT: Cheatsheet returned 0 car URLs — ev-database.org may have changed its HTML structure. Manual inspection needed.");
-            return 0;
+            return new JobStatusService.Utfall(0, null);
         }
 
         int updated = 0;
@@ -307,7 +308,13 @@ public class EvDatabaseScraperService {
         } else if (failed > 0) {
             log.warn("Scraper: {}/{} pages could not be parsed", failed, total);
         }
-        return updated + created;
+        // Delarna var för sig i scrape-status, som cargo-specs: bagaget fylls här OCKSÅ, och
+        // 10-17 sa cargo-specs "bagagevolymer: 0" medan medVolym steg med tio - nattrutinen
+        // läser bara WARN/ERROR och kunde inte se den här halvan, som bara loggas på INFO.
+        return new JobStatusService.Utfall(updated + created,
+                "uppdaterade: " + updated + ", nya: " + created + ", misslyckade: " + failed
+                        + ", kollisioner: " + collisions + ", bagagevolymer: " + cargoFilled
+                        + ", aliaseffekter: " + aliasEffekter);
     }
 
     /**

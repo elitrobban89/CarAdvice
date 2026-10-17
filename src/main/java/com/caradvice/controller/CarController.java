@@ -257,7 +257,7 @@ public class CarController {
     public ResponseEntity<?> syncEvSpecs(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (isAdminUnauthorized(key)) return ResponseEntity.status(403).body(Map.of("error", "Unauthorized"));
         Thread.ofVirtual().start(() ->
-                jobStatus.track(JobStatusService.JOB_EV_SPECS, evScraper::syncFromEvDatabase));
+                jobStatus.trackDetailed(JobStatusService.JOB_EV_SPECS, evScraper::syncMedDetalj));
         return ResponseEntity.accepted().body(Map.of("status", "sync started — check server logs for result"));
     }
 

@@ -116,6 +116,7 @@ public class UpcomingAutoReleaseService {
             if (slapp.isEmpty()) continue;
             List<Long> kvar = new ArrayList<>(dom.rader());
             kvar.removeAll(dom.raderUtanNyhetsord());
+            kvar.removeAll(dom.raderBeslutade());
             per.add(new Slappt(dom.carMake(), dom.carModel(), dom.annonser(), slapp, List.copyOf(kvar)));
             kandidater += slapp.size();
         }

@@ -49,6 +49,7 @@ status ska vara OK. Notera kortid, newInsights och perSource. Tabellen har EN ra
 
 === 1b. ev-specs-JOBBET (jobs['ev-specs']) ===
 newInsights = antal ev_spec-rader som **andrades** i kedjans forsta led (uppdateringar, inte nya rader). **Vantat 0-25.** Jamfor mot evSpecs i /api/health.
+Sedan 10-17 bar perSource delarna: 'uppdaterade: U, nya: N, misslyckade: F, kollisioner: K, bagagevolymer: B, aliaseffekter: A'. **B ar elbilarnas bagage, fyllt pa sidan som anda hamtas** - ett ANDRA spar bredvid cargo-specs egna 'bagagevolymer'. Stiger medVolym trots cargo-specs 'bagagevolymer: 0' ska B forklara skillnaden; gor det inte det ar det en avvikelse. Fore forsta natten efter deployen ar perSource tom (null) for ev-specs.
 - Fallet fran 290-299 till ensiffrigt 08-11 ar KORREKT (kollisionssparr). Fragan ar STANGD - be inte om loggraden.
 - "Kollisionssparr: ... matchar DB-raden" (fore 10-07: "SCRAPER ALERT: ... matchar DB-raden", ERROR) ar samma sparr, ~100 per natt, NORMALT. Raden loggas nu pa INFO; bara WARN-summeringen "N bilar hoppades over" syns i /api/admin/logg. Avvikelse forst om evSpecs star still flera natter medan cargo-specs hittar nya namn.
 - **Stiger talet tillbaka mot 290 ar det en AVVIKELSE** - da har sparren slutat verka.
@@ -128,7 +129,7 @@ curl -s --max-time 300 -H "X-Admin-Key: $ADMIN_KEY" https://caradvice.onrender.c
 Den slar varje koad bil mot Blockets annonser och ger fem domar, sorterade sa att det som kraver beslut ligger overst:
 - **LARM** = bilen SALS och minst en koad rad saknar nyhetsord. **Rapportens viktigaste fynd** - skriv ut raderna och SLAPP dem via atgarder.json (9h).
 - **UPPSLAG_MISSLYCKADES** = Blocket svarade inte. Sag det rakt ut; det ar inte samma sak som noll annonser.
-- **GRANSKA** = bilen sals men varje rad sager sjalv att den galler nasta generation. **Det NORMALA utfallet for korrekt parkerade rader** - larma aldrig pa dem.
+- **GRANSKA** = bilen sals men varje rad sager sjalv att den galler nasta generation - ELLER ar LAST genom ett beslut (sedan 10-17 listas lasta rader i `raderBeslutade` och raknas aldrig i `raderUtanNyhetsord`; Bayon 1904/1905 star darfor som GRANSKA, inte LARM). **Det NORMALA utfallet for korrekt parkerade rader** - larma aldrig pa dem.
 - **ANNAN_DRIVLINA** = annonserna bar modellnamnet men ingen har radens drivlina. Namnet traffade en annan bil, parkeringen ser riktig ut. Tomt drivmedelsfalt tystar aldrig ett LARM.
 - **INGA_ANNONSER** = bilen finns inte till salu. Korrekt parkerad - **men bara om car_model ar ratt stavat.** Uppslaget soker pa car_model, sa ett stavfel ger noll annonser: 1804 bar "Ionix 3" och parkerades 10-08 trots 38 Ioniq 3-annonser. Jamfor car_model med modellnamnet i radens text innan du parkerar; skiljer de sig, parkera inte och skriv ut raden.
 **VANTAT UTFALL: 0 LARM, 6 GRANSKA, 1 ANNAN_DRIVLINA, 6 INGA_ANNONSER pa 26 rader / 13 bilar** (GRANSKA: Pajero, Lexus NX 450h+, Santa Fe, Tucson, Volvo XC70, Mazda 6e pa TVA rader. INGA_ANNONSER: VW ID.3 GTI, Nissan Kicks, Kia PV7, Mercedes C-klass Electric, Volvo XC100, BMW iX5 Hydrogen 1622 - ny 09-23, vatgasbil som inte sals). **Ett LARM ar alltsa ett NYTT fynd - skriv ut raden.**
