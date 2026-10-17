@@ -1,5 +1,102 @@
 # Morgonfix-logg
 
+## 2026-10-17
+
+**DOM: KOLLA** - inget trasigt, men en öppen fråga (flera källor gav 0 i natt) och en
+annonskolls-LARM som bedöms vara samma redan låsta Bayon-fall som 10-16, inte ett nytt fynd.
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:34:15, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (97ef4c6), status OK, ingen
+omstart i natt (uptime ~16,7 h vid grundkollen). Groq 3/3 modeller (friskt, HTTP 200). ev-specs
+updated **37** - något över det vanliga 0-25 (men långt under 290-gränsen för att
+kollisionsspärren slutat verka, och evSpecs växer sunt 630→650 samtidigt) - ingen avvikelse.
+cargo-specs gav 2/0/0 (2 nya bilnamn, 0 bagagevolymer, 0 generationsår) - lågt N, status OK.
+"generationsår: 0" förklaras av två WARN-rader i Render-loggen ("auto-data: modellsidan gav
+noll generationer") för natten - konsekvent, inte strukturbrott. Kontrollräkningen
+(cargo-coverage total 1803 + evSpecs 650 + ice_consumption 960 = 3413 = /api/stats variants)
+stämmer exakt (bekräftat både manuellt och av mat-baslinje.js).
+
+**Baslinjen (2026-10-16) jämförd mot i natt:** models 2254→2276, variants 3383→3413,
+insights 1471→1475 (+4, matchar id-intervallet 1939-1942 exakt). cargo total 1793→1803
+(medVolym 1013→1023, UPPÅT), evSpecs 630→650, apiCars 2041→2063. Inget tal har FALLIT. Enligt
+domregeln i 3f: medVolym uppåt = bra oavsett bagageMissar (826→828). **Öppen fråga:**
+cargo-specs-jobbets egen räknare sa "bagagevolymer: 0" i natt men medVolym och evPowers (520→540)
+steg ändå - mest troligt för att EvDatabaseScraperService också fyller bagagevolym direkt för
+elbilar (ett annat kodspår än AutoDataCargoFillService.fyllSaknadeVolymer, som gav 0 i natt och
+är det jobbet som faktiskt loggas i perSource). Ingen tappad rad - kontrollräkningen går ihop -
+men räknaren i scrape-status speglar alltså inte hela bilden. Ingen kodfix (ingen entydig bugg,
+bara två rader i samma jobb som mäter olika saker). Generationsåren still (291/19, väntat till
+fönstret 2026-10-20). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - matchar referensen exakt. Drivmedelsräknaren 495→506 total, 410→421 el (växer
+sunt), ice 85 (oförändrat), manuella 16 (oförändrat) - alla 16 handsatta rader fortsatt korrekta,
+ingen flip. Kategorivakten: 0 utslag sedan omstart (uptime ~16,8 h vid avläsning).
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sex tjänster OK (observera: skriptet kontrollerar
+nu även ett sjätte projekt, "Bränslekostnad" (Node/Express) - nytt sedan 10-16, inget för
+rutinen att göra åt, scripts/ rörs inte).
+
+**Kommandevakten (annonskollen): 1 LARM, 7 GRANSKA, 1 ANNAN_DRIVLINA, 17 INGA_ANNONSER på 57
+rader / 26 bilar.** LARM-raden är **Hyundai Bayon (1905, 1904)** - samma fall som 10-16:s
+huvudfynd. Kontrollerat i natt: båda raderna har `beslutad_at: 2026-10-16 09:52:21` (låsta via
+den kod som deployades samma morgon, commit 97ef4c6 "autosläppet rör inte beslutade
+parkeringar"), och Render-loggen visar INGEN släppning av 1904/1905 i natt - bara en annan rad
+(1941, VW ID.Polo, korrekt autosläppt: "10 annonser och raden säger inget om framtiden").
+**Bedömning: inte ett nytt fynd** - annonskollen vet inte om låset och kommer flagga samma
+Blocket-annonser (gamla bensin-Bayon) varje natt framöver. Ingen ny atgärd skriven - låset håller.
+Om detta är fel bedömning (låset har slutat verka eller en äkta ny Bayon-generation faktiskt
+säljs) bör användaren säga till. GRANSKA-raderna matchar väntade mönster (BMW i3 Neue Klasse,
+Tucson, Range Rover Sport, Volvo XC70, Mazda 6e, Mitsubishi Pajero, Hyundai Santa Fe) - inget nytt
+där.
+
+**Nattens 4 nya rader (id 1939-1942):** granskade mot avsnitt 6. Inget kategorifel, inga
+skatterader, renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning/tillförlitlighet/
+livslängd/skrotålder: 0 rader i natt (frågan fortsatt OPRÖVAD, lyfts igen). **Svag rad värd att
+flagga, inte dölja:** 1940 (Auto Motor & Sport, Mercedes-Maybach S 680) beskriver en
+specialbyggd bil åt en namngiven kändis (LeBron James) - korrekt `category: null`, men
+innehållet är en engångs-fabriksnyhet om en enskild persons specialbeställning, inte generell
+köpinformation. Passar möjligen "fabriks- och lagernyheter" i de kända läcktyperna, men för
+osäkert för att dölja på egen hand ("en rad du bara TROR är skräp döljer du inte") - flaggas åt
+användaren, samma hantering som 1910 fick 10-15. Övriga tre rader (1939 Peugeot e208, 1941
+VW ID.Polo, 1942 Volvo ES90) är normala specar/testomdömen, inget att anmärka på.
+
+**Observation att hålla koll på:** Teknikens Värld (0 av 3), Vi Bilägare (0 av 10), CarUp
+(0 av 12) och Allt om Elbil (0 av 5) gav alla 0 nya rader i natt trots lästa artiklar - all
+nattens skörd (4 rader) kom från Auto Motor & Sport. En enda natt är inte bevis på
+överblockering (regeln kräver två i rad för samma källa), och jag saknar gårdagens
+per-källa-siffror för att avgöra om något av dessa fyra är natt nummer två. Håll koll imorgon -
+upprepas nollan för någon av dem är det en trolig överblockering värd att söka Render-loggen
+efter "hoppar över batchen".
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Dolda/raderade:** inga nya doljningar eller raderingar i natt. `/api/admin/insights/dolda`
+visar fortsatt bara 1912 (Smart "??", dold 10-15) och 1910 (VW Golf-anekdot, dold 10-15) - båda
+under 7 dygn, ingen kvalificerar för radera än.
+
+**Kobeslut (`atgarder.json`):** inga nya i natt. Filen skrevs om med en tom lista - gårdagens
+lås (1904, 1784) ligger kvar skyddade via `morgonfix_atgard`-tabellen
+(`lasTidigareParkeringar`), inte via filens innehåll, så en tom fil släpper dem inte. Bekräftat
+i natt: ingen av dem syns släppt i Render-loggen.
+
+**Laddtips:** inget nytt. Toppkandidaten (1929, Audi A6 e-tron performance) är redan skriven
+10-15. Nästa (1887, BYD Dolphin G) saknar fortfarande en matchande ev-spec-rad (uteslutet sedan
+10-13/10-14). Tredje (1938, Nissan Leaf 2010, 122 hk) - samma obelagda siffra som 10-16,
+fortfarande ingen källa att stämma av mot.
+
+**Laddpriser:** lördag, ej måndag - ingen kontroll i natt.
+
+**Ingen kodfix i natt och ingen Maven-körning** - inget kodfel hittades med en entydig orsak och
+ett rött/grönt prov inom 9c:s gränser. Natten rör bara data/dokumentationsfiler som ramarna
+undantar från "kodfiler" (loggboken, atgarder.json, baslinje.json), så inget bygge krävs. Det
+riktade provet `MorgonfixAtgarderTest` kördes ändå mot den nya (tomma) atgarder.json och gick
+grönt (`verkligaFilenArGiltig` m.fl., BUILD SUCCESS).
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3413/3413 GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns inte
+sedan föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-16
 
 **Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:34:55, inom väntat fönster
