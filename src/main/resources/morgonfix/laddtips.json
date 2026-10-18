@@ -14,6 +14,7 @@
     {"datum": "2026-10-08", "typ": "laddtips", "ikon": "⏱️", "text": "**Volkswagen ID. Polo GTI** har ett 52 kWh-batteri som räcker till upp till 431 km enligt WLTP, och snabbladdar med 105 kW DC – från 10 till 80 % på cirka 24 minuter.", "kalla": "M3", "insikter": [1810, 1802, 1798]},
     {"datum": "2026-10-10", "typ": "laddtips", "ikon": "🔋", "text": "**Renault Twingo E-Tech Electric** har ett 27,5 kWh-batteri som räcker till upp till 263 km enligt WLTP, och snabbladdar med upp till 50 kW DC – från 15 till 80 % på cirka 30 minuter.", "kalla": "Allt om Elbil", "insikter": [1847]},
     {"datum": "2026-10-14", "typ": "laddtips", "ikon": "⚡", "text": "**Smart #2** har en elmotor på 82 hk och 130 Nm, ett **36 kWh**-batteri som ger en räckvidd på omkring **29 mil** enligt WLTP, samt snabbladdning med upp till **65 kW** DC.", "kalla": "Vi Bilägare", "insikter": [1882]},
-    {"datum": "2026-10-15", "typ": "laddtips", "ikon": "⚡", "text": "**Audi A6 e-tron performance** har 280 kW och ett **94,9 kWh**-batteri som ger upp till **765 km** enligt WLTP, med snabbladdning upp till **269 kW** DC.", "kalla": "Auto Motor & Sport", "insikter": [1929]}
+    {"datum": "2026-10-15", "typ": "laddtips", "ikon": "⚡", "text": "**Audi A6 e-tron performance** har 280 kW och ett **94,9 kWh**-batteri som ger upp till **765 km** enligt WLTP, med snabbladdning upp till **269 kW** DC.", "kalla": "Auto Motor & Sport", "insikter": [1929]},
+    {"datum": "2026-10-18", "typ": "laddtips", "ikon": "⚡", "text": "**Volkswagen ID. Tiguan** – nya ID.4 – snabbladdar med upp till **165 kW** DC: med 77 kWh-batteriet går 10 till 80 % på cirka **29 minuter**, och Style-versionen räcker upp till 596 km.", "kalla": "Auto Motor & Sport", "insikter": [1924, 1922]}
   ]
 }
