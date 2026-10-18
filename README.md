@@ -434,7 +434,7 @@ Bagagevolymerna (cargo-specs-ledet, 150 försök per natt med 30 dagars missminn
 
 ## Tester & CI
 
-1249 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest`, `IceConsumptionServiceTest` och `CargoSpecServiceMissTest` kör mot H2 in-memory för att verifiera portabel SQL):
+1250 tester täcker backendens rena logik och HTTP-lagret (beroenden mockas med Mockito; `FeedbackServiceTest`, `IceConsumptionServiceTest` och `CargoSpecServiceMissTest` kör mot H2 in-memory för att verifiera portabel SQL):
 
 | Testklass | Täcker |
 |-----------|--------|

@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -307,5 +308,28 @@ class AutoDataCargoFillServiceTest {
         service.fyllSaknadeVolymer();
 
         verify(cargoSpecs).rensaMiss("Citroen C1");
+    }
+
+    @Test
+    void arbetslistornasLangdSparasSaNollrapportenGarAttLasa() {
+        /*
+         * Natten 2026-10-18 gav "bagagevolymer: 0, generationsår: 0" utan loggrad — raderna är
+         * INFO och LoggBuffert tar bara WARN. Avbetad front och tyst fel såg likadana ut.
+         * Längden gör skillnaden: 0 av 0 är friskt, 0 av 400 är trasigt.
+         */
+        assertEquals(-1, service.senastKvarBagage());
+        assertEquals(-1, service.senastKvarGenerationer());
+
+        modeller("AC Cobra", "Volvo XC60");
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of());
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(cargoSpecs.harFarskMiss("AC Cobra")).thenReturn(true);
+        when(iceGenerations.harArtal(anyString())).thenReturn(true);
+
+        service.fyllSaknadeVolymer();
+        service.fyllGenerationsar();
+
+        assertEquals(1, service.senastKvarBagage());        // det kända nejet räknas inte
+        assertEquals(0, service.senastKvarGenerationer());  // allt fyllt = fronten avbetad
     }
 }

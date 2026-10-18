@@ -38,8 +38,12 @@ public class CargoSpecSyncScheduler {
             int generationer = autoDataFill.fyllGenerationsar();
             log.info("Daily CargoSpec sync: {} nya bilnamn, {} bagagevolymer, {} generationsår ifyllda",
                     nya, fyllda, generationer);
+            // "av K kvar" skiljer en avbetad front (0 av 0, friskt) från en trasig hämtning
+            // (0 av 400) — sammanfattningsraderna är INFO och syns inte i /api/admin/logg.
             return new JobStatusService.Utfall(nya + fyllda + generationer,
-                    "nya bilnamn: " + nya + ", bagagevolymer: " + fyllda + ", generationsår: " + generationer);
+                    "nya bilnamn: " + nya
+                            + ", bagagevolymer: " + fyllda + " av " + autoDataFill.senastKvarBagage() + " kvar"
+                            + ", generationsår: " + generationer + " av " + autoDataFill.senastKvarGenerationer() + " kvar");
         });
         log.info("Daily CargoSpec sync finished — {} rader berörda", added);
     }

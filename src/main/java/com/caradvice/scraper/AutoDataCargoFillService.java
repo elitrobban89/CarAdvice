@@ -49,6 +49,15 @@ public class AutoDataCargoFillService {
     private final IceConsumptionService iceConsumption;
     private final com.caradvice.service.IceGenerationService iceGenerations;
 
+    /*
+     * Arbetslistornas längd vid senaste körningen, för scrape-status. Sammanfattningsraderna
+     * nedan loggas på INFO och når aldrig /api/admin/logg (LoggBuffert tar bara WARN och ERROR),
+     * så natten 2026-10-18 gick "0 fyllda av 0 kvar" (fronten avbetad, friskt) inte att skilja
+     * från ett tyst skrivfel. -1 = ingen körning sedan omstart.
+     */
+    private volatile int senastKvarBagage = -1;
+    private volatile int senastKvarGenerationer = -1;
+
     public AutoDataCargoFillService(AutoDataScraperService autoData, CargoSpecService cargoSpecs,
                                     IceConsumptionService iceConsumption,
                                     com.caradvice.service.IceGenerationService iceGenerations) {
@@ -110,8 +119,19 @@ public class AutoDataCargoFillService {
      *
      * @return antal rader som fylldes
      */
+    /** Bagagelistans längd vid senaste {@link #fyllSaknadeVolymer}, -1 före första körningen. */
+    public int senastKvarBagage() {
+        return senastKvarBagage;
+    }
+
+    /** Generationslistans längd vid senaste {@link #fyllGenerationsar}, -1 före första körningen. */
+    public int senastKvarGenerationer() {
+        return senastKvarGenerationer;
+    }
+
     public int fyllSaknadeVolymer() {
         List<String> namn = arbetslista();
+        senastKvarBagage = namn.size();
         if (namn.isEmpty()) {
             log.info("auto-data bagage: inga bilar saknar volym");
             return 0;
@@ -215,6 +235,7 @@ public class AutoDataCargoFillService {
                 .filter(n -> !iceGenerations.harArtal(n))
                 .filter(n -> !iceGenerations.harFarskMiss(n))
                 .toList();
+        senastKvarGenerationer = namn.size();
         if (namn.isEmpty()) {
             log.info("auto-data generation: inga modeller kvar att pröva (fyllda eller nyligen missade)");
             return 0;
