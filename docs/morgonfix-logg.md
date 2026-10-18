@@ -1,5 +1,101 @@
 # Morgonfix-logg
 
+## 2026-10-18
+
+**DOM: KOLLA** - inget trasigt, men en namngiven mätfälla (3f) visar en natts stillestånd utan
+förklarande loggrad, plus fyra kön-rader låsta mot en känd autosläpp-bugg.
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:27:27, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (ecb4a50), status OK, ingen
+omstart i natt (uptime ~13,8 h vid grundkollen). Groq 3/3 modeller (friskt, HTTP 200, exakt
+referensen). ev-specs updated **5** - inom 0-25 (kollisioner 182, inget trendskifte mot
+290-gränsen eftersom evSpecs står still 650→650, väntat). **cargo-specs gav 0/0/0** (0 nya
+bilnamn, 0 bagagevolymer, 0 generationsår) - lägre än alla tidigare nätter i loggboken (lägsta
+tidigare var 2). Status OK, inget över 50-taket. Kontrollräkningen (cargo-coverage total 1803 +
+evSpecs 650 + ice_consumption 960 = 3413 = /api/stats variants) stämmer exakt, bekräftat av
+mat-baslinje.js.
+
+**Baslinjen (2026-10-17) jämförd mot i natt:** models 2276→2276 (oförändrat), variants
+3413→3413 (oförändrat), insights 1475→1478 (+3, matchar id-intervallet 1943-1945 exakt, alla
+CarUp). cargo total 1803→1803, evSpecs 650→650, apiCars 2063→2063 - **ingenting i cargo/ev/ice-
+tabellerna rörde sig alls i natt**, konsekvent med cargo-specs 0/0/0. Inget tal har FALLIT.
+
+**3f-FYNDET (öppen fråga, ej LARM ännu):** medVolym STILL (1023) OCH bagageMissar OFÖRÄNDRAD
+(828) - enligt domregeln i 3f är detta AVVIKELSE (inte det väntade "still + vuxit"-mönstret).
+Skillnaden mot gårdagens liknande nollrapport: i natt saknas HELT den förklarande loggraden
+('auto-data bagage: ...' eller liknande) i Render-loggen - sökt på "auto-data", "bagage",
+"cargo", "generation", noll träffar (iBufferten 31, ingen omstart har tömt bufferten, så
+raden borde synas om jobbet körde). `/api/admin/cargo-specs/missar` ser fortsatt frisk ut (828
+rader, alla "ej-hittad", inga kända röda flaggor som Volvo XC60 eller Volkswagen Golf,
+senaste provadDag 2026-10-16). **Detta är den FÖRSTA natten med en ren 0/0-stillestånd i just
+AutoDataCargoFillService-spåret** (gårdagens 0-rapport förklarades av två egna WARN-rader,
+dagens har inga). Domregeln säger "ligger den nära 0 TVÅ nätter i rad är det LARM" - i natt är
+det en natt, så KOLLA, inte LARM. **Håll koll i morgon:** blir det en andra natt i rad med
+medVolym+bagageMissar helt stilla, eller en andra natt med cargo-specs 0/0/0 utan förklarande
+loggrad, ska det eskaleras. Ingen kodfix i natt - ingen entydig orsak att peka på (kan vara en
+arbetslista som tillfälligt tog slut, kan vara ett tystnat skrivfel; utan loggraden går de inte
+att skilja från varandra).
+
+Generationsåren still (291/19, väntat till fönstret 2026-10-20, forsoktDag fortfarande
+2026-09-20, dagarKvar 2). vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - matchar referensen exakt. Drivmedelsräknaren oförändrad 506/421/85/16 - alla 16
+handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. Kategorivakten: 0 utslag sedan
+omstart (uptime ~13,8 h).
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sex tjänster OK, CarAdvice-raden visar
+autodeploy master · ecb4a50 (matchar /api/version). Samma kända INFO-rader hos Elbilsladdning
+som tidigare.
+
+**Kommandevakten (annonskollen): 0 LARM, 9 GRANSKA, 1 ANNAN_DRIVLINA, 16 INGA_ANNONSER på 56
+rader / 26 bilar** (kön gick 57→56 sedan baslinjen). **Förklaringen till minskningen:**
+UpcomingAutoReleaseService släppte 01:27:32 raden 1841 (BMW iX5 60 xDrive, "3 annonser och
+raden säger inget om framtiden") - en ren batteri-/räckviddsspec utan framtidsord, och bilen
+finns redan i cargo_spec ("bmw ix5 60 xdrive": el) - korrekt autosläpp, samma mönster som
+tidigare natters VW ID.Polo/Audi A6 e-tron. Ingen låst rad (1788, samma bil, "Neue Klasse",
+GRANSKA) rördes. Bayon-låsen (1904/1905) höll, ingen släppning i natt.
+
+**NY ÅTGÄRD: fyra Tucson-rader låsta mot samma autosläpp-bugg som åt Bayon-tvillingen 10-16.**
+Hyundai Tucson gen 5 (avgjort 10-10) har sju rader i kön (1274, 1293-1295, 1783-1785) som alla
+gäller samma icke-sålda 2027-generation. Bara 1783-1785 var låsta via tidigare beslut
+(`raderBeslutade`) - 1274/1293/1294/1295 stod olåsta trots att de är lika avgjorda, samma
+sårbarhet som Bayon hade innan 10-16-lagningen. **Parkerade i natt (atgarder.json):** 1295,
+1294, 1293, 1274 - samma källa som redan låsta syskon (avgjort 10-10, Tucson gen 5 ej till
+salu i Sverige). Inga övriga GRANSKA-rader (Range Rover Sport 1713, Volvo XC70 1573, Mazda 6e
+1560/1551, Mitsubishi Pajero 1414/1412, Hyundai Santa Fe 1368) är specifikt "avgjorda" i samma
+dokumenterade mening - lämnade olåsta, ingen ny källa att belägga en låsning med i natt.
+
+**Nattens 3 nya rader (id 1943-1945, alla CarUp):** granskade mot avsnitt 6. 1943 och 1945
+(Mercedes S 500 W220, rostskydd 1998-2002 resp. M113-motorns hållbarhet 40-50 000 mil) samt
+1944 (Suzuki SX4, pålitlighet efter 62 000 mil) är tillförlitlighetsomdömen om specifika
+generationer/motorer - inga landsspecifika statistik-siffror som kräver marknadsangivelse,
+snarare tekniska omdömen. Inget kategorifel, inga skatterader, renoveringsobjekt eller samlar-/
+veteranträffar. Värdeminskning/tillförlitlighet/livslängd/skrotålder: **3 rader i natt**
+(frågan därmed inte längre 0 - men se ovan, ingen kräver marknadsangivelse enligt min läsning).
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Dolda/raderade:** inga nya döljningar eller raderingar i natt. `/api/admin/insights/dolda`
+visar 1940 (10-17, 1 dygn), 1912 och 1910 (båda 10-15, 3 dygn) - ingen har nått 7 dygn än,
+ingen kvalificerar för radera.
+
+**Laddtips:** inget nytt skrivet i natt - natten gav inga laddnings-/batteri-/räckvidds-/
+laddpriskandidater bland CarUp:s tre nya rader (de handlar om tillförlitlighet, inte laddning).
+
+**Laddpriser:** söndag, ej måndag - ingen kontroll i natt.
+
+**Ingen kodfix i natt** - cargo-specs 0/0/0-fyndet (se 3f ovan) saknar en entydig orsak att peka
+ut i kod, och en patch utan ett rött/grönt prov hade inte varit belagd. All ändring i natt var
+kobeslut (atgarder.json, fyra parkeringar) + baslinjen. Det riktade provet
+`MorgonfixAtgarderTest` (11 tester, inklusive `verkligaFilenArGiltig` mot den nya filen) gick
+grönt, `BUILD SUCCESS`.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3413/3413 GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns
+inte sedan föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den
+normalt.
+
 ## 2026-10-17
 
 **DOM: KOLLA** - inget trasigt, men en öppen fråga (flera källor gav 0 i natt) och en

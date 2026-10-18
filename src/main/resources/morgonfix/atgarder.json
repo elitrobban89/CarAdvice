@@ -1,6 +1,9 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-17", "typ": "dolj", "id": 1940, "skal": "Specialbyggd Mercedes-Maybach S 680 åt en namngiven kändis (Auto Motor & Sport) - engångsbeställning, ingen generell köpinformation. Samma fall som 1910; dold på användarens uppdrag 10-17."}
+    {"datum": "2026-10-18", "typ": "parkera", "id": 1295, "skal": "GRANSKA: Hyundai Tucson gen 5 (avgjort 10-10, samma skäl som redan låsta 1783-1785) - 2027 års modell visad i Korea, ej till salu i Sverige än. Låser mot samma autosläpp-bugg som åt Bayon-tvillingen 10-16."},
+    {"datum": "2026-10-18", "typ": "parkera", "id": 1294, "skal": "GRANSKA: Hyundai Tucson gen 5 (avgjort 10-10, samma skäl som redan låsta 1783-1785) - 2027 års modell visad i Korea, ej till salu i Sverige än. Låser mot samma autosläpp-bugg som åt Bayon-tvillingen 10-16."},
+    {"datum": "2026-10-18", "typ": "parkera", "id": 1293, "skal": "GRANSKA: Hyundai Tucson gen 5 (avgjort 10-10, samma skäl som redan låsta 1783-1785) - 2027 års modell visad i Korea, ej till salu i Sverige än. Låser mot samma autosläpp-bugg som åt Bayon-tvillingen 10-16."},
+    {"datum": "2026-10-18", "typ": "parkera", "id": 1274, "skal": "GRANSKA: Hyundai Tucson gen 5 (avgjort 10-10, samma skäl som redan låsta 1783-1785) - 2027 års modell visad i Korea, ej till salu i Sverige än. Låser mot samma autosläpp-bugg som åt Bayon-tvillingen 10-16."}
   ]
 }
