@@ -1,5 +1,22 @@
 # Morgonfix-logg
 
+## 2026-10-19
+
+**DOM: GRONT** (rutinens egen dom) - men körningen slutade efter rapporten och sköt aldrig upp
+någon gren. Rad 5 i nattrutin.md sa "fas 2 bara om domen INTE ar GRONT" medan avsnitt 9 sa att
+baslinjen ska föras fram även gröna nätter; rutinen följde rad 5. Samma motsägelse har gjort att
+måndagens laddpriser aldrig skrivits en grön natt (senast 10-05). Efterhand, för hand 08:30:
+
+- **Baslinjen** mätt med `scripts/mat-baslinje.js` (kontrollräkningen går ihop 3413/3413):
+  insights 1478 -> 1486, högsta id 1945 -> 1953, cargo oförändrat (KB=0 bekräftar avbetad front).
+- **Laddpriser: 6 kontrollerade, 0 ändrade** - IONITY 6,09, Allego 6,30, Mer 5,10 (höglast),
+  Circle K 6,09, Lidl 5,80 kr/kWh; alla `kontrollerad` -> 2026-10-19. Mer gav 403 från molnets
+  proxy i natt (`se.mer.eco` saknas i Allowed domains) men gick bra lokalt.
+- **Fyndlistan 1946-1953:** 8 granskade, 0 kandidater (alla `ingen-laddkoppling`) - kamremsrader
+  och lagerbilsrabatter. Vattenmärket nu 1953.
+- **Lagat i nattrutin.md:** rad 5 och avsnitt 9:s GRONT-stycke säger nu samma sak - en grön natt
+  skriver baslinjen, laddpriserna (måndag) och laddtipsen, men inga kodfixar.
+
 ## 2026-10-18
 
 **DOM: KOLLA** - inget trasigt, men en namngiven mätfälla (3f) visar en natts stillestånd utan
