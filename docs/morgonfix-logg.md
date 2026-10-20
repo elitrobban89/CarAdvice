@@ -1,5 +1,86 @@
 # Morgonfix-logg
 
+## 2026-10-20
+
+**DOM: KOLLA** - inget trasigt (alla statusar OK, 0 LARM, AVVIKER 0, ingen flip i drivmedel),
+men flera öppna frågor kräver ett öga: rating fortsatt null på alla rader, en WARN i cargo-specs
+om "struktur ändrad?", och en LeBron James-rad som visade sig redan dold sedan 10-17 (ingen ny
+åtgärd, bara dubbelkollad).
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:34:50, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (2b72f65), status OK, ingen
+omstart i natt (uptime ~18,1 h vid grundkollen). Groq 3/3 modeller (friskt, HTTP 200, exakt
+referensen). ev-specs updated **3** - inom 0-25 (kollisioner 182, evSpecs still 650→650,
+väntat). cargo-specs gav **2/0/2** (2 nya bilnamn, 0 av 2 bagagevolymer kvar, 0 av 0
+generationsår kvar) - status OK, inget över 50-taket. Kontrollräkningen (cargo-coverage total
+1805 + evSpecs 650 + ice_consumption 960 = 3415 = /api/stats variants) stämmer exakt, bekräftat
+av mat-baslinje.js.
+
+**AutoDataScraperService-WARN ("modellsidan gav noll generationer — struktur ändrad?") x2** -
+samma mönster och samma antal som natten till 10-17 (där det bedömdes konsekvent med
+generationsårens KG=0 kvar, inte ett strukturbrott). Ingen kodfix - ingen namngiven modell att
+peka ut, och läget är oförändrat mot ett redan dokumenterat, återkommande WARN.
+
+**Baslinjen (2026-10-19) jämförd mot i natt:** models 2276→2278 (+2, matchar cargo-specs nya
+bilnamn), variants 3413→3415, insights 1486→1489 (+3, matchar id-intervallet 1954-1956 exakt).
+cargo total 1803→1805 (medVolym still 1023, bagageMissar 828→830 - domregeln 3f: still+vuxit =
+VANTAT, OK). evPowers still 540→540 (väntat, evSpecs still). apiCars 2063→2065. Inget tal har
+FALLIT. Generationsåren still (291/19, fönstret stänger just i dag 2026-10-20; forsoktDag
+fortfarande 2026-09-20 - håll koll i morgon om den inte rört sig). vPIC: 291/0/275, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - matchar referensen exakt. Drivmedelsräknaren oförändrad
+506/421/85/16 - alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip.
+Kategorivakten: 0 utslag sedan omstart (uptime ~18 h).
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sex tjänster OK, CarAdvice-raden visar autodeploy
+master · 2b72f65 (matchar /api/version).
+
+**Kommandevakten (annonskollen): 0 LARM, 9 GRANSKA, 1 ANNAN_DRIVLINA, 16 INGA_ANNONSER på 56
+rader / 26 bilar** - oförändrat mot baslinjen (56/26). Ingen ny köbeslut i natt.
+**Observation:** extravakten [Auto Motor & Sport/kommande] parkerade nattens egna rad 1956 (Audi
+A6 e-tron, jämförelsetest) i kön av misstag (01:25), men UpcomingAutoReleaseService släppte den
+korrekt samma natt (01:34, "46 annonser och raden säger inget om framtiden") - självrättat,
+ingen åtgärd behövdes. De olåsta GRANSKA-raderna (Range Rover Sport 1713, Volvo XC70 1573, Mazda
+6e 1560/1551, Mitsubishi Pajero 1414/1412, Hyundai Santa Fe 1368) är samma redan dokumenterade
+("ingen ny källa att belägga en låsning med") läge som 10-18 - lämnade olåsta igen.
+
+**Nattens 3 nya rader (id 1954-1956):** 1954 (VW ID.Buzz, högspänningssäkring utlöst vid
+Ionity-laddare i Elverum) och 1955 (Toyota Land Cruiser, ytrost bekräftat normalt fenomen) är
+sakliga tillförlitlighets-/driftfakta, inga kategorifel. 1956 (Audi A6 e-tron, jämförelsetest mot
+Volvo ES90/BMW i5) är tunn - säger att ett test finns utan att säga vad det visade - men
+dubbleras inte av 1936 som redan ger testets faktiska kritik; ingen skräprad, bara svag. Inget
+kategorifel, inga skatterader, renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning/
+tillförlitlighet/livslängd/skrotålder: **1 relevant rad** (1937, Tesla Model S, norska Nettbil -
+marknadsangivelse finns, så ingen regel bruten).
+
+**LeBron James-raden (1940, Mercedes-Maybach S 680) dubbelkollad:** redan dold sedan 2026-10-17
+("engångsbeställning, ingen generell köpinformation", användarens eget beslut) - 3 dygn gammal,
+inte 7 än. Ingen ny åtgärd. Samma gäller 1910 (VW Golf, 5 dygn) och 1912 (Smart "??", 5 dygn) -
+inga kvalificerar för radera än.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Laddtips:** ett nytt tips skrivet (`src/main/resources/morgonfix/laddtips.json`) - Audi A5
+Avant e-hybrid quattro saknar DC-snabbladdning helt (verifierat mot `/api/ev-spec?car=...`:
+maxDcKw 0, maxAcKw 11, batteryKwh 25,9 - exakt mot insikt 1909). Toppkandidaten i
+ev-fact-candidates (1929, Audi A6 e-tron performance) är en dublett av tipset från 10-15 och
+hoppades över. VW ID. Tiguan-kandidaterna (1903, 1922, 1921, 1924) hoppades också över - de
+angivna siffrorna per utrustningsnivå (596 km/606 900 kr respektive 450 km/559 900 kr) gick inte
+att belägga mot `/api/ev-spec?car=Volkswagen Tiguan`, som bara ger EN rad (607 km, 552 000 kr,
+77 kWh) som inte matchar någon av de påstådda nivåerna exakt.
+
+**Dolda/raderade:** inga nya döljningar eller raderingar i natt (se LeBron-raden ovan).
+
+**Ingen kodfix i natt** - inget namngivet vakthål, parserfel eller belagd datarad att rätta.
+All ändring i natt var baslinjen + ett laddtips + en tömd `atgarder.json` (inga nya köbeslut; de
+fyra Tucson-parkeringarna från 10-18 är redan utförda enligt `/api/admin/morgonfix-atgarder` och
+skrivs inte om). `mvn -q test` (hela sviten) gick grönt, `BUILD SUCCESS`.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3415/3415 GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns inte
+sedan föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-19
 
 **DOM: GRONT** (rutinens egen dom) - men körningen slutade efter rapporten och sköt aldrig upp
