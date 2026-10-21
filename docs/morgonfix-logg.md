@@ -1,5 +1,103 @@
 # Morgonfix-logg
 
+## 2026-10-21
+
+**DOM: KOLLA** - inget akut trasigt (alla statusar OK, 0 LARM, AVVIKER 0 i vPIC, ingen flip i
+drivmedel), men generationsårsvakten (3a) visar en trolig parserregression (se nedan), och en
+ny kommande-rad krävde ett kobeslut.
+
+**Nattrapporten visade:** kedjan gick (lastScrapeFinishedAt 01:36:19, inom väntat fönster
+01:15-01:50 sommartid), deployad commit matchar origin/master (6a891eb), status OK, ingen omstart
+i natt (uptime ~23,6 h vid grundkollen). Groq 3/3 modeller (friskt, HTTP 200, exakt referensen).
+ev-specs updated **3** - inom 0-25 (kollisioner 182, evSpecs still 650→650, väntat). cargo-specs
+gav **1/0/0** (1 nytt bilnamn, 0 av 1 bagagevolymer kvar, 0 av 19 generationsår kvar) - status OK.
+Kontrollräkningen (cargo-coverage total 1806 + evSpecs 650 + ice_consumption 960 = 3416 =
+/api/stats variants) stämmer exakt, bekräftat av mat-baslinje.js (3416/3416).
+
+**GENERATIONSÅRSVAKTEN (3a) - TROLIG PARSERREGRESSION, inget belagt fix möjligt härifrån:**
+30-dagarsfönstret stängde 2026-10-20 och alla 19 missar provades om i natt (forsoktDag nu
+2026-10-20, var 2026-09-20). Resultatet: **samtliga 19 är nu `ej-hittad`** - innan omprövningen
+var 16 av 19 `vakten-avstod` (medvetet avstående, friskt) och bara 3 `ej-hittad` enligt
+nattrutin.md:124 ("BMW 316d avstår fortfarande" stod som en STÄNGD fråga, dvs vakten-avstod).
+Render-loggen bekräftar: `AutoDataScraperService "auto-data: modellsidan gav noll generationer —
+struktur ändrad?"` loggades **exakt 19 gånger** i natt (01:18:16-01:18:55), en per försök. BMW
+316d - uttryckligen dokumenterad som vakten-avstod-fallet - är nu `ej-hittad` i stället, vilket är
+en konkret regression mot ett tidigare stängt fall. Enligt regeln i 3a ("Domineras missarna av
+ej-hittad är UPPSLAGET trasigt - inte auto-data som saknar bilarna") pekar detta mot att
+`AutoDataScraperService.parseGenerationer`s selektor (`#generr > div` / `a[href*=-generation-]`
+mot auto-data.net) har slutat träffa. **Kunde inte verifieras eller lagas härifrån:**
+www.auto-data.net är inte i molnmiljöns Allowed domains (anropet avvisades av egress-proxyn,
+connect_rejected) - jag kan inte se sidans nuvarande HTML för att bekräfta eller skriva ett
+rött-innan/grönt-efter-prov. **Total (291) och missar (19) har inte FALLIT** - ingen felaktig
+data visas, bara fler tomma fält än väntat. Lämnas som förslag: en framtida körning med
+nätåtkomst till auto-data.net bör kontrollera selektorn mot en känd modell (t.ex. BMW 316d).
+
+Generationsåren (samma jobb som cargo-specs): total 291→291, missar 19→19 (291+19=310, stämmer).
+vPIC: 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. Drivmedelsräknaren oförändrad 506/421/85/16 - alla 16 handsatta rader (11 el +
+5 ice) fortsatt korrekta, ingen flip (kontrollerat programmatiskt mot kända EV-markörer, inga
+äkta träffar). Kategorivakten: 0 utslag sedan omstart (uptime ~23,6 h).
+
+**Bagagelarmet (3f):** medVolym still (1023→1023) + bagageMissar VUXIT (830→831) = **VÄNTAT**,
+inte avvikelse (cargo-specs KB var 1, den ena bilen gav en miss, inte en volym).
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sex tjänster OK, CarAdvice-raden visar autodeploy
+master · 6a891eb (matchar /api/version). Samma kända INFO-rader hos Elbilsladdning som tidigare.
+
+**Nattens 18 nya rader (id 1957-1974):** 16 av 18 bra. Två tunna utan angivet utfall - **1967**
+(BMW IX3, "ingick i en provkörning där den jämfördes med andra premium-SUV-modeller" - säger
+inget om resultatet) och **1968** (Mercedes GLC 400, samma mönster, "testades ... tillsammans
+med andra lyx-SUV-modeller"). Inga kategorifel (kategorivakten 0 utslag), inga skatterader,
+renoveringsobjekt eller samlar-/veteranträffar. Värdeminskning/tillförlitlighet/livslängd/
+skrotålder: **0 rader i natt** - fortsatt öppen fråga, inte ett friskhetstecken.
+
+**Tre regler:** SKATTER - inget underlag i natt. RENOVERINGSOBJEKT - inget underlag. AVVECKLADE
+MODELLER ÄR RELEVANTA - 1974 (Polestar 2, produktionen nedlagd, säljs bara som lagerbil) är
+exemplet i natt: raden behölls med fylld kategori/drivmedel och ligger INTE i kommande-kön -
+korrekt hantering, ingen överblockering.
+
+**Kommandevakten (annonskollen):** 0 LARM, 10 GRANSKA, 1 ANNAN_DRIVLINA, 17 INGA_ANNONSER på 58
+rader / 28 bilar (upp från baslinjens 56/26). Alla tidigare dokumenterade fall oförändrade
+(Bayon-tvillingarna, Tucson gen 5, Range Rover 1578/1713, Mazda 6e, Pajero, Santa Fe, XC70, BMW
+i3/iX5 - samtliga redan låsta eller dokumenterade sedan tidigare nätter). **Ny GRANSKA-rad:
+Honda Prelude (1962)** - Auto Motor & Sport skriver om "Prelude Limited Edition" (e:HEV-hybrid,
+S+ Shift), annonskollen hittar bara gamla JDM-Preludes (1984-1993) i Sverige. Ingen namngiven
+källa bekräftar svensk säljstart eller pris för den nya generationen - **lämnad oavgjord, ingen
+rad i atgarder.json**, flaggas för nästa natt.
+
+**Kobeslut i natt (1 rad, se `atgarder.json`):** **slapp 1973** (Polestar 4 Rear, bakhjulsdriven)
+- TESTBEVISREGELN: Allt om Elbil ger ett eget uppmätt studievärde (67,7 poäng prestanda, 77,9
+poäng körupplevelse av 100), vilket bevisar att varianten testats/finns i handeln. Korroboreras
+av nattens egna rader 1963-1965 (Auto Motor & Sport) som jämför just denna RWD-variant mot AWD.
+Mercedes GLC 400 (1968) självsläpptes redan av UpcomingAutoReleaseService 01:36:23 i natt (35
+annonser, "raden säger inget om framtiden") - ingen åtgärd behövdes.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Dolda/raderade:** inga nya döljningar i natt. Uppföljning av befintliga dolda rader: 1940 (4
+dygn), 1910/1912 (6 dygn) - ingen har nått 7 dygn än, ingen kvalificerar för radera.
+
+**Laddtips:** inget nytt tips skrivet i natt. Toppkandidaterna gick inte att belägga mot
+`/api/ev-spec?car=...`: **1966** (VW ID. Cross, "ny instegsvariant" 37 kWh/324 km/90 kW) matchar
+INTE ev-spec-raden för ID. Cross (51,7 kWh/427 km/105 kW DC - annan, redan känd trim). **1961**
+(Volvo EX60, Edmunds EPA-test 50,2 mil) är en amerikansk EPA-siffra, inte jämförbar med vår
+WLTP-baserade ev-spec (810 km). **1957/1958** (VW ID. Polo instegsvariant) - ev-spec ger 299 000
+kr för 37,5 kWh/334 km, men insikt 1957 påstår 320 800 kr för samma batteristorlek - en
+diskrepans på ~7 % som inte går att förklara. **1929** (Audi A6 e-tron performance) är redan
+tipset från 10-15. Ingen kandidat kvar att skriva - fyller inte på för att fylla.
+
+**Ingen kodfix i natt** - generationsårsregressionen (ovan) saknar en entydig, verifierbar orsak
+härifrån (auto-data.net är inte nåbart i molnmiljön). Inget annat namngivet vakthål, parserfel
+eller belagd datarad att rätta. `mvn test` (hela sviten, Java 27) gick grönt - `MVN_EXIT=0`,
+inga testfel (WARN-raderna i loggen är testfixturer som avsiktligt övar felvägar, t.ex. "DB nere"
+och ogiltig atgarder.json-fixtur). `MorgonfixAtgarderTest` kört separat, grönt.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning
+3416/3416 GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns inte
+sedan föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-20
 
 **DOM: KOLLA** - inget trasigt (alla statusar OK, 0 LARM, AVVIKER 0, ingen flip i drivmedel),
