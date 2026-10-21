@@ -41,6 +41,19 @@ class AutoDataScraperServiceTest {
     }
 
     @Test
+    void generationssidansNyaMarkupFranOktober2026() {
+        // 2026-10-21: motorerna är nu <a class="modification"> med årsspannet i
+        // span.modification-years - varken div.thi eller th.i finns kvar på sidan.
+        var motorer = AutoDataScraperService.parseMotorAlternativ(fixtur("golf-viii-generation-ny-markup.html"));
+
+        assertThat(motorer).hasSizeGreaterThanOrEqualTo(21);
+        var tsi150 = motorer.stream().filter(m -> m.namn().equals("1.5 TSI (150 Hp)")).findFirst().orElseThrow();
+        assertThat(tsi150.hk()).isEqualTo(150);
+        assertThat(tsi150.arsspann()).isEqualTo("2020 - 2024");
+        assertThat(tsi150.sokvag()).isEqualTo("/en/volkswagen-golf-viii-1.5-tsi-150hp-38152");
+    }
+
+    @Test
     void effektenBrytsUtUrNamnet() {
         var motorer = AutoDataScraperService.parseMotorAlternativ(fixtur("golf-viii-generation.html"));
 
@@ -649,6 +662,41 @@ class AutoDataScraperServiceTest {
         String uppslag = AutoDataScraperService.uppslagsnamn("BMW 330e");
         assertThat(AutoDataScraperService.valjGeneration(gen, uppslag, null, false)).isNotNull();
         assertThat(AutoDataScraperService.basgenerationsStartAr(gen, uppslag)).isEqualTo(2018);
+    }
+
+    @Test
+    void nyaGenerationsmarkupenFranOktober2026() {
+        // 2026-10-21: auto-data slutade slå in blocken i <div> - nu är varje generation ett
+        // <a class="generation"> direkt under #generr, med årsspann och kaross i egna spann.
+        // Gamla selektorn gav noll generationer på varje modellsida, och nattens 19 omprov
+        // blev alla "ej-hittad".
+        var golf = AutoDataScraperService.parseGenerationer(fixtur("golf-model-ny-markup.html"));
+        assertThat(golf).hasSizeGreaterThan(30);
+        assertThat(AutoDataScraperService.valjGeneration(golf, "Volkswagen Golf", 2021).titel())
+                .isEqualTo("Volkswagen Golf VIII");
+        assertThat(AutoDataScraperService.valjGeneration(golf, "Volkswagen Golf Variant", 2021).titel())
+                .isEqualTo("Volkswagen Golf VIII Variant");
+        var viii = AutoDataScraperService.valjGeneration(golf, "Volkswagen Golf", 2021);
+        assertThat(viii.franAr()).isEqualTo(2020);
+        assertThat(viii.tillAr()).isEqualTo(2024);
+        assertThat(viii.kaross()).isEqualTo("Hatchback");
+
+        var bmw = AutoDataScraperService.parseGenerationer(fixtur("bmw-3-series-model-ny-markup.html"));
+        // Sajten har fått G50 (2026) sedan den gamla fixturen, så den årslösa uppslagningen
+        // ger 2026 - G20:ans spann ska ändå läsas rätt.
+        assertThat(bmw).anySatisfy(g -> {
+            assertThat(g.titel()).isEqualTo("BMW 3 Series Sedan (G20)");
+            assertThat(g.franAr()).isEqualTo(2018);
+            assertThat(g.tillAr()).isEqualTo(2022);
+        });
+        assertThat(AutoDataScraperService.valjGenerationForKaross(bmw, "kombi", 2013).titel()).contains("F31");
+        // Pågående generation: "2026 - " ger öppet slut, inte slutår.
+        assertThat(bmw).anySatisfy(g -> {
+            assertThat(g.titel()).isEqualTo("BMW 3 Series Sedan (G50)");
+            assertThat(g.franAr()).isEqualTo(2026);
+            assertThat(g.tillAr()).isNull();
+            assertThat(g.kaross()).isEqualTo("Sedan");
+        });
     }
 
     @Test

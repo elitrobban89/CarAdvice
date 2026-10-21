@@ -217,14 +217,15 @@ public class AutoDataScraperService {
         if (html == null || html.isBlank()) return ut;
 
         Document doc = Jsoup.parse(html);
-        for (Element lank : doc.select("div.thi > a[href], th.i > a[href]")) {
+        // a.modification är markupen sedan 2026-10-21, med årsspannet i span.modification-years.
+        for (Element lank : doc.select("div.thi > a[href], th.i > a[href], a.modification[href]")) {
             Element titel = lank.selectFirst("span.tit");
             if (titel == null) continue;
 
             String namn = titel.text().trim();
             if (namn.isEmpty()) continue;
 
-            Element ar = lank.selectFirst("span.end, span.cur");
+            Element ar = lank.selectFirst("span.end, span.cur, span.modification-years");
             ut.add(new MotorAlternativ(namn, effektAv(namn),
                     ar != null ? ar.text().trim() : null, lank.attr("href")));
         }
@@ -336,16 +337,22 @@ public class AutoDataScraperService {
         List<Generation> ut = new ArrayList<>();
         if (html == null || html.isBlank()) return ut;
 
-        for (Element block : Jsoup.parse(html).select("#generr > div")) {
-            Element a = block.selectFirst("a[href*=-generation-]");
-            if (a == null) continue;
+        // Två markuper: före 2026-10-21 låg varje generation i ett <div>, sedan dess är blocket
+        // självt ett <a class="generation"> med årsspann och kaross i egna spann. Den nya
+        // texten har årsspannet SIST, så karossAv (som letar mellan år och "Power:") hittar
+        // inget där - därav spannen.
+        for (Element block : Jsoup.parse(html).select("#generr > div, #generr > a.generation")) {
+            Element a = block.is("a") ? block : block.selectFirst("a[href*=-generation-]");
+            if (a == null || !a.attr("href").contains("-generation-")) continue;
 
             String titel = a.attr("title").split(" - ")[0].trim();
             if (titel.isEmpty()) titel = a.text().trim();
 
-            String text = block.text();
+            Element ar = block.selectFirst(".generation-years");
+            Element kaross = block.selectFirst(".generation-details");
+            String text = ar != null ? ar.text() : block.text();
             ut.add(new Generation(titel, arFor(text, true), arFor(text, false),
-                    karossAv(text), a.attr("href")));
+                    kaross != null ? kaross.text().trim() : karossAv(text), a.attr("href")));
         }
         if (ut.isEmpty()) log.warn("auto-data: modellsidan gav noll generationer — struktur ändrad?");
         return ut;
