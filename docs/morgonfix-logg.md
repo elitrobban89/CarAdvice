@@ -2,6 +2,18 @@
 
 ## 2026-10-21
 
+**Efter rapporten (för hand, 10-21 förmiddag) - läs detta först:**
+- Generationsregressionen nedan är LAGAD i `fe8f9f9`: auto-data.net gör nu varje generation till
+  `<a class="generation">` direkt under `#generr`, och generationssidans motorer till
+  `<a class="modification">`. Båda gamla selektorerna gav noll träffar (motorlistan också,
+  fast det syntes inte i rapporten). Prov mot tre färska fixturer, 1252 tester.
+- **Båda misstabellerna TÖMDA** efter deployen (`DELETE .../ice-generations/missar` 19,
+  `DELETE .../cargo-specs/missar` 831). **bagageMissar som faller från 831 natten mot 10-22 är
+  tömningen, INTE en avvikelse enligt 3f** - talet byggs upp på nytt från 0. Detsamma gäller
+  generationsårens missar (19 -> nytt tal). Väntat: färre ej-hittad, inga "noll generationer"
+  i /api/admin/logg.
+- **Honda Prelude 1962 SLÄPPT** på användarens beslut (`7545726`, utförd 08:13).
+
 **DOM: KOLLA** - inget akut trasigt (alla statusar OK, 0 LARM, AVVIKER 0 i vPIC, ingen flip i
 drivmedel), men generationsårsvakten (3a) visar en trolig parserregression (se nedan), och en
 ny kommande-rad krävde ett kobeslut.
