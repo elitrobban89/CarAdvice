@@ -1,4 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-10-21", "typ": "slapp", "id": 1973, "skal": "TESTBEVISREGELN: Polestar 4 Rear (bakhjulsdriven) har ett eget uppmätt studievärde (67,7 poäng prestanda, 77,9 poäng körupplevelse av 100) från Allt om Elbil - ett sådant mätt test bevisar i sig att varianten finns i handeln, inte en kommande modell. Korroboreras av nattens egna AWD/RWD-jämförelse (1963-1965, Auto Motor & Sport) om samma bil."}
+  ]
 }
