@@ -407,6 +407,8 @@
     // WP-sidan är en manuell kopia som inte uppdateras av en deploy — en ny klass där hade
     // synts först vid nästa omklistring. Dämpad varning, inte larm: felet ligger hos källan
     // och användaren har inget att åtgärda, bara att veta.
+    // Uppmaningen ovanför tipsen innan en bil är vald - samma dämpade ton som .ev-status.
+    ".ev-valj-bil{text-align:center;padding:4px 20px 18px;color:var(--muted);font-size:.92rem;}" +
     ".ev-kallfel{padding:18px 20px;border:1.5px solid rgba(251,191,36,.35);border-radius:12px;background:rgba(251,191,36,.07);color:#fde68a;line-height:1.5;text-align:left;}" +
 
     // --- Märkesväljaren -----------------------------------------------------
@@ -1631,7 +1633,12 @@
         setLoc("", "Position hittad");
         reverseGeocode(state.lat, state.lon);
         if (state.carIndex !== null) fetchAndRender();
-        else setOutput('<div class="ev-status">Välj din bilmodell ovan för att se laddstationer.</div>');
+        // Uppmaningen läggs OVANFÖR tipsen i stället för att ersätta dem. Förut skrevs en
+        // .ev-status här, och då avstod renderTipsOnly från att rita - den som gav sin
+        // position men inte valt bil såg aldrig karusellen (upptäckt 2026-10-22). Rutan töms
+        // först: WP-sidan börjar med spinnern "Hämtar din position…", som också är en
+        // .ev-status och annars hade fått renderTipsOnly att avstå även nu.
+        else { state.vantarPaBil = true; setOutput(''); renderTipsOnly(); }
       },
       () => {
         setLoc("error", "Kunde inte hämta GPS-position");
@@ -2273,7 +2280,10 @@
     if (state.lastData) return;
     const el = document.getElementById("ev-output");
     if (!el || el.querySelector('.ev-status')) return;   // spinnern far vara ifred
-    setOutput(carouselArea(buildFunfactHtml(null), null, buildVroomHtml()));
+    // Egen klass, inte .ev-status: den hade fatt raden ovan att avsta vid nasta omritning.
+    const valjBil = state.vantarPaBil && state.carIndex === null
+      ? '<div class="ev-valj-bil">Välj din bilmodell ovan för att se laddstationer.</div>' : '';
+    setOutput(valjBil + carouselArea(buildFunfactHtml(null), null, buildVroomHtml()));
   }
 
   /**
