@@ -1,7 +1,9 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-21", "typ": "slapp", "id": 1973, "skal": "TESTBEVISREGELN: Polestar 4 Rear (bakhjulsdriven) har ett eget uppmätt studievärde (67,7 poäng prestanda, 77,9 poäng körupplevelse av 100) från Allt om Elbil - ett sådant mätt test bevisar i sig att varianten finns i handeln, inte en kommande modell. Korroboreras av nattens egna AWD/RWD-jämförelse (1963-1965, Auto Motor & Sport) om samma bil."},
-    {"datum": "2026-10-21", "typ": "slapp", "id": 1962, "skal": "Användarens beslut 10-21: Honda Prelude (ny e:HEV-generation) släpps ur kommande-kön."}
+    {"datum": "2026-10-22", "typ": "slapp", "id": 1991, "skal": "Subaru Solterra säljs redan i Sverige (ev_spec: 534 900 kr, 69 kWh, 509 km WLTP; cargo_spec: subaru solterra awd = el) - raden handlar om EU:s framtida modellutbud 2028, inte en kommande generation av en bil som inte går att köpa. ANVÄNDARENS LINJE: bilen är aktuell, släpps."},
+    {"datum": "2026-10-22", "typ": "slapp", "id": 1788, "skal": "ARSMODELLSREGELN: BMW iX5 finns redan i ev_spec med utskrivet pris (1 215 000 kr) och annonskollen hittar en Blocket-annons med eget svenskt pris (1 175 900 kr, 2027, 0 mil) - bilen är beställningsbar i Sverige nu. Tveksamt fall enligt användarens linje: släpp, skälet står här."},
+    {"datum": "2026-10-22", "typ": "parkera", "id": 1986, "skal": "Volvo XC70 (laddhybrid) finns bara i Kina - raden säger själv att Volvo 'överväger' den europeiska marknaden, inget bekräftat. Varken ev_spec eller cargo_spec har en el/laddhybrid-variant av XC70 (bara den gamla ICE-generationen från 2007). Bilen går inte att köpa i Sverige i denna form."},
+    {"datum": "2026-10-22", "typ": "dolj", "id": 1987, "skal": "ANEKDOT: två lotterivinnares subjektiva omdöme om en enskild begagnad Volvo V60 Cross Country - ingen mätbar eller allmän uppgift om bilen, 'ovriga kända läcktyper' i avsnitt 6 (anekdoter om enskilda personers preferenser)."}
   ]
 }
