@@ -1,5 +1,44 @@
 # Morgonfix-logg
 
+## 2026-10-22
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, Groq 3/3, AVVIKER 0 i vPIC, ad-check 0 LARM, inga tal
+föll), men tre kobeslut och en döljning krävde omdöme, och Vi Bilägare timeout-ade en gång.
+
+**Ingen kodfix i natt** - inget belagt kodfel hittades. Tre filer ändrade, alla datafiler (räknas
+inte mot femfilstaket): `docs/baslinje.json` (mat-baslinje.js, kontrollräkning 3423/3423 går
+ihop), `src/main/resources/morgonfix/atgarder.json` (kobeslut, se nedan) och
+`src/main/resources/morgonfix/laddtips.json` (ett nytt tips, se nedan).
+
+**BAGAGELARMET (3f) - FALLET FRÅN 831 TILL 147 ÄR INTE EN AVVIKELSE:** enligt loggboken 10-21
+tömdes `cargo_spec_miss` (831 rader) och `ice_generation_miss` (19 rader) för hand efter
+generationsårsregressionen lagades (`fe8f9f9`). Talet bygger nu upp på nytt från 0 - precis som
+loggen förutspådde. medVolym steg samtidigt (1023→1028), vilket är det friska tecknet enligt
+domregeln. **Generationsårsregressionen är bekräftat lagad:** missar-listan visar nu 16
+vakten-avstod / 3 ej-hittad igen (det friska mönstret, var 19/0 ej-hittad igår), forsöktDag
+2026-10-21 - selektorfixen i `fe8f9f9` fungerar mot auto-data.net.
+
+**Kobeslut i natt (3 rader, se `atgarder.json`):**
+- **slapp 1991** (Subaru Solterra) - säljs redan i Sverige (ev_spec 534 900 kr, cargo_spec
+  el), raden gäller EU:s modellutbud 2028, inte en ny generation.
+- **slapp 1788** (BMW iX5) - ev_spec har redan ett utskrivet pris (1 215 000 kr) och
+  annonskollen hittade en Blocket-annons med eget svenskt pris (1 175 900 kr, 2027, 0 mil).
+  Omprövning av en tidigare parkering (10-06) i ljuset av ny annonsdata - ARSMODELLSREGELN.
+- **parkera 1986** (Volvo XC70 laddhybrid) - finns bara i Kina, Volvo "överväger" Europa.
+  Varken ev_spec eller cargo_spec har en el-variant av XC70.
+- **dolj 1987** (Volvo V60 Cross Country) - anekdot om två lotterivinnares privata omdöme,
+  ingen mätbar uppgift (ovriga kända läcktyper, avsnitt 6).
+
+**Nytt laddtips (1 st, se `laddtips.json`):** Volkswagen ID. Polo, 37 kWh/334 km WLTP - stämt
+mot `/api/ev-spec?car=Volkswagen%20ID.%20Polo` (37,5 kWh / 334 km, matchar). Två andra kandidater
+avvisades efter kontroll: **VW ID. Cross** instegsvariant (37 kWh/324 km) hittar ingen matchande
+rad i ev_spec (bara 51,7 kWh/52 kWh-varianter) - gick inte att belägga. **Audi A3 Sportback
+e-hybrid** (kandidat-id 1969, "141 km elektrisk räckvidd, 499 800 kr") motsäger ev_spec rejält
+(67 km, 420 000 kr) - troligen samma typ av AI-extraktionsfel som Puma Gen-E 08-18, skrivs inte.
+
+**Testat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test` - 7/7 och 11/11 gröna,
+`verkligaFilenArGiltig` godkänner båda filerna. `mvn -q -DskipTests package` grönt.
+
 ## 2026-10-21
 
 **Efter rapporten (för hand, 10-21 förmiddag) - läs detta först:**
