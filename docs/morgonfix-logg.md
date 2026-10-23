@@ -61,7 +61,9 @@ Pajero, Santa Fe, Range Rover 1578 - redan låsta eller dokumenterade). **Formal
   (10-22). Olåst sedan 09-18.
 - **parkera 1574, 1575** (Mercedes C-klass Electric) - INGA_ANNONSER, samma bil som redan
   parkerade 1902 (PROMPTMISS-tvilling, 10-15). Olåst sedan 09-18. **1576, 1577 är samma klunga
-  men ryms inte under taket i natt - över taket, kvar till i morgon.**
+  men ryms inte under taket i natt - över taket, kvar till i morgon.** *Tillägg 10-23 08:33
+  (manuell statuskoll): 1576 + 1577 parkerade för hand via admin-POST, låsta i drift - inget
+  kvar av klungan.*
 - **parkera 1622** (BMW iX5 Hydrogen) - vätgas-forskningsbil, INGA_ANNONSER. Olåst sedan 09-23.
 
 **Marknadsregeln:** inget nytt märke att kontrollera i natt - alla märken i nattens rader säljs i

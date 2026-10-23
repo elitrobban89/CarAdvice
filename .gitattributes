@@ -3,3 +3,6 @@
 mvnw text eol=lf
 *.sh text eol=lf
 mvnw.cmd text eol=crlf
+# ev-app.js ar checkad in med LF - utan raden gor core.autocrlf=true filen
+# "andrad" i git status utan att innehallet skiljer sig.
+src/main/resources/static/ev-app.js text eol=lf
