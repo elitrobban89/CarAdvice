@@ -50,6 +50,10 @@ prov('README ensam = bara dokument', v.baraDokument(['README.md']));
 prov('docs/ + NOTICE = bara dokument', v.baraDokument(['docs/nattrutin.md', 'NOTICE']));
 prov('kod bredvid README = inte bara dokument', !v.baraDokument(['README.md', 'backend/src/main/resources/static/ev-app.js']));
 prov('okänd skillnad (tom lista) = inte bara dokument', !v.baraDokument([]));
+// Render bygger bara om för ändringar i Root Directory (Elbilsladdning 10-23: .gitattributes i repots topp)
+prov('fil utanför rot backend/ = bygger inte om', v.baraDokument(['.gitattributes', 'README.md'], 'backend/'));
+prov('kod i rot backend/ = bygger om', !v.baraDokument(['.gitattributes', 'backend/pom.xml'], 'backend/'));
+prov('utan rot räknas .gitattributes som kod', !v.baraDokument(['.gitattributes'], ''));
 // Bränslesplashen ligger sist i kalkylatorns fil — kalkylatorns egna fetch-anrop får inte räknas som splashtext
 const KALKYL = "fetch('https://nominatim.openstreetmap.org/x');\n// BRÄNSLEKOSTNAD — uppstartssplash\nvar ROWS = [{ s: 'OSRM-rutt' }];";
 prov('splashDel klipper bort koden före markören', !v.splashDel(KALKYL, 'uppstartssplash').includes('nominatim')

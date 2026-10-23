@@ -236,9 +236,10 @@ function gitAndrade(app, fran, till) {
     return git(['-C', dir, 'diff', '--name-only', fran, till]).split('\n').filter(Boolean);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
-/** Bara dokumentation (README, *.md, docs/) — inget som ändrar vad tjänsten kör. Tom lista = nej. */
-function baraDokument(filer) {
-  return filer.length > 0 && filer.every(f => /\.md$/i.test(f) || /^docs\//.test(f) || /(^|\/)(LICENSE|NOTICE)$/.test(f));
+/** Bara dokumentation (README, *.md, docs/) eller filer utanför appens `rot` — inget som ändrar vad tjänsten kör. Tom lista = nej. */
+function baraDokument(filer, rot = '') {
+  return filer.length > 0 && filer.every(f => /\.md$/i.test(f) || /^docs\//.test(f) || /(^|\/)(LICENSE|NOTICE)$/.test(f)
+    || (rot !== '' && !f.startsWith(rot)));   // Render bygger bara om för ändringar i Root Directory
 }
 const raw = (app, fil) => hamta(`https://raw.githubusercontent.com/${GITHUB}/${app.repo}/${app.gren}/${fil}`, 'text');
 
@@ -304,7 +305,7 @@ async function granska(app) {
     else if (d.deployCommit !== topp) {
       let filer = [];
       try { filer = gitAndrade(app, d.deployCommit, topp); } catch { /* okänd skillnad → varna som förut */ }
-      if (baraDokument(filer)) f('OK', `autodeploy: ${app.gren} · ${d.deployCommit} (${topp} rör bara dokumentation, ${filer.join(', ')} — Render bygger inte om för det)`);
+      if (baraDokument(filer, app.rot)) f('OK', `autodeploy: ${app.gren} · ${d.deployCommit} (${topp} rör bara dokumentation eller filer utanför ${app.rot || 'roten'}, ${filer.join(', ')} — Render bygger inte om för det)`);
       else f('VARNING', `kör ${d.deployCommit} men ${app.gren} står på ${topp} — autodeployen har inte tagit senaste`);
     }
     else f('OK', `autodeploy: ${app.gren} · ${topp}`);
