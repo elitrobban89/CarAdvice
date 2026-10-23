@@ -119,10 +119,13 @@ public class EvFactCandidateService {
      * {@code \s} matchar ingetdera — samma fälla som en gång lät "e‑Golf" med U+2011 glida
      * förbi {@code CarTitle}. Utan dem hade "542 km" med hårt mellanslag inte räknats som
      * ett mätvärde och raden fått lägre poäng än den förtjänar.
+     *
+     * <p>Talet får inte börja mitt i ett ord: utan {@code (?<![\p{L}\d])} lästes "Volvo EX60
+     * 56,6 mil" som tusentalet "60 56,6 mil" och fetstilen klöv modellnamnet (id 1961, 10-23).
      */
     private static final String SMALT_MELLANSLAG = "\\s\\x{00A0}\\x{202F}\\x{2009}";
     private static final Pattern MATVARDE = Pattern.compile(
-            "(\\d[\\d" + SMALT_MELLANSLAG + "]*(?:[.,]\\d+)?)[" + SMALT_MELLANSLAG + "]*"
+            "(?<![\\p{L}\\d])(\\d[\\d" + SMALT_MELLANSLAG + "]*(?:[.,]\\d+)?)[" + SMALT_MELLANSLAG + "]*"
                     + "(kwh/100\\s*km|kwh/mil|kwh|kw|km|mil|%|minuter|min|volt|liter)(?![\\p{L}])",
             Pattern.CASE_INSENSITIVE);
 

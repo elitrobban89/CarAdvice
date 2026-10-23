@@ -169,6 +169,19 @@ class EvFactCandidateServiceTest {
     }
 
     @Test
+    void modellnamnetsSiffrorBlirIngetTusental() {
+        // "EX60 56,6 mil" lästes som "60 56,6 mil" och fetstilen klöv modellnamnet (id 1961)
+        nyaRader(insikt(1240, "M3", "Volvo", "EX60",
+                "I ett test av Edmunds körde Volvo EX60 56,6 mil på en laddning."));
+
+        Map<String, Object> k = kandidater(service.hittaKandidater(1239L, 25)).get(0);
+
+        assertThat((String) k.get("karusellrad"))
+                .contains("Volvo EX60 <strong>56,6 mil</strong>")
+                .doesNotContain("EX<strong>");
+    }
+
+    @Test
     void karusellradenBarKallanOchStaticFactsFormatet() {
         nyaRader(insikt(1240, "Auto Motor & Sport", "Audi", "Q6 e-tron",
                 "Audi Q6 e-tron nådde 542 km med fulladdat batteri i Edmunds räckviddstest."));
