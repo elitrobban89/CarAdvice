@@ -174,7 +174,11 @@ class MorgonfixAtgarderTest {
         }
         // den incheckade filen får aldrig ha en rad som tyst hoppas över i drift
         assertThat(atgarder).hasSize(iFilen);
-        assertThat(atgarder.size()).isLessThanOrEqualTo(MorgonfixAtgarder.TAK);
+        // samma två tak som appen: raderingarna räknas för sig
+        assertThat(atgarder.stream().filter(a -> !a.typ().equals("radera")).count())
+                .isLessThanOrEqualTo(MorgonfixAtgarder.TAK);
+        assertThat(atgarder.stream().filter(a -> a.typ().equals("radera")).count())
+                .isLessThanOrEqualTo(MorgonfixAtgarder.RADERA_TAK);
         assertThat(atgarder.stream().map(MorgonfixAtgarder.Atgard::nyckel).collect(Collectors.toSet()))
                 .hasSize(atgarder.size());
     }

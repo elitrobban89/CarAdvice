@@ -12,6 +12,7 @@
     {"datum": "2026-10-23", "typ": "parkera", "id": 1575, "skal": "INGA_ANNONSER: Mercedes C-klass Electric (85 kWh/690 km WLTP, toppvariant 762 km) - 0 Blocket-annonser under namnet. Samma klunga som 1574/1576/1577, samma skäl som redan parkerade 1902."},
     {"datum": "2026-10-23", "typ": "parkera", "id": 1622, "skal": "INGA_ANNONSER: BMW iX5 Hydrogen är en vätgas-forskningsbil som inte säljs (nattrutin.md 3b-referens: 'vätgasbil som inte säljs'), 0 Blocket-annonser. Olåst sedan 09-23, låses nu."},
     {"datum": "2026-10-23", "typ": "radera", "id": 1912, "skal": "carModel '??' - AI:n kunde inte namnge Smart-bilen, matchar inget bilkort. Dold sedan 2026-10-15 (8 dygn), fortsatt bedömd som skräp enligt samma regel."},
-    {"datum": "2026-10-23", "typ": "radera", "id": 1910, "skal": "Anekdot om ETT fordons motorhaveri (CarUp) - ingen generell uppgift om Volkswagen Golf. Dold sedan 2026-10-15 (8 dygn), fortsatt bedömd som skräp enligt samma regel."}
+    {"datum": "2026-10-23", "typ": "radera", "id": 1910, "skal": "Anekdot om ETT fordons motorhaveri (CarUp) - ingen generell uppgift om Volkswagen Golf. Dold sedan 2026-10-15 (8 dygn), fortsatt bedömd som skräp enligt samma regel."},
+    {"datum": "2026-10-23", "typ": "dolj", "id": 2006, "skal": "Felattribuerad: '800 V, 400 kW, 113 kWh, 10-80 % på 16 min' gäller inte Kia EV5 - ev_spec har 60,3/81,4 kWh och 150 kW (400 V). Meningen hör till en annan bil i samma AMS-artikel. Dold på användarens beslut."}
   ]
 }
