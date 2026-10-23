@@ -1,5 +1,98 @@
 # Morgonfix-logg
 
+## 2026-10-23
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, Groq 3/3, AVVIKER 0 i vPIC, drivmedel oförändrat
+508/423/85/16, ad-check 0 LARM), men nattens 17 rader krävde dom och kön hade flera sedan länge
+olåsta GRANSKA/INGA_ANNONSER-rader värda att formalisera.
+
+**Ingen kodfix i natt** - inget belagt kodfel hittades. Tre filer ändrade, alla datafiler (räknas
+inte mot femfilstaket): `docs/baslinje.json` (mat-baslinje.js, kontrollräkning 3429/3429 går
+ihop), `src/main/resources/morgonfix/atgarder.json` (kobeslut, se nedan) och
+`src/main/resources/morgonfix/laddtips.json` (ett nytt tips, se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 01:42:14 (inom väntat fönster 01:15-01:50 sommartid),
+deployad commit 96d2283 matchar origin/master, status OK, ingen omstart (uptime ~10,6 h vid
+grundkollen). ev-specs updated **5** (inom 0-25, kollisioner 182, evSpecs still 654→654). cargo-
+specs gav **6/7/0** (6 nya bilnamn, 7 av 701 bagagevolymer, 0 av 0 generationsår kvar) - OK.
+Kontrollräkningen (cargo total 1815 + evSpecs 654 + ice_consumption 960 = 3429 = /api/stats
+variants) stämmer exakt.
+
+**BAGAGELARMET (3f) - medVolym 1028→1035 (+7), bagageMissar 147→290 (+143).** Summan (+150)
+träffar exakt samma nattliga tak som själva svepet i september (62+88 och 61+89 = 150 båda
+nätterna). Loggboken 10-21/10-22 visar att `cargo_spec_miss` tömdes för hand 10-21 och byggs upp
+från 0 igen - detta är alltså fortsättningen av samma återuppbyggnad, inte en ny avvikelse.
+medVolym UPPÅT = OK enligt domregeln oavsett bagageMissar. Värt att fortsätta bevaka de närmaste
+nätterna tills kurvan planar ut.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). Samtliga 19 missar har
+forsöktDag 2026-10-21 (omprövade när 30-dagarsfönstret öppnade igen) och fördelningen är tillbaka
+till det friska mönstret 16 vakten-avstod / 3 ej-hittad - bekräftar att generationsårsregressionen
+(fe8f9f9, lagad 10-21/10-22) håller.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 508/423/85/16, identiskt med baslinjen - alla 16
+handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. **Kategorivakten:** 1 utslag sedan
+omstart (uptime ~10,6 h) - Cupra Born (2003, återkallelse-raden) klassades fel som `smaabil` och
+kategorin ströks korrekt ("cupra born är ingen småbil"); vakten gjorde sitt jobb, ingen läcka.
+
+**Nattens 17 nya rader (id 1998-2014):** 17 av 17 bra. Inga kategorifel, inga skatterader,
+renoveringsobjekt eller veterandrag. **Skoda Peaq 90** (1998-2000, Teknikens Värld) och **Skoda
+Kodiaq/Kodiaq iV** (2001-2002, 2005) är nya modeller men båda redan beställningsbara i Sverige
+(Peaq 90: dealerpriser på bilweb.se; Kodiaq iV: begagnade annonser med 2026 års modell på
+minbilkoll.se) - ingen av dem hör till kommande-kön, ingen PROMPTMISS. **Värdeminskning/
+tillförlitlighet/livslängd:** 1 rad i natt (2007, Saab 900 Aero, 161 000 mil på samma turbomotor)
+- fortfarande en öppen fråga generellt (regeln är oprövad), men natten gav äntligen en träff.
+
+**Tre regler:** SKATTER - inget underlag. RENOVERINGSOBJEKT - inget underlag. AVVECKLADE MODELLER
+ÄR RELEVANTA - inget underlag i natt (Saab 900 Aero är en avvecklad modell men raden handlar om
+tillförlitlighet, inte om avveckling i sig).
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 16 INGA_ANNONSER på 56
+rader / 25 bilar (ned från baslinjens 58/27 - förklaras av gårdagens släpp av 1788/1991).
+Samtliga tidigare dokumenterade fall oförändrade (Bayon-tvillingarna, Tucson gen 5, Mazda 6e,
+Pajero, Santa Fe, Range Rover 1578 - redan låsta eller dokumenterade). **Formaliserade i natt**
+(se atgarder.json) - länge dokumenterade men aldrig låsta GRANSKA/INGA_ANNONSER-rader:
+- **parkera 1713** (Range Rover Sport) - raden säger själv "blir elbil", gäller kommande Sport
+  Electric, inte dagens 46-annonsers generation. Olåst sedan 10-01.
+- **parkera 1714, 1717, 1718, 1719, 1720** (Range Rover Sport Electric) - INGA_ANNONSER, 0
+  Blocket-annonser under namnet. Olåst sedan 10-01.
+- **parkera 1573** (Volvo XC70 laddhybrid, Kina) - samma bil och skäl som redan parkerade 1986
+  (10-22). Olåst sedan 09-18.
+- **parkera 1574, 1575** (Mercedes C-klass Electric) - INGA_ANNONSER, samma bil som redan
+  parkerade 1902 (PROMPTMISS-tvilling, 10-15). Olåst sedan 09-18. **1576, 1577 är samma klunga
+  men ryms inte under taket i natt - över taket, kvar till i morgon.**
+- **parkera 1622** (BMW iX5 Hydrogen) - vätgas-forskningsbil, INGA_ANNONSER. Olåst sedan 09-23.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt - alla märken i nattens rader säljs i
+Sverige.
+
+**Dolda/raderade:** uppföljning av dolda rader - **1912** (Smart "??", dold 10-15, 8 dygn) och
+**1910** (VW Golf-anekdot, dold 10-15, 8 dygn) har båda nått 7-dygnsgränsen och bedöms fortsatt
+som skräp enligt samma regel → **raderade i natt** (se atgarder.json). 1987 (1 dygn) och 1940 (6
+dygn) har inte nått gränsen än.
+
+**Laddtips:** ett nytt tips skrivet (se `laddtips.json`): **Skoda Peaq 90** snabbladdning 199 kW
+DC (10-80 % på 28 min) - stämt mot `/api/ev-spec?car=Skoda%20Peaq%2090` (maxDcKw 199, exakt
+match). Två kandidater avvisade efter kontroll: **Kia EV5** (id 2006, "113 kWh-batteri, 400 kW")
+motsäger ev-spec rejält (60,3 kWh, 150 kW DC) - samma typ av AI-extraktionsfel som Puma Gen-E
+08-18, skrivs inte. **Skoda Peaq 90 Cw-värde/förbrukning** (id 1998, "1,5 kWh/mil enligt WLTP")
+ger vid omräkning (86 kWh / 64,7 mil) 1,33 kWh/mil - en ~13 % avvikelse, för stor för att belägga.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK, CarAdvice-raden visar autodeploy
+master · 96d2283 (matchar /api/version). Samma INFO-rader hos Elbilsladdning som tidigare.
+
+**Testat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test` grönt (12/12 rader i
+atgarder.json, `verkligaFilenArGiltig` godkänner båda filerna). `mvn test` (hela sviten) grönt,
+`MVN_EXIT=0` - ERROR-raderna i loggen är testfixturer som avsiktligt övar felvägar (DB nere, Groq
+nere, Bilweb nere). `mvn -q -DskipTests package` grönt.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning 3429/3429
+GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns inte
+sedan föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-22
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, Groq 3/3, AVVIKER 0 i vPIC, ad-check 0 LARM, inga tal
