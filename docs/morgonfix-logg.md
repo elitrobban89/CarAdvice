@@ -1,5 +1,97 @@
 # Morgonfix-logg
 
+## 2026-10-24
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 01:39:27 inom fönstret, Groq 3/3, AVVIKER 0
+i vPIC, drivmedel oförändrat 508/423/85/16, ad-check 0 LARM), men en ARSMODELLSREGEL-regression i
+kommandevakten (BMW iX4, se nedan) krävde ett kobeslut och en dold rad nådde 7-dygnsgränsen.
+
+**Ingen kodfix i natt** - inget belagt kodfel hittades. Tre filer ändrade, alla datafiler (räknas
+inte mot femfilstaket): `docs/baslinje.json` (mat-baslinje.js, kontrollräkning 3438/3438 går
+ihop), `src/main/resources/morgonfix/atgarder.json` (kobeslut, se nedan) och
+`src/main/resources/morgonfix/laddtips.json` (två nya tips, se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 01:39:27 (inom väntat fönster 01:15-01:50 sommartid - sista
+natten innan vintertid), deployad commit 1bdfd11 matchar origin/master, status OK, ingen omstart
+(uptime ~11,2 h). ev-specs updated **5** (inom 0-25, kollisioner 182, evSpecs 654→654 still).
+cargo-specs gav **9/2/0** (9 nya bilnamn, 2 av 553 bagagevolymer, 0 av 0 generationsår kvar) - N
+inom 2-20, inget larmmönster. Kontrollräkningen (cargo total 1824 + evSpecs 654 + ice_consumption
+960 = 3438 = /api/stats variants) stämmer exakt. /api/cars 2079→2088 (+9, matchar nya bilnamn).
+
+**BAGAGELARMET (3f) - medVolym 1035→1037 (+2), bagageMissar 290→438 (+148).** Summan (+150)
+träffar exakt samma nattliga tak som återuppbyggnaden sedan 10-21 (cargo_spec_miss tömd för
+hand). medVolym UPPÅT = OK enligt domregeln oavsett bagageMissar. Fortsätt bevaka tills kurvan
+planar ut.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). Samtliga 19 missar har nu
+forsöktDag **2026-10-21** (omprövade när 30-dagarsfönstret öppnade igen efter 10-20) och gav
+samma friska fördelning 16 vakten-avstod / 3 ej-hittad igen - det väntade utfallet enligt 3a.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 508/423/85/16, identiskt med baslinjen - alla 16
+handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. **Kategorivakten:** 1 utslag sedan
+omstart (uptime ~11,2 h) - Tesla Model 3 (2016, Vi Bilägare) klassades fel som `smaabil` och
+kategorin ströks korrekt ("tesla model 3 är ingen småbil") - känt mönster sedan 09-19, vakten
+gjorde sitt jobb, ingen ny läcka.
+
+**Nattens 15 nya rader (id 2015-2029):** 15 av 15 godtagbara, inga kategorifel, inga skatterader,
+renoveringsobjekt eller veterandrag. Fyra rader (2016 Tesla Model 3, 2017 Tesla Model Y, 2018
+Ford Mustang Mach-E, 2019 Volvo EX60 "50 000 beställningar") är tunna/opinionsbaserade
+andrahandsclaims utan hård mätdata - ingen regelbrott, men svaga; noterat, inte föreslagna för
+åtgärd. Värdeminskning/tillförlitlighet/livslängd: 1 rad i natt (2023, Skoda Enyaq, adaptiv
+farthållare som ökade hastigheten) - frågan fortsatt besvarad (inte längre oprövad sedan flera
+nätter). Tre regler (skatter/renoveringsobjekt/avvecklade modeller): inget underlag i natt.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt - BYD, MG och Honda säljs redan i
+Sverige (bara de tre nya kommande-modellerna - Seagull, Go!, 0 Alpha - är okända där ännu, se
+nedan).
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 20 INGA_ANNONSER på 63
+rader / 29 bilar. Samtliga tidigare dokumenterade fall oförändrade (Bayon-tvillingarna, Tucson
+gen 5, Mazda 6e, Pajero, Santa Fe, Range Rover 1578, BMW i3). **Nattens 3 nya köade bilar** (BYD
+Seagull 2026/2028/2029, MG Go! 2025/2027, Honda 0 Alpha 2024) - alla (a) ännu inte sluppna,
+korrekt INGA_ANNONSER, inget beslut krävs än.
+
+**FYND - ARSMODELLSREGEL-REGRESSION (BMW iX4, id 1815-1820):** nattens insikt **2004**
+("Svenska priser för BMW iX4 börjar på 749 900 kr för iX4 40 xDrive och 809 900 kr för iX4 50
+xDrive", scrapad natten mot 10-23 men inte korskollad mot kön då) bevisar att bilen nu är
+beställningsbar i Sverige. Bekräftat mot `/api/ev-spec?car=BMW%20iX4` (897 000 kr, EV, 828 km
+WLTP), mot cargo_spec-drivmedel (`bmw ix4 40 xdrive`/`50 xdrive`: el) och mot `/api/cars`. De sex
+köade raderna (1815, olåst parkerad 10-08, samt tvillingarna 1816-1820) är därmed en regression
+enligt ARSMODELLSREGELN ("ett utskrivet svenskt pris... parkeras en sådan rad igen är det en
+regression"). **Släppta i natt** (se atgarder.json), källa: insikt 2004 + ev_spec + cargo_spec +
+/api/cars.
+
+**Dolda/raderade:** uppföljning av dolda rader - **1940** (Mercedes-Maybach S 680, dold 10-17,
+exakt 7 dygn) fortsatt bedömd som skräp (engångsbeställning åt namngiven kändis, ingen generell
+köpinfo) → **raderad i natt** (se atgarder.json). 2006 (1 dygn) och 1987 (2 dygn) har inte nått
+gränsen än.
+
+**Laddtips:** 2 nya (se `laddtips.json`). `ev-fact-candidates` gav flera kandidater: **2015
+Renault Megane E-Tech** (poäng 4, laddeffekt 130→165 kW) - stämt mot `/api/ev-spec?car=Renault
+Megane E-Tech` (maxDcKw 165, exakt match) - SKREVS. **2002 Skoda Kodiaq iV** (poäng 3, 25,7 kWh/50
+kW) - stämt mot `/api/ev-spec?car=Skoda Kodiaq iV` (batteryKwh 25.7, maxDcKw 50, exakt match) -
+SKREVS. **2006 Kia EV5** (redan doljd i natt, se ovan) uteslöts - samma AI-extraktionsfel som
+Puma Gen-E 08-18. **1998/1999 Skoda Peaq 90** uteslöts - redan tipsat 10-23 (insikt 1999),
+dubblett. **1988 Tesla Model S P85** (batterihälsa, poäng 3) uteslöts - ett ensamt test utan
+spec-tabell att stämma av mot, för osäkert att skriva som fakta.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK (nu även Bränslekostnad med i
+skriptet), CarAdvice-raden visar autodeploy master · 1bdfd11 (matchar /api/version). Samma
+INFO-rader som tidigare, inget nytt.
+
+**Testat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test` grönt (exitkod 0,
+`verkligaFilenArGiltig` godkänner båda filerna - 7 slapp/radera-rader under taket 12/20). `mvn
+test` (hela sviten) grönt, exitkod 0 - WARN/ERROR-raderna i loggen är testfixturer som avsiktligt
+övar felvägar (ogiltiga atgarder-rader, HTML-injektion, DB nere). `mvn -q -DskipTests package`
+grönt.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning 3438/3438
+GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` (grenen fanns inte sedan
+föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-23
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, Groq 3/3, AVVIKER 0 i vPIC, drivmedel oförändrat
