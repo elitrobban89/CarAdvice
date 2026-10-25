@@ -1,5 +1,130 @@
 # Morgonfix-logg
 
+## 2026-10-25
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 01:29:20 inom fönstret, Groq 3/3, AVVIKER 0
+i vPIC, drivmedel 510/425/85/16 utan flip, ad-check 0 LARM), men nattens 16 rader krävde dom, en
+dold rad nådde äntligen den riktiga 7-dygnsgränsen och en möjlig lucka i veteranvakten (se nedan)
+är värd att hålla ögonen på.
+
+**Ingen kodfix i natt** - inget tillräckligt belagt kodfel hittades för att lagas utan användaren
+(se veteranvakten nedan). Två filer ändrade, båda datafiler (räknas inte mot femfilstaket):
+`docs/baslinje.json` (mat-baslinje.js, kontrollräkning 3438/3438 går ihop) och
+`src/main/resources/morgonfix/atgarder.json` (ett kobeslut, se nedan). Inga nya laddtips i natt -
+ingen kandidat klarade källkravet (se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 01:29:20 (inom väntat fönster 01:15-01:50 sommartid - sista
+natten innan vintertid), deployad commit 8d9fed8 matchar origin/master, status OK, ingen omstart
+(uptime ~23,6 h). ev-specs updated **5** (inom 0-25, kollisioner 182, evSpecs 654→654 still - inga
+nya rader i detta ledet i natt). cargo-specs gav **0/0/0** (0 nya bilnamn, 0 av 400 bagagevolymer,
+0 av 0 generationsår kvar) - inget larmmönster (N>50 är taket, 0 är lågt men inte ett eget larm).
+Kontrollräkningen (cargo total 1824 + evSpecs 654 + ice_consumption 960 = 3438 = /api/stats
+variants) stämmer exakt. /api/cars 2088 (oförändrat, matchar 0 nya bilnamn).
+
+**BAGAGELARMET (3f) - medVolym 1037→1038 (+1), bagageMissar 438→588 (+150).** KB i cargo-specs
+var 400 (>0), så undantaget i 3f gäller inte - men domregeln ger VÄNTAT ändå: medVolym rörde sig
+UPPÅT (+1, om än svagt) samtidigt som bagageMissar växte kraftigt. Summan (+151) träffar igen
+samma nattliga 150-tak som återuppbyggnaden av `cargo_spec_miss` sedan 10-21 (tömd för hand).
+Fortsätt bevaka tills kurvan planar ut.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). Samtliga 19 missar har
+fortfarande forsöktDag **2026-10-21**, 16 vakten-avstod / 3 ej-hittad - oförändrat sedan förra
+veckans omprövning, väntat stillestånd enligt 3a.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt, sjunde-plus natten i rad utan avvikelse. **Drivmedelsräknaren:** 510/425/85/16 -
+total och el steg (+2/+2) från cargo-specs-ledets normala påfyllning, ice och manuella oförändrade.
+Alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. **Kategorivakten:** 0 utslag
+sedan omstart (uptime ~23,6 h) - inget att rapportera, inte ett tecken på att vakten är trasig.
+
+**Nattens 16 nya rader (id 2030-2045, alla CarUp/Allt om Elbil):** 15 av 16 godtagbara. Inga
+kategorifel (suv/familjebil/smaabil-tilldelningarna stämmer mot bilstorlekarna), inga skatterader
+eller renoveringsobjekt. **Ovanligt stark skörd för värdeminskning/tillförlitlighet/livslängd: 8
+rader i natt** (2030-2032 Tesla Model S batteridegradering, 2033 V60 D6 hybridbatteri 185 000 kr,
+2034 XC90 T8 ERAD-haveri, 2035 V40 växellåda, 2036 V70 växellåda, 2037 XC70 vinkelväxel) plus 4
+rader om svårsålda begagnade bilar (2039-2042: XC90 D5, 850 R, E-klass, A6/Touareg) som också hör
+hit (värdeminskning/restvärde-läckan är därmed INTE längre oprövad - frågan kan stängas eller
+omformuleras till en räknare).
+
+**MÖJLIG VETERANVAKT-LUCKA (öppen fråga, inte lagad i natt) - id 2038 (Volvo 850 R, CarUp):**
+"När den hittades efter 24 år i en fallfärdig lada hade bilen fortfarande fungerande elsystem och
+ingen allvarlig rost i chassit, vilket demonstrerar Volvos byggkvalitet." Raden behöll category
+`familjebil` och fuelType `bensin`. Volvo 850 R tillverkades ca 1995-1997, alltså på gränsen till
+30-årsregeln, och "hittades efter 24 år i en fallfärdig lada" är samma barnfynd-mönster som
+`SAMLARORD`-regexet (`InsightTaxonomy.java` rad 228-230) ursprungligen skrevs för ("Volvo 240
+gömd i 44 år") - men texten säger "hittades efter 24 år" i stället för "gömd i 24 år" och träffar
+därför inte `gömd i \d+ år`. Modellen "850" finns heller inte i `UTGANGNA_MODELLER`. **Jag lagar
+INTE detta i natt** - en enda rad är inte nog för att mäta mot hela tabellen som koden själv kräver
+(se klasskommentarerna), och jag har inte verifierat 850 R:s exakta sista tillverkningsår. Förslag
+till användaren: om fler barnfynd-rader dyker upp med annan fras än "gömd i", bredda `SAMLARORD`
+eller lägg till `volvo 850` i `UTGANGNA_MODELLER` (kräver verifierat slutår).
+
+**Tre regler:** SKATTER - inget underlag. RENOVERINGSOBJEKT - inget underlag (2038 diskuteras ovan
+som ett veteran-/barnfyndsfall, inte en skatterad). AVVECKLADE MODELLER ÄR RELEVANTA - inget
+underlag, ingen överblockering sedd.
+
+**Observation att hålla koll på:** Teknikens Värld (0 av 2), Vi Bilägare (0 av 1) gav 0 nya rader
+i natt trots lästa artiklar. En natt är inte bevis (regeln kräver två i rad) och gårdagens
+per-källa-siffror finns inte loggade för jämförelse - håll koll imorgon.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 19 INGA_ANNONSER på 57
+rader / 28 bilar (ner från 63/29 i baslinjen - gårdagens 6 BMW iX4-släpp förklarar skillnaden).
+Samtliga tidigare dokumenterade fall oförändrade (Bayon-tvillingarna, Tucson gen 5, Mazda 6e,
+Pajero, Santa Fe, Range Rover 1578, BMW i3). **Nattens 3 nya köade bilar** (BYD Seagull 2026/2028/
+2029, MG Go! 2025/2027, Honda 0 Alpha 2024) samt BMW X5 M60e xDrive (2021, inte en ny köad bil men
+nytt radinnehåll) - alla fyra saknas i `/api/ev-spec` och `/api/cars`, alltså (a) ännu inte
+sluppna, korrekt INGA_ANNONSER, inget beslut krävs än.
+
+**Dolda/raderade:** **1940** (Mercedes-Maybach S 680) har nu verkligen varit dold **8 dygn**
+(sedan 10-17) - gårdagens raderingsförsök avvisades av appen eftersom det i själva verket bara var
+6 dygn då (nattens räkning 10-24 var fel, +1 dag för tidigt). Fortsatt bedömd som skräp enligt
+samma regel (engångsbeställning åt en namngiven kändis, ingen generell köpinformation) - **radera
+i natt** (se atgarder.json). 2006 (Kia EV5, 2 dygn) och 1987 (Volvo V60 CC, 3 dygn) har inte nått
+gränsen än.
+
+**Laddtips:** inga nya i natt. `ev-fact-candidates` gav 9 kandidater, men alla var redan skrivna
+eller redan uteslutna: **2015** (Renault Megane E-Tech) och **2002** (Skoda Kodiaq iV) skrevs
+redan 10-24. **1999/1998** (Skoda Peaq 90) är dubbletter av redan skrivet tips (10-23). **2006**
+(Kia EV5) är samma felattribuerade siffra som redan dolts i natt. **2031/2030** (Tesla Model S,
+Björn Nyland-test) och **1988** (Tesla Model S P85) är ensamma batterihälsotester utan
+spec-tabell att stämma av mot - samma skäl som 1988 uteslöts redan 10-24. **2005** (Skoda Kodiaq
+iV, poäng 1) bygger på "Skodas internationella material" - för vagt och lågt poängsatt för att
+skriva som fakta.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK, CarAdvice-raden visar autodeploy
+master · 8d9fed8 (matchar /api/version). Samma INFO-rader som tidigare (Elbilsladdnings
+roaming-prisreserver m.m.), inget nytt.
+
+**Veckan (söndag):**
+- Nattens domar senaste 7 nätterna: 10-18 KOLLA, 10-19 **GRONT** (rutinens egen dom, men
+  körningen slutade efter rapporten och tappade baslinjen/mandagspriserna den natten - sedan
+  lagat, se 2b72f65), 10-20 KOLLA, 10-21 KOLLA, 10-22 KOLLA, 10-23 KOLLA, 10-24 KOLLA, 10-25 (i
+  natt) KOLLA.
+- Morgonfixar: 10-18 (ingen kodfix, låste 4 Tucson-rader), 10-20 (baslinje + laddtips Audi A5
+  Avant e-hybrid), 10-21 (baslinje + kobeslut Polestar 4 Rear, TESTBEVISREGELN), 10-22 (3 kobeslut,
+  1 dolj, 1 laddtips), 10-23 (kobeslut 10 parkera/2 radera, 1 laddtips), 10-24 (kobeslut 6 slapp/1
+  radera, 2 laddtips). Inga reverts i veckan.
+- Regelförändring i docs/nattrutin.md: 2b72f65 (10-19) - rutinen hoppar inte längre över fas 2 på
+  gröna nätter, lagad efter samma natts incident.
+- Veckans databasbeslut (10-18 till 10-24 ur GET /api/admin/morgonfix-atgarder): **15 parkerade,
+  10 släppta, 2 dolda, 2 raderade, 1 "ej raderad"** (1940, räknefelet ovan - rättas i natt).
+- **Väntar på dig:** inget formellt blockerat denna vecka (alla PR:er auto-mergades, inga LARM).
+  Den enda öppna punkten är veteranvakt-luckan ovan (id 2038) - en förslagspunkt, inte ett larm.
+
+**Testat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test` grönt (exitkod 0,
+`verkligaFilenArGiltig` godkänner den enda raden - 1 radera under taket 20). `mvn test` (hela
+sviten) grönt, exitkod 0 - WARN/ERROR-raderna i loggen är samma avsiktliga testfixturer som
+tidigare nätter (ogiltiga atgarder-rader, HTML-injektion, DB nere). `mvn -q -DskipTests package`
+grönt.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning 3438/3438
+GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` (grenen fanns inte sedan
+föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-24
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 01:39:27 inom fönstret, Groq 3/3, AVVIKER 0
