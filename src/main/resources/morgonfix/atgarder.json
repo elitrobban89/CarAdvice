@@ -1,12 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1815, "skal": "ARSMODELLSREGELN - regression: BMW iX4 40 xDrive har nu ett utskrivet svenskt pris (insikt 2004: 749 900 kr), finns i ev_spec (897000 kr, EV, 828 km WLTP) OCH i cargo_spec som 'bmw ix4 40 xdrive': el, och ligger i /api/cars. Bilen är beställningsbar i Sverige - parkeringen från 10-08 är inaktuell, släpps."},
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1816, "skal": "Samma klunga som 1815/1817-1820 (BMW iX4 Neue Klasse) - ARSMODELLSREGELN: svenskt pris finns nu (insikt 2004, 749 900/809 900 kr), ev_spec+cargo_spec+/api/cars bekräftar att bilen säljs i Sverige."},
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1817, "skal": "Samma klunga som 1815/1816/1818-1820 (BMW iX4 Neue Klasse) - ARSMODELLSREGELN: svenskt pris finns nu (insikt 2004), ev_spec+cargo_spec+/api/cars bekräftar att bilen säljs i Sverige."},
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1818, "skal": "Samma klunga som 1815-1817/1819-1820 (BMW iX4 Neue Klasse) - ARSMODELLSREGELN: svenskt pris finns nu (insikt 2004), ev_spec+cargo_spec+/api/cars bekräftar att bilen säljs i Sverige."},
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1819, "skal": "Samma klunga som 1815-1818/1820 (BMW iX4 Neue Klasse) - ARSMODELLSREGELN: svenskt pris finns nu (insikt 2004), ev_spec+cargo_spec+/api/cars bekräftar att bilen säljs i Sverige."},
-    {"datum": "2026-10-24", "typ": "slapp", "id": 1820, "skal": "Samma klunga som 1815-1819 (BMW iX4 Neue Klasse) - ARSMODELLSREGELN: svenskt pris finns nu (insikt 2004, 809 900 kr för 50 xDrive), ev_spec+cargo_spec+/api/cars bekräftar att bilen säljs i Sverige."},
-    {"datum": "2026-10-24", "typ": "radera", "id": 1940, "skal": "Specialbyggd Mercedes-Maybach S 680 åt en namngiven kändis (Auto Motor & Sport) - engångsbeställning, ingen generell köpinformation. Dold sedan 2026-10-17 (7 dygn), fortsatt bedömd som skräp enligt samma regel."}
+    {"datum": "2026-10-25", "typ": "radera", "id": 1940, "skal": "Specialbyggd Mercedes-Maybach S 680 åt en namngiven kändis (Auto Motor & Sport) - engångsbeställning, ingen generell köpinformation. Dold sedan 2026-10-17 (8 dygn nu - gårdagens försök avvisades för att det bara var 6 dygn då), fortsatt bedömd som skräp enligt samma regel."}
   ]
 }
