@@ -1,5 +1,104 @@
 # Morgonfix-logg
 
+## 2026-10-26
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:32:11 inom fönstret vintertid, Groq 3/3,
+AVVIKER 0 i vPIC, drivmedel 511/425/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men
+nattens 3 nya rader krävde dom och en möjlig BMW X5-kötvilling (se nedan) är värd att hålla ögonen
+på.
+
+**Ingen kodfix i natt** - inget tillräckligt belagt kodfel hittades för att lagas utan användaren.
+Tre filer ändrade, alla datafiler (räknas inte mot femfilstaket): `docs/baslinje.json`
+(mat-baslinje.js, kontrollräkning 3438/3438 går ihop), `src/main/resources/morgonfix/atgarder.json`
+(tömd - inga kobeslut i natt, se nedan) och `src/main/resources/morgonfix/laddpriser.json`
+(måndagskontroll, se nedan). Inga nya laddtips i natt - enda nya kandidaten (1998, Skoda Peaq 90
+förbrukning) gav en siffra som inte stämde mot /api/ev-spec (se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 00:32:11 (inom väntat fönster 00:15-00:50 vintertid - första
+natten efter övergången), deployad commit 6377ca4 matchar origin/master, status OK, ingen omstart
+(uptime ~23 h). ev-specs updated **5** (inom 0-25, kollisioner 182, evSpecs 654→654 still - inga
+nya rader i detta ledet i natt). cargo-specs gav **0/5/0** (0 nya bilnamn, 5 av 250 bagagevolymer,
+0 av 0 generationsår kvar) - inget larmmönster. Kontrollräkningen (cargo total 1824 + evSpecs 654 +
+ice_consumption 960 = 3438 = /api/stats variants) stämmer exakt. /api/cars 2088 (oförändrat,
+matchar 0 nya bilnamn). models 2301→2301, insights 1576→1578 (+3 nattens rader, -1 därför att
+baslinjens mätning 10-25 00:53 UTC skedde 6 minuter FÖRE samma morgons radering av 1940 - ingen
+tappad rad, bara sekvensen mellan mätning och radering).
+
+**BAGAGELARMET (3f) - medVolym 1038→1043 (+5), bagageMissar 588→733 (+145).** Summan (+150) träffar
+samma nattliga 150-tak som svepet sedan 10-21. medVolym UPPÅT = OK enligt domregeln oavsett
+bagageMissar. Fortsätt bevaka tills kurvan planar ut.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). Samtliga 19 missar har
+fortsatt forsöktDag **2026-10-21**, 16 vakten-avstod / 3 ej-hittad - oförändrat, väntat stillestånd
+enligt 3a.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 511/425/86/16 - ice +1 (cargo-specs-ledets normala
+påfyllning), el och manuella oförändrade. Alla 16 handsatta rader (11 el + 5 ice) fortsatt korrekta,
+ingen flip. **Kategorivakten:** 0 utslag sedan omstart (uptime ~23 h) - inget att rapportera.
+
+**Nattens 3 nya rader (id 2046-2048, Vi Bilägare, Chrysler 300C):** alla 3 godtagbara - V6-tillför-
+litlighet (begagnatköp), dieselspec (CRD, utvecklad med Mercedes), bensinspec (Hemi V8 350 hk).
+Ingen kategorifel, inga skatterader eller renoveringsobjekt.
+
+**Övriga rader i fönstret (id 1999-2045):** 2030-2045 (natten 10-25) redan bedömda i loggboken
+nedan - 15/16 godtagbara, **id 2038 (Volvo 850 R) kvarstår som öppen fråga** (möjlig veteranvakt-
+lucka, se gårdagens post - jag har verifierat `InsightTaxonomy.java` själv i natt: "hittades efter
+24 år" matchar inte `gömd i \d+ år`, och "850" finns inte i `UTGANGNA_MODELLER` - fortsatt inte nog
+belagt för en fix). id 1999-2029 tidigare granskade, inga nya problem.
+
+**MÖJLIG KÖTVILLING, id 2021 (BMW X5 M60e xDrive, Auto Motor & Sport, INGA_ANNONSER i kön) - inte
+lagad i natt:** delar natt och expert med 2020/2022 ("BMW X5" i de vanliga raderna, om takbox och
+M Performance-paket). Samma sökmönster som Mazda 6e- och Bayon-tvillingarna i 3b, men 2020/2022
+beskriver tillbehör till DAGENS X5, inte uppenbart samma bil som M60e xDrive-varianten - jag har
+ingen namngiven källa som bekräftar att M60e xDrive säljs i Sverige än. Skrivs som förslag, inget
+kobeslut i atgarder.json.
+
+**Tre regler:** SKATTER - inget underlag. RENOVERINGSOBJEKT - inget underlag (2038 diskuteras ovan).
+AVVECKLADE MODELLER ÄR RELEVANTA - inget underlag, ingen överblockering sedd.
+
+**Värdeminskning:** INTE längre oprövad (se gårdagens post) - ovanligt stark skörd igen i natt:
+3 rader batteridegradering (Tesla Model S, 2030-2032, redan skrivna 10-25), 4 rader om svårsålda
+begagnade bilar (2039-2042), flera reparationskostnadsrader (2008-2013, 2033-2037) och en
+motorhållbarhetsrad (2007, Saab 900 Aero) - alla från natten 10-25, redan räknade där.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 19 INGA_ANNONSER på 57
+rader / 28 bilar - oförändrat mot baslinjen. Samtliga tidigare dokumenterade fall oförändrade
+(Bayon-tvillingarna, Tucson gen 5, Mazda 6e, Pajero, Santa Fe, Range Rover 1578, BMW i3). Nattens
+nya köade bilar (BYD Seagull 2026/2028/2029, MG Go! 2025/2027, Honda 0 Alpha 2024) och BMW X5 M60e
+xDrive (2021, se kötvilling-frågan ovan) saknar alla Blocket-annonser - korrekt INGA_ANNONSER,
+inget beslut krävs än. Inga dolda rader har nått 7-dygnsgränsen (2006: 3 dygn, 1987: 4 dygn).
+
+**Laddtips:** inga nya i natt. `ev-fact-candidates` gav 8 kandidater, men alla var redan skrivna
+(2015, 2002, 1999) eller uteslutna av samma skäl som 10-25 (2006 dold i natt som felattribuerad,
+2031/2030 ensamma batterihälsotester utan spec-tabell, 2005 för vagt). **1998** (Skoda Peaq 90,
+Cw-värde/förbrukning) var en ny kandidat men förbrukningen "1,5 kWh/mil enligt WLTP" stämmer inte
+mot /api/ev-spec (647 km WLTP / 86,0 kWh ≈ 1,33 kWh/mil) - för stor avvikelse för att skriva som
+fakta, samma typ av fel som Puma Gen-E 08-18.
+
+**Laddpriserna (måndag):** 5 nätverk kontrollerade mot egna prissidor, **0 ändrade** - ionity
+6,09, allego 6,30 (Sverige-blocket, "Pay as you go Ultrafast"), mer 5,10 (högtrafik 07-11/16-20),
+circle k/circlek 6,09 (egna ultrasnabba, engångsbetalning), lidl 5,80 (DC via smartphone) kr/kWh,
+alla oförändrade sedan 10-19 - bara `kontrollerad`-datum uppdaterat.
+
+**Kobesluten:** inga i natt - inget LARM i annonskollen, inga dolda rader vid 7-dygnsgränsen, och
+ingen tillräckligt belagd slapp/parkera-kandidat. `atgarder.json` skrivet tomt.
+
+**Splashvakten: DOM GRÖNT** (exitkod 0) - alla sju tjänster OK, CarAdvice-raden visar autodeploy
+master · 6377ca4 (matchar /api/version). Samma INFO-rader som tidigare, inget nytt.
+
+**Testat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test` grönt (exitkod 0). `mvn
+test` (hela sviten) grönt, exitkod 0 - WARN/ERROR-raderna i loggen är samma avsiktliga
+testfixturer som tidigare nätter. `mvn -q -DskipTests package` grönt.
+
+**Baslinjen:** uppdaterad till i natts mätning (se docs/baslinje.json), kontrollräkning 3438/3438
+GÅR IHOP (bekräftat av mat-baslinje.js självt).
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` (grenen fanns inte sedan
+föregående merge, skapad från origin/master) - auto-merge-workflowen bör ta den normalt.
+
 ## 2026-10-25
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 01:29:20 inom fönstret, Groq 3/3, AVVIKER 0
