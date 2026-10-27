@@ -1,4 +1,9 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-10-27", "typ": "slapp", "id": 1844, "skal": "ARSMODELLSREGELN: BMW iX3 M60 xDrive har nu ett svenskt pris (ev_spec 'BMW iX3 M60 xDrive' = 816 000 kr, 108,7 kWh, 400 kW DC - exakt matchning mot radens egna tal), cargo_spec 'bmw ix3'=el och /api/cars bekräftar BMW iX3 i Sverige. Parkerad sedan 10-09, regression som BMW iX4-fixet 10-24."},
+    {"datum": "2026-10-27", "typ": "slapp", "id": 1845, "skal": "Samma klunga som 1844/1846 (BMW iX3 M60 xDrive) - ARSMODELLSREGELN, ev_spec 108,7 kWh/754-806 km WLTP matchar radens tal exakt, bilen säljs i Sverige."},
+    {"datum": "2026-10-27", "typ": "slapp", "id": 1846, "skal": "Samma klunga som 1844/1845 (BMW iX3 M60 xDrive) - ARSMODELLSREGELN, ev_spec 400 kW DC-laddning matchar radens tal exakt, bilen säljs i Sverige."},
+    {"datum": "2026-10-27", "typ": "slapp", "id": 1715, "skal": "ARSMODELLSREGELN: Peugeot E-208 GTi finns som eget namn i /api/cars och ev_spec ('Peugeot e-208 GTi' = 483 000 kr, 50,8 kWh, 206 kW/280 hk - matchar radens tal), skild från bas-e-208 (388 000 kr). Bilen säljs i Sverige, parkerad sedan 10-01."}
+  ]
 }

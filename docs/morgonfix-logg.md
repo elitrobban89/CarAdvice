@@ -1,6 +1,85 @@
 # Morgonfix-logg
 
-## 2026-10-26
+## 2026-10-27
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:32:39 inom fönstret vintertid, Groq 3/3,
+AVVIKER 0 i vPIC, drivmedel 511/425/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men två
+öppna frågor (BMW X5 M60e xDrive-tvillingen 2021 och Volvo 850 R-veteranluckan 2038, båda redan
+dokumenterade 10-26) kvarstår, och fyra kobeslut krävde dom i natt.
+
+**Ingen kodfix i natt** - inget tillräckligt belagt kodfel hittades. Tre filer ändrade, alla
+datafiler (räknas inte mot femfilstaket): `docs/baslinje.json` (mat-baslinje.js, kontrollräkning
+3439/3439 går ihop), `src/main/resources/morgonfix/atgarder.json` (4 kobeslut, se nedan) och denna
+loggbok. Inga nya laddtips i natt - alla kandidater (2015, 1999, 2002) redan skrivna 10-23/10-24,
+1998 (Peaq 90 förbrukning) fortsatt diskvalificerad (siffran stämmer inte mot ev-spec, samma skäl
+som 10-26), 2006 diskvalificerad (samma felattribuerade Kia EV5-rad som dolts 10-23), 2030/2031
+(Tesla Model S-batterihälsa) fortsatt uteslutna utan jämförelsetabell, 2005 för vagt underlag.
+
+**Kobeslut i natt - SLÄPP (ARSMODELLSREGELN, regression upptäckt i natt):**
+- **1844, 1845, 1846 (BMW iX3 M60 xDrive)** - parkerade sedan 10-09. ev_spec "BMW iX3 M60 xDrive"
+  ger nu 816 000 kr, 108,7 kWh, 400 kW DC - matchar radernas egna tal exakt (108,7 kWh i 1845, 400 kW
+  i 1846). cargo_spec "bmw ix3" = el, /api/cars listar BMW iX3. Samma mönster som BMW iX4 Neue
+  Klasse-fixet 10-24.
+- **1715 (Peugeot E-208 GTi)** - parkerad sedan 10-01. "Peugeot e-208 GTi" finns som eget namn i
+  /api/cars, skilt från bas-e-208 (388 000 kr) - ev_spec ger 483 000 kr / 50,8 kWh / 206 kW,
+  stämmer mot radens 54 kWh / 206 kW (280 hk).
+- **Kontrollerat men INTE släppt:** VW ID.3 GTI (1545, 1552-1554, 1556-1557) - ev-spec-svaret för
+  "Volkswagen ID.3 GTI" (331 km / 37,5 kWh / 390 000 kr) matchar INTE radernas 79 kWh / 60 mil, och
+  /api/cars saknar "ID.3 GTI" helt (bara "ID. Polo GTI" finns, med en TREDJE spec). Sannolikt en
+  fuzzy-matchningsträff på fel bil - ingen källa, inget beslut. Kvarstår parkerad.
+
+**Grundkollen:** lastScrapeFinishedAt 00:32:39 (inom väntat fönster 00:15-00:50 vintertid), deployad
+commit fcb0c8a matchar origin/master, status OK, ingen omstart (uptime ~23,6 h). ev-specs updated
+**5** (inom 0-25, kollisioner 182, evSpecs 654→654 still). cargo-specs gav **1/0/0** (1 nytt
+bilnamn, 0 av 92 bagagevolymer, 0 av 0 generationsår kvar). Kontrollräkningen (cargo total 1825 +
+evSpecs 654 + ice_consumption 960 = 3439 = /api/stats variants) stämmer exakt. /api/cars 2089 (+1,
+matchar 1 nytt bilnamn). models 2301→2302, insights 1578→1586 (+8 nattens rader).
+
+**BAGAGELARMET (3f) - medVolym 1043→1043 (oförändrat), bagageMissar 733→825 (+92).** KB i
+cargo-specs var 92 (inte 0). medVolym STILL + bagageMissar VUXIT = VÄNTAT enligt domregeln -
+jobbet betade av bilar auto-data inte har. Ingen avvikelse.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). forsöktDag för samtliga 19
+missar är nu **2026-10-21** (6 dagar sedan, 24 dagar kvar till nästa fönster) - de provades alltså
+om efter att fönstret stängde 10-20, så ingen notis krävs (16 vakten-avstod, 3 ej-hittad).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 511/425/86/16 - helt oförändrat mot baslinjen 10-26, alla
+16 handsatta rader (11 el + 5 ice) fortsatt korrekta. **Kategorivakten:** 0 utslag sedan omstart
+(uptime ~23,6 h) - inget att rapportera.
+
+**Nattens 8 nya rader (id 2049-2056):** Chery Lepas L6/L8 (kommande, nya köade bilar, inga
+annonser än - korrekt), Ford Ranger (krockkuddefel, känt defekt-typ), Kia K4 Sportswagon hybrid x2
+(pris + förbrukning), Volvo EX60 (funktionsjämförelse), Mazda CX-5 (Google Gemini-stöd), Honda
+Civic (ARN-tvist). Alla 8 godtagbara - inga skatterader, kategorifel eller veteranrader.
+
+**Övriga rader i fönstret (id 2007-2048):** stark skörd värdeminskningsrader (2008-2013 reparations-
+kostnader, 2030-2032 batteridegradering Tesla Model S, 2033-2037 reparationskostnader, 2039-2042
+"svårsålda" CarUp-rader) - alla godtagbara (bilens egna mätvärden/reliabilitet, inget marknadskrav).
+**id 2038 (Volvo 850 R) kvarstår som öppen fråga** - samma veteranvakt-lucka som dokumenterades
+10-26 ("hittades efter 24 år" matchar inte regexet `gömd i \d+ år`), fortsatt inte belagt nog för en
+kodfix. id 1999-2029 tidigare granskade, inga nya problem.
+
+**MÖJLIG KÖTVILLING, id 2021 (BMW X5 M60e xDrive) - oförändrad sedan 10-26:** fortfarande ingen
+namngiven källa som bekräftar att den säljs i Sverige (ingen ev_spec/cargo_spec-träff för just
+"X5 M60e xDrive"). Kvarstår som förslag, inget kobeslut.
+
+**Tre regler:** SKATTER - inget underlag. RENOVERINGSOBJEKT - inget underlag (2038 diskuteras ovan).
+AVVECKLADE MODELLER ÄR RELEVANTA - inget underlag, ingen överblockering sedd.
+
+**Marknadsregeln:** inget nytt märke att kontrollera i natt.
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 21 INGA_ANNONSER på 59
+rader / 30 bilar. Samtliga GRANSKA/ANNAN_DRIVLINA-fall oförändrade och redan dokumenterade (Bayon-
+tvillingarna, Tucson gen 5, Mazda 6e, Pajero, Santa Fe, Volvo XC70, BMW i3, Range Rover Sport,
+Range Rover 1578). Fyra INGA_ANNONSER-rader släppta i natt (se kobeslut ovan). Nattens nya köade
+bilar (Chery Lepas L6/L8) saknar Blocket-annonser - korrekt, inget beslut krävs än.
+
+**Splashvakten:** grönt i alla sex projekt (MiniPrisTåget, Bankomat 2.0, Elbilsladdning, CarAdvice,
+VäderKläder, Bränslekostnad) - "Dom: splasharna stämmer." INFO-raderna hos Elbilsladdning är
+återkommande sedan tidigare, inga nya.
+
+**Baslinjen:** skriven (`node scripts/mat-baslinje.js`), kontrollräkning 3439/3439 går ihop.
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:32:11 inom fönstret vintertid, Groq 3/3,
 AVVIKER 0 i vPIC, drivmedel 511/425/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men
