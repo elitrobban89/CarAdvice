@@ -1,6 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-28", "typ": "slapp", "id": 2069, "skal": "PROMPTMISS i UPCOMING_PROMPT: Polestar 4 säljs redan i Sverige (nypris ca 599 000-659 900 kr hos Polestar, annonser från 559 900 kr, privatleasing erbjuds - källa: blocket.se/minbilkoll, kontrollerat 2026-10-28). car_model 'Polestar 4 SUV' är en stavningsvariant som missar Blockets annonser (de heter bara 'Polestar 4'), så ad-check gav felaktigt INGA_ANNONSER. Klass (b) i avsnitt 3b - redan i handeln, hör inte till kommande-kön."}
+    {"datum": "2026-10-28", "typ": "slapp", "id": 2069, "skal": "PROMPTMISS i UPCOMING_PROMPT: Polestar 4 säljs redan i Sverige (nypris ca 599 000-659 900 kr hos Polestar, annonser från 559 900 kr, privatleasing erbjuds - källa: blocket.se/minbilkoll, kontrollerat 2026-10-28). car_model 'Polestar 4 SUV' är en stavningsvariant som missar Blockets annonser (de heter bara 'Polestar 4'), så ad-check gav felaktigt INGA_ANNONSER. Klass (b) i avsnitt 3b - redan i handeln, hör inte till kommande-kön."},
+    {"datum": "2026-10-28", "typ": "dolj", "id": 2038, "skal": "VETERANREGELN, användarens beslut 2026-10-28: Volvo 850 R hittad 'efter 24 år i en fallfärdig lada' är ett ladfynd/samlarobjekt, inget köpråd. Raden kom in före fixen i veteranvakten (PR #32, mönstret ladfynd/'N år i en lada') och vakten gäller bara nya rader."}
   ]
 }
