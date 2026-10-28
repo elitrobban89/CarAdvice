@@ -1,6 +1,96 @@
 # Morgonfix-logg
 
-## 2026-10-27
+## 2026-10-28
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:34:10 inom fönstret vintertid, Groq 3/3,
+AVVIKER 0 i vPIC, drivmedel 511/425/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men en
+ny PROMPTMISS i kön (Polestar 4 SUV, id 2069 - redan i handeln) krävde ett kobeslut i natt, och två
+sedan tidigare dokumenterade öppna frågor (id 2038 veteranvakt-lucka, id 2021 BMW X5-kötvilling)
+kvarstår obelagda. Dessutom en ny öppen fråga ur marknadsregeln (Elaris, se nedan).
+
+**Ett kobeslut i natt - SLÄPP (PROMPTMISS, ny upptäckt):**
+- **2069 (Polestar 4 SUV, CarUp)** - ad-check gav INGA_ANNONSER, men Polestar 4 säljs redan i
+  Sverige (nypris ca 599 000-659 900 kr hos Polestar, Blocket-annonser från 559 900 kr,
+  privatleasing erbjuds - kontrollerat mot blocket.se/minbilkoll 2026-10-28). car_model "4 SUV" är
+  en stavningsvariant som missar Blockets annonser (de heter bara "Polestar 4") - samma typ av fel
+  som Ioniq 3/"Ionix 3" 10-08. Klass (b) i avsnitt 3b, hör inte till kommande-kön.
+
+**Ingen kodfix i natt** - inget tillräckligt belagt kodfel hittades. Tre filer ändrade, alla
+datafiler (räknas inte mot femfilstaket): `docs/baslinje.json` (mat-baslinje.js, kontrollräkning
+3439/3439 går ihop), `src/main/resources/morgonfix/atgarder.json` (1 kobeslut, se ovan) och denna
+loggbok. Inga nya laddtips i natt - enda kandidaten med poäng (2071, Nissan Leaf VIVNE-batteribyte
+62 kWh) går inte att belägga mot /api/ev-spec eftersom det är ett eftermarknadsbyte, inte
+fabriksspec, och originalsiffran "60 km på vintervägar" hittar inget stöd i internationella källor
+om VIVNE-bytet (som i stället talar om 172→366 km i ett dokumenterat fall) - skrivs inte.
+2067 (VW ID. Polo, 7,51 kWh/100 km på Wolfsburg-Wien) stämmer INTE mot /api/ev-spec (334 km WLTP på
+37,5 kWh ≈ 11,2 kWh/100 km) - troligen en icke-representativ eco-körning, skrivs inte. Övriga
+kandidater (2015, 2030, 2031) redan skrivna/uteslutna tidigare natt.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-10-28 00:34:10 (inom väntat fönster 00:15-00:50
+vintertid), deployad commit 76d0018 matchar origin/master, status OK, ingen omstart (uptime
+~23,6 h). ev-specs updated **5** (inom 0-25, kollisioner 182, evSpecs 654→654 still). cargo-specs
+gav **0/0/0** (0 nya bilnamn, 0 av 0 bagagevolymer kvar, 0 av 0 generationsår kvar - båda
+arbetslistorna tömda just nu). Kontrollräkningen (cargo total 1825 + evSpecs 654 + ice_consumption
+960 = 3439 = /api/stats variants) stämmer exakt. /api/cars 2089 (oförändrat). models 2302→2302,
+insights 1586→1601 (+15 nattens rader).
+
+**BAGAGELARMET (3f) - medVolym 1043→1043 (oförändrat), bagageMissar 825→825 (oförändrat).** KB i
+cargo-specs var 0 av 0 kvar - undantaget i 3f gäller: listan är slut (allt fyllt eller parkerat),
+så "still + oförändrad" är OK, inte avvikelse.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). Samtliga 19 missar har
+forsöktDag **2026-10-21** (6 dagar sedan, 23 dagar kvar), 16 vakten-avstod / 3 ej-hittad -
+oförändrat, väntat stillestånd enligt 3a/3f (KG=0 av 0 kvar).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 511/425/86/16 - helt oförändrat mot baslinjen 10-27, alla
+16 handsatta rader (11 el + 5 ice) fortsatt korrekta, ingen flip. **Kategorivakten:** 1 utslag sedan
+omstart (uptime ~23,6 h) - Mercedes S-klass felaktigt taggad familjebil, vakten strök kategorin
+korrekt (lyxbil, inte familjebil). Ingen regression.
+
+**Nattens 15 nya rader (id 2057-2071):** Toyota Land Cruiser (ramchassi), fem rader ur samma
+ADAC-mörkertest med reflexväst (BYD Seal, Dacia Duster, Hyundai Tucson, Mercedes CLA, Tesla
+Model Y - olika utfall per modell, samma typ av klunga som Safety Coach-fallet 1253-1257, ingen
+bugg), Volvo EX90 (bromsfel, känt säkerhetsfel), Mercedes EQE SUV (rostskydd), Audi Q4 e-tron +
+Q4 Sportback e-tron (två separata återkallelser), VW ID. Polo (förbrukningstest, se laddtips ovan
+om varför siffran inte publiceras där), Mercedes S-klass (värdeminskning, kategori korrekt struken
+av vakten), Polestar 4 SUV (kommande-kö-PROMPTMISS, se kobeslut ovan), Saab 9-5 NG Vector
+(lågmilt exemplar), Nissan Leaf (VIVNE-batteribyte, se laddtips ovan). Alla 15 godtagbara som
+insikter - inga kategorifel eller veteranrader. Värdeminskning: 1 rad (Mercedes S-klass), inte
+längre en öppen fråga i sig men bevakas som vanligt.
+
+**Övriga rader i fönstret (id 2022-2056):** tidigare granskade i gårdagens och förrgårdagens
+rapporter, inga nya problem. **id 2038 (Volvo 850 R) kvarstår som öppen fråga** - samma
+veteranvakt-lucka ("hittades efter 24 år i en fallfärdig lada" matchar inte regexet
+`gömd i \d+ år`, "850" finns inte i UTGANGNA_MODELLER), fortsatt inte belagt nog för en kodfix utan
+användaren.
+
+**MÖJLIG KÖTVILLING, id 2021 (BMW X5 M60e xDrive) - oförändrad:** fortfarande ingen namngiven källa
+som bekräftar att just M60e xDrive-varianten säljs i Sverige. Kvarstår som förslag.
+
+**Tre regler:** SKATTER - inget underlag i natt. RENOVERINGSOBJEKT - inget underlag (2038 diskuteras
+ovan, bedöms som hållbarhetsanekdot snarare än säljpitch för ett renoveringsobjekt). AVVECKLADE
+MODELLER ÄR RELEVANTA - Saab 9-5 (2070, avvecklat märke) behölls korrekt, ingen överblockering sedd.
+
+**Marknadsregeln - NY ÖPPEN FRÅGA (Elaris):** nätet är öppet i natt (kontrollbilen Volvo XC40 gav
+träffar på Blocket). Stickprov på ovanliga märken i cargo_spec/ev_spec: Dongfeng (0 Blocket-träffar,
+men märket SÄLJS i Sverige via Novus Cars/DFSK sedan 2024 - bara specifikt "Dongfeng Box" är
+osäkert, för smalt underlag för ett förslag) och Elaris (0 Blocket-träffar, webbkällor nämner inte
+Sverige som marknad och antyder att bolaget var insolvent i januari 2025) - Elaris är en möjlig
+kandidat för radering men INTE verifierat mot två oberoende källor med aktuellt 2026-läge. Skrivs
+som öppen fråga, inget raderingsförslag än.
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 20 INGA_ANNONSER (varav
+2069 släppt i natt, se kobeslut) på 56 rader / 29 bilar. Samtliga GRANSKA/ANNAN_DRIVLINA-fall
+oförändrade och redan dokumenterade (Bayon-tvillingarna, Tucson gen 5, Mazda 6e, Pajero, Santa Fe,
+Volvo XC70, BMW i3, Range Rover Sport, Range Rover 1578).
+
+**Splashvakten:** grönt i alla sex projekt - "Dom: splasharna stämmer." INFO-raderna hos
+Elbilsladdning är återkommande sedan tidigare, inga nya.
+
+**Baslinjen:** skriven (`node scripts/mat-baslinje.js`), kontrollräkning 3439/3439 går ihop.
+
+
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:32:39 inom fönstret vintertid, Groq 3/3,
 AVVIKER 0 i vPIC, drivmedel 511/425/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men två
