@@ -39,8 +39,11 @@ public class EvDatabaseScraperService {
      *
      * Spärren sitter i synken och inte bara som en radering: utan den skulle nattkörningen
      * auto-skapa raderna igen vid nästa 02:00.
+     *
+     * <p>Elaris (2026-10-28): tysk importör av kinesiska elbilar, i insolvens sedan januari
+     * 2025 (electrive.net, auto motor und sport), aldrig såld i Sverige, 0 Blocket-träffar.
      */
-    public static final Set<String> EXCLUDED_BRANDS = Set.of("TOGG", "Jaecoo", "Changan");
+    public static final Set<String> EXCLUDED_BRANDS = Set.of("TOGG", "Jaecoo", "Changan", "Elaris");
 
     /** Namnet börjar med ett uteslutet märke (skiftlägesokänsligt). */
     public static boolean isExcludedBrand(String carName) {

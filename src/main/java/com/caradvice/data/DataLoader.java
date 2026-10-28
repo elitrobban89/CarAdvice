@@ -546,6 +546,13 @@ public class DataLoader implements CommandLineRunner {
         for (String brand : EvDatabaseScraperService.EXCLUDED_BRANDS) {
             // LOWER(...) LIKE och inte ILIKE — ILIKE finns bara i Postgres och skulle
             // spricka den dag projektet körs mot en annan databas.
+            // cargo_spec först, och bara rader som bär ett ev_spec-namn som ska bort: bagage-
+            // fyllningen skapar rader under ev_spec-namnet, så Elaris BEO 86 kWh låg i båda
+            // tabellerna. En ren märkesradering hade också tagit Jaecoo J7, som Bilweb listar
+            // och som säljs i Sverige sedan september 2026.
+            int c = jdbc.update("DELETE FROM cargo_spec WHERE car_name IN"
+                    + " (SELECT car_name FROM ev_spec WHERE LOWER(car_name) LIKE LOWER(?))", brand + "%");
+            if (c > 0) log.warn("cargo_spec: tog bort {} rader för uteslutet märke {}", c, brand);
             int n = jdbc.update("DELETE FROM ev_spec WHERE LOWER(car_name) LIKE LOWER(?)", brand + "%");
             if (n > 0) log.warn("ev_spec: tog bort {} rader för uteslutet märke {}", n, brand);
         }
