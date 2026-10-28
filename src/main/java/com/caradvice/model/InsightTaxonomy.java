@@ -227,7 +227,10 @@ public final class InsightTaxonomy {
      */
     private static final java.util.regex.Pattern SAMLARORD = java.util.regex.Pattern.compile(
             "samlarobjekt|samlarbil|veteranbil|veteranfordon|renoveringsobjekt|entusiastprojekt"
-            + "|budkrig|på auktion|auktionerades|klubbades|gömd i \\d+ år");
+            + "|budkrig|på auktion|auktionerades|klubbades|gömd i \\d+ år"
+            // Ladfyndet (id 2038, 2026-10-26). Antalet år före "lada" är villkoret, så
+            // märket Lada ("en Lada Niva") aldrig kan bära regeln.
+            + "|ladfynd|\\d+ år i en (?:\\S+ )?(?:lada|ladugård)");
 
     /**
      * Årtalet i en MODELLÅRSPOSITION — "från 1987", "1972 års", "levererades 1977".

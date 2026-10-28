@@ -261,6 +261,20 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void ladfyndetFallsSomSamlarobjekt() {
+        // id 2038 (2026-10-26): Volvo 850 R "efter 24 år i en fallfärdig lada" — inget
+        // "gömd i", inget årtal, och 850 (1996) ligger för nära gränsen för modellregeln.
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "När den hittades efter 24 år i en fallfärdig lada hade bilen fortfarande"
+                + " fungerande elsystem och ingen allvarlig rost i chassit.")).isNotNull();
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Ett ladfynd som stått orört sedan åttiotalet.")).isNotNull();
+        // Märket Lada ska inte bära regeln: antalet år måste stå före.
+        assertThat(InsightTaxonomy.veteranInnehall(
+                "Lada Niva har ett robust ramverk och enkel mekanik.")).isNull();
+    }
+
+    @Test
     void vanligaKopradSlappsIgenom() {
         // Noll falska träffar över hela tabellen (1 159 rader) och repots fyra kurerade
         // CSV:er (240 rader), mätt 2026-09-20. De tre nedan är de riskabla formerna: ett
