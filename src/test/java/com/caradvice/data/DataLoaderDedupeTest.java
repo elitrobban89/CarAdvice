@@ -87,11 +87,19 @@ class DataLoaderDedupeTest {
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object> arg = ArgumentCaptor.forClass(Object.class);
         // dubblettstädningen är update(String) utan argument — den här överlagringen
-        // (update med parameter) träffas bara av märkesraderingarna, en per märke
-        verify(jdbc, org.mockito.Mockito.times(EvDatabaseScraperService.EXCLUDED_BRANDS.size()))
+        // (update med parameter) träffas bara av märkesraderingarna, två per märke
+        // (ev_spec och cargo_spec)
+        verify(jdbc, org.mockito.Mockito.times(2 * EvDatabaseScraperService.EXCLUDED_BRANDS.size()))
                 .update(sql.capture(), arg.capture());
 
-        assertThat(arg.getAllValues()).contains("TOGG%", "Jaecoo%", "Changan%");
+        assertThat(arg.getAllValues()).contains("TOGG%", "Changan%", "Elaris%");
+        // Jaecoo säljs i Sverige sedan september 2026 — dess rader får inte raderas längre
+        assertThat(arg.getAllValues()).doesNotContain("Jaecoo%");
+        // Elaris BEO 86 kWh låg i båda tabellerna (2026-10-28) — cargo-raden ska med, men bara
+        // via ev_spec-namnet: Jaecoo J7 i cargo_spec säljs i Sverige och får inte följa med
+        assertThat(sql.getAllValues()).filteredOn(s -> s.contains("DELETE FROM cargo_spec"))
+                .hasSize(EvDatabaseScraperService.EXCLUDED_BRANDS.size())
+                .allMatch(s -> s.contains("SELECT car_name FROM ev_spec"));
         // ILIKE finns bara i Postgres — portabiliteten är avsiktlig
         assertThat(sql.getAllValues()).noneMatch(s -> s.contains("ILIKE"));
     }
