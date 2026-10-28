@@ -92,7 +92,9 @@ class DataLoaderDedupeTest {
         verify(jdbc, org.mockito.Mockito.times(2 * EvDatabaseScraperService.EXCLUDED_BRANDS.size()))
                 .update(sql.capture(), arg.capture());
 
-        assertThat(arg.getAllValues()).contains("TOGG%", "Jaecoo%", "Changan%", "Elaris%");
+        assertThat(arg.getAllValues()).contains("TOGG%", "Changan%", "Elaris%");
+        // Jaecoo säljs i Sverige sedan september 2026 — dess rader får inte raderas längre
+        assertThat(arg.getAllValues()).doesNotContain("Jaecoo%");
         // Elaris BEO 86 kWh låg i båda tabellerna (2026-10-28) — cargo-raden ska med, men bara
         // via ev_spec-namnet: Jaecoo J7 i cargo_spec säljs i Sverige och får inte följa med
         assertThat(sql.getAllValues()).filteredOn(s -> s.contains("DELETE FROM cargo_spec"))

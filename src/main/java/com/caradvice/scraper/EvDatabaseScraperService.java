@@ -42,8 +42,12 @@ public class EvDatabaseScraperService {
      *
      * <p>Elaris (2026-10-28): tysk importör av kinesiska elbilar, i insolvens sedan januari
      * 2025 (electrive.net, auto motor und sport), aldrig såld i Sverige, 0 Blocket-träffar.
+     *
+     * <p>Jaecoo stod på listan 07-28–10-28 och togs bort: säljs i Sverige sedan september 2026
+     * via RSA Sverige (Moberg Bil i Göteborg), 14 Blocket-träffar, elbilen Jaecoo 5 kommer 2027.
+     * Listan är en ögonblicksbild av marknaden, inte en dom för all framtid.
      */
-    public static final Set<String> EXCLUDED_BRANDS = Set.of("TOGG", "Jaecoo", "Changan", "Elaris");
+    public static final Set<String> EXCLUDED_BRANDS = Set.of("TOGG", "Changan", "Elaris");
 
     /** Namnet börjar med ett uteslutet märke (skiftlägesokänsligt). */
     public static boolean isExcludedBrand(String carName) {
