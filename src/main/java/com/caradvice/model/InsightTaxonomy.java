@@ -107,11 +107,18 @@ public final class InsightTaxonomy {
      * <p><b>{@code raval} tillkom 2026-10-08</b> efter id 1807 (Vi Bilägare, Cupra Raval) kom in
      * som {@code suv}. Raval delar MEB Entry-plattformen och batteristorleken (37-52 kWh) med
      * Volkswagen ID.Polo, som samma natt fick {@code smaabil} på samma plattform - en halvkombi.
+     *
+     * <p><b>{@code a6 allroad} tillkom 2026-10-29</b> efter id 2080-2084 (M3, "Audi A6 Allroad
+     * e-hybrid quattro") kom in som {@code suv}. Raden säger själv "en så stor kombi" - Allroad
+     * är en höjd kombi, samma gränsdragning som {@code golf} (Alltrack) här i listan. Markören
+     * bär modellnamnet helt ut för att inte träffa vanliga Audi A6 (id 1246, användarens
+     * gränsfall som familjebil - se {@link #LYX_OCH_SPORTMODELLER}).
      */
     public static final List<String> LAGA_MODELLER = List.of(
             "mg4", "mg 4", "mg5", "mg 5", "id.3", "id3", "model 3", "polestar 2",
             "zoe", "leaf", "e-golf", "golf", "ioniq 6", "i4", "ë-c4", "e-c4",
-            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat", "raval");
+            "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat", "raval",
+            "a6 allroad");
 
     /**
      * Modeller som bevisligen INTE är småbilar — mellanklass och uppåt, plus SUV:ar.
