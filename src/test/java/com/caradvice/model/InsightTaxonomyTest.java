@@ -216,6 +216,17 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void audiA6AllroadArIngenSuv() {
+        // Natten mot 2026-10-29: id 2080-2084 (M3, "Audi A6 Allroad e-hybrid quattro") kom in
+        // som suv. Raden säger själv "en så stor kombi" - Allroad är en höjd kombi, samma
+        // gränsdragning som Golf Alltrack (redan i listan via "golf"). Vanliga Audi A6 (sedan/
+        // familjebil, id 1246) ska INTE träffas av markören.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "Audi", "A6 Allroad e-hybrid quattro"))
+                .isEqualTo("audi a6 allroad e-hybrid quattro är ingen SUV");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Audi", "A6")).isEqualTo("familjebil");
+    }
+
+    @Test
     void okandKategoriArFortfarandeNull() {
         // Whitelisten gäller som förut — vakten läggs till, den ersätter ingenting
         assertThat(InsightTaxonomy.canonicalCategory("sportbil", "Porsche", "911")).isNull();
