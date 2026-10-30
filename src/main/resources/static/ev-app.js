@@ -161,7 +161,7 @@
     }, TAK_MS);
   })();
 
-  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [], vroomTopp: null, vroomNyheter: null };
+  let state = { lat: null, lon: null, city: "", sort: "speed", carIndex: null, cars: [], filter: "all", operatorFilter: null, lastData: null, lastRoute: null, lastCalc: null, favorites: [], evSalesRank: [], stationsOpen: false, valueRetention: [], valueRetentionKalla: "", laddpriser: null, elzoner: [], vroomTopp: null, vroomNyheter: null, bilvideor: null };
   // ===== PRISLOGIK BÖRJAR — ren, testas av backend/src/test/js/pris-prov.js =====
   //
   // Låg förut inline på TRE ställen (stationskorten, chattens stationskontext och
@@ -1342,6 +1342,14 @@
     .catch(() => {})
     .finally(() => renderTipsOnly());
 
+  // Videokortet (2026-10-30): Alriks Bilars senaste videor plus några utvalda. Fail-soft
+  // som Vroom — utan svar ritas ingen videoflik.
+  fetch(API + "/api/bilvideor")
+    .then(r => r.json())
+    .then(d => { if (d && Array.isArray(d.videor) && d.videor.length) state.bilvideor = d; })
+    .catch(() => {})
+    .finally(() => renderTipsOnly());
+
   // Carlas Elbilsindex ur pressrummet (2026-09-27). Förut klistrades siffrorna in för hand
   // en gång i månaden, eftersom carla.se står bakom en bot-vägg; pressflödet är öppet.
   fetch(API + "/api/carla-index")
@@ -2135,7 +2143,7 @@
      */
     // Tva argument och inte en ihopslagen strang: avdelningen bygger flikar av dem, och
     // da maste den veta var den ena slutar och den andra borjar.
-    const carouselSection = carouselArea(funfactHtml, factHtml, buildVroomHtml());
+    const carouselSection = carouselArea(funfactHtml, factHtml, buildVroomHtml(), buildVideoHtml());
 
     /*
      * Stationslistan är hopfälld från start. Öppet läge lever i state och inte i DOM:en:
@@ -2229,11 +2237,12 @@
    * om dem vid flikbytet hade nollställt karusellens position och pausläge, alltså straffat
    * den som just pausat för att läsa.
    */
-  function carouselArea(tipsHtml, tabellHtml, vroomHtml) {
+  function carouselArea(tipsHtml, tabellHtml, vroomHtml, videoHtml) {
     const delar = [
       { id: 'tips', ikon: '💡', etikett: 'AI-tips &amp; Visste du att', html: tipsHtml },
       { id: 'tabeller', ikon: '📊', etikett: 'Jämför bilarna', html: tabellHtml },
-      { id: 'vroom', ikon: '🏆', etikett: 'Vroom: månadens siffror', html: vroomHtml }
+      { id: 'vroom', ikon: '🏆', etikett: 'Vroom: månadens siffror', html: vroomHtml },
+      { id: 'video', ikon: '🎬', etikett: 'Bilvideor', html: videoHtml }
     ].filter(function (d) { return !!d.html; });
     if (!delar.length) return '';
 
@@ -2283,7 +2292,7 @@
     // Egen klass, inte .ev-status: den hade fatt raden ovan att avsta vid nasta omritning.
     const valjBil = state.vantarPaBil && state.carIndex === null
       ? '<div class="ev-valj-bil">Välj din bilmodell ovan för att se laddstationer.</div>' : '';
-    setOutput(valjBil + carouselArea(buildFunfactHtml(null), null, buildVroomHtml()));
+    setOutput(valjBil + carouselArea(buildFunfactHtml(null), null, buildVroomHtml(), buildVideoHtml()));
   }
 
   /**
@@ -2373,6 +2382,56 @@
       + '<button class="ev-fact-play" data-carousel-play aria-pressed="false" title="Pausa karusellen">'
       + '<span class="ev-fact-play-icon">⏸</span><span data-carousel-play-label>Paus</span>'
       + '</button></div></div>';
+  }
+
+  /**
+   * Videokortet: en slide per video — miniatyr, titel, kanal och datum. Alriks Bilars
+   * senaste först, de handplockade efter (märkta "Utvald", se BilvideoService.UTVALDA).
+   *
+   * Miniatyren byggs av video-id:t och ingenting annat, och id:t måste se ut som ett
+   * YouTube-id: en adress ur svaret hamnar aldrig rakt i src. Rutan har fast 16:9-format så
+   * att karusellens höjdmätning stämmer innan bilden hunnit laddas.
+   */
+  function buildVideoHtml() {
+    const lista = state.bilvideor;
+    if (!lista) return '';
+    const videor = lista.videor.filter(function (v) { return /^[A-Za-z0-9_-]{11}$/.test(v.id); });
+    if (!videor.length) return '';
+
+    const slides = videor.map(function (v, i) {
+      const lank = 'https://www.youtube.com/watch?v=' + v.id;
+      return '<div class="ev-video-slide" style="display:' + (i === 0 ? 'flex' : 'none') + ';flex-direction:column;">'
+        + '<div class="ev-funfact-label">' + (v.utvald ? 'Utvald · ' : 'Senaste · ') + esc(v.kanal)
+        + ' · ' + esc(v.datum) + '</div>'
+        + '<a href="' + lank + '" target="_blank" rel="noopener" style="display:block;margin-top:8px;'
+        + 'aspect-ratio:16/9;width:100%;max-width:360px;border-radius:8px;overflow:hidden;background:#111;">'
+        + '<img src="https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg" alt="" loading="lazy" '
+        + 'style="width:100%;height:100%;object-fit:cover;display:block;"></a>'
+        + '<div class="ev-funfact-text" style="margin-top:8px;"><strong>' + esc(v.titel) + '</strong></div>'
+        + '<div style="margin-top:6px;font-size:12px;"><a href="' + lank
+        + '" target="_blank" rel="noopener">Se videon på YouTube</a></div>'
+        + '</div>';
+    });
+
+    const prickar = slides.map(function (_, i) {
+      return '<button class="ev-fact-dot' + (i === 0 ? ' ev-fact-dot-active' : '')
+        + '" data-dot="' + i + '" aria-label="Video ' + (i + 1) + '"></button>';
+    }).join('');
+
+    return '<div class="ev-funfact-card" id="ev-video-carousel" style="flex-direction:column;align-items:stretch;gap:0;">'
+      + '<div data-slides style="position:relative;">' + slides.join('') + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">'
+      + '<button class="ev-fact-nav" data-carousel-prev>‹</button>'
+      + '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;">' + prickar + '</div>'
+      + '<button class="ev-fact-nav" data-carousel-next>›</button></div>'
+      + '<div class="ev-fact-progress"><div class="ev-fact-progress-bar"></div></div>'
+      + '<div style="display:flex;justify-content:center;margin-top:10px;">'
+      + '<button class="ev-fact-play" data-carousel-play aria-pressed="false" title="Pausa karusellen">'
+      + '<span class="ev-fact-play-icon">⏸</span><span data-carousel-play-label>Paus</span>'
+      + '</button></div>'
+      + '<div style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">Fler videor: <a href="'
+      + esc(lista.kanalLank || 'https://www.youtube.com/@alriksbilar') + '" target="_blank" rel="noopener">'
+      + esc(lista.kanal || 'Alriks Bilar') + ' på YouTube</a></div></div>';
   }
 
   function buildFunfactHtml(funFact) {
@@ -2556,7 +2615,7 @@
         const rankText =
           `${top.model} var Sveriges mest sålda elbil${period} med <strong>${top.units.toLocaleString('sv-SE')}</strong> nyregistreringar` +
           (second ? `, före ${second.model} (${second.units.toLocaleString('sv-SE')})` : '') +
-          ' (elbilsvaruhuset.se / Mobility Sweden).';
+          ' (Mobility Sweden).';
         dynamicRankFacts.push({ icon: '🔋', text: rankText });
       }
       const facts = [
@@ -2794,6 +2853,7 @@
 
     evInitCarousel('ev-funfact-carousel', '.ev-funfact-slide');
     evInitCarousel('ev-vroom-carousel', '.ev-vroom-slide');
+    evInitCarousel('ev-video-carousel', '.ev-video-slide');
 
     evInitCarousel('ev-fact-carousel', '.ev-fact-slide', (activeSlide) => {
       const highlighted = activeSlide.querySelector('tr[style*="rgba(59,130,246"]');

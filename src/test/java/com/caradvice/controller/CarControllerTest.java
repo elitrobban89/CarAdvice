@@ -1172,6 +1172,26 @@ class CarControllerTest {
            .andExpect(jsonPath("$.error").value("Hittade ingen xlsx-rapport"));
     }
 
+    @Test
+    void elbilRankingArPublik() throws Exception {
+        when(mobilityStatsSyncService.elbilsranking()).thenReturn(new MobilityStatsSyncService.Elbilsranking(
+                "januari–september 2026", "Mobility Sweden",
+                List.of(new MobilityStatsSyncService.RankingRad(1, "Volvo EX40", 8897))));
+
+        mvc.perform(get("/api/elbil-ranking"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.period").value("januari–september 2026"))
+           .andExpect(jsonPath("$.rader[0].modell").value("Volvo EX40"))
+           .andExpect(jsonPath("$.rader[0].antal").value(8897));
+    }
+
+    @Test
+    void elbilRankingGer503NarRapportenInteGarAttLasa() throws Exception {
+        when(mobilityStatsSyncService.elbilsranking()).thenReturn(null);
+
+        mvc.perform(get("/api/elbil-ranking")).andExpect(status().isServiceUnavailable());
+    }
+
     // --- PATCH /api/admin/insights/{id} ---
 
     /**
