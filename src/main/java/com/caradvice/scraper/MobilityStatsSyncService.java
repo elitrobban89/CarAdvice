@@ -114,8 +114,11 @@ public class MobilityStatsSyncService {
             String xlsxUrl = findLatestReportUrl();
             if (xlsxUrl == null) return Map.of("status", "ERROR", "error", "Hittade ingen xlsx-rapport");
 
-            List<ExpertInsight> insights = parseReport(download(xlsxUrl));
+            byte[] xlsx = download(xlsxUrl);
+            List<ExpertInsight> insights = parseReport(xlsx);
             if (insights.isEmpty()) return Map.of("status", "ERROR", "error", "Inga rader kunde tolkas ur " + xlsxUrl);
+            Elbilsranking ranking = parseElbilsranking(xlsx);
+            if (ranking != null) cachaRanking(ranking);
 
             insightService.deleteByExpert(EXPERT_NAME);
             insights.forEach(insightService::save);
@@ -262,6 +265,67 @@ public class MobilityStatsSyncService {
         if (period == null) return null;
         String month = period.split(" ")[0];
         return MONTHS.indexOf(month) <= 0 ? period : "januari–" + period;
+    }
+
+    // ── Elbilsrankingen till elbilsassistenten ────────────────────────────────
+
+    /** En rad i elbilsrankingen: "Volvo EX40" med nyregistreringar hittills i år. */
+    public record RankingRad(int plats, String modell, int antal) {}
+
+    /** @param period "januari–september 2026" — hela året hittills, inte bara senaste månaden */
+    public record Elbilsranking(String period, String kalla, List<RankingRad> rader) {}
+
+    static final int RANKING_ANTAL = 10;
+    private static final Duration RANKING_TTL = Duration.ofHours(12);
+
+    private volatile Elbilsranking rankingCache;
+    private volatile long rankingCachadVid;
+
+    /**
+     * Topp tio ur rapportens elbilsark, hittills i år. Elbilsassistentens försäljningstopp
+     * läste förut elbilsvaruhuset.se, som slutade uppdatera sin lista efter juni 2026 — men
+     * samma Mobility Sweden-siffror låg redan här varje månad, bara utan att någon frågade.
+     *
+     * <p>Cachas i tolv timmar. Ett misslyckande cachas aldrig; då lämnas den senaste lyckade
+     * listan, eller {@code null} om det aldrig lyckats sedan omstart.
+     */
+    public synchronized Elbilsranking elbilsranking() {
+        Elbilsranking cachad = rankingCache;
+        if (cachad != null && System.currentTimeMillis() - rankingCachadVid < RANKING_TTL.toMillis()) return cachad;
+        try {
+            String xlsxUrl = findLatestReportUrl();
+            Elbilsranking ny = xlsxUrl == null ? null : parseElbilsranking(download(xlsxUrl));
+            if (ny != null) {
+                cachaRanking(ny);
+                return ny;
+            }
+            log.warn("Elbilsrankingen: ingen läsbar rapport hittades");
+        } catch (Exception e) {
+            log.warn("Elbilsrankingen gick inte att hämta: {}", e.toString());
+        }
+        return cachad;
+    }
+
+    private void cachaRanking(Elbilsranking ranking) {
+        rankingCache = ranking;
+        rankingCachadVid = System.currentTimeMillis();
+    }
+
+    static Elbilsranking parseElbilsranking(byte[] xlsx) throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet ev = wb.getSheet(SHEET_EV);
+            if (ev == null) return null;
+            Sheet total = wb.getSheet(SHEET_TOTAL);
+            String period = findPeriod(total != null ? total : ev);
+            List<RankRow> rader = dataRows(ev);
+            if (period == null || rader.isEmpty()) return null;
+
+            List<RankingRad> ut = new ArrayList<>();
+            for (RankRow r : rader.subList(0, Math.min(RANKING_ANTAL, rader.size()))) {
+                ut.add(new RankingRad(ut.size() + 1, displayName(r.rawName()), r.ytd()));
+            }
+            return new Elbilsranking(periodRange(period), "Mobility Sweden", List.copyOf(ut));
+        }
     }
 
     // ── Namnnormalisering ─────────────────────────────────────────────────────

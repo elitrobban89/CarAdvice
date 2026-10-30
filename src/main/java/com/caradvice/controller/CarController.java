@@ -375,6 +375,16 @@ public class CarController {
                 .body(Map.of("tips", laddtipsService.aktuella()));
     }
 
+    // Publik: Mobility Swedens topp tio elbilar hittills i år — Elbilsladdnings försäljningstopp läser den
+    @GetMapping("/elbil-ranking")
+    public ResponseEntity<?> elbilRanking() {
+        MobilityStatsSyncService.Elbilsranking ranking = mobilityStatsSyncService.elbilsranking();
+        if (ranking == null) return ResponseEntity.status(503).body(Map.of("error", "Mobility Swedens rapport gick inte att läsa just nu"));
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic())
+                .body(ranking);
+    }
+
     // Publik: laddpriser per nätverk som nattrutinen belagt — Elbilsladdning lägger dem över sin reservtabell
     @GetMapping("/laddpriser")
     public ResponseEntity<?> laddpriser() {

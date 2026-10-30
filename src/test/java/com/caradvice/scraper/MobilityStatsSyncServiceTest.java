@@ -83,6 +83,56 @@ class MobilityStatsSyncServiceTest {
         assertThat(insights.get(1).getInsight()).contains("6 275").contains("före Tesla Model Y");
     }
 
+    @Test
+    void elbilsrankingenGerTioRaderHittillsIAr() throws Exception {
+        Object[][] ev = new Object[12][];
+        ev[0] = new Object[]{"VOLVO EX/XC40", 982, 8897};
+        ev[1] = new Object[]{"TESLA MODEL Y", 2330, 7100};
+        for (int i = 2; i < ev.length; i++) ev[i] = new Object[]{"KIA EV" + i, 100, 5000 - i * 100};
+        byte[] xlsx = workbook("september 2026", new Object[][]{{"VOLVO XC60", 1200, 10669}}, ev);
+
+        MobilityStatsSyncService.Elbilsranking r = MobilityStatsSyncService.parseElbilsranking(xlsx);
+
+        assertThat(r.period()).isEqualTo("januari–september 2026");
+        assertThat(r.kalla()).isEqualTo("Mobility Sweden");
+        assertThat(r.rader()).hasSize(MobilityStatsSyncService.RANKING_ANTAL);
+        assertThat(r.rader().get(0)).isEqualTo(new MobilityStatsSyncService.RankingRad(1, "Volvo EX40", 8897));
+        assertThat(r.rader().get(1).modell()).isEqualTo("Tesla Model Y");
+        assertThat(r.rader().get(9).plats()).isEqualTo(10);
+    }
+
+    @Test
+    void elbilsrankingenUtanElbilsarkGerNull() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            wb.createSheet("Fel ark");
+            wb.write(out);
+            assertThat(MobilityStatsSyncService.parseElbilsranking(out.toByteArray())).isNull();
+        }
+    }
+
+    @Test
+    void elbilsrankingenHamtasEnGangOchCachas() throws Exception {
+        byte[] xlsx = workbook("september 2026", new Object[][]{{"VOLVO XC60", 1200, 10669}},
+                new Object[][]{{"VOLVO EX/XC40", 982, 8897}});
+        int[] hamtningar = {0};
+        MobilityStatsSyncService s = new MobilityStatsSyncService(insightService, mock(JobStatusService.class)) {
+            @Override String findLatestReportUrl() { return "https://mobilitysweden.se/x.xlsx"; }
+            @Override byte[] download(String url) { hamtningar[0]++; return xlsx; }
+        };
+
+        assertThat(s.elbilsranking().rader().get(0).antal()).isEqualTo(8897);
+        assertThat(s.elbilsranking()).isNotNull();
+        assertThat(hamtningar[0]).isEqualTo(1);
+    }
+
+    @Test
+    void elbilsrankingenNarRapportenSaknasGerNull() {
+        MobilityStatsSyncService s = new MobilityStatsSyncService(insightService, mock(JobStatusService.class)) {
+            @Override String findLatestReportUrl() { return null; }
+        };
+        assertThat(s.elbilsranking()).isNull();
+    }
+
     /**
      * Rapporten säger inte vilken hylla bilen står på. Utan uppslaget bär totalettans rad varken
      * kategori eller drivmedel, och når då aldrig rekommendationsprompten.
