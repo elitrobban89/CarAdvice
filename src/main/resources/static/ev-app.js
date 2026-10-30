@@ -2408,8 +2408,10 @@
         + '<img src="https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg" alt="" loading="lazy" '
         + 'style="width:100%;height:100%;object-fit:cover;display:block;"></a>'
         + '<div class="ev-funfact-text" style="margin-top:8px;"><strong>' + esc(v.titel) + '</strong></div>'
+        // Länkfärgen står utskriven: utan den ärver länken sidans mörka färg och syns knappt
+        // mot kortets bakgrund (skärmbild 2026-10-30).
         + '<div style="margin-top:6px;font-size:12px;"><a href="' + lank
-        + '" target="_blank" rel="noopener">Se videon på YouTube</a></div>'
+        + '" target="_blank" rel="noopener" style="color:#93c5fd;">▶ Se videon på YouTube</a></div>'
         + '</div>';
     });
 
@@ -2429,8 +2431,8 @@
       + '<button class="ev-fact-play" data-carousel-play aria-pressed="false" title="Pausa karusellen">'
       + '<span class="ev-fact-play-icon">⏸</span><span data-carousel-play-label>Paus</span>'
       + '</button></div>'
-      + '<div style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">Fler videor: <a href="'
-      + esc(lista.kanalLank || 'https://www.youtube.com/@alriksbilar') + '" target="_blank" rel="noopener">'
+      + '<div style="margin-top:8px;font-size:12px;color:#9ca3af;text-align:center;">Fler videor: <a href="'
+      + esc(lista.kanalLank || 'https://www.youtube.com/@alriksbilar') + '" target="_blank" rel="noopener" style="color:#93c5fd;">'
       + esc(lista.kanal || 'Alriks Bilar') + ' på YouTube</a></div></div>';
   }
 
