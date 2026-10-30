@@ -184,7 +184,10 @@ class MobilityStatsSyncServiceTest {
         assertThat(MobilityStatsSyncService.normalizeName("VOLVO EX/XC40")).containsExactly("Volvo", "EX40");
         assertThat(MobilityStatsSyncService.normalizeName("VW ID.7/ID.7 TOURER")).containsExactly("Volkswagen", "ID.7");
         assertThat(MobilityStatsSyncService.normalizeName("TESLA MODEL Y")).containsExactly("Tesla", "Model Y");
-        assertThat(MobilityStatsSyncService.normalizeName("BMW IX3")).containsExactly("BMW", "IX3");
+        assertThat(MobilityStatsSyncService.normalizeName("BMW IX3")).containsExactly("BMW", "iX3");
+        assertThat(MobilityStatsSyncService.normalizeName("BMW IX")).containsExactly("BMW", "iX");
+        assertThat(MobilityStatsSyncService.normalizeName("BMW I4")).containsExactly("BMW", "i4");
+        assertThat(MobilityStatsSyncService.normalizeName("BMW X1")).containsExactly("BMW", "X1");
         assertThat(MobilityStatsSyncService.normalizeName("MERCEDES-BENZ CLA")).containsExactly("Mercedes", "CLA");
         assertThat(MobilityStatsSyncService.normalizeName("SKODA KODIAQ")).containsExactly("Skoda", "Kodiaq");
     }

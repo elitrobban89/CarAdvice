@@ -345,6 +345,9 @@ public class MobilityStatsSyncService {
         model = Arrays.stream(model.split("\\s+"))
                 .map(t -> t.matches("[A-ZÅÄÖ]{4,}") ? titleCase(t) : t)
                 .collect(Collectors.joining(" "));
+        // BMW:s elbilar stavas med gement i (iX3, i4, iX) — rapporten skriver allt versalt
+        // och elbilsrankingen visade "BMW IX3" (2026-10-30). ID.7 och liknande rörs inte.
+        if ("BMW".equals(make) && model.matches("I(X\\d?|\\d)\\b.*")) model = "i" + model.substring(1);
         return new String[]{make, model};
     }
 
