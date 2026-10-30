@@ -1,4 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-10-30", "typ": "dolj", "id": 2086, "skal": "ANEKDOT: enskilt fordons skada och totalförlust (Vi Bilägare) - en buckla i batteriskyddet ledde till att EN Hyundai Kona Electric skrotades efter 2000 mil, ingen generell uppgift om modellen. Samma läcktyp som redan dolda 1910 (Golf, enskild motorhaveri) och 1987 (V60 Cross Country, enskilt omdöme) - avsnitt 6, 'ovriga kända läcktyper'."},
+    {"datum": "2026-10-30", "typ": "radera", "id": 1987, "skal": "ANEKDOT: två lotterivinnares subjektiva omdöme om EN begagnad Volvo V60 Cross Country, ingen mätbar eller allmän uppgift om bilen (avsnitt 6). Dold sedan 2026-10-22 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
+  ]
 }
