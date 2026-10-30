@@ -19,8 +19,15 @@ const hamta = async (p, admin = true) => {
     hamta('/api/admin/insights/upcoming'), hamta('/api/admin/cargo-specs?drivmedel=true'),
     hamta('/api/admin/ice-generations/vpic-check'), hamta('/api/ice-consumption', false),
   ]);
-  const sidor = [...(await hamta('/api/admin/insights?limit=500&page=0')), ...(await hamta('/api/admin/insights?limit=500&page=1')),
-                 ...(await hamta('/api/admin/insights?limit=500&page=2'))];
+  // Bläddra tills en sida kommer tillbaka kort. Tre fasta sidor (1500 rader) räckte till mitten av
+  // oktober; sedan föll de äldsta raderna tyst ur kategoritalen (upptäckt 2026-10-30, 1619 rader).
+  const sidor = [];
+  for (let page = 0; ; page++) {
+    const sida = await hamta('/api/admin/insights?limit=500&page=' + page);
+    sidor.push(...sida);
+    if (sida.length < 500) break;
+  }
+  if (sidor.length !== stats.insights) console.warn('VARNING: lasta insiktsrader', sidor.length, '!= stats.insights', stats.insights);
   const kategorier = {};
   for (const i of sidor) { const k = i.category || 'tom'; kategorier[k] = (kategorier[k] || 0) + 1; }
   const koBilar = new Set(ko.insights.map(i => (i.car_make + ' ' + i.car_model).toLowerCase())).size;

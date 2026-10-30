@@ -213,6 +213,14 @@ public class AutoDataScraperService {
      * @return tom lista när sidan inte har någon variantlista (fel URL, eller struktur som ändrats)
      */
     public static List<MotorAlternativ> parseMotorAlternativ(String html) {
+        return parseMotorAlternativ(html, null);
+    }
+
+    /**
+     * Som {@link #parseMotorAlternativ(String)}, men varningen namnger sidan. 2026-10-30 kom
+     * ett ensamt "noll motoralternativ" utan adress och ingen kunde säga vilken modell det gällde.
+     */
+    static List<MotorAlternativ> parseMotorAlternativ(String html, String kalla) {
         List<MotorAlternativ> ut = new ArrayList<>();
         if (html == null || html.isBlank()) return ut;
 
@@ -229,8 +237,13 @@ public class AutoDataScraperService {
             ut.add(new MotorAlternativ(namn, effektAv(namn),
                     ar != null ? ar.text().trim() : null, lank.attr("href")));
         }
-        if (ut.isEmpty()) log.warn("auto-data: generationssidan gav noll motoralternativ — struktur ändrad?");
+        if (ut.isEmpty()) log.warn("auto-data: generationssidan gav noll motoralternativ — struktur ändrad? ({})",
+                kalla != null ? kalla : "okänd sida");
         return ut;
+    }
+
+    private List<MotorAlternativ> motorerPa(String sokvag) {
+        return parseMotorAlternativ(hamta(BAS + sokvag), BAS + sokvag);
     }
 
     /**
@@ -334,6 +347,11 @@ public class AutoDataScraperService {
      * i samma fel som gav Nissan Leaf 2019 en 2026-modells siffror.
      */
     public static List<Generation> parseGenerationer(String html) {
+        return parseGenerationer(html, null);
+    }
+
+    /** Som {@link #parseGenerationer(String)}, men varningen namnger sidan. */
+    static List<Generation> parseGenerationer(String html, String kalla) {
         List<Generation> ut = new ArrayList<>();
         if (html == null || html.isBlank()) return ut;
 
@@ -354,7 +372,8 @@ public class AutoDataScraperService {
             ut.add(new Generation(titel, arFor(text, true), arFor(text, false),
                     kaross != null ? kaross.text().trim() : karossAv(text), a.attr("href")));
         }
-        if (ut.isEmpty()) log.warn("auto-data: modellsidan gav noll generationer — struktur ändrad?");
+        if (ut.isEmpty()) log.warn("auto-data: modellsidan gav noll generationer — struktur ändrad? ({})",
+                kalla != null ? kalla : "okänd sida");
         return ut;
     }
 
@@ -551,7 +570,7 @@ public class AutoDataScraperService {
         Generation gen = generationForBil(bilnamn, arsmodell);
         if (gen == null) return null;
 
-        List<MotorAlternativ> motorer = parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+        List<MotorAlternativ> motorer = motorerPa(gen.sokvag());
         if (motorer.isEmpty()) return null;
 
         // Volymen hör till karossen, inte motorn — en variantsida räcker för hela generationen.
@@ -597,7 +616,7 @@ public class AutoDataScraperService {
         Generation gen = valjGenerationForKaross(generationerFor(uppslag), kaross, arsmodell);
         if (gen == null) return null;
 
-        List<MotorAlternativ> motorer = parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+        List<MotorAlternativ> motorer = motorerPa(gen.sokvag());
         if (motorer.isEmpty()) return null;
         return parseBagagevolym(hamta(BAS + motorer.get(0).sokvag()));
     }
@@ -622,7 +641,7 @@ public class AutoDataScraperService {
     /** Motoralternativen för en bil, hela generationens utbud. Tom lista när uppslaget misslyckas. */
     public List<MotorAlternativ> motorerForBil(String bilnamn, Integer arsmodell) {
         Generation gen = generationForBil(bilnamn, arsmodell);
-        return gen == null ? List.of() : parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+        return gen == null ? List.of() : motorerPa(gen.sokvag());
     }
 
     /**
@@ -648,7 +667,7 @@ public class AutoDataScraperService {
      */
     public List<MotorAlternativ> motorerForGenerationsprovning(String bilnamn) {
         Generation gen = generationForNamn(bilnamn);
-        return gen == null ? List.of() : parseMotorAlternativ(hamta(BAS + gen.sokvag()));
+        return gen == null ? List.of() : motorerPa(gen.sokvag());
     }
 
     /**
@@ -788,7 +807,7 @@ public class AutoDataScraperService {
         // bilnamn, inte uppslag: beteckningen "520d" finns bara i det otranslaterade namnet —
         // uppslagsnamnet är "bmw 5 series" och bär ingen motorbeteckning alls.
         return artalMedEffektprov(alla, uppslag, bilnamn, varaEffekter, familjensEffekter,
-                g -> parseMotorAlternativ(hamta(BAS + g.sokvag())));
+                g -> motorerPa(g.sokvag()));
     }
 
     /**
@@ -1225,7 +1244,7 @@ public class AutoDataScraperService {
             log.debug("auto-data: ingen modell matchar {}", bilnamn);
             return List.of();
         }
-        return parseGenerationer(hamta(modellsida));
+        return parseGenerationer(hamta(modellsida), modellsida);
     }
 
     /** Längsta märkesnamnet som inleder bilnamnet vinner — "Land Rover" före "Land". */
