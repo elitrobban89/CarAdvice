@@ -1,5 +1,135 @@
 # Morgonfix-logg
 
+## 2026-10-30
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:29:16 inom fönstret vintertid, Groq 3/3,
+AVVIKER 0 i vPIC, drivmedel 513/427/86/16 utan flip, ad-check 0 LARM, splashvakten grönt), men
+baslinjeskriptets kategoriräkning har en ny, obelagd lucka (se nedan - förslag, ingen fix),
+ett nytt ensamt AutoDataScraperService-WARN med annan ordalydelse än det kända mönstret, och
+den sedan tidigare öppna frågan om id 2021 (BMW X5 M60e xDrive) kvarstår obelagd.
+
+**Ingen kodfix i natt** - inget tillräckligt belagt kodfel hittades (scripts/ är dessutom
+förbjudet att ändra). Tre filer ändrade, alla datafiler (räknas inte mot femfilstaket):
+`docs/baslinje.json` (mat-baslinje.js, kontrollräkning 3445/3445 går ihop),
+`src/main/resources/morgonfix/atgarder.json` (2 kobeslut, se nedan) och denna loggbok.
+Inga nya laddtips i natt (se nedan).
+
+**Kobeslut i natt:**
+- **dolj 2086 (Hyundai Kona Electric, Vi Bilägare)** - "En buckla i batteriets skyddshölje
+  upptäcktes på en Hyundai Kona Electric, vilket ledde till att bilen löstes in och skrotades
+  efter endast 2 000 mil" - ANEKDOT om EN bils skada/totalförlust, ingen generell uppgift om
+  modellen. Samma läcktyp som redan dolda/raderade 1910 (Golf, enskild motorhaveri) och 1987
+  (se nedan). Kategorivaktens egen utslagslogg bekräftar att raden ursprungligen kom in som
+  `suv` och ströks korrekt ("hyundai kona electric är ingen SUV") - vakten gjorde sitt jobb,
+  ingen kodlucka där.
+- **radera 1987 (Volvo V60 Cross Country)** - dold sedan 2026-10-22 (nu ≥7 dygn), fortsatt
+  bedömd som ANEKDOT (två lotterivinnares subjektiva omdöme, ingen mätbar uppgift) enligt samma
+  regel som när den doldes. **2006 (Kia EV5, felattribuerad siffra) är ännu bara ~6 dygn 12 h
+  dold - inte raderad i natt**, och 2038 (Volvo 850 R-ladfyndet) bara ~1 dygn 18 h.
+
+**Ny lucka i mat-baslinje.js (scripts/, FÅR INTE ÄNDRAS - skrivs som förslag):** skriptet hämtar
+kategorier via `?limit=500&page=0/1/2` (max 1500 rader). `/api/admin/insights` sorterar NYAST
+FÖRST, så sidorna 0-2 täcker id 152-2089 - men insights-tabellen har nu **1619** rader, så de
+**~119 ÄLDSTA** raderna (grovt under id ~152) faller utanför kategorisamplet. `insiktsraderLasta`
+stod på 1500 även natten till 10-29 (samma tak, redan då marginellt för litet eftersom
+insights-antalet växte förbi 1500 runt mitten av oktober). Det förklarar varför kategoritalen
+flyttade sig **i natt utan att någon ny rad orsakade det**: suv 675→678 och familjebil 259→256,
+fast nattens tre nya suv-rader (BMW X5, 2087-2089) bara förklarar ökningen - minskningen i
+familjebil kommer av att fönstret på 1500 nyaste rader gled förbi några äldre familjebils-rader
+som nu hamnar utanför. **Inga riktiga rader har ändrat kategori** - det är ett sample-fönster,
+inte en regression. Förslag till skriptet: lägg till `&page=3` (och bevaka om `&page=4` behövs
+när tabellen växer förbi 2000).
+
+**Ett nytt, ensamt WARN - inte samma mönster som tidigare, men samma väntade orsak:**
+`AutoDataScraperService "auto-data: generationssidan gav noll motoralternativ — struktur
+ändrad?"` loggades EN gång (00:18:15), inte 19 gånger som vid parserregressionen 10-20/21 och
+med en annan text ("generationssidan"/"motoralternativ" i stället för det kända återkommande
+"modellsidan gav noll generationer"). Generationsårens arbetslista var `0 av 0 kvar` i natt
+(fönstret stängt sedan omprövningen 10-21, se nedan) så en enda sidträff utan motoralternativ är
+sannolikt samma typ av tomt-fönster-brus som redan dokumenterats 10-17/10-20, bara en annan kodväg
+(generationssidan för en enskild redan känd modell snarare än modellistan). Ingen namngiven modell
+i raden att agera på, och total/missar har inte fallit - skriver det som ett bevakningsvärt
+notis, inte en avvikelse.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-10-30 00:29:16 (inom väntat fönster 00:15-00:50
+vintertid), deployad commit 1f55f23 matchar origin/master, status OK, ingen omstart (uptime
+~23,6 h). ev-specs updated **27** (precis under 0-25-referensen men i linje med den, kollisioner
+181, evSpecs 654→655). cargo-specs gav **2/0/0** (2 nya bilnamn, 0 av 2 bagagevolymer kvar,
+0 av 0 generationsår kvar) - status OK. Kontrollräkningen (cargo total 1830 + evSpecs 655 +
+ice_consumption 960 = 3445 = /api/stats variants) stämmer exakt. /api/cars 2094 (+3), models
+2304→2307 (+3, matchar cargo-specs 2 + ev-specs 1 nya bilnamn exakt), insights 1615→1619
+(+4, id 2086-2089).
+
+**BAGAGELARMET (3f) - medVolym 1043→1044 (+1 via ev-specs' egna bagagespår, B=1, perSource
+'bagagevolymer: 1'), bagageMissar 827→829 (+2, VUXIT, matchar cargo-specs KB=2).** Domregeln:
+medVolym uppåt via B-spåret = bra oavsett bagageMissar, och cargo-specs' egen del (medVolym +0,
+bagageMissar +2 på KB=2) är "still + VUXIT" = VÄNTAT. Ingen avvikelse. evPowers 545→546 (uppåt,
+följer evSpecs normalt).
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). forsöktDag på alla 19
+fortfarande **2026-10-21** (9 dygn, 21 dagar kvar), 16 vakten-avstod / 3 ej-hittad - oförändrat,
+väntat stillestånd (KG=0 av 0 kvar).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 513/427/86/16 - de 11 el-raderna och de 5 handsatta
+ice-raderna fortsatt korrekta, ingen flip, manuella kvar på 16. **Kategorivakten:** 1 utslag
+sedan omstart (uptime ~23,6 h) - Hyundai Kona Electric, se kobeslut ovan. Ingen regression.
+
+**Nattens 4 nya rader (id 2086-2089):** Hyundai Kona Electric (2086, anekdot om enskild
+totalförlust - se kobeslut, dold i natt), BMW X5 (2087-2089, CarUp - tre äkta testomdömen:
+helbaklucka minskar lastpraktik, hårdplast/pekknappar är en materialförsämring mot föregångaren,
+automatisk filbytesblinkers är en positiv överraskning). Alla fyra godtagbara som insikter
+utöver kobeslutet - inga veteranrader, inget tomt carMake/carModel, ingen specialutgåve- eller
+kategorifråga (BMW X5 = suv är korrekt).
+
+**Värdeminskning: 0 rader i natt** - ingen av de fyra nya raderna rör värdeminskning, restvärde,
+tillförlitlighet, livslängd eller skrotålder. Fortsatt öppen fråga, bevakas som vanligt.
+
+**Övriga rader i fönstret (id 2022-2085):** tidigare granskade i tidigare rapporter, inga nya
+problem.
+
+**MÖJLIG KÖTVILLING, id 2021 (BMW X5 M60e xDrive) - oförändrad:** fortfarande ingen namngiven
+källa som bekräftar att just M60e xDrive-varianten säljs i Sverige (ev_spec ger bara en BMW X5
+PHEV på 890 000 kr / 82 km elräckvidd, ingenting som namnger M60e-trimmen specifikt; direkt sökt
+på "BMW X5 M60e xDrive" svarar ev_spec tomt). Kvarstår som förslag, inget beslut.
+
+**Tre regler:** SKATTER - inget underlag i natt. RENOVERINGSOBJEKT - inget underlag. AVVECKLADE
+MODELLER ÄR RELEVANTA - inget underlag i natt.
+
+**Marknadsregeln:** inget nytt fynd i natt.
+
+**Laddtipsen:** inga nya i natt. Samtliga kandidater med poäng i `ev-fact-candidates` redan
+granskade och uteslutna tidigare natter, oförändrat: **2072/2073 (BYD Dolphin G, 18,3 kWh
+laddhybridbatteri)** - `/api/ev-spec?car=BYD Dolphin G` svarar fortfarande med den vanliga
+Dolphin-EV-specen (60,5 kWh, 427 km WLTP, ren el) - direkt motsägelse, skrivs inte. **2071
+(Nissan Leaf, VIVNE-batteribyte 62 kWh)** - eftermarknadsbyte på en äldre (2016) bil, går inte
+att belägga mot `/api/ev-spec` (som bara har aktuell generation, 75,1 kWh/624 km). **2067 (VW
+ID. Polo, 7,51 kWh/100 km Wolfsburg-Wien)** - stämmer fortfarande inte mot ev-spec (334 km WLTP
+på 37,5 kWh ≈ 11,2 kWh/100 km, lägre uppmätt förbrukning än WLTP-implicerat värde är osannolikt
+för en långväga motorvägsresa). **2030/2031 (Tesla Model S-batterihälsa, 13 år/41 000 mil)** -
+fortsatt utan jämförelsetabell att belägga mot, samma skäl som tidigare natter.
+
+**Kommandevakten (annonskollen):** 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 20 INGA_ANNONSER på 57
+rader / 29 bilar - oförändrat mot baslinjen (ingen ny kö-rad i natt). Samtliga GRANSKA/
+ANNAN_DRIVLINA/INGA_ANNONSER-fall oförändrade och redan dokumenterade (Bayon-tvillingarna,
+Tucson gen 5, Mazda 6e, Pajero, Santa Fe, Volvo XC70, BMW i3, Range Rover Sport, Range Rover
+1578, ID.Unyx 09, Chery Lepas L6/L8, BYD Seagull, MG Go!, Honda 0 Alpha, BMW X5 M60e xDrive
+(se öppen fråga ovan), m.fl.). Ingen modellnamnsstavning avviker mot texten i raderna.
+
+**Splashvakten:** grönt i alla sex projekt - "Dom: splasharna stämmer." INFO-raderna hos
+Elbilsladdning är återkommande sedan tidigare, inga nya.
+
+**Baslinjen:** skriven (`node scripts/mat-baslinje.js`), kontrollräkning 3445/3445 går ihop.
+Se kategorilucka-notisen ovan för en känd begränsning i samma skript.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt. `mvn -q test` (hela sviten,
+1255 prov) - **0 fel, 0 fel, 0 överhoppade.** `LaddtipsServiceTest` (7/7) och
+`MorgonfixAtgarderTest` (11/11, inklusive `verkligaFilenArGiltig` mot natten egen atgarder.json)
+körda separat innan helsviten, båda gröna.
+
+**Grenanmärkning:** den här körningen committar på `auto/morgonfix` enligt 9a (grenen fanns inte
+sedan föregående merge, skapad från origin/master).
+
 ## 2026-10-29
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:34:09 inom fönstret vintertid, Groq 3/3,
