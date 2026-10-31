@@ -1,5 +1,100 @@
 # Morgonfix-logg
 
+## 2026-10-31
+
+**DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:39:18 inom fönstret vintertid, Groq 3/3,
+AVVIKER 0 i vPIC, drivmedel 513/427/86/16 utan flip, generationsåren retestade 10-21 med samma
+utfall, ad-check 0 LARM, splashvakten grönt), men natten gav en genuin kategorivaktslucka
+(BYD Seal som smaabil, se nedan - fixad), tio nya köbeslut och en radering.
+
+**Kodfix (1 fil + prov, inom femfilstaket):** `InsightTaxonomy.STORA_MODELLER` saknade BYD Seal.
+Id 2058 (Vi Bilägare, "BYD Seal") kom in som `smaabil` - ev_spec visar 82,5 kWh/570 km WLTP/
+571 000 kr, samma klass som Model 3/Polestar 2 som redan står i listan. BYD Seal 6 (C-segment,
+redan `familjebil` i drift, id 1301-1305/1333) påverkas inte eftersom markören bara agerar på
+`smaabil`. Prov: `InsightTaxonomyTest.bydSealArIngenSmaabil` - RÖTT före fixen
+(`kategoriMotsagelse("smaabil","BYD","Seal")` gav `null`), GRÖNT efter. Hela `mvn test`
+kört grönt innan commit. Ingen rad kan rättas retroaktivt (ramarna tillåter bara datarader via
+atgarder.json för kön, inte ett PATCH av kategorifältet) - id 2058 står kvar i tabellen med fel
+kategori, men framtida BYD Seal-rader fångas nu.
+
+**Kobeslut i natt (10 parkera + 1 radera, se atgarder.json):**
+- **parkera 2079, 2077 (Volkswagen ID.Unyx 09)** - Kina-exklusiv SAIC-VW-modell, 0 Blocket-annonser.
+- **parkera 2050 (Chery Lepas L8), 2049 (Chery Lepas L6)** - nylanseringar, 0 Blocket-annonser.
+- **parkera 2029, 2028, 2026 (BYD Seagull)** - säljs i Europa som "BYD Dolphin Surf", inte under
+  namnet Seagull. 0 Blocket-annonser på Seagull-namnet.
+- **parkera 2027, 2025 (MG Go!)** - raderna säger själva "den nya"/"den kommande" MG Go!,
+  0 Blocket-annonser.
+- **parkera 2024 (Honda 0 Alpha)** - ARSMODELLSREGELNs motsats: utskriven saljstart "från
+  början av 2027", 0 Blocket-annonser.
+- **radera 2006 (Kia EV5, felattribuerad siffra)** - dold sedan 2026-10-23 (nu >7 dygn),
+  fortsatt bedömd som skräp (siffran 800V/400kW/113kWh matchar inte ev_spec 60,3/81,4 kWh/150 kW).
+  **2086 (Hyundai Kona Electric) och 2038 (Volvo 850 R-ladfyndet) inte raderade i natt** - bara
+  ~1 respektive ~3 dygn dolda, inte 7 än.
+- **Inte rört: id 2021 (BMW X5 M60e xDrive), samma öppna fråga som i natten mot 10-30.**
+  INGA_ANNONSER, men X5 säljs definitivt i Sverige - det är sannolikt en sökträff/namnform-miss
+  på Blocket (jämför "Ionix 3"-fallet i 3b), inte en bil som inte säljs. Vågar inte parkera UTAN
+  att kunna belägga att "M60e" är en riktig, ännu osåld variant - lämnas obeslutad tills en
+  namngiven källa kan bekräfta vilken generation/variant det gäller.
+
+**Nytt laddtips (1, se laddtips.json):** BMW i3 50 xDrive, förbrukning vid 100/130 km/h
+(id 2102). Siffrorna stämmer matematiskt mot ev_spec: 108,7 kWh / 14,5 kWh/100km ≈ 750 km och
+108,7 kWh / 21 kWh/100km ≈ 520 km - exakt de räckvidder raden själv anger. Två andra kandidater
+avvisades: id 2071 (Nissan Leaf, eftermarknadsbatteribyte - inte en generell köpupplysning) och
+id 2067 (VW ID. Polo, 7,51 kWh/100km på en Wolfsburg-Wien-körning - stämmer inte mot WLTP-
+implicerad förbrukning på ~11 kWh/100km för bilens 37,5 kWh-batteri, går inte att belägga).
+Id 2085 (Tesla Model 3, Island-resan) var redan skriven 2026-10-29 - samma fakta, ingen dubblett.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att den här rapporten
+var klar. Kontrollräkning 3449/3449 går ihop.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-10-31 00:39:18 (inom väntat fönster, vintertid sedan
+natt till 10-25), deployad commit 070c7f3 matchar origin/master, status OK, ingen omstart
+(uptime ~12 h, startad innan nattkedjan). ev-specs updated **28** (strax över 0-25-referensen,
+kollisioner 181, evSpecs oförändrat 655). cargo-specs gav **4/1/0** (4 nya bilnamn, 1 av 4
+bagagevolymer kvar, 0 av 0 generationsår kvar) - status OK. Kontrollräkningen (cargo total
+1834 + evSpecs 655 + ice_consumption 960 = 3449 = /api/stats variants) stämmer exakt. /api/cars
+2094→2098 (+4), models 2307→2311 (+4, matchar cargo-specs nya bilnamn), insights 1618→1634
+(+16, id 2090-2105).
+
+**BAGAGELARMET (3f):** medVolym 1044→1045 (+1), bagageMissar 829→832 (+3) - domregeln: medVolym
+UPPÅT = bra oavsett bagageMissar. KB=4 (inte slut), så ingen av de två är "still" - ingen
+avvikelse.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). forsöktDag på alla 19
+fortfarande **2026-10-21** (10 dygn, 20 dagar kvar) - samma omprövning och samma utfall som
+natten mot 10-30, väntat stillestånd (KG=0 av 0 kvar).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** - matchar
+referensen exakt. **Drivmedelsräknaren:** 513/427/86/16 - de 11 el-raderna och de 5 handsatta
+ice-raderna fortsatt korrekta, ingen flip, manuella kvar på 16. **Kategorivakten:** 0 utslag
+sedan omstart (uptime ~12 h) - inget sedan senaste deployen.
+
+**Nattens 16 nya rader (id 2090-2105):** Toyota Camry (2090, 2099 - begagnatmarknad/driftsäkerhet,
+OK men tunt), VW Golf 2,0 TDI (2091, Green NCAP-rekord, rating 7 - första icke-null ratingen på
+länge), VW Golf Hybrid (2092, 2100, bränslebesparing), VW T-Roc Hybrid (2093, 2101), fem
+"Årets Bil"-finalister från Vi Bilägare (2094-2098: Volvo EX60, BMW iX3, Renault Twingo, VW
+ID.Polo, Hyundai Ioniq 3 - äkta per-modell-nyheter ur samma final, samma mönster som
+Safety Coach-klungan i avsnitt 6, ingen bugg) och fyra BMW i3 50 xDrive-rader (2102-2105,
+Allt om Elbil - pris, förbrukning, sittposition, fjädring). **16 av 16 bra.** Ingen kategori-,
+veteran- eller specialutgåvefelaktighet i nattens egna rader.
+
+**Hela fönstret (id 2056-2105, 50 rader): 49 av 50 bra** - enda avvikelsen är id 2058
+(BYD Seal, se kodfixen ovan). Inget nytt fynd för SKATTER/RENOVERINGSOBJEKT/AVVECKLADE MODELLER
+i natt (inget underlag i fönstret). **Vardeminskning: 0 nya rader i natt** - fortsatt öppen
+fråga enligt avsnitt 6 (id 2068, Mercedes S-klass, är en äldre rad i fönstret, inte ny i natt).
+
+**Kommandevakten (3b):** ad-check 0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 20 INGA_ANNONSER på
+57 rader / 29 bilar (matchar baslinjens ko-tal exakt). De 8 GRANSKA-fallen är alla redan
+dokumenterade AVGJORDA-fall (XC70, Bayon, BMW i3, Tucson, Range Rover Sport, Mazda 6e, Pajero,
+Santa Fe) - inget nytt att lyfta. Se kobesluten ovan för natten nya parkera/radera-rader.
+
+**Marknadsregeln (3c):** inget nytt fynd i natt - inga rader om bilmärken som bevisligen inte
+säljs i Sverige bland de ordinarie insikterna.
+
+**Splashvakten:** grönt i alla sex projekt (MiniPrisTåget, Bankomat 2.0, Elbilsladdning,
+CarAdvice, VäderKläder, Bränslekostnad). Bara INFO-rader (källor som inte nämns i Elbilsladdnings
+splash) - strukturella, inte nya i natt.
+
 ## 2026-10-30
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:29:16 inom fönstret vintertid, Groq 3/3,

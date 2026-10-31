@@ -227,6 +227,17 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void bydSealArIngenSmaabil() {
+        // Natten mot 2026-10-31: id 2058 (Vi Bilägare) kom in som smaabil. BYD Seal är en
+        // 82,5 kWh-sedan med 570 km WLTP och pris 571 000 kr (ev_spec) - samma klass som
+        // Model 3/Polestar 2 i STORA_MODELLER, inte en stadsbil. BYD Seal 6 (C-segment,
+        // redan familjebil i drift) ska inte påverkas eftersom markören bara fäller smaabil.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "BYD", "Seal"))
+                .isEqualTo("byd seal är ingen småbil");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "BYD", "Seal 6")).isEqualTo("familjebil");
+    }
+
+    @Test
     void okandKategoriArFortfarandeNull() {
         // Whitelisten gäller som förut — vakten läggs till, den ersätter ingenting
         assertThat(InsightTaxonomy.canonicalCategory("sportbil", "Porsche", "911")).isNull();
