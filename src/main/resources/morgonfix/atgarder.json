@@ -11,6 +11,8 @@
     {"datum": "2026-10-31", "typ": "parkera", "id": 2027, "skal": "INGA_ANNONSER: raden säger själv 'den nya MG Go!' - ännu inte lanserad i Sverige, 0 Blocket-annonser."},
     {"datum": "2026-10-31", "typ": "parkera", "id": 2025, "skal": "INGA_ANNONSER: raden säger själv 'den kommande MG Go!', 0 Blocket-annonser."},
     {"datum": "2026-10-31", "typ": "parkera", "id": 2024, "skal": "Utskriven saljstart fram i tiden: raden säger själv att Honda 0 Alpha 'planeras levereras från början av 2027', 0 Blocket-annonser."},
-    {"datum": "2026-10-31", "typ": "radera", "id": 2006, "skal": "Felattribuerad siffra (Kia EV5, 800V/400kW/113kWh matchar inte ev_spec 60,3/81,4 kWh och 150 kW). Dold sedan 2026-10-23 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
+    {"datum": "2026-10-31", "typ": "radera", "id": 2006, "skal": "Felattribuerad siffra (Kia EV5, 800V/400kW/113kWh matchar inte ev_spec 60,3/81,4 kWh och 150 kW). Dold sedan 2026-10-23 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."},
+    {"datum": "2026-10-31", "typ": "slapp", "id": 2021, "skal": "Användarbeslut 2026-10-31: BMW X5 säljs i Sverige, INGA_ANNONSER är sannolikt en namnformsmiss på M60e-varianten. Användarens linje: tveksamt fall släpps."},
+    {"datum": "2026-10-31", "typ": "slapp", "id": 2058, "skal": "Användarbeslut 2026-10-31: BYD Seal är en säljbar bil (ev_spec 82,5 kWh/571 000 kr). Ligger raden inte i kön gör släppet inget."}
   ]
 }
