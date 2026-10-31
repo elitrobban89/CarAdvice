@@ -1,7 +1,16 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-10-30", "typ": "dolj", "id": 2086, "skal": "ANEKDOT: enskilt fordons skada och totalförlust (Vi Bilägare) - en buckla i batteriskyddet ledde till att EN Hyundai Kona Electric skrotades efter 2000 mil, ingen generell uppgift om modellen. Samma läcktyp som redan dolda 1910 (Golf, enskild motorhaveri) och 1987 (V60 Cross Country, enskilt omdöme) - avsnitt 6, 'ovriga kända läcktyper'."},
-    {"datum": "2026-10-30", "typ": "radera", "id": 1987, "skal": "ANEKDOT: två lotterivinnares subjektiva omdöme om EN begagnad Volvo V60 Cross Country, ingen mätbar eller allmän uppgift om bilen (avsnitt 6). Dold sedan 2026-10-22 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2079, "skal": "INGA_ANNONSER: Volkswagen ID.Unyx 09 är en Kina-exklusiv SAIC-VW-modell, 0 Blocket-annonser under namnet, säljs inte i Sverige."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2077, "skal": "INGA_ANNONSER: samma bil som 2079 (Volkswagen ID.Unyx 09), 0 Blocket-annonser, säljs inte i Sverige."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2050, "skal": "INGA_ANNONSER: Chery Lepas L8 är en ny lansering (laddhybrid-SUV), 0 Blocket-annonser, säljs inte i Sverige."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2049, "skal": "INGA_ANNONSER: Chery Lepas L6 är en ny lansering, 0 Blocket-annonser, säljs inte i Sverige."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2029, "skal": "INGA_ANNONSER: BYD Seagull säljs i Europa under namnet BYD Dolphin Surf, inte under namnet Seagull - 0 Blocket-annonser på det namnet."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2028, "skal": "INGA_ANNONSER: samma bil som 2029 (BYD Seagull/Dolphin Surf), 0 Blocket-annonser på namnet Seagull."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2026, "skal": "INGA_ANNONSER: samma bil som 2029 (BYD Seagull/Dolphin Surf), 0 Blocket-annonser på namnet Seagull."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2027, "skal": "INGA_ANNONSER: raden säger själv 'den nya MG Go!' - ännu inte lanserad i Sverige, 0 Blocket-annonser."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2025, "skal": "INGA_ANNONSER: raden säger själv 'den kommande MG Go!', 0 Blocket-annonser."},
+    {"datum": "2026-10-31", "typ": "parkera", "id": 2024, "skal": "Utskriven saljstart fram i tiden: raden säger själv att Honda 0 Alpha 'planeras levereras från början av 2027', 0 Blocket-annonser."},
+    {"datum": "2026-10-31", "typ": "radera", "id": 2006, "skal": "Felattribuerad siffra (Kia EV5, 800V/400kW/113kWh matchar inte ev_spec 60,3/81,4 kWh och 150 kW). Dold sedan 2026-10-23 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
   ]
 }

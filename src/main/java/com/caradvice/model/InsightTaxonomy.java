@@ -153,12 +153,20 @@ public final class InsightTaxonomy {
      * Värld, Cupra Born) och id 1671 (Auto Motor & Sport, Ford Focus) kom in som {@code smaabil}.
      * Born delar ID.3-plattformen (MEB, ~4,3 m) och Focus är C-segment — samma hylla som
      * {@code id.3}/{@code octavia}/{@code ceed} här i listan.
+     *
+     * <p><b>{@code byd seal} tillkom 2026-10-31</b> efter id 2058 (Vi Bilägare) kom in som
+     * {@code smaabil}. BYD Seal är en 82,5 kWh-sedan med 570 km WLTP och pris 571 000 kr
+     * (ev_spec) — samma klass som {@code model 3}/{@code polestar 2} här i listan. Markören
+     * bär hela modellnamnet med flit: den fäller bara {@code smaabil}, så att den även träffar
+     * syskonen Seal U och Sealion (lika omöjliga som stadsbilar) gör ingen skada, medan
+     * BYD Seal 6 (redan {@code familjebil} i drift) inte berörs eftersom markören bara agerar
+     * på just {@code smaabil}.
      */
     public static final List<String> STORA_MODELLER = List.of(
             "model 3", "model s", "model x", "model y", "id.3", "id3", "id.7", "polestar 2",
             "polestar 3", "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger",
             "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo",
-            "ceed", "born", "focus");
+            "ceed", "born", "focus", "byd seal");
 
     /**
      * Lyxbilar och sportbilar — modeller som ALDRIG får bära {@code smaabil} eller {@code familjebil}.
