@@ -1,37 +1,37 @@
 {
   "_om": "Nattrutinens baslinje. Rutinen skriver in nattens uppmatta tal har varje natt (utom vid LARM) - se docs/nattrutin.md avsnitt BASLINJEN. Talen i sjalva rutintexten ar historik; DENNA fil galler.",
-  "matt": "2026-10-31T00:57:31.008Z",
-  "commit": "070c7f3",
+  "matt": "2026-11-01T00:53:48.909Z",
+  "commit": "f095650",
   "stats": {
-    "models": 2311,
-    "variants": 3449,
-    "insights": 1634
+    "models": 2312,
+    "variants": 3450,
+    "insights": 1639
   },
   "kontrollrakning": {
-    "cargoTotal": 1834,
+    "cargoTotal": 1835,
     "evSpecs": 655,
     "iceConsumption": 960,
-    "summa": 3449,
-    "variants": 3449
+    "summa": 3450,
+    "variants": 3450
   },
   "evSpecs": 655,
-  "apiCars": 2098,
+  "apiCars": 2099,
   "iceConsumption": 960,
   "cargo": {
+    "total": 1835,
     "medVolym": 1045,
-    "total": 1834,
-    "utanVolym": 789,
+    "utanVolym": 790,
     "iceGenerations": 291,
     "evPowers": 546,
-    "bagageMissar": 832
+    "bagageMissar": 833
   },
   "iceGenerations": {
     "total": 291,
     "missar": 19
   },
   "ko": {
-    "rader": 57,
-    "bilar": 29
+    "rader": 56,
+    "bilar": 28
   },
   "drivmedel": {
     "total": 513,
@@ -42,19 +42,19 @@
   "vpic": {
     "kontrollerade": 291,
     "hoppade": 0,
-    "vpicAnrop": 342,
+    "vpicAnrop": 275,
     "perStatus": {
-      "OK": 0,
+      "OK": 126,
       "AVVIKER": 0,
-      "INGEN_DATA": 291
+      "INGEN_DATA": 165
     }
   },
-  "insiktsraderLasta": 1634,
-  "hogstaInsiktsId": 2105,
+  "insiktsraderLasta": 1639,
+  "hogstaInsiktsId": 2111,
   "kategorier": {
-    "smaabil": 248,
-    "suv": 723,
-    "familjebil": 294,
+    "smaabil": 249,
+    "suv": 725,
+    "familjebil": 296,
     "tom": 185,
     "elbil": 171,
     "laddhybrid": 13

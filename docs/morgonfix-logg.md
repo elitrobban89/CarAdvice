@@ -1,5 +1,88 @@
 # Morgonfix-logg
 
+## 2026-11-01
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom fönstret
+vintertid, Groq 3/3, AVVIKER 0 i vPIC, drivmedel 513/427/86/16 utan flip, generationsåren
+stilla som väntat, ad-check 0 LARM, splashvakten grönt, kategorivakten 0 utslag sedan
+omstart ~15,5 h), men ett nytt köbeslut (dolj) och en baslinje-rättelse kräver granskning.
+
+**Inget kodfix i natt.** Ingen entydig kodorsak hittades - BYD Atto 3 (CarUp, ikväll,
+kategoriserad `smaabil`) flaggades INTE av kategorivakten (0 utslag), så den räknas inte
+som ett bevisat hål utan som en öppen fråga i rapporten.
+
+**Kobeslut i natt (1 dolj, se atgarder.json):**
+- **dolj 2070 (Saab 9-5 NG Vector, CarUp)** - ANEKDOT om ETT exemplars miltal (4 400 mil
+  sedan 2012) och servicehistorik, ingen generell köpuppgift om modellen. Samma mönster
+  som redan dolda/raderade 1910, 1912, 1987, 2086.
+- Inga nya kommande-rader i natt (web-insights gav 0 nya upcoming-poster), så inga
+  slapp/parkera-beslut. Annonskollen (0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 19 INGA_ANNONSER
+  på 56 rader/28 bilar) bekräftar att alla olåsta köposter redan är avgjorda i tidigare
+  rapporter (Mazda 6e, Range Rover 1578, Tucson gen 5-klungan, Pajero, Santa Fe, Kicks,
+  PV7, Ioniq 7/4, Lynk & Co 10, Volvo XC100, ID.3 GTI-klungan).
+
+**Inga nya laddtips.** Bästa kandidaten (id 2071, Nissan Leaf med eftermarknadsbatteri
+62 kWh från VIVNE, 400-500 km) beskriver en ombyggd 2016-bil, inte en köpbar konfiguration
+i Sverige idag - skrivs inte. BMW i3 50 xDrive-förbrukningen (id 2102) och Tesla Model 3
+Island-resan (id 2085) är redan skrivna i tidigare rapporter.
+
+**Baslinje-rättelse (öppen fråga, flaggas för användaren):** gårdagens baslinje
+(docs/baslinje.json, mätt 2026-10-31) hade `vpic: {vpicAnrop 342, OK 0, INGEN_DATA 291}`,
+vilket avviker kraftigt från den stabila referensen (275 anrop, 126 OK, 165 INGEN_DATA -
+oförändrad i veckor, även i gårdagens egen loggboksrad). Dagens färska mätning gav
+**275/126/165/0** - exakt referensen, och `node scripts/mat-baslinje.js` skrev samma tal
+in i den nya baslinjen. Själva AVVIKER stod på 0 båda gångerna, så ingen verklig vPIC-
+avvikelse har funnits - det är gårdagens baslinjerad som ser trasig ut, troligen ett
+engångsfel i mätningen eller skrivningen. `scripts/` rör rutinen aldrig; lämnas som
+förslag åt användaren att undersöka om det återkommer.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att rapporten
+var klar. Kontrollräkning 3450/3450 går ihop. models 2311→2312, variants 3449→3450,
+insights 1634→1639 (+6 nya i natt [2106-2111], -1 radera 2006 som utfördes efter
+gårdagens baslinje mättes - förklarar hela skillnaden). ko 57/29 → 56/28 (slapp 2021
+i går). kategorier smaabil 248→249, suv 723→725, familjebil 294→296 (nattens 6 nya rader).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-01 00:31:06 (inom väntat fönster vintertid),
+deployad commit f095650 matchar origin/master, status OK, ingen omstart (uptime ~15,5 h,
+startad 2026-10-31 09:13 UTC). ev-specs updated **5** (inom 0-25-referensen, kollisioner
+181, evSpecs oförändrat 655). cargo-specs gav **1/0/0** (1 nytt bilnamn, 0 av 1
+bagagevolymer kvar, 0 av 0 generationsår kvar) - status OK. Kontrollräkningen (cargo
+total 1835 + evSpecs 655 + ice_consumption 960 = 3450 = /api/stats variants) stämmer
+exakt. /api/cars 2098→2099 (+1, matchar cargo-specs nya bilnamn).
+
+**BAGAGELARMET (3f):** medVolym 1045→1045 (still), bagageMissar 832→833 (+1) - domregeln:
+medVolym still + bagageMissar VUXIT = VÄNTAT, ingen avvikelse.
+
+**Generationsåren:** total 291→291, missar 19→19 (291+19=310, stämmer). försöktDag på
+alla 19 fortfarande 2026-10-21 (11 dygn, 19 dagar kvar) - samma omprövning och samma
+utfall (16 vakten-avstod, 3 ej-hittad) som tidigare, väntat stillestånd (KG=0 av 0 kvar).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+matchar referensen exakt (se baslinje-rättelsen ovan). **Drivmedelsräknaren:** 513/427/
+86/16 - de 11 el-raderna och de 5 handsatta ice-raderna fortsatt korrekta, ingen flip,
+manuella kvar på 16. **Kategorivakten:** 0 utslag sedan omstart (uptime ~15,5 h).
+
+**Nattens 6 nya rader (id 2106-2111):** Polestar 5 (2106, Teknikens Värld - batteri/
+laddeffekt/prestanda), BMW i3 50 xDrive (2102-2105, Allt om Elbil - pris, förbrukning,
+sittposition, fjädring), fem CarUp-rader om räckviddsförlust i kyla (2107-2111: VW ID.5,
+Hyundai Ioniq 5, Tesla Model 3, Audi Q4 e-tron, BYD Atto 3). 6 av 6 relevanta, ingen
+kategori- eller veteranfelaktighet i nattens egna rader. BYD Atto 3 som `smaabil` är en
+öppen fråga (se ovan) men inget kategorivaktsutslag.
+
+**Äldre i fönstret (id 2062-2105):** flera äkta per-modell-nyheter (fem "Årets Bil"-
+finalister 2094-2098, samma mönster som Safety Coach-klungan i avsnitt 6), en äkta
+återkallelse (Audi Q4 e-tron/Sportback e-tron, 2065-2066), säkerhetsrapporter (Volvo EX90
+bromsfel 2063, Tesla Model Y AEB-test 2062) - alla relevanta. Id 2070 (Saab 9-5 NG Vector)
+doljs i natt, se ovan. Id 2068 (Mercedes S-klass värdeminskning, vag, inget sifferkrav
+bryts) lämnas som tidigare års vaga rader (1219-mönstret) - inte ny i natt.
+
+**Tre regler (skatter, renoveringsobjekt, avvecklade modeller):** inget nytt underlag i
+fönstret i natt - inga kandidater av någon av de tre typerna.
+
+**Vardeminskning (öppen fråga, oprövad):** 0 av nattens 6 nya rader rör värdeminskning,
+restvärde, tillförlitlighet, livslängd eller skrotålder. Fortsatt öppen fråga.
+
+
 ## 2026-10-31
 
 **DOM: KOLLA** - inget trasigt (hälsa OK, kedjan gick 00:39:18 inom fönstret vintertid, Groq 3/3,
