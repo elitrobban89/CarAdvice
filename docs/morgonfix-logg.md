@@ -1,5 +1,101 @@
 # Morgonfix-logg
 
+## 2026-11-02
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:29 UTC inom fönstret
+vintertid, deploy aa52ddf matchar origin/master, Groq 3/3, AVVIKER 0 i vPIC, drivmedel
+513/427/86/16 utan flip, ad-check 0 LARM, splashvakten grönt, kategorivakten 0 utslag),
+men en öppen fråga (värdeminskning 0 rader i natt, fortsatt oprövad) ger KOLLA.
+
+**Inget kodfix i natt.** Ingen entydig kodorsak hittades i nattens 8 nya rader (2112-2119,
+CarUp/M3/Teknikens Värld) - alla är normala specfakta (Tesla Model Y vaktläge, VW ID.4/Golf,
+Volvo XC60, Ford Explorer-test, VW Golf Hybrid), ingen kategori-, veteran- eller
+anekdotslacka.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-02 00:29:57 (inom väntat fönster vintertid),
+status OK, ingen omstart (uptime ~23,7 h). ev-specs updated **5** (inom 0-25-referensen,
+kollisioner 181, evSpecs oförändrat 655). cargo-specs gav **0/0 av 0/0 av 0** (0 nya
+bilnamn, bagagevolymer 0 av 0 kvar, generationsår 0 av 0 kvar) - listan slut, status OK.
+Kontrollräkningen (cargo total 1835 + evSpecs 655 + ice_consumption 960 = 3450 =
+/api/stats variants) stämmer exakt, allt oförändrat mot gårdagens baslinje. /api/cars
+oförändrat 2099.
+
+**BAGAGELARMET (3f):** medVolym 1045 (still), bagageMissar 833 (oförändrad) - men KB
+("bagagevolymer: 0 av 0 kvar") visar att listan är slut, så domregelns undantag gäller:
+still + oförändrad är OK, inte avvikelse.
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat. försöktDag på alla
+19 fortfarande 2026-10-21 (12 dygn, 18 dagar kvar) - samma omprövning och samma utfall
+(16 vakten-avstod, 3 ej-hittad) som tidigare, väntat stillestånd.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+exakt referensen, oförändrat.
+
+**Drivmedelsräknaren:** 513/427/86/16, identiskt med referensen/gårdagen - inga flippar
+bland de elva el-raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 - inga utslag sedan senaste omstarten
+(uptime ~23,7 h).
+
+**Kommandevakten:** 56 rader / 28 bilar (oförändrat), annonskollen gav **0 LARM, 8
+GRANSKA, 1 ANNAN_DRIVLINA, 19 INGA_ANNONSER** - samtliga redan avgjorda i tidigare
+rapporter (XC70, Bayon 1904/1905, BMW i3, Tucson gen 5-klungan, Range Rover Sport 1713,
+Mazda 6e, Pajero, Santa Fe, Range Rover ANNAN_DRIVLINA 1578, samt 19 INGA_ANNONSER-rader
+där car_model stavning kontrollerats mot insiktstexten utan träff på en Ionix/Ioniq-typ
+av stavfel). Inga nya kommande-rader i natt (web-insights gav 0 nya upcoming-poster).
+Inga slapp/parkera/dolj-beslut i natt - atgarder.json skrivs tom.
+
+**Dolda rader (uppföljning):** 3 rader i `insight_hidden` (2086 sedan 10-30, 2070 sedan
+11-01, 2038 sedan 10-28) - ingen har nått 7 dygn än (äldst 2038, 5 dygn). Ingen radera
+i natt.
+
+**Värdeminskning:** 0 rader i natt med anknytning till värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder - frågan fortsatt OPRÖVAD, lyfts som öppen fråga.
+
+**Splashvakten:** grönt på alla sex appar (MiniPrisTåget, Bankomat 2.0, Elbilsladdning,
+CarAdvice, VäderKläder, Bränslekostnad) - inga LARM eller VARNING, bara väntade INFO-rader
+om roaming-priser i Elbilsladdnings splash.
+
+**Laddtipsen:** inga nya i natt. Bästa kandidaten (id 2114, Ford Explorer, M3-test,
+"553 km / 185 kW") stämmer inte mot /api/ev-spec?car=Ford%20Explorer (602 km, 183 kW) -
+testet gäller Long Range AWD-varianten (id 2113: "Long Range AWD") medan ev_spec-raden
+sannolikt är en annan drivlina, så siffrorna går inte att belägga mot samma konfiguration
+och skrivs inte. Andra kandidaten (id 2071, Nissan Leaf med eftermarknadsbatteri från
+VIVNE) beskriver en ombyggd bil, inte en köpbar konfiguration - skrivs inte, som tidigare
+natt.
+
+**Laddpriser (måndag):** alla fem nätverk kontrollerade mot egna prissidor, **0 ändrade,
+5 oförändrade** (nytt kontrollerad-datum 2026-11-02): ionity 6,09 kr/kWh (Sweden,
+direct-kwh-price), allego 6,30 kr/kWh (Sweden, Pay as you go Ultrafast), mer 5,10 kr/kWh
+(högtrafik 07-11 & 16-20), circle k/circlek 6,09 kr/kWh (egna ultrasnabba,
+engångsbetalning, "Priser Circle K laddare Sverige"), lidl 5,80 kr/kWh (DC via
+smartphone).
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att rapporten
+var klar. Kontrollräkning 3450/3450 går ihop. models oförändrat 2312, variants oförändrat
+3450, insights 1639→1647 (+8 nattens nya rader [2112-2119]). ko oförändrat 56/28.
+kategorier smaabil 249→251, suv 725→730, elbil 171→172, familjebil/tom/laddhybrid
+oförändrade (summan 1647 stämmer mot insights).
+
+**Fönstret (50 rader):** inga kategorifel, inga skatterader, renoveringsobjekt eller
+samlar-/veteranträffar bland nattens 8 nya rader. Inga nya PROMPTMISS mot
+redan-raderade/medvetet behållna listorna i avsnitt 6.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget underlag i
+nattens fönster för någon av de tre; inga nya skatterader, renoveringsobjekt eller
+avvecklade-modell-fynd.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot Blockets API.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen fanns inte -
+PR #43 mergades och togs bort av auto-merge igår). Inga kodfixar (inget entydigt fel
+att belägga). Datafiler: atgarder.json (tom, inga nya köbeslut), laddpriser.json
+(5 oförändrade priser, nya kontrollerad-datum), baslinje.json (se ovan). Bygge
+`mvn -q -DskipTests package` grönt, samt riktade tester `MorgonfixAtgarderTest` (11/11)
+och `LaddtipsServiceTest` (7/7) gröna.
+
+
+
 ## 2026-11-01
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom fönstret
