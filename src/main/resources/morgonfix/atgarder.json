@@ -1,6 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {"datum": "2026-11-01", "typ": "dolj", "id": 2070, "skal": "ANEKDOT: beskriver ETT specifikt exemplars miltal (4 400 mil sedan 2012) och servicehistorik (CarUp), ingen generell köpuppgift om Saab 9-5 NG - samma mönster som redan dolda/raderade 1910, 1912, 1987 och 2086 (enskilt fordons skick/historia, inte modellen)."}
-  ]
+  "atgarder": []
 }
