@@ -13,6 +13,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvDatabaseScraperServicePrisTest {
 
     @Test
+    void varjeAndratFaltRedovisasForSig() {
+        // 11-04 stod "uppdaterade: 95" utan att någon kunde se vad som ändrats.
+        EvDatabaseScraperService.AndradeFalt andrade = new EvDatabaseScraperService.AndradeFalt();
+        andrade.pris = 90;
+        andrade.rackvidd = 4;
+        andrade.ac = 1;
+        assertThat(andrade.rad()).isEqualTo("varav pris: 90, räckvidd: 4, batteri: 0, dc: 0, ac: 1");
+    }
+
+    @Test
     void tomtPrisFyllsI() {
         assertThat(EvDatabaseScraperService.prisBorUppdateras(null, 425_000)).isTrue();
         assertThat(EvDatabaseScraperService.prisBorUppdateras(0, 425_000)).isTrue();

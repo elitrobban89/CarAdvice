@@ -121,6 +121,7 @@ suv 737→744 (+7), familjebil 298→299 (+1), smaabil/elbil/tom/laddhybrid ofö
   i början av månaden. Orsaken är inte belagd: radnivån sparas inte mellan nätterna och INFO-raderna
   "Updated ..." når inte LoggBuffert. Priser över 3 % skrivs om, så en månadsvis prisuppdatering hos
   ev-database är en hypotes, inget mer.
+- **ev-specs bär nu ändringarna fält för fält.** `perSource` fick `varav pris: P, räckvidd: R, batteri: T, dc: D, ac: C`, så nästa topp går att förklara i nattrapporten i stället för att gissas. Hypotesen om månadsvisa prisuppdateringar prövas första gången ett hopp kommer, troligast i början av december.
 - **Allt om Elbil "0 av 6" är inte en läsmiss:** talet är sparade rader av lästa artiklar. Sex artiklar
   lästes och strikta filtret sparade ingen; CarUp, samma striktfilter, gav 0 av 12 samma natt.
 
