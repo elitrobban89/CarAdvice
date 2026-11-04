@@ -113,12 +113,18 @@ public final class InsightTaxonomy {
      * är en höjd kombi, samma gränsdragning som {@code golf} (Alltrack) här i listan. Markören
      * bär modellnamnet helt ut för att inte träffa vanliga Audi A6 (id 1246, användarens
      * gränsfall som familjebil - se {@link #LYX_OCH_SPORTMODELLER}).
+     *
+     * <p><b>{@code multivan} och {@code id.buzz} tillkom 2026-11-04</b> efter id 2127 (CarUp, VW
+     * Multivan) kom in som {@code suv}; id 1111-1113 (ID.Buzz) låg redan så. De är inte låga, men
+     * båda klassas som MPV - fel kaross, inte fel höjd. Listan betyder alltså "är ingen SUV", och
+     * den styr även {@code NON_SUV_MARKERS} i GroqService: bilarna föreslås inte längre i ett
+     * SUV-sök. {@code id. buzz} står med eftersom båda stavningarna finns i drift.
      */
     public static final List<String> LAGA_MODELLER = List.of(
             "mg4", "mg 4", "mg5", "mg 5", "id.3", "id3", "model 3", "polestar 2",
             "zoe", "leaf", "e-golf", "golf", "ioniq 6", "i4", "ë-c4", "e-c4",
             "niro", "kona", "corsa", "megane", "id.7", "civic", "octavia", "passat", "raval",
-            "a6 allroad");
+            "a6 allroad", "multivan", "id.buzz", "id. buzz");
 
     /**
      * Modeller som bevisligen INTE är småbilar — mellanklass och uppåt, plus SUV:ar.
@@ -161,12 +167,16 @@ public final class InsightTaxonomy {
      * syskonen Seal U och Sealion (lika omöjliga som stadsbilar) gör ingen skada, medan
      * BYD Seal 6 (redan {@code familjebil} i drift) inte berörs eftersom markören bara agerar
      * på just {@code smaabil}.
+     *
+     * <p><b>{@code cascada} tillkom 2026-11-04</b> efter id 2122 (Vi Bilägare, Opel Cascada) kom in
+     * som {@code smaabil}. Cascada är en cabriolet på 4 696 mm (Delta II, samma plattform som
+     * Astra J) - större än Golf-klassen där listan börjar.
      */
     public static final List<String> STORA_MODELLER = List.of(
             "model 3", "model s", "model x", "model y", "id.3", "id3", "id.7", "polestar 2",
             "polestar 3", "polestar 4", "saab 9-3", "saab 9-5", "cadillac bls", "jogger",
             "duster", "yaris cross", "passat", "octavia", "superb", "insignia", "mondeo",
-            "ceed", "born", "focus", "byd seal");
+            "ceed", "born", "focus", "byd seal", "cascada");
 
     /**
      * Lyxbilar och sportbilar — modeller som ALDRIG får bära {@code smaabil} eller {@code familjebil}.

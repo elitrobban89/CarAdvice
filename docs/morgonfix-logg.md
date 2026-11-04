@@ -107,6 +107,23 @@ rapporten var klar. Kontrollräkning 3457/3457 går ihop. models 2314→2319, va
 3452→3457, insights 1657→1665. ko 56/28→57/29 (+1/+1, 2137). kategorier:
 suv 737→744 (+7), familjebil 298→299 (+1), smaabil/elbil/tom/laddhybrid oförändrade.
 
+**Uppföljning dagtid 11-04:**
+- **Kategorifrågorna från 11-03 stängda på användarens "fixa allt".** `multivan`, `id.buzz` och
+  `id. buzz` lades i `LAGA_MODELLER`, `cascada` i `STORA_MODELLER`. Bredden mättes över alla 1665
+  rader: utöver 2127 låg ID.Buzz 1111-1113 som `suv`. Övriga van/MPV-rader bär `familjebil` eller
+  ingen kategori och rörs inte. `LAGA_MODELLER` är också `NON_SUV_MARKERS`, så bilarna föreslås inte
+  längre i SUV-sök. Prov: `multivanOchIdBuzzArIngenSuv`, `opelCascadaArIngenSmaabil`, röda före och
+  gröna efter. Hela sviten 1264 tester, 0 fel.
+- **Rättelse av 11-03:** Cascada delar inte Insignia-plattformen utan Delta II med Astra J. Slutsatsen
+  håller ändå: bilen är 4 696 mm lång.
+- **ev-specs 95 är inget fel som går att se.** Alla 657 rader är rimliga mätt 11-04 (km/kWh 3-10,5,
+  ingen AC över DC, inga orimliga priser, 0 misslyckade). Samma topp kom 10-01/10-02 (31, 96), alltså
+  i början av månaden. Orsaken är inte belagd: radnivån sparas inte mellan nätterna och INFO-raderna
+  "Updated ..." når inte LoggBuffert. Priser över 3 % skrivs om, så en månadsvis prisuppdatering hos
+  ev-database är en hypotes, inget mer.
+- **Allt om Elbil "0 av 6" är inte en läsmiss:** talet är sparade rader av lästa artiklar. Sex artiklar
+  lästes och strikta filtret sparade ingen; CarUp, samma striktfilter, gav 0 av 12 samma natt.
+
 ## 2026-11-03
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom fönstret
