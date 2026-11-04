@@ -227,6 +227,31 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void multivanOchIdBuzzArIngenSuv() {
+        // Natten mot 2026-11-03: id 2127 (CarUp, VW Multivan) kom in som suv, och id 1111-1113
+        // (ID.Buzz) låg redan så. Båda klassas som MPV: hög bil men fel kaross, samma
+        // gränsdragning som Golf Alltrack och A6 Allroad. ID.Buzz skrivs med och utan mellanslag
+        // i drift, så båda formerna prövas. Familjebil-raderna ska stå kvar.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "Volkswagen", "Multivan"))
+                .isEqualTo("volkswagen multivan är ingen SUV");
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "Volkswagen", "ID.Buzz"))
+                .isEqualTo("volkswagen id.buzz är ingen SUV");
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "Volkswagen", "ID. Buzz"))
+                .isEqualTo("volkswagen id. buzz är ingen SUV");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Volkswagen", "ID.Buzz")).isEqualTo("familjebil");
+    }
+
+    @Test
+    void opelCascadaArIngenSmaabil() {
+        // Natten mot 2026-11-03: id 2122 (Vi Bilägare) kom in som smaabil. Cascada är en
+        // cabriolet på 4 696 mm (Delta II, samma plattform som Astra J) - större än Golf-klassen
+        // där STORA_MODELLER börjar. Listan fäller bara smaabil, inte andra kategorier.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "Opel", "Cascada"))
+                .isEqualTo("opel cascada är ingen småbil");
+        assertThat(InsightTaxonomy.canonicalCategory("familjebil", "Opel", "Cascada")).isEqualTo("familjebil");
+    }
+
+    @Test
     void bydSealArIngenSmaabil() {
         // Natten mot 2026-10-31: id 2058 (Vi Bilägare) kom in som smaabil. BYD Seal är en
         // 82,5 kWh-sedan med 570 km WLTP och pris 571 000 kr (ev_spec) - samma klass som
