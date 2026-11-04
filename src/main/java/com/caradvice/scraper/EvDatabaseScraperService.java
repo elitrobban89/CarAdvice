@@ -123,8 +123,24 @@ public class EvDatabaseScraperService {
         this.evPowerService = evPowerService;
     }
 
+    /**
+     * Vad en körning skrev om, fält för fält. 11-04 stod "uppdaterade: 95" mot normala 0-25 och
+     * orsaken gick inte att belägga: radnivån sparas inte mellan nätterna och INFO-raderna når
+     * inte LoggBuffert. En bil räknas i varje fält som ändrades, så summan kan vara större än
+     * "uppdaterade".
+     */
+    static final class AndradeFalt {
+        int pris, rackvidd, batteri, dc, ac;
+
+        String rad() {
+            return "varav pris: " + pris + ", räckvidd: " + rackvidd + ", batteri: " + batteri
+                    + ", dc: " + dc + ", ac: " + ac;
+        }
+    }
+
     /** Synken, med delarna redovisade för scrape-status — se {@link JobStatusService.Utfall}. */
     public JobStatusService.Utfall syncMedDetalj() {
+        AndradeFalt andrade = new AndradeFalt();
         log.info("Starting EV spec sync from ev-database.org");
         List<EvSpec> existing = repo.findAll();
         if (existing.isEmpty()) {
@@ -256,24 +272,29 @@ public class EvDatabaseScraperService {
                 boolean changed = false;
                 if (scraped.rangeKm() > 0 && !Objects.equals(match.getRangeKm(), scraped.rangeKm())) {
                     match.setRangeKm(scraped.rangeKm());
+                    andrade.rackvidd++;
                     changed = true;
                 }
                 if (scraped.batteryKwh() > 0 && !Objects.equals(match.getBatteryKwh(), scraped.batteryKwh())) {
                     match.setBatteryKwh(scraped.batteryKwh());
+                    andrade.batteri++;
                     changed = true;
                 }
                 if (scraped.dcKw() > 0 && !Objects.equals(match.getMaxDcKw(), (double) scraped.dcKw())) {
                     match.setMaxDcKw((double) scraped.dcKw());
+                    andrade.dc++;
                     changed = true;
                 }
                 if (scraped.acKw() > 0 && !Objects.equals(match.getMaxAcKw(), (double) scraped.acKw())) {
                     match.setMaxAcKw((double) scraped.acKw());
+                    andrade.ac++;
                     changed = true;
                 }
                 if (!DataLoader.agerPris(match.getCarName())
                         && prisBorUppdateras(match.getPriceKr(), scraped.priceKr())) {
                     log.info("Pris {}: {} → {} kr", match.getCarName(), match.getPriceKr(), scraped.priceKr());
                     match.setPriceKr(scraped.priceKr());
+                    andrade.pris++;
                     changed = true;
                 }
 
@@ -321,7 +342,7 @@ public class EvDatabaseScraperService {
         return new JobStatusService.Utfall(updated + created,
                 "uppdaterade: " + updated + ", nya: " + created + ", misslyckade: " + failed
                         + ", kollisioner: " + collisions + ", bagagevolymer: " + cargoFilled
-                        + ", aliaseffekter: " + aliasEffekter);
+                        + ", aliaseffekter: " + aliasEffekter + ", " + andrade.rad());
     }
 
     /**
