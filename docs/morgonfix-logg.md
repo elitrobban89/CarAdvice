@@ -1,5 +1,112 @@
 # Morgonfix-logg
 
+## 2026-11-04
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom fönstret
+vintertid, deploy b698915 matchar origin/master, Groq 3/3, AVVIKER 0 i vPIC, drivmedel
+515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt, kategorivakten 0 utslag,
+0 ERROR i Render-loggen), men flera öppna frågor (ev-specs ovanligt högt `uppdaterade`-tal,
+den stående kategoriseringsfrågan från 11-03, värdeminskningsfrågan) ger KOLLA.
+
+**Inget kodfix i natt.** Ingen entydig kodorsak hittades i nattens 11 nya rader
+(2130-2140, M3/CarUp/Auto Motor & Sport/Mobility Sweden) som går att belägga mot en
+namngiven vakt-lucka utan gissning. Den öppna kategorifrågan från 11-03 (VW Multivan
+2127 som suv trots att den är en skåpbil/MPV, inte för stor/för liten) kvarstår oändrad -
+InsightTaxonomy.LAGA_MODELLER/STORA_MODELLER löser bara storleksfel, inte karosstyp, och
+en ny vakt för det vore ny funktionalitet (förbjudet enligt 9c). Ingen ny sådan rad i natt.
+
+**Köbeslut i natt (atgarder.json):** SLÄPP 2137 (Volkswagen ID. Tiguan) - ev_spec finns
+redan med riktigt pris (552 000 kr, 77 kWh, 165 kW DC) och flera ordinarie insikter
+(Allt om Elbil, Teknikens Värld) om bilen är redan publicerade; annonskollen gav GRANSKA
+men 34 Blocket-annonser med riktiga SEK-priser (548 200 kr, privatleasing 5995 kr/mån)
+visar att bilen redan går att beställa/leasa i Sverige - samma slutsats som redan släppta
+1682/1683 om samma bil (10-15). Gårdagens köbeslut (2026-11-01, dolj 2070) stämdes av:
+redan utförd och i `insight_hidden`, inget kvar att följa upp.
+
+**Marknadsfakta uppdaterade (laddtips.json, typ marknad):** ersatte två inaktuella rader
+med oktobersiffror från nattens mobility-stats-körning (ingen ny rad tillagd, ingen
+ändring av `tips`-typen): "Volvo EX40 mest registrerade elbil" 8 897 (jan-sep, insikt
+1765) → **9 894** (jan-okt, insikt 2139); "Volvo XC60 mest registrerad bil totalt"
+10 669 (jan-sep, insikt 1764) → **11 695** (jan-okt, insikt 2138).
+
+**Laddtipsen:** inga nya i natt. Kandidaterna (ev-fact-candidates) BMW i3 50 xDrive
+(2102) och Tesla Model 3 Island-resan (2085) är redan publicerade tips sedan tidigare -
+dubbletter. Opel Grandland Electric (2130, "ny ombordladdare på 22 kW") går INTE att
+belägga: /api/ev-spec?car=Opel%20Grandland visar fortfarande maxAcKw 11, inte 22 - skrivs
+inte förrän ev_spec stämmer. Polestar 5 (2106) redan avfärdad tidigare (batterivärdet
+112 kWh matchar fortfarande inte ev_spec 106,0 kWh).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-04 00:34:07 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~23,7 h). ev-specs **uppdaterade 95, nya 2**
+(evSpecs 655→657) - `uppdaterade` är långt över referensens 0-25 (tidigare nätter låg på
+5); inga ERROR eller WARN i Render-loggen kring ev-specs/uppdater som förklarar hoppet,
+kollisioner oförändrat 181. Öppen fråga, ingen kodorsak att belägga i natt - lyfts så
+användaren kan avgöra om det är en avsiktlig batch-korrigering. cargo-specs gav **3 nya
+bilnamn, 3 av 3 bagagevolymer, 0 av 0 generationsår**. Kontrollräkningen (cargo total
+1840 + evSpecs 657 + ice_consumption 960 = 3457 = /api/stats variants) stämmer exakt.
+/api/cars 2106 (+5).
+
+**BAGAGELARMET (3f):** medVolym 1045→1048 (+3), bagageMissar oförändrad 835 - medVolym
+UPPÅT, alltså OK enligt domregeln oavsett bagageMissar. utanVolym oförändrad 792 (3 nya
+bilnamn in, 3 bagagevolymer fyllda ut - nettot noll).
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat. försöktDag på alla
+19 fortfarande 2026-10-21 (14 dygn, 16 dagar kvar) - samma omprövning och samma utfall
+(16 vakten-avstod, 3 ej-hittad) som tidigare, väntat stillestånd.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0** -
+exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16 - el +2 (normalt, nya elbilsmodeller), ice och
+manuella oförändrade. Inga flippar bland de elva el-raderna eller de fem handsatta
+ice-raderna (alla kontrollerade mot /api/admin/cargo-specs?drivmedel=true).
+
+**Kategorivakten:** totalt 0, iBufferten 0 - inga utslag sedan senaste omstarten
+(uptime ~23,8 h).
+
+**Kommandevakten:** 57 rader / 29 bilar (+1/+1 - nya 2137). Annonskollen gav **0 LARM,
+9 GRANSKA, 1 ANNAN_DRIVLINA, 19 INGA_ANNONSER** - alla utom 2137 redan avgjorda i
+tidigare rapporter. 2137 släppt i natt (se köbeslut ovan).
+
+**Dolda rader (uppföljning):** 3 rader i `insight_hidden` (2038 sedan 10-28 - 6,7 dygn,
+ännu INTE 7 fulla dygn klockan 00:46 UTC ikväll, så ingen radera i natt; 2086 sedan
+10-30, 5 dygn; 2070 sedan 11-01, 3 dygn). 2038 blir radera-kandidat från och med imorgon
+natt (passerar 7 dygn 2026-11-04 08:05 UTC).
+
+**Värdeminskning:** inga rena värdeminsknings-/restvärderader i natt. Id 2134 (Hyundai
+Ioniq 5, reparationskostnad 80 000 kr för pekskärm) är tillförlitlighetsangränsande men
+inte en ren värdeminsknings-/restvärderad - frågan om en helt uteblivande rad fortsatt
+OPRÖVAD.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget underlag i
+nattens fönster för någon av de tre.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot Blockets API.
+
+**Splashvakten:** grönt på alla sex appar - inga LARM eller VARNING.
+
+**Allt om Elbil (observation):** 0 av 6 lästa i natt - andra natten i rad på 0 (0 av 8
+igår, 0 av 6 i natt). Larmgrund kräver tre nätter i rad (avsnitt 1) - inte uppnått än,
+men värt att hålla koll på imorgon.
+
+**Fönstret (50 rader, id 2091-2140):** nattens 11 nya rader bedömda var för sig (se
+nattrapporten) - 11 av 11 bra, inga kategori- eller veteranfel, inga anekdoter om
+enskilda fordon, inga PROMPTMISS mot redan-raderade/medvetet behållna-listorna i
+avsnitt 6. Mobility Sweden-raderna (2138-2140) uppfyller UTMÄRKELSEUNDANTAGET
+(förstaplatsen, svenska marknaden, senaste året).
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen fanns inte -
+PR #45 mergades och togs bort av auto-merge igår). Inga kodfixar (inget entydigt fel att
+belägga - se öppna frågor ovan). Datafiler: baslinje.json (se nedan), atgarder.json
+(1 köbeslut, se ovan), laddtips.json (2 marknadsrader ersatta, se ovan). Bygge
+`mvn -q -DskipTests package` grönt, samt riktade tester `MorgonfixAtgarderTest` (11/11)
+och `LaddtipsServiceTest` (7/7) gröna.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att
+rapporten var klar. Kontrollräkning 3457/3457 går ihop. models 2314→2319, variants
+3452→3457, insights 1657→1665. ko 56/28→57/29 (+1/+1, 2137). kategorier:
+suv 737→744 (+7), familjebil 298→299 (+1), smaabil/elbil/tom/laddhybrid oförändrade.
+
 ## 2026-11-03
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom fönstret

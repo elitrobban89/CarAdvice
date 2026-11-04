@@ -1,4 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-11-04", "typ": "slapp", "id": 2137, "skal": "ev_spec finns med riktigt pris (552 000 kr, 77 kWh, 165 kW DC) och flera ordinarie insikter (Allt om Elbil, Teknikens Värld) om bilen är redan publicerade - Volkswagen ID. Tiguan är redan köpbar/beställningsbar i Sverige (34 Blocket-annonser, t.ex. 548 200 kr och privatleasing 5995 kr/mån), inte en kommande modell. Samma slutsats som redan släppta 1682/1683 om samma bil. ANVÄNDARENS LINJE: aktuell bil släpps."}
+  ]
 }
