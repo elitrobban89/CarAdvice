@@ -101,6 +101,15 @@ inte belagd härifrån). kategorier: suv 744→743, tom 185→190, smaabil/famil
 elbil/laddhybrid oförändrade (summan 1669 stämmer mot insights; ingen gissning om
 orsaken till omfördelningen - kategorivakten gav 0 utslag i natt).
 
+**Eftergranskning samma dag (manuell statuskoll):**
+- **Drift:** 5d50263 = master. `dolj 2141` och `radera 2038` utförda 01:57:43, CI grönt, 0 WARN/ERROR i `/api/admin/logg`.
+- **Kön -1/-1 är belagd:** `slapp 2137` utfördes 11-04 01:58, fem minuter efter att baslinjen mättes. Ingen rad försvann.
+- **Kategorierna är belagda:** gårdagens PATCH:ar gav suv -4, smaabil -1, tom +5, och nattens fyra rader gav suv +3 (2142-2144) och smaabil +1 (2141). Summan är suv -1, smaabil 0, tom +5, alltså exakt diffen.
+- **Värdeminskningsfrågan är STÄNGD:** hela tabellen visar att utländska siffror sparas med angivelse efter 08-12 (1937 norska Nettbil, 1993 "den brittiska studien"). Svenska rader sparas också (1323-1327, 1364-1366, 1736). Rapporternas "första raden" 10-03 och 10-29 stämde inte, de såg bara fönstret. Noll rader en natt ger inte längre KOLLA.
+- **1221 lagad i drift:** Jaguar I-Pace -72,2 % är iSeeCars, alltså USA, men stod som "enligt en undersökning". Texten säger nu "enligt en amerikansk undersökning (iSeeCars)". Raden skrapades innan regeln kom.
+- **Öppet:** 1224 (Tesla Model S, skrotålder 9,7 år, Auto Motor & Sport) saknar marknad, men källan gick inte att belägga. Raden är orörd.
+- **Väntat i nattens diff:** insights -1 och familjebil 299→298 av raderingen av 2038.
+
 ## 2026-11-04
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom fönstret
