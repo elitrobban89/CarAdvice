@@ -1,6 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-04", "typ": "slapp", "id": 2137, "skal": "ev_spec finns med riktigt pris (552 000 kr, 77 kWh, 165 kW DC) och flera ordinarie insikter (Allt om Elbil, Teknikens Värld) om bilen är redan publicerade - Volkswagen ID. Tiguan är redan köpbar/beställningsbar i Sverige (34 Blocket-annonser, t.ex. 548 200 kr och privatleasing 5995 kr/mån), inte en kommande modell. Samma slutsats som redan släppta 1682/1683 om samma bil. ANVÄNDARENS LINJE: aktuell bil släpps."}
+    {"datum": "2026-11-05", "typ": "dolj", "id": 2141, "skal": "ANEKDOT: beskriver ETT specifikt exemplars motorfel och reparationskostnad (Vi Bilägare), ingen generell tillförlitlighetsuppgift om Renault Zoe som modell - samma mönster som redan dolda/raderade 1910 (Golf, enskilt motorhaveri), 1987 (V60 Cross Country, enskilt omdöme), 2086 (Kona Electric, enskild totalförlust) och 2070 (Saab 9-5 NG, enskilt miltal/service) (enskilt fordons skick/historia, inte modellen)."},
+    {"datum": "2026-11-05", "typ": "radera", "id": 2038, "skal": "VETERANREGELN, användarens beslut 2026-10-28: Volvo 850 R hittad 'efter 24 år i en fallfärdig lada' är ett ladfynd/samlarobjekt, inget köpråd. Dold sedan 2026-10-28 08:05 (nu 7,7 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
   ]
 }
