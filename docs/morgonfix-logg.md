@@ -1,5 +1,106 @@
 # Morgonfix-logg
 
+## 2026-11-05
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
+fönstret vintertid, deploy 3aceca6 matchar origin/master, Groq 3/3, AVVIKER 0 i vPIC,
+drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt, kategorivakten
+0 utslag, 0 ERROR i Render-loggen), men två köbeslut i natt (dolj + radera) och den
+stående värdeminskningsfrågan (fortsatt OPRÖVAD) ger KOLLA.
+
+**Inget kodfix i natt.** Inget vakt-hål eller parserfel hittades i nattens 4 nya rader
+(2141-2144, Vi Bilägare/CarUp/Allt om Elbil) som går att belägga mot en namngiven lucka.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-05 00:31:59 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~9 h, startedAt 2026-11-04 15:43 UTC).
+ev-specs **uppdaterade 5, nya 0** (inom 0-25-referensen, kollisioner oförändrat 181,
+räckvidd 4, batteri 1, dc 0, ac 0, varav pris 0 - gårdagens ovanliga 95 var alltså ett
+engångshopp, inte en trend). cargo-specs gav **0 nya bilnamn, 0 av 0 bagagevolymer,
+0 av 0 generationsår** - KB/KG = 0 betyder att arbetslistorna är slut (svepet klart),
+så stillestånd i medVolym/bagageMissar är enligt undantaget i 3f OK, inte avvikelse.
+Kontrollräkningen (cargo total 1840 + evSpecs 657 + ice_consumption 960 = 3457 =
+/api/stats variants) stämmer exakt. /api/cars 2106 (oförändrat). models 2319, variants
+3457 (båda oförändrade - väntat när inga nya ev_spec/cargo_spec-rader tillkom).
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 835 (still) - arbetslistorna
+slut (KB 0 av 0, KG 0 av 0), så enligt undantaget är "still + oförändrad" OK, inte
+avvikelse.
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat - väntat
+stillestånd, samma utfall (16 vakten-avstod, 3 ej-hittad) som tidigare.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0**
+- exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med gårdagens tal - inga flippar bland
+de elva el-raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 - inga utslag sedan senaste omstarten
+(uptime ~9 h).
+
+**Kommandevakten:** 56 rader / 28 bilar (-1/-1 sedan igår - ingen ny kön-rad i natt,
+alla marked_at ≤ 2026-10-31). Annonskollen gav **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA,
+19 INGA_ANNONSER** - samtliga redan avgjorda i tidigare rapporter (Volvo XC70, Hyundai
+Bayon, BMW i3, Hyundai Tucson-klungan, Range Rover Sport, Mazda 6e, Pajero, Santa Fe,
+Range Rover ANNAN_DRIVLINA, samt de nya ej-sålda-i-Sverige-raderna VW ID.Unyx 09, Chery
+Lepas L6/L8, BYD Seagull, MG Go!, Honda 0 Alpha m.fl. - alla korrekt INGA_ANNONSER).
+Inga nya köbeslut krävs från annonskollen i natt.
+
+**Dolda rader (uppföljning):** 2038 (Volvo 850 R, dold sedan 2026-10-28 08:05, nu 7,7
+dygn) - fortsatt bedömd som skräp enligt VETERANREGELN, **raderas i natt** (se
+köbeslut). 2086 (Kona Electric) 5 dygn, 2070 (Saab 9-5 NG) 3,9 dygn - inga av dem 7
+dygn än.
+
+**Nattens nya rader (2141-2144):** 2144 Tesla Model Y (instegsmodell, 534 km WLTP,
+0-100 på 7,2 s) - bra. 2143 Ford Explorer (prissänkning 117 000 kr, -17 %, nu 569 000
+kr) - bra. 2142 Tesla Model Y (pris höjt till 499 990 kr, tappar elbilspremien under
+450 000 kr) - bra. 2141 Renault Zoe (ETT exemplar, motorfel, 45 000 kr i reparation,
+ingen kostnadshjälp) - **ANEKDOT om ett enskilt fordons skick, inte modellen**, samma
+mönster som redan dolda 1910/1987/2086/2070 - **döljs i natt** (se köbeslut).
+
+**Köbeslut i natt (atgarder.json):**
+- **DOLJ 2141** (Renault Zoe) - enskilt exemplars motorfel/reparationskostnad, ingen
+  generell tillförlitlighetsuppgift om modellen.
+- **RADERA 2038** (Volvo 850 R) - dold >7 dygn (VETERANREGELN, användarbeslut
+  2026-10-28), fortsatt skräp enligt samma regel.
+
+**Värdeminskning:** inga rena värdeminsknings-/restvärderader i natt. Frågan om en helt
+uteblivande rad fortsatt **OPRÖVAD** - lyfts igen tills en sådan rad dyker upp.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget underlag i
+nattens fönster för någon av de tre.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot Blockets API.
+
+**Splashvakten:** grönt på alla sex appar (Dom: splasharna stämmer) - inga LARM eller
+VARNING, bara väntade INFO-rader om externa källor i Elbilsladdning som inte syns i
+splashen (okänt om de är nya sedan igår - ingen gårdagslogg för splashvakten att
+diffa mot).
+
+**Laddtipsen:** en ny i natt - **Ford Explorer Extended Range AWD** (id 2114, ⏱️,
+källa M3). Kandidatens siffror (~79 kWh, 553 km, 185 kW) matchade inte generiska
+`/api/ev-spec?car=Ford Explorer` (79 kWh/602 km/183 kW, en annan variant) men stämde
+exakt mot **Extended Range AWD**-varianten (77 kWh/553 km/185 kW) när den slogs upp
+separat - tipset skrevs med den bekräftade siffran 77 kWh, inte kandidatens "ca 79".
+Övriga kandidater (ev-fact-candidates): 2102 och 2085 redan publicerade (dubbletter),
+2130 (Opel Grandland 22 kW) fortfarande obelagd mot ev_spec (maxAcKw fortfarande 11),
+2106 (Polestar 5) fortfarande avfärdad (112 kWh ≠ ev_spec 106,0 kWh), 2117 (VW Golf
+reservnyckel) handlar inte om laddning - skrivs inte.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen fanns inte -
+föregående PR mergades och togs bort av auto-merge). Inga kodfixar. Datafiler:
+baslinje.json (se nedan), atgarder.json (2 köbeslut, se ovan), laddtips.json (1 nytt
+tips, se ovan). Bygge `mvn -q -DskipTests package` grönt, riktade tester
+`MorgonfixAtgarderTest` (11/11) och `LaddtipsServiceTest` (7/7) gröna.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att
+rapporten var klar. Kontrollräkning 3457/3457 går ihop. models 2319 (oförändrat),
+variants 3457 (oförändrat), insights 1665→1669 (+4). ko 57/29→56/28 (-1/-1, ingen
+ny/sluppen rad i natt - sannolikt en autoslapp eller admin-åtgärd under dagen 11-04,
+inte belagd härifrån). kategorier: suv 744→743, tom 185→190, smaabil/familjebil/
+elbil/laddhybrid oförändrade (summan 1669 stämmer mot insights; ingen gissning om
+orsaken till omfördelningen - kategorivakten gav 0 utslag i natt).
+
 ## 2026-11-04
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom fönstret
