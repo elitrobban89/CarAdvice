@@ -133,6 +133,7 @@ public class LaddtipsService {
         if (text.length() < 40) return "text för kort";
         if (text.length() > MAX_TECKEN) return "text över " + MAX_TECKEN + " tecken";
         if (text.contains("<") || text.contains(">")) return "HTML i texten";
+        if (text.contains("ev_spec")) return "internt tabellnamn i texten";
         if (kalla.isEmpty()) return "källa saknas";
         if (kalla.contains("<") || kalla.contains(">")) return "HTML i källan";
         if (ikon.isEmpty() || ikon.codePointCount(0, ikon.length()) > 2) return "ikon";
