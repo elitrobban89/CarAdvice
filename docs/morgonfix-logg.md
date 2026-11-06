@@ -1,5 +1,122 @@
 # Morgonfix-logg
 
+## 2026-11-06
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
+fönstret vintertid, deploy 91ab183 matchar origin/master, Groq 3/3, AVVIKER 0 i vPIC,
+drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt, 0 nya
+kategoriutslag utöver den redan kända BMW i7-kategorifixen som vakten själv gjorde),
+men nattens 8 nya rader kräver dom, två nya kön-rader krävde köbeslut och en av
+nattens rader (2152) har en siffra som inte stämmer mot ev_spec - det ger KOLLA.
+
+**Inget kodfix i natt.** Inget entydigt vakt-hål eller parserfel hittades. En
+regelförbättring i docs/nattrutin.md (se nedan, inte en kodfil).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-06 00:34:11 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~17 h, startedAt 2026-11-05 07:40 UTC,
+alltså ingen deploy i natt). ev-specs **uppdaterade 5, nya 0** (inom 0-25-referensen;
+varav pris 0, räckvidd 4, batteri 1, dc 0, ac 0 - inga hopp). cargo-specs gav **1 nytt
+bilnamn, 0 av 1 bagagevolymer, 0 av 0 generationsår**. Kontrollräkningen (cargo total
+1841 + evSpecs 657 + ice_consumption 960 = 3458 = /api/stats variants) stämmer exakt.
+/api/cars 2107 (+1, matchar nya bilnamnet). models 2320 (+1), variants 3458 (+1).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen (openai/gpt-oss-120b,
+openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 836 (+1 sedan igår, KB=1
+> 0) - "still + bagageMissar VUXIT" är enligt domregeln **VÄNTAT**, inte avvikelse.
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat - väntat
+stillestånd (fönstret stängt sedan 10-20).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165, **AVVIKER 0**
+- exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen - inga flippar.
+
+**Kategorivakten:** totalt 2, iBufferten 2 (uptime ~17 h) - BMW i7 flaggad två gånger
+för "familjebil" mot "lyx- eller sportbil" och fick kategorin struken (rader 2150,
+2151) - vakten gjorde sitt jobb, inget nytt hål.
+
+**Kommandevakten:** 58 rader / 30 bilar (+2/+2 sedan igår - Cadillac Optiq och Vistiq,
+se nedan). Annonskollen gav **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 21 INGA_ANNONSER**.
+GRANSKA/ANNAN_DRIVLINA är samtliga redan avgjorda (Volvo XC70, Hyundai Bayon, BMW i3,
+Hyundai Tucson-klungan, Range Rover Sport, Mazda 6e, Pajero, Santa Fe, Range Rover
+ANNAN_DRIVLINA). INGA_ANNONSER är 19 redan avgjorda ej-sålda-i-Sverige-rader plus de
+TVÅ nya: **Cadillac Vistiq (2147) och Cadillac Optiq (2146)** - båda har riktigt
+svenskt pris i ev_spec (1 251 000 kr resp. 748 000 kr), alltså redan köpbara/
+beställningsbara trots att den skrapade Super Cruise-nyheten saknar nyhetsord. Samma
+mönster som VW ID. Tiguan (slapp 2137, 11-04). **Köbeslut: SLÄPP båda.**
+En tredje rad om samma nyhet, Cadillac Lyriq (2145), hamnade aldrig i kön (redan känd
+modell) - ingen missad tvilling att parkera.
+
+**Dolda rader (uppföljning):** 2086 (Kona Electric) dold sedan 2026-10-30 02:02, nu
+~7,0 dygn men INTE än 7 dygn vid den här körningen (tröskeln nås 02:02 i natt, efter
+att rutinen körde) - radera inte i natt, ta upp imorgon. 2070 (Saab 9-5 NG) ~5,0 dygn.
+2141 (Renault Zoe-anekdot) ~0,9 dygn. Inga raderingar i natt.
+
+**Nattens nya rader (2145-2152):** 2145 Cadillac Lyriq (Super Cruise i Europa dec
+2026) - bra, redan känd modell. 2146 Cadillac Optiq (samma Super Cruise-lansering) -
+hamnade i kön, släppt (se ovan). 2147 Cadillac Vistiq (samma nyhet) - hamnade i kön,
+släppt (se ovan). 2148 Mitsubishi Outlander Diamond Trail Edition (turbomotor,
+mild-hybrid, S-AWC, Rock mode) - bra, substantiella skillnader, ingen specialutgåva i
+regelns mening. 2149 Mercedes EQS (800V, 350 kW, 122 kWh) - batteri och laddeffekt
+matchar ev_spec exakt; räckvidden i insikten ("53 mil") matchar INTE ev_spec (926 km/
+92,6 mil) men användes inte i laddtipset (se nedan). 2150 BMW i7 värdeminskning
+(CarUp, 1,126 Mkr/3 452 mil/55,6 %) - bra, kategori struken av kategorivakten (väntat).
+2151 BMW i7 Auto Express-test (4/5 stjärnor, rating 8) - bra, kategori struken (väntat).
+**2152 Renault Zoe (Allt om Elbil): "kan köra över 80 mil på en laddning" - STÄMMER
+INTE mot ev_spec (395 km/39,5 mil WLTP), mer än dubbelt för högt.** Troligen ett
+AI-extraktionsfel i källartikeln. Raden är INTE dold eller ändrad i natt - den
+passar inte de namngivna dölj-kategorierna i 9h (inte anekdot, skatterad, specialutgåva
+eller väntetid), så beslutet lämnas till användaren. Flaggas här som öppen fråga.
+
+**Värdeminskning:** en rad i natt (2150, BMW i7, CarUp/svensk marknad) - bra,
+marknadskravet uppfyllt. Letade efter motsatsen (utländsk siffra utan marknad) i
+fönstret - hittade ingen ny sådan.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget underlag i
+nattens fönster för någon av de tre.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot Blockets API.
+
+**Splashvakten:** grönt på alla sex appar (Dom: splasharna stämmer) - inga LARM eller
+VARNING, bara väntade INFO-rader (Elbilsladdning, samma som tidigare nätter).
+
+**Laddtipsen:** en ny i natt - **Mercedes EQS** (id 2149, ⚡, källa Auto Motor & Sport).
+Skrev ENDAST de bekräftade siffrorna (800V, 122 kWh, 350 kW DC - matchar ev_spec
+exakt) och strök kandidatens "53 mil"-uppskattning eftersom den inte stämmer mot
+ev_spec (926 km). Övriga kandidater (ev-fact-candidates): 2102 (BMW i3 50 xDrive) och
+2114 (Ford Explorer) redan publicerade (dubbletter, 10-31 resp. 11-05). 2152 (Renault
+Zoe) obelagd mot ev_spec, skrivs inte (se fynd ovan). 2130 (Opel Grandland 22 kW)
+fortsatt obelagd (ev_spec maxAcKw fortfarande 11, inte 22). 2106 (Polestar 5) fortsatt
+avfärdad (112 kWh ≠ ev_spec 106,0 kWh - ingen ny uppdatering i natt). 2117 (VW Golf
+reservnyckel) handlar inte om laddning - skrivs inte.
+
+**Regelförbättring i docs/nattrutin.md (avsnitt 6, 1 rad):** lade till en mätfälla om
+att en vanlig insikts egen räckvidds-/batteri-/laddsiffra kan vara fel även när allt
+annat (kategori, anekdotkoll) stämmer - motiverad av natten 11-06 (Renault Zoe,
+"80 mil" mot ev_spec 395 km). Skärper granskningen (kräver samma stickprov mot
+ev_spec som redan gäller för laddtips), tar inte bort något larm och vidgar inget tak.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen fanns inte -
+föregående PR mergades och togs bort av auto-merge). Inga kodfixar. Datafiler:
+baslinje.json (se nedan), atgarder.json (2 köbeslut: slapp 2147, slapp 2146),
+laddtips.json (1 nytt tips, se ovan), docs/nattrutin.md (1 rad, se ovan). Bygge
+`mvn -q -DskipTests package` grönt, riktade tester `MorgonfixAtgarderTest` (11/11)
+och `LaddtipsServiceTest` (7/7) gröna.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att
+rapporten var klar. Kontrollräkning 3458/3458 går ihop. models 2319→2320 (+1,
+cargo-specs nya bilnamn), variants 3457→3458 (+1), insights 1669→1676 (+7 - väntat:
+natten gav 8 nya rader men 2038 raderades 2026-11-05 01:57 EFTER att gårdagens
+baslinje mättes 00:53, så den raderingen syns först i dagens diff). ko 56/28→58/30
+(+2/+2, Cadillac Optiq + Vistiq - köbesluten utförs efter merge och syns alltså i
+morgondagens diff, inte i den här). kategorier: suv 743→746 (+3: 2145, 2147, 2148),
+smaabil 252→253 (+1: 2152), elbil 172→173 (+1: 2149), tom 190→192 (+2: 2150, 2151),
+familjebil 299→299 (oförändrad netto: +1 från 2146, -1 från raderingen av 2038 som
+var familjebil), laddhybrid 13→13 (oförändrad). Summan 1676 stämmer mot insights.
+
 ## 2026-11-05
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
