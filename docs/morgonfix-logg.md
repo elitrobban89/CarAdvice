@@ -2,6 +2,18 @@
 
 ## 2026-11-06
 
+**Efter rapporten (för hand samma morgon, gren fix/zoe-2152-tips-utan-internord):**
+- **2152 döljs** via atgarder.json, regel FELATTRIBUERING. Källan är Allt om Elbils krönika
+  2026-11-05: "Idag finns det elbilar som kan köra över 80 mil på en laddning" gäller elbilar
+  i allmänhet, och Zoe står bara i en bildtext ("en elbil från förr"). Alltså inget räknefel
+  utan en mening som fästes på fel bil.
+- **2149 lämnas orörd.** AMS-artikeln (2026-11-03) är Premium, bara ingressen går att läsa, så
+  "53 mil" gick inte att belägga eller motbevisa. Talet är märkt uppskattat och ligger under
+  ev_spec (WLTP 926, vinter 648 km). Laddtipset vilar på raden och hade fallit om den doldes.
+- **Tre laddtips bar internordet ev_spec publikt** (Peaq 90, Kodiaq iV, EQS). Texterna rättade,
+  LaddtipsService avvisar nu ordet, prov internaTabellnamnNarAldrigBesokaren.
+- **1224 stängd utan åtgärd:** står på MEDVETET BEHALLNA i nattrutin.md, marknadsregeln gäller framåt.
+
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
 fönstret vintertid, deploy 91ab183 matchar origin/master, Groq 3/3, AVVIKER 0 i vPIC,
 drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt, 0 nya

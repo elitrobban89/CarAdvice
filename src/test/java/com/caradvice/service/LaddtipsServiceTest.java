@@ -64,6 +64,12 @@ class LaddtipsServiceTest {
     }
 
     @Test
+    void internaTabellnamnNarAldrigBesokaren() {
+        // "matchar ev_spec exakt" stod publikt på tre tips: kontrollen hör till rapporten, inte texten
+        assertThat(med(tips("2026-09-20", BRA + " Siffrorna matchar ev_spec exakt.", 1)).aktuella()).isEmpty();
+    }
+
+    @Test
     void ettTipsUtanKallaVisasInte() {
         String utanKalla = "{\"datum\":\"2026-09-20\",\"ikon\":\"⚡\",\"text\":\"" + BRA + "\",\"kalla\":\"\"}";
         assertThat(med(utanKalla).aktuella()).isEmpty();

@@ -1,7 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-06", "typ": "slapp", "id": 2147, "skal": "ev_spec har riktigt svenskt pris (1 251 000 kr, 91 kWh, 130 kW DC) - Cadillac Vistiq är redan köpbar/beställningsbar i Sverige, trots att skrapad text (Super Cruise-nyhet) saknar nyhetsord. Samma mönster som VW ID. Tiguan (slapp 2137, 11-04)."},
-    {"datum": "2026-11-06", "typ": "slapp", "id": 2146, "skal": "ev_spec har riktigt svenskt pris (748 000 kr, 75 kWh, 110 kW DC) - Cadillac Optiq är redan köpbar/beställningsbar i Sverige, trots att skrapad text (Super Cruise-nyhet) saknar nyhetsord. Samma mönster som VW ID. Tiguan (slapp 2137, 11-04)."}
+    {"datum": "2026-11-06", "typ": "dolj", "id": 2152, "skal": "FELATTRIBUERING: källan är Allt om Elbils krönika 2026-11-05 (Elbilen var det udda valet). Meningen lyder \"Idag finns det elbilar som kan köra över 80 mil på en laddning\" och gäller elbilar i allmänhet. Zoe nämns bara i en bildtext som en elbil från förr. ev_spec: 395 km WLTP. Användarens beslut 2026-11-06."}
   ]
 }
