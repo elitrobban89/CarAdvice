@@ -1,37 +1,37 @@
 {
   "_om": "Nattrutinens baslinje. Rutinen skriver in nattens uppmatta tal har varje natt (utom vid LARM) - se docs/nattrutin.md avsnitt BASLINJEN. Talen i sjalva rutintexten ar historik; DENNA fil galler.",
-  "matt": "2026-11-06T00:55:21.323Z",
-  "commit": "91ab183",
+  "matt": "2026-11-07T00:53:39.889Z",
+  "commit": "20997fe",
   "stats": {
-    "models": 2320,
-    "variants": 3458,
-    "insights": 1676
+    "models": 2321,
+    "variants": 3459,
+    "insights": 1683
   },
   "kontrollrakning": {
-    "cargoTotal": 1841,
+    "cargoTotal": 1842,
     "evSpecs": 657,
     "iceConsumption": 960,
-    "summa": 3458,
-    "variants": 3458
+    "summa": 3459,
+    "variants": 3459
   },
   "evSpecs": 657,
-  "apiCars": 2107,
+  "apiCars": 2108,
   "iceConsumption": 960,
   "cargo": {
+    "total": 1842,
+    "utanVolym": 794,
     "medVolym": 1048,
-    "total": 1841,
-    "utanVolym": 793,
     "iceGenerations": 291,
     "evPowers": 548,
-    "bagageMissar": 836
+    "bagageMissar": 837
   },
   "iceGenerations": {
     "total": 291,
     "missar": 19
   },
   "ko": {
-    "rader": 58,
-    "bilar": 30
+    "rader": 56,
+    "bilar": 28
   },
   "drivmedel": {
     "total": 515,
@@ -49,10 +49,10 @@
       "INGEN_DATA": 165
     }
   },
-  "insiktsraderLasta": 1676,
-  "hogstaInsiktsId": 2152,
+  "insiktsraderLasta": 1683,
+  "hogstaInsiktsId": 2159,
   "kategorier": {
-    "smaabil": 253,
+    "smaabil": 260,
     "tom": 192,
     "elbil": 173,
     "suv": 746,

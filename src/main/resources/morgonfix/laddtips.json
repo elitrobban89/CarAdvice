@@ -27,6 +27,7 @@
     {"datum": "2026-10-29", "typ": "laddtips", "ikon": "⚡", "text": "**Tesla Model 3** klarade en sju dagar lång resa runt Island med snöstormar, isiga och grusiga vägar samt låg laddningsinfrastruktur utan tekniska problem – batteriet räckte varje gång till nästa Supercharger, med så lite som **15 %** kvar.", "kalla": "Allt om Elbil", "insikter": [2085]},
     {"datum": "2026-10-31", "typ": "laddtips", "ikon": "🔋", "text": "**BMW i3 50 xDrive** drar bara 14,5 kWh/100 km i 100 km/h, vilket räcker till 750 km – men i 130 km/h stiger förbrukningen till 21 kWh/100 km och räckvidden faller till 520 km.", "kalla": "Allt om Elbil", "insikter": [2102]},
     {"datum": "2026-11-05", "typ": "laddtips", "ikon": "⏱️", "text": "**Ford Explorer Extended Range AWD** har ett 77 kWh-batteri som ger en WLTP-räckvidd på upp till 553 km och laddar med upp till 185 kW DC – 10 till 80 % tar omkring 27 minuter.", "kalla": "M3", "insikter": [2114]},
-    {"datum": "2026-11-06", "typ": "laddtips", "ikon": "⚡", "text": "**Mercedes EQS** har 800-voltsteknik och ett 122 kWh-batteri som laddar med upp till **350 kW** DC.", "kalla": "Auto Motor & Sport", "insikter": [2149]}
+    {"datum": "2026-11-06", "typ": "laddtips", "ikon": "⚡", "text": "**Mercedes EQS** har 800-voltsteknik och ett 122 kWh-batteri som laddar med upp till **350 kW** DC.", "kalla": "Auto Motor & Sport", "insikter": [2149]},
+    {"datum": "2026-11-07", "typ": "laddtips", "ikon": "⏱️", "text": "**Kia EV2 Long Range** har ett 61 kWh-batteri som räcker till 453 km enligt WLTP, men snabbladdar bara med upp till **115 kW** DC – cirka 30 minuter från 10 till 80 %, långsammare än många konkurrenter.", "kalla": "M3", "insikter": [2155, 2156]}
   ]
 }
