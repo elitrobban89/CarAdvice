@@ -1,6 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-06", "typ": "dolj", "id": 2152, "skal": "FELATTRIBUERING: källan är Allt om Elbils krönika 2026-11-05 (Elbilen var det udda valet). Meningen lyder \"Idag finns det elbilar som kan köra över 80 mil på en laddning\" och gäller elbilar i allmänhet. Zoe nämns bara i en bildtext som en elbil från förr. ev_spec: 395 km WLTP. Användarens beslut 2026-11-06."}
+    {"datum": "2026-11-07", "typ": "radera", "id": 2086, "skal": "ANEKDOT: enskilt fordons skada och totalförlust (Vi Bilägare) - en buckla i batteriskyddet ledde till att EN Hyundai Kona Electric skrotades efter 2000 mil, ingen generell uppgift om modellen. Dold sedan 2026-10-30 02:02 (nu 8,0 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
   ]
 }

@@ -1,5 +1,122 @@
 # Morgonfix-logg
 
+## 2026-11-07
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
+fönstret vintertid, deploy 20997fe matchar origin/master, Groq 3/3, AVVIKER 0 i
+vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt,
+kategorivakten 0 utslag), men nattens 7 nya rader kräver dom, en rad blev
+radermogen (2086, 8,0 dygn dold) och en öppen fråga (VW Tiguan vs Mobility
+Swedens egna siffror, se nedan) ger KOLLA.
+
+**Inget kodfix i natt.** Inget entydigt vakt-hål eller parserfel hittades i
+fönstret.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-07 00:33:26 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~17 h). ev-specs **uppdaterade 5,
+nya 0** (varav pris 0, räckvidd 4, batteri 1, dc 0, ac 0 - inga hopp mot
+referensen). cargo-specs gav **1 nytt bilnamn, 0 av 1 bagagevolymer, 0 av 0
+generationsår**. Kontrollräkning (cargo total 1842 + evSpecs 657 +
+ice_consumption 960 = 3459 = /api/stats variants) stämmer exakt. models
+2320→2321, variants 3458→3459, /api/cars 2107→2108.
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 836→837 (+1, KB=1>0)
+- "still + bagageMissar VUXIT" är enligt domregeln VÄNTAT.
+
+**Generationsåren:** total 291, missar 19 (310, stämmer). försöktDag har flyttat
+till 2026-10-21 (fönstret öppnade 10-20 och omprövades dagen efter) - samma 19
+bilar föll igen (16 vakten-avstod, 3 ej-hittad), väntat utfall.
+
+**vPIC:** 291/0/275, OK 126, INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen, inga flippar
+(elva el-raderna och de fem handsatta ice-raderna kontrollerade var för sig).
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~17 h) - inga utslag sedan
+senaste omstarten.
+
+**Kommandevakten:** 56 rader / 28 bilar. Annonskollen gav **0 LARM, 8 GRANSKA,
+1 ANNAN_DRIVLINA, 19 INGA_ANNONSER** - samtliga redan avgjorda (Volvo XC70,
+Hyundai Bayon, BMW i3, Hyundai Tucson-klungan, Range Rover Sport, Mazda 6e,
+Pajero, Santa Fe, Range Rover ANNAN_DRIVLINA, samt de 19 låsta/kända
+INGA_ANNONSER-raderna). Inget nytt köbeslut krävdes i natt (inget LARM).
+
+**Dolda rader (uppföljning):** **2086 (Hyundai Kona Electric) dold sedan
+2026-10-30 02:02, nu 8,0 dygn - fortsatt bedömd som skräp (ANEKDOT, enskilt
+fordons skada) - RADERAD i natt.** 2070 (Saab 9-5 NG) ~6,0 dygn, inte än 7 -
+tas upp imorgon. 2141 (Renault Zoe-anekdot) ~1,9 dygn. 2152 (Zoe, redan dold av
+användaren 11-06) ~0,7 dygn.
+
+**Nattens nya rader (2153-2159):** 2153 Škoda Epiq och 2154 Cupra Raval
+(Teknikens Värld) - kritik mot räckvidd/laddning för "billiga" elbilar över
+300 000 kr, inget tal att belägga, bra. 2155-2159 Kia EV2 Long Range (M3,
+5 rader ur samma test) - räckvidd 453 km/61 kWh och laddeffekt 115 kW DC
+**stämmer exakt mot ev_spec**; bagage 362 l, infotainment och stadskörning är
+testomdömen, bra. Alla sju kategoriserade smaabil (väntat för små/billiga
+elbilar).
+
+**Övriga rader i fönstret:** Cadillac Vistiq/Optiq/Lyriq (Super Cruise,
+2145-2147, redan släppta/kända), BMW i7 (2150-2151, kategori struken av
+vakten, väntat), Mercedes EQS (2149, redan dokumenterad "uppskattad 53 mil"-
+avvikelse, laddtips skrivet utan den siffran 11-06), Ford Explorer-klungan
+(2113-2115, 2143), Opel Grandland 22 kW (2130, fortsatt obelagd mot ev_spec
+maxAcKw=11), Mobility Sweden-radern (2138-2140, samma siffror som redan i
+laddtips.json 11-04), recall-rader Opel Mokka/Cascada/Zafira C (2121-2123,
+relevanta återkallelser), Jeep Compass (2124, "återkommande fel" ledde till
+hävt köp hos en ägare - gränsfall mellan reliabilitetsuppgift och anekdot,
+rörs inte utan tydligare underlag).
+
+**ÖPPEN FRÅGA: VW (ID.) Tiguan vs Mobility Swedens egna siffror.** Insikt 2136
+(Auto Motor & Sport) säger att den eldrivna Tiguan "har blivit Sveriges
+bästsäljande elbil enligt en ny rapport". Samma natts egna Mobility Sweden-rader
+(2139) säger att **Volvo EX40** är Sveriges mest registrerade elbil
+januari-oktober 2026 (9 894, före Tesla Model Y) - Tiguan nämns inte. 2140
+säger att EX40 även var oktober månads mest registrerade bil totalt (1 086).
+Ingen av siffrorna i 2136 går att belägga eller motbevisa härifrån (källan
+anger ingen tidsperiod), men påståendet strider mot den egna natten kontrollerad
+Mobility Sweden-statistiken. Raden passar inte någon av 9h:s döljkategorier
+(inte anekdot, skatterad, specialutgåva eller väntetid) - lämnas till
+användaren, rörs inte.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/tillförlitlighet/
+livslängd/skrotålder. Letade efter motsatsen (utländsk siffra utan marknad) -
+hittade ingen.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget
+underlag i nattens fönster för någon av de tre.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot Blockets
+API.
+
+**Splashvakten:** grönt på alla sex appar (Dom: splasharna stämmer) - inga LARM
+eller VARNING, bara väntade INFO-rader (Elbilsladdning, samma som tidigare
+nätter).
+
+**Laddtipsen:** en ny i natt - **Kia EV2 Long Range** (⏱️, källa M3, insikter
+2155+2156). Räckvidd (453 km/61 kWh) och laddeffekt (115 kW DC, ~30 min
+10-80 %) matchar ev_spec exakt. Övriga kandidater: 2114 (Ford Explorer) och
+2102 (BMW i3) redan publicerade (dubbletter). 2152 (Zoe) obelagd, skrivs inte
+(se öppen fråga ovan, och raden är redan dold). 2130 (Grandland 22 kW)
+fortsatt obelagd (ev_spec maxAcKw fortfarande 11). 2106 (Polestar 5) fortsatt
+avfärdad (112 kWh ≠ ev_spec 106,0 kWh). 2117 (VW Golf reservnyckel) handlar
+inte om laddning - skrivs inte.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen fanns
+inte - föregående PR mergades och togs bort av auto-merge). Inga kodfixar.
+Datafiler: baslinje.json (se nedan), atgarder.json (1 köbeslut: radera 2086),
+laddtips.json (1 nytt tips, se ovan). Bygge `mvn -q -DskipTests package` grönt,
+riktade tester `MorgonfixAtgarderTest` och `LaddtipsServiceTest` gröna.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att
+rapporten var klar. Kontrollräkning 3459/3459 går ihop. models 2320→2321 (+1,
+cargo-specs nya bilnamn), variants 3458→3459 (+1), insights 1676→1683 (+7,
+väntat - nattens 7 nya rader; dagens radering av 2086 sker efter mätningen och
+syns i morgondagens diff). ko 58/30→56/28 (-2/-2 - gårdagens köbeslut, slapp
+2146 Optiq + 2147 Vistiq, utfördes vid uppstart igår morgon och syns först i
+dagens mätning). kategorier: smaabil 253→260 (+7, alla
+nattens rader), tom/elbil/suv/familjebil/laddhybrid oförändrade. Summan 1683
+stämmer mot insights.
+
 ## 2026-11-06
 
 **Efter rapporten (för hand samma morgon, gren fix/zoe-2152-tips-utan-internord):**
