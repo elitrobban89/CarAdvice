@@ -1,5 +1,132 @@
 # Morgonfix-logg
 
+## 2026-11-08
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:28 UTC inom
+fönstret vintertid, deploy 40fb8eb matchar origin/master, Groq 3/3, AVVIKER 0 i
+vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt,
+0 ERROR i Render-loggen), men nattens 8 nya rader kräver dom och tre stående
+öppna frågor (VW Tiguan vs Mobility Sweden, Opel Grandland 22 kW, Polestar 5
+112 kWh) kvarstår obesvarade - det ger KOLLA.
+
+**Inget kodfix i natt.** Inget entydigt vakt-hål eller parserfel hittades i
+fönstret.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-08 00:27:45 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~23,8 h). Deployad commit 40fb8eb
+matchar origin/master. ev-specs **uppdaterade 5, nya 0** (varav pris 0,
+räckvidd 4, batteri 1, dc 0, ac 0 - inom referensen, inga hopp). cargo-specs
+gav **0 nya bilnamn, 0 av 0 bagagevolymer, 0 av 0 generationsår** - KB/KG = 0,
+alltså är arbetslistorna fortsatt slut (svepet klart sedan tidigare), så
+stillestånd är enligt undantaget i 3f OK. Kontrollräkning (cargo total 1842 +
+evSpecs 657 + ice_consumption 960 = 3459 = /api/stats variants) stämmer exakt.
+models 2321 (oförändrat), variants 3459 (oförändrat), /api/cars 2108
+(oförändrat) - väntat när cargo-specs inte gav några nya bilnamn.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen (openai/gpt-oss-120b,
+openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 837 (still) -
+KB = 0 av 0 kvar, alltså enligt undantaget är "still + oförändrad" OK, inte
+avvikelse (arbetslistan är slut).
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat sedan
+igår - väntat stillestånd (16 vakten-avstod, 3 ej-hittad).
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen - inga flippar
+bland de elva el-raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 2, iBufferten 2 (uptime ~23,8 h). Båda gäller
+**Audi A8** (insikter 2162, 2163) flaggad för "familjebil" mot "lyx- eller
+sportbil" och fick kategorin struken (nu `null`) - vakten gjorde sitt jobb,
+Audi A8 står inte på gränsfallslistan i avsnitt 6 och behöver inget tillägg.
+
+**Kommandevakten:** 56 rader / 28 bilar, helt oförändrat sedan igår (ingen ny
+kön-rad i natt). Annonskollen gav **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA,
+19 INGA_ANNONSER** - identiska siffror med igår, samtliga redan avgjorda
+(Volvo XC70, Hyundai Bayon, BMW i3, Hyundai Tucson-klungan, Range Rover Sport,
+Mazda 6e, Pajero, Santa Fe, Range Rover ANNAN_DRIVLINA, samt de 19 låsta/kända
+INGA_ANNONSER-raderna inklusive de nya ej-sålda-i-Sverige-bilarna VW ID.Unyx 09,
+Chery Lepas L6/L8, BYD Seagull, MG Go!, Honda 0 Alpha). Inget nytt köbeslut
+krävdes i natt (inget LARM, inga nya kön-rader).
+
+**Dolda rader (uppföljning):** **2070 (Saab 9-5 NG Vector)** dold sedan
+2026-11-01 01:59:08, nu ~6,95 dygn - INTE än 7 dygn vid den här körningen
+(tröskeln nås strax efter 01:59 i natt), **raderas INTE i natt - tas upp
+imorgon.** 2141 (Renault Zoe-anekdot) ~2,9 dygn, 2152 (Zoe "80 mil") ~1,7 dygn
+- inga av dem 7 dygn än. Inga raderingar i natt.
+
+**Nattens nya rader (2160-2167):** 2160 Cupra Terramar e-Hybrid (Teknikens
+Värld) - 25,8/19,7 kWh brutto/netto, matchar ev_spec för "Cupra Terramar
+e-Hybrid" (25,7 kWh) nära nog, laddtips skrivet (se nedan). 2161 Mercedes
+C-klass (familjebil) - laddhybrid med lång räckvidd, attraktiv för
+barnfamiljer, bra. 2162-2163 Audi A8 (CarUp) - V8-diesel-specar och en
+svensk prissänkning 179 900→149 900 kr (värdeminskning, svensk marknad) -
+bra, kategori korrekt struken av vakten (se ovan). 2164-2167 Volvo EX60
+(CarUp) - ljudsystem 8,5/10, saknar CarPlay/Android Auto (Google OS),
+bagage kräver mekaniskt reglage, gaspedal ryckig, bra testomdömen, inget
+tal att belägga. Alla åtta rader godkända, inget förslag till radering.
+
+**Övriga rader i fönstret:** samma som igårkvälls rapport (2113-2159) - inga
+nya iakttagelser utöver de redan dokumenterade (VW Tiguan-frågan, Opel
+Grandland 22 kW, Polestar 5, Mercedes EQS "53 mil", se öppna frågor).
+
+**ÖPPNA FRÅGOR (kvarstår, inget nytt i natt):**
+- **VW (ID.) Tiguan vs Mobility Sweden (2136 mot 2139/2140, sedan 11-07):**
+  olöst, lämnas till användaren.
+- **Opel Grandland 22 kW (2130):** fortsatt obelagd, ev_spec maxAcKw
+  fortfarande 11, inte 22.
+- **Polestar 5 (2106):** fortsatt avfärdad, 112 kWh ≠ ev_spec 106,0 kWh.
+- **Mercedes EQS "53 mil" (2149):** redan dokumenterad, laddtipset skrevs
+  utan den siffran.
+
+**Värdeminskning:** 2 rader i natt (2163 Audi A8, 2150 BMW i7 - redan
+rapporterad igår) om värdeminskning, båda i svenska kronor utan utländsk
+källa att sakna angivelse för. Letade efter motsatsen (utländsk siffra utan
+marknad) - hittade ingen ny sådan.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget
+underlag i nattens fönster för någon av de tre.
+
+**Marknadsregeln:** inget nytt fynd i natt som krävde verifiering mot
+Blockets API.
+
+**Splashvakten:** grönt på alla sex appar (Dom: splasharna stämmer) - inga
+LARM eller VARNING, bara väntade INFO-rader i Elbilsladdning (samma som
+tidigare nätter).
+
+**Laddtipsen:** en ny i natt - **Cupra Terramar e-Hybrid** (🔌, källa
+Teknikens Värld, insikt 2160). Battericapaciteten (25,8 kWh brutto / 19,7 kWh
+netto) ligger mycket nära ev_spec för "Cupra Terramar e-Hybrid" (25,7 kWh) -
+samma pack som syskonmodellen Škoda Kodiaq iV (redan i laddtips.json, också
+25,7/19,7 kWh), vilket stämmer eftersom båda bygger på samma VW-koncernplattform.
+Laddeffekten 50 kW DC skrevs av, matchar ev_spec maxDcKw exakt. Övriga
+kandidater (ev-fact-candidates): 2114 (Ford Explorer) och 2155-2156 (Kia EV2)
+redan publicerade (dubbletter 11-05 resp. 11-07). 2152 (Zoe) fortsatt obelagd,
+skrivs inte (öppen fråga). 2130 (Grandland 22 kW) fortsatt obelagd. 2149
+(EQS) redan publicerat.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen
+fanns inte - föregående PR #53 mergades och togs bort av auto-merge). Inga
+kodfixar. Datafiler: baslinje.json (se nedan), atgarder.json (tomt, inga
+köbeslut i natt), laddtips.json (1 nytt tips, se ovan). Bygge
+`mvn -q -DskipTests package` grönt, riktade tester `MorgonfixAtgarderTest`
+(11/11) och `LaddtipsServiceTest` (8/8) gröna.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER att
+rapporten var klar. Kontrollräkning 3459/3459 går ihop. models 2321, variants
+3459, /api/cars 2108 (alla tre oförändrade - inga nya cargo-specs/ev-specs-namn
+i natt). insights 1683→1690 (+7, väntat: nattens 8 nya rader minus 2086 som
+raderades 2026-11-07 01:58, EFTER att gårdagens baslinje mättes 00:53, så den
+raderingen syns först i dagens diff). ko 56/28 oförändrat (inga köbeslut i
+natt, ingen ny kön-rad). kategorier: suv 746→751 (+5: 2160, 2164, 2165, 2166,
+2167), tom 192→193 (+2 nya [2162, 2163 Audi A8] -1 från raderingen av 2086
+[tom]), familjebil 299→300 (+1: 2161), smaabil/elbil/laddhybrid oförändrade.
+Summan 1690 stämmer mot insights.
+
 ## 2026-11-07
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:34 UTC inom
