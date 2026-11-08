@@ -1,6 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {"datum": "2026-11-07", "typ": "radera", "id": 2086, "skal": "ANEKDOT: enskilt fordons skada och totalförlust (Vi Bilägare) - en buckla i batteriskyddet ledde till att EN Hyundai Kona Electric skrotades efter 2000 mil, ingen generell uppgift om modellen. Dold sedan 2026-10-30 02:02 (nu 8,0 dygn), fortsatt bedömd som skräp enligt samma regel - ingen ny information som ändrar bedömningen."}
-  ]
+  "atgarder": []
 }
