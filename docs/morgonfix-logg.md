@@ -2,6 +2,16 @@
 
 ## 2026-11-09
 
+**Efter rapporten (för hand samma morgon, gren fix/oppna-fragor-tiguan-grandland-polestar):**
+- **2136 döljs** via atgarder.json, regel FELATTRIBUERING. AMS-rubriken lyder "Världspremiär:
+  Nu blir bästsäljaren VW Tiguan eldriven" - bästsäljaren är bensin-Tiguan, och ID. Tiguan
+  levereras först i början av 2027. Mobility Sweden har Volvo EX40 som etta jan-okt (2139).
+- **2130 (Grandland 22 kW) stämmer.** Opel lade till 22 kW-laddaren som tillval 2026-11-03,
+  11 kW är fortfarande standard, och det är standarden som ev_spec visar. Laddtips skrivet.
+- **2106 (Polestar 5, 112 kWh) stämmer.** 112 kWh är brutto och 106 kWh netto. ev_spec visar
+  netto. Frågan är stängd.
+- Drift 782d11c = origin/master, 2070 raderad 01:58 (bekräftad i morgonfix-atgarder).
+
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:29 UTC inom
 fönstret vintertid, deploy 4fcc8ee matchar origin/master, Groq 3/3, AVVIKER 0 i
 vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt,
