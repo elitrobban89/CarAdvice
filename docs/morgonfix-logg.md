@@ -1,5 +1,109 @@
 # Morgonfix-logg
 
+## 2026-11-09
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:29 UTC inom
+fönstret vintertid, deploy 4fcc8ee matchar origin/master, Groq 3/3, AVVIKER 0 i
+vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt,
+0 ERROR i Render-loggen), men nattens 4 nya rader kräver dom, en dold rad blev
+radermogen (2070, 8 dygn) och det är måndag (laddpriskontroll) - det ger KOLLA.
+
+**Inget kodfix i natt.** Inget entydigt vakt-hål eller parserfel hittades i
+fönstret.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-09 00:29:08 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~23,7 h). Deployad commit 4fcc8ee
+matchar origin/master. ev-specs **uppdaterade 5, nya 0** (varav pris 0,
+räckvidd 4, batteri 1, dc 0, ac 0 - inom referensen, inga hopp). cargo-specs
+gav **0 nya bilnamn, 0 av 0 bagagevolymer, 0 av 0 generationsår** - KB/KG = 0,
+arbetslistorna fortsatt slut (svepet klart sedan tidigare), stillestånd OK
+enligt undantaget i 3f. Kontrollräkning (cargo total 1842 + evSpecs 657 +
+ice_consumption 960 = 3459 = /api/stats variants) stämmer exakt. models 2321,
+variants 3459, /api/cars 2108 (alla tre oförändrade - väntat när cargo-specs
+inte gav nya bilnamn). CarUp 0 av 12 lästa och Allt om Elbil 0 av 3 lästa i
+natt - en enstaka natt, larmar inte, men hålls under uppsikt.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen (openai/gpt-oss-120b,
+openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 837 (still) -
+KB = 0 av 0 kvar, "still + oförändrad" OK enligt undantaget (arbetslistan slut).
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat sedan
+igår. Kontrollerat forsoktDag i missar-listan: alla 19 omprövades 2026-10-21
+(efter att fönstret stängde 10-20) och föll igen - inte kvar på gammalt datum.
+
+**vPIC:** 291 kontrollerade/0 hoppade/275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~23,7 h) - inga utslag
+sedan senaste omstarten.
+
+**Kommandevakten:** 56 rader / 28 bilar, helt oförändrat sedan igår (ingen ny
+könrad i natt). Annonskollen gav **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA,
+19 INGA_ANNONSER**, identiska siffror med igår, samtliga redan avgjorda och
+låsta. Inget nytt köbeslut krävdes för kön i natt.
+
+**Dolda rader (uppföljning):** **2070 (Saab 9-5 NG Vector)** dold sedan
+2026-11-01 01:59:08, nu ~7,97 dygn - **över 7-dygnströskeln, raderas i natt**
+(samma mönster som redan raderade 1910/1912/1987/2086 - enskilt exemplars
+historia, ingen generell köpuppgift). 2141 (Zoe-anekdot) ~3,97 dygn, 2152
+(Zoe "80 mil") ~2,97 dygn - inga av dem 7 dygn än.
+
+**Nattens nya rader (2168-2171):** alla Vi Bilägare, Audi A2, smaabil.
+2171 testpris Audi A2 vs Ford Fiesta (prisfakta). 2170 cd 0,28 lågt
+luftmotstånd/förbrukning. 2169 dieselversion 2001, 1,2 l/61 hk, mål
+3 l/100 km - historisk specfakta om en avvecklad modell, relevant enligt
+"avvecklade modeller är relevanta". 2168 aluminiumkaross -150 kg/-7 %
+förbrukning. Alla fyra godkända, kategori smaabil korrekt, inget förslag
+till radering.
+
+**Övriga rader i fönstret:** samma som igårkvälls rapport (2122-2167) - inga
+nya iakttagelser. Öppna frågor (VW Tiguan vs Mobility Sweden, Opel Grandland
+22 kW, Polestar 5) kvarstår olösta, lämnas till användaren.
+
+**Värdeminskning:** 0 rader i natt. Letade efter motsatsen (utländsk siffra
+utan marknad) - hittade ingen ny sådan.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget nytt
+underlag för skatterad/renoveringsobjekt. Audi A2-raderna är relevant historik
+om en nedlagd modell, ingen överblockering.
+
+**Marknadsregeln:** inget nytt fynd i natt.
+
+**Splashvakten:** grönt på alla sex appar (Dom: splasharna stämmer) - inga
+LARM eller VARNING.
+
+**Laddtipsen:** inga nya i natt. `ev-fact-candidates` gav 11 kandidater; de
+högst poängsatta (2114 Ford Explorer, 2155/2156 Kia EV2, 2149 EQS, 2160 Cupra
+Terramar) är redan publicerade, 2130 (Grandland 22 kW) och 2152 (Zoe) är
+obelagda öppna frågor, resten saknar kontrollerbart tal eller rör inte
+laddning/batteri/räckvidd.
+
+**Laddpriserna (måndag, avsnitt 13):** kontrollerade alla sex nycklar mot
+nätverkens egna prissidor. ionity ~6,09 kr/kWh, allego ~6,30 kr/kWh, mer
+~5,10 kr/kWh - alla tre oförändrade, nytt kontrollerad-datum. **circle k och
+circlek 6,09 → 6,69 kr/kWh** (+9,9 %, "Priser Circle K laddare Sverige",
+Engångsbetalning). **lidl 5,80 → 4,40 kr/kWh** (-24,1 %, DC-pris i sidans
+text). Båda inom 1-15 kr/kWh och under 60 %-taket. 2 ändringar, långt under
+taket på 10.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen
+fanns inte, ingen öppen PR). Inga kodfixar. Datafiler: atgarder.json (1
+radering: id 2070), laddpriser.json (se ovan), laddtips.json (oförändrad,
+ingen ny kandidat), baslinje.json (se nedan). Bygge
+`mvn -q -DskipTests package` grönt, riktade tester `MorgonfixAtgarderTest`
+(11/11) och `LaddtipsServiceTest` (8/8) gröna (19/19 totalt).
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER
+att rapporten var klar. Kontrollräkning 3459/3459 går ihop. models 2321,
+variants 3459, /api/cars 2108 (alla tre oförändrade). insights 1690→1694
+(+4, väntat: nattens 4 nya rader). hogstaInsiktsId 2167→2171. ko 56/28
+oförändrat. kategorier: smaabil 260→264 (+4: 2168-2171 Audi A2), övriga
+oförändrade. Summan 1694 stämmer mot insights.
+
 ## 2026-11-08
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:28 UTC inom
