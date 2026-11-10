@@ -2386,7 +2386,8 @@
 
   /**
    * Videokortet: en slide per video — miniatyr, titel, kanal och datum. Alriks Bilars
-   * senaste först, de handplockade efter (märkta "Utvald", se BilvideoService.UTVALDA).
+   * senaste först, sedan månadens försäljningsvideor ur Studio Esses flöde (märkta
+   * "Försäljning"), sist de handplockade (märkta "Utvald", se BilvideoService.UTVALDA).
    *
    * Miniatyren byggs av video-id:t och ingenting annat, och id:t måste se ut som ett
    * YouTube-id: en adress ur svaret hamnar aldrig rakt i src. Rutan har fast 16:9-format så
@@ -2401,7 +2402,7 @@
     const slides = videor.map(function (v, i) {
       const lank = 'https://www.youtube.com/watch?v=' + v.id;
       return '<div class="ev-video-slide" style="display:' + (i === 0 ? 'flex' : 'none') + ';flex-direction:column;">'
-        + '<div class="ev-funfact-label">' + (v.utvald ? 'Utvald · ' : 'Senaste · ') + esc(v.kanal)
+        + '<div class="ev-funfact-label">' + (v.forsaljning ? 'Försäljning · ' : v.utvald ? 'Utvald · ' : 'Senaste · ') + esc(v.kanal)
         + ' · ' + esc(v.datum) + '</div>'
         + '<a href="' + lank + '" target="_blank" rel="noopener" style="display:block;margin-top:8px;'
         + 'aspect-ratio:16/9;width:100%;max-width:360px;border-radius:8px;overflow:hidden;background:#111;">'
