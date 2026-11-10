@@ -12,6 +12,14 @@
   också en korrekt modelluppgift: 85 km elräckvidd med en wankelmotor som laddar batteriet.
   Den är inte en ANEKDOT om skick eller skada.
 - Drift 2a5144d = origin/master, 2175 dold och 2178 parkerad 02:02, admin-loggen tom.
+- **Eftermiddag, för hand:** beroendena uppgraderade i nio repon (CarAdvice #61: Spring Boot
+  4.1.2, jsoup 1.24.1, stripe-java 34.1.0, POI 6.0.0; MobilityStatsSync körs skarpt först
+  2026-12-04). Versionskollen (avsnitt 15) tillkom i #60.
+- **Tre marknadsrader i laddtips.json (#62)**, från källor användaren skickade: elbilsandelen
+  i oktober 51 % och 44 % hittills i år (Mobility Sweden 2026-11-02), elbilsandel per märke
+  januari–oktober (Allt om Elbil 2026-11-07) och Europa i september, 300 202 elbilar och
+  +70 % (M3/Reuters 2026-10-20). Skriv dem inte en gång till. November kommer från Mobility
+  Sweden omkring 2026-12-01.
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom
 fönstret vintertid, deploy 818c6f5 matchar origin/master, Groq 3/3, AVVIKER 0 i
