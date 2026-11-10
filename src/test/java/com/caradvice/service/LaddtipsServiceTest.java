@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Set;
+import com.caradvice.scraper.MobilityStatsSyncService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -101,10 +102,65 @@ class LaddtipsServiceTest {
         assertThat(ut.get(0)).containsEntry("datum", String.format("2026-09-%02d", alla.length));
     }
 
+    // ── Månadens elbilsandel ur Mobility Swedens rapport (2026-11-10) ──
+
+    private static final MobilityStatsSyncService.Drivmedelslage OKTOBER = new MobilityStatsSyncService.Drivmedelslage(
+            "oktober 2026", 12594, 5376, 24660, 8707, 24078, 103450, 236446);
+
+    private LaddtipsService medLage(java.util.function.Supplier<LaddtipsService.Tips> lage, String... tips) {
+        String fil = "{\"tips\":[" + String.join(",", tips) + "]}";
+        LaddtipsService s = new LaddtipsService(insikter, kon,
+                () -> new ByteArrayInputStream(fil.getBytes(StandardCharsets.UTF_8)), lage);
+        s.klocka = Clock.fixed(Instant.parse("2026-11-10T10:00:00Z"), ZoneId.of("Europe/Stockholm"));
+        return s;
+    }
+
+    @Test
+    void manadensElbilsandelVisasSomMarknadsradSorteradPaDatum() {
+        var ut = medLage(() -> LaddtipsService.manadslageTips(OKTOBER),
+                tips("2026-11-07", BRA, 1), tips("2026-10-20", BRA, 2)).aktuella();
+
+        assertThat(ut).hasSize(3);
+        assertThat(ut.get(0)).containsEntry("datum", "2026-11-07");
+        assertThat(ut.get(1)).containsEntry("datum", "2026-11-01").containsEntry("ikon", "⚡")
+                .containsEntry("kalla", "Mobility Sweden");
+        assertThat((String) ut.get(1).get("text")).startsWith("I oktober 2026 var **51 %**");
+    }
+
+    @Test
+    void utanHamtadRapportVisasBaraFilensRader() {
+        var ut = medLage(() -> null, tips("2026-11-07", BRA, 1)).aktuella();
+        assertThat(ut).hasSize(1);
+    }
+
+    @Test
+    void ettFelIRapportenFallerInteKarusellen() {
+        var ut = medLage(() -> { throw new IllegalStateException("trasig rapport"); },
+                tips("2026-11-07", BRA, 1)).aktuella();
+        assertThat(ut).hasSize(1);
+    }
+
+    @Test
+    void enManadsradSomInteKlararKravenVisasInte() {
+        // Ett tomt drivmedelsläge ger en kort text som filens krav (minst 40 tecken) ändå klarar,
+        // så kontrollen görs med en rad som bär HTML - samma lås som för filens rader.
+        var ut = medLage(() -> new LaddtipsService.Tips("2026-11-01", "⚡",
+                "<b>Elbilsandelen</b> i oktober 2026 var 51 procent av alla nya personbilar.", "Mobility Sweden",
+                java.util.List.of())).aktuella();
+        assertThat(ut).isEmpty();
+    }
+
+    @Test
+    void manadsradenKlararFilensKrav() {
+        assertThat(LaddtipsService.fel(new ObjectMapper().valueToTree(LaddtipsService.manadslageTips(OKTOBER))))
+                .isNull();
+        assertThat(LaddtipsService.manadslageTips(null)).isNull();
+    }
+
     @Test
     void verkligaFilenArGiltig() throws Exception {
         // den incheckade filen får aldrig ha ett tips som tyst faller i drift - då fäller det bygget
-        var s = new LaddtipsService(insikter, kon);
+        var s = new LaddtipsService(insikter, kon, mock(com.caradvice.scraper.MobilityStatsSyncService.class));
         int iFilen;
         try (var in = new ClassPathResource(LaddtipsService.RESURS).getInputStream()) {
             iFilen = new ObjectMapper().readTree(in).path("tips").size();

@@ -265,4 +265,98 @@ class MobilityStatsSyncServiceTest {
         verify(insightService, never()).deleteByExpert(any());
         verify(insightService, never()).save(any());
     }
+
+    // ── Drivmedelsarket: elbilsandelen till karusellen (2026-11-10) ──
+
+    /**
+     * "PB - Drivmedel" byggd cell för cell som oktoberrapporten 2026: perioden i N1, rubrikerna
+     * på rad 9 med "Antal " (med mellanslag) i I, SPLY i M, YTD i S — och samma rubriker en
+     * gång till längre till höger för andelarna (AC, AD), som INTE får väljas. Under Totalt
+     * kommer månadstabellen, där "EL - Personbilar per månad" inte är EL-raden.
+     */
+    private static byte[] drivmedelsark(boolean medTotalt) throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet s = wb.createSheet("PB - Drivmedel");
+            s.createRow(0).createCell(13).setCellValue("Nyregistreringar oktober 2026");
+            Row rubrik = s.createRow(8);
+            Object[][] rubriker = {{8, "Antal "}, {12, "SPLY"}, {16, "Δ%"}, {18, "YTD"}, {21, "YTD LY"},
+                    {26, "okt"}, {28, "SPLY"}, {29, "YTD"}};
+            for (Object[] r : rubriker) rubrik.createCell((Integer) r[0]).setCellValue((String) r[1]);
+            Object[][] rader = {
+                    {"EL", 12594, 8707, 103450, 0.5107, 0.3616, 0.4375},
+                    {"Laddhybrid", 5376, 7111, 56046, 0.2180, 0.2953, 0.2370},
+                    {"Bensin", 4037, 4717, 44303, 0.1637, 0.1959, 0.1874},
+                    {"Totalt", 24660, 24078, 236446, 1.0, 1.0, 1.0}};
+            int nr = 9;
+            for (Object[] r : rader) {
+                if (!medTotalt && r[0].equals("Totalt")) continue;
+                Row row = s.createRow(nr++);
+                row.createCell(4).setCellValue((String) r[0]);
+                row.createCell(8).setCellValue((Integer) r[1]);
+                row.createCell(12).setCellValue((Integer) r[2]);
+                row.createCell(18).setCellValue((Integer) r[3]);
+                row.createCell(26).setCellValue((Double) r[4]);
+                row.createCell(28).setCellValue((Double) r[5]);
+                row.createCell(29).setCellValue((Double) r[6]);
+            }
+            s.createRow(23).createCell(2).setCellValue("EL - Personbilar per månad");
+            Row manad = s.createRow(36);
+            manad.createCell(4).setCellValue("oktober");
+            manad.createCell(11).setCellValue(12594);
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Test
+    void drivmedelsarketGerOktobersAndelarSomPressmeddelandet() throws Exception {
+        MobilityStatsSyncService.Drivmedelslage l = MobilityStatsSyncService.parseDrivmedel(drivmedelsark(true));
+
+        assertThat(l).isEqualTo(new MobilityStatsSyncService.Drivmedelslage(
+                "oktober 2026", 12594, 5376, 24660, 8707, 24078, 103450, 236446));
+        // Pressmeddelandet 2026-11-04: "från 36 procent till 51 procent", "44 procent hittills i år"
+        assertThat(l.text()).isEqualTo("I oktober 2026 var **51 %** av Sveriges nya personbilar elbilar, "
+                + "upp från 36 % ett år tidigare, medan laddhybriderna låg på 22 %. "
+                + "Hittills i år ligger elbilsandelen på **44 %**.");
+        assertThat(l.datum()).hasToString("2026-11-01");
+    }
+
+    @Test
+    void decemberrapportenDaterasJanuariNastaAr() {
+        var l = new MobilityStatsSyncService.Drivmedelslage("december 2026", 1, 1, 2, 1, 2, 1, 2);
+        assertThat(l.datum()).hasToString("2027-01-01");
+    }
+
+    @Test
+    void lagreAndelAnIFjolSagsSomNedgang() {
+        var l = new MobilityStatsSyncService.Drivmedelslage("mars 2027", 400, 100, 1000, 500, 1000, 450, 1000);
+        assertThat(l.text()).contains("**40 %**").contains("ned från 50 %");
+    }
+
+    @Test
+    void drivmedelsarkUtanTotalradGerNullInteEnGissning() throws Exception {
+        assertThat(MobilityStatsSyncService.parseDrivmedel(drivmedelsark(false))).isNull();
+    }
+
+    @Test
+    void rapportUtanDrivmedelsarkGerNull() throws Exception {
+        byte[] xlsx = workbook("juni 2026", new Object[][]{{"VOLVO XC60", 1200, 10669}},
+                new Object[][]{{"VOLVO EX/XC40", 900, 5000}});
+        assertThat(MobilityStatsSyncService.parseDrivmedel(xlsx)).isNull();
+    }
+
+    @Test
+    void syncenFyllerDrivmedelslaget() throws Exception {
+        byte[] ark = drivmedelsark(true);
+        MobilityStatsSyncService s = new MobilityStatsSyncService(insightService, mock(JobStatusService.class)) {
+            @Override String findLatestReportUrl() { return "https://mobilitysweden.se/storage/rapport.xlsx"; }
+            @Override byte[] download(String url) { return ark; }
+            @Override List<ExpertInsight> parseReport(byte[] xlsx) {
+                return List.of(new ExpertInsight(EXPERT_NAME, "Volvo", "XC60", null, null, "x", null));
+            }
+        };
+        s.syncNow();
+        // Ingen ny hämtning behövs: läget fylldes av synken och är färskt.
+        assertThat(s.drivmedelslage()).isNotNull().extracting(MobilityStatsSyncService.Drivmedelslage::el).isEqualTo(12594);
+    }
 }

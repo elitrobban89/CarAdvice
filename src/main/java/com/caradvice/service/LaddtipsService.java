@@ -1,5 +1,6 @@
 package com.caradvice.service;
 
+import com.caradvice.scraper.MobilityStatsSyncService;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -54,18 +55,36 @@ public class LaddtipsService {
     private final ExpertInsightService insikter;
     private final UpcomingInsightService kon;
     private final Supplier<InputStream> kalla;
+    /** Månadens elbilsandel ur Mobility Swedens rapport, eller null innan den hämtats. */
+    private final Supplier<Tips> manadslage;
     private final ObjectMapper json = new ObjectMapper();
     Clock klocka = Clock.system(ZoneId.of("Europe/Stockholm"));
 
     @Autowired
-    public LaddtipsService(ExpertInsightService insikter, UpcomingInsightService kon) {
-        this(insikter, kon, LaddtipsService::lasResurs);
+    public LaddtipsService(ExpertInsightService insikter, UpcomingInsightService kon, MobilityStatsSyncService mobility) {
+        this(insikter, kon, LaddtipsService::lasResurs, () -> manadslageTips(mobility.drivmedelslage()));
     }
 
     LaddtipsService(ExpertInsightService insikter, UpcomingInsightService kon, Supplier<InputStream> kalla) {
+        this(insikter, kon, kalla, () -> null);
+    }
+
+    LaddtipsService(ExpertInsightService insikter, UpcomingInsightService kon, Supplier<InputStream> kalla,
+                    Supplier<Tips> manadslage) {
         this.insikter = insikter;
         this.kon = kon;
         this.kalla = kalla;
+        this.manadslage = manadslage;
+    }
+
+    /**
+     * Elbilsandelen som marknadsrad (2026-11-10). Förut skrevs den för hand eller inte alls:
+     * nattrutinen ser bara insikterna, och andelen står i rapportens drivmedelsark, inte i någon
+     * insikt. Nu byts raden av sig själv när Mobility Swedens nya månadsrapport kommer.
+     */
+    static Tips manadslageTips(MobilityStatsSyncService.Drivmedelslage lage) {
+        if (lage == null) return null;
+        return new Tips(lage.datum().toString(), "⚡", lage.text(), "Mobility Sweden", List.of());
     }
 
     private static InputStream lasResurs() {
@@ -83,7 +102,17 @@ public class LaddtipsService {
         Set<Long> kommande = kon.hiddenIds();
         Set<Long> dolda = kon.doldaIds();
         List<Map<String, Object>> ut = new ArrayList<>();
-        for (Tips t : giltiga().stream().sorted(Comparator.comparing(Tips::datum).reversed()).toList()) {
+        List<Tips> alla = new ArrayList<>(giltiga());
+        try {
+            Tips lage = manadslage.get();
+            // Samma krav som filens rader: en trasig rapport får inte ge en konstig rad.
+            String fel = lage == null ? null : fel(json.valueToTree(lage));
+            if (fel != null) log.warn("Månadens elbilsandel underkänd ({}), visas inte: {}", fel, lage);
+            else if (lage != null) alla.add(lage);
+        } catch (Exception e) {
+            log.warn("Månadens elbilsandel kunde inte läggas till: {}", e.toString());
+        }
+        for (Tips t : alla.stream().sorted(Comparator.comparing(Tips::datum).reversed()).toList()) {
             if (LocalDate.parse(t.datum()).isBefore(idag.minusDays(MAX_ALDER_DAGAR))) continue;
             if (t.insikter().stream().anyMatch(id -> kommande.contains(id) || (dolda != null && dolda.contains(id))
                     || !insikter.exists(id))) continue;
