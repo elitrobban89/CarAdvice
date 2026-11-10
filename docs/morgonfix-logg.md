@@ -2,6 +2,17 @@
 
 ## 2026-11-10
 
+**Efter rapporten (för hand samma morgon, gren fix/baslinje-radering-2070):**
+- **Familjebil +1 i stället för +2 är belagt.** Det var ingen bakgrundsreklassificering.
+  2070 (Saab 9-5 NG, familjebil) raderades 2026-11-09 01:58, efter att den baslinjen
+  mättes 00:54. Dolda rader räknas kvar i tabellen, raderade gör det inte. Hela diffen går
+  ihop: 14 nya rader (suv +8, smaabil +3 med 2175, familjebil +2, tom +1 för 2178) minus
+  2070 ger insights +13. Regeln står nu i nattrutin.md under BASLINJEN.
+- **2176 (MX-30 R-EV) ligger kvar synlig.** Priset gäller en enda annons, men raden bär
+  också en korrekt modelluppgift: 85 km elräckvidd med en wankelmotor som laddar batteriet.
+  Den är inte en ANEKDOT om skick eller skada.
+- Drift 2a5144d = origin/master, 2175 dold och 2178 parkerad 02:02, admin-loggen tom.
+
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom
 fönstret vintertid, deploy 818c6f5 matchar origin/master, Groq 3/3, AVVIKER 0 i
 vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt),
