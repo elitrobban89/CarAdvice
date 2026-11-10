@@ -1,5 +1,138 @@
 # Morgonfix-logg
 
+## 2026-11-10
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom
+fönstret vintertid, deploy 818c6f5 matchar origin/master, Groq 3/3, AVVIKER 0 i
+vPIC, drivmedel 515/429/86/16 utan flip, ad-check 0 LARM, splashvakten grönt),
+men nattens 14 nya rader kräver dom, en ny könrad (2178) krävde beslut och en
+rad visade sig vara en ANEKDOT (2175) - det ger KOLLA.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-10 00:31:08 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime ~17,6 h, startad 2026-11-09 07:04,
+alltså före nattkedjan - bufferten i kategorivakten är inte nollställd av en
+deploy). Deployad commit 818c6f5 matchar origin/master. ev-specs **uppdaterade
+5, nya 0** (varav pris 0, räckvidd 4, batteri 1, dc 0, ac 0 - inom referensen,
+inga hopp). cargo-specs gav **1 nytt bilnamn, 0 av 1 bagagevolymer, 0 av 0
+generationsår**. Kontrollräkning (cargo total 1843 + evSpecs 657 +
+ice_consumption 960 = 3460 = /api/stats variants) stämmer exakt, skriptet
+bekräftar "GÅR IHOP 3460/3460". CarUp 3 av 12 lästa, Allt om Elbil 6 av 6 -
+ingen källa tyst i natt.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**BAGAGELARMET (3f):** medVolym 1048 (still), bagageMissar 837→838 (**växte**)
+- KB = 1 av 1 kvar (listan inte slut). Enligt domregeln: still + bagageMissar
+VUXIT = VÄNTAT, inte avvikelse (jobbet betade en bil utan att hitta en volym).
+
+**Generationsåren:** total 291, missar 19 (310, stämmer), oförändrat sedan
+igår. forsoktDag för alla 19 är 2026-10-21 (omprövade efter att fönstret
+stängde 10-20, föll igen), dagarKvar 10 - inget kvar på ett gammalt datum.
+16 vakten-avstod / 3 ej-hittad - det friska utfallet.
+
+**vPIC:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126, INGEN_DATA 165,
+**AVVIKER 0** - exakt referensen, åttonde natten i rad utan avvikelse.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen. Kontrollerat
+alla 16 manuella rader i drivmedelstabellen (5 handsatta ice, 11 handsatta el)
+mot namnen i ramarna - ingen har flippat.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~17,6 h, spänner över
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2172-2185, 14 st):**
+- 2172 ID.4, 2173 ID.5, 2174 Enyaq (Vi Bilägare) - samma mjukvaruuppdatering
+  (manuell batteriförvärmning < 20 °C inför snabbladdning) på tre MEB-bilar,
+  tre äkta per-modell-nyheter ur en artikelklunga, kategori suv korrekt. OK.
+- **2175 Mercedes A180 (CarUp) - ANEKDOT, dold i natt.** Beskriver ETT
+  exemplars kosmetiska lackeringsskada under en foliering och dess
+  besiktningsdatum (juli 2027) - ingen generell köpuppgift om modellen, samma
+  mönster som redan dolda/raderade 1910/1987/2086/2070/2141/2152. Skäl skrivet
+  i atgarder.json.
+- 2176 Mazda MX-30 R-EV (CarUp) - en begagnad bils prissänkning (25 %) plus
+  den kända 85 km-elräckvidden (stämmer mot specen). Tunn och
+  annonsliknande, men inte en entydig anekdot om tillförlitlighet/skada -
+  **döljs inte**, en rad man bara tror är skräp döljer man inte. Flaggas för
+  uppsikt.
+- 2177 Nissan Ariya (CarUp) - lagerrabatt (29 %) efter att Nissan upphört med
+  försäljning av modellen i Sverige. Generell marknadsuppgift, inte ett
+  enskilt exemplars historia. OK, "avvecklade modeller är relevanta".
+- **2178 BYD Yangwang Altior (Allt om Elbil) - ny könrad, parkerad i natt.**
+  Ad-check: INGA_ANNONSER (0 Blocket-annonser). Yangwang är BYDs kinesiska
+  lyxundermärke, säljs inte i Sverige/Europa. Beslut i atgarder.json.
+- 2179 Tesla Model Y, 2180 Kia EV2, 2181 BMW iX3, 2182 Tesla Model Y (igen),
+  2183 Mercedes CLA (alla Allt om Elbil) - laddningsförlust/effektivitet ur
+  samma ECOBEST Challenge 2026-test, olika mätpunkter per bil (ingen
+  dubblett, samma mönster som Safety Coach-klungan 1253-1257). Kategorier
+  suv/smaabil/familjebil ser rimliga ut. OK.
+- 2184 Volvo S60, 2185 VW Tiguan (Folksam) - "Bra val" i krocksäkerhetsstudien
+  2025 (autobroms, antisladd). Säkerhetsbetyg, inte försäljningsstatistik -
+  utmärkelseundantaget gäller inte, raderna är giltiga som de står. OK.
+
+**13 av 14 bra i natt** (2175 dold). **46 av fönstrets 50 rader bra** (2136,
+2141, 2152 sedan tidigare dolda, 2175 ny i natt) - högsta id i fönstret 2185.
+
+**Övriga rader i fönstret (2136-2171):** inga nya iakttagelser utöver det som
+redan står i loggen för 2026-11-06 till 2026-11-09.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget nytt
+underlag för en ren skatterad eller ett renoveringsobjekt i natt. 2177
+(Nissan Ariya, avvecklad i Sverige) är relevant historik, ingen
+överblockering.
+
+**Uppföljning gårdagens atgarder:** `/api/admin/morgonfix-atgarder` visar
+2026-11-09|radera|2070 → "raderad (arkiverad)" och 2026-11-09|dolj|2136 →
+"dold" - båda klara, inget FEL.
+
+**Kommandevakten:** 56→57 rader / 28→29 bilar. Ad-check: **0 LARM, 8 GRANSKA,
+1 ANNAN_DRIVLINA, 20 INGA_ANNONSER** på 29 bilar. Alla GRANSKA/INGA_ANNONSER/
+ANNAN_DRIVLINA-rader utom den nya är sedan tidigare kända och redan
+bedömda i loggen (Pajero, Santa Fe, Tucson, XC70, Mazda 6e, Ioniq 7/4,
+Lynk & Co 10, XC100, ID.3 GTI, Kicks, PV7, Range Rover-raderna) - inget nytt
+avgörande krävs för dem i natt. **Beslut i natt:** 2178 (BYD Yangwang Altior)
+**parkerad** - INGA_ANNONSER, kinesiskt lyxundermärke som inte säljs här.
+
+**Marknadsregeln:** inget nytt fynd i natt.
+
+**Splashvakten:** grönt på alla sex appar ("Dom: splasharna stämmer") - inga
+LARM eller VARNING, bara väntade INFO-rader hos Elbilsladdning.
+
+**Laddtipsen:** inga nya i natt. `ev-fact-candidates` gav 16 kandidater; de
+högst poängsatta (2156 Kia EV2 Long Range laddtid, 2183 Mercedes CLA,
+2182/2179 Tesla Model Y, 2181 BMW iX3, 2149 EQS, 2130 Grandland, 2160 Cupra
+Terramar) är redan publicerade eller skulle kräva en ny kontroll mot
+/api/ev-spec som inte hanns med i natt (iX3/CLA/Model Y-testsiffrorna är
+testresultat, inte modellspecar, och kan inte stämmas av mot ev_spec på
+samma sätt) - ingen skrevs för att bara fylla på.
+
+**Dolda rader (uppföljning):** 2152 (~4,0 dygn) och 2141 (~5,0 dygn) - inga
+av dem 7 dygn än. 2136 (~1,8 dygn). 2175 (ny i natt). Ingen radering i natt.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen
+fanns inte sedan 11-09 års merge, ingen öppen PR). Inga kodfixar - inget
+entydigt vakthål eller parserfel hittades i fönstret. Datafiler:
+atgarder.json (2 beslut: parkera 2178, dölj 2175), baslinje.json (se nedan).
+Ej måndag (laddpriser hoppas över), ingen laddtipskandidat. Bygge
+`mvn -q -DskipTests package` grönt, `mvn test` (hela sviten) grönt, riktad
+`MorgonfixAtgarderTest` grön.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` kört EFTER
+att rapporten var klar. Kontrollräkning 3460/3460 går ihop. models
+2321→2322, variants 3459→3460, /api/cars 2108→2109 (väntat, cargo-specs gav
+1 nytt bilnamn). insights 1694→1707 (+13: nattens 14 nya minus 1 dold).
+hogstaInsiktsId 2171→2185. ko 56/28→57/29 (den nya BYD-raden). kategorier:
+suv 751→759 (+8), smaabil 264→267 (+3), familjebil 300→301 (+1), tom
+193→194 (+1), elbil/laddhybrid oförändrade - summan 1707 stämmer mot
+insights. (Not: familjebil borde räknat +2 av de nya raderna (CLA, S60) men
+visar bara +1 - trolig bakgrundsreklassificering av en äldre rad via
+kategorivakten, ingen Kategorivakt-avvikelse rapporterad och
+kontrollräkningen går ihop, så ingen åtgärd.)
+
 ## 2026-11-09
 
 **Efter rapporten (för hand samma morgon, gren fix/oppna-fragor-tiguan-grandland-polestar):**
