@@ -340,4 +340,12 @@ Uppstartsskarmarna i MiniPrisTaget, Bankomat 2.0, Elbilsladdning, CarAdvice och 
 - **VARNING om deployen:** en commit som inte ar grenens topp kan betyda att Renders autodeploy fastnat. Ar skillnaden kvar tva natter i rad: LARM.
 - Vakten sjalv ar `scripts/` och andras aldrig av rutinen (ramarna rad 2). Provet ar `node src/test/js/splash-vakt-prov.js`.
 
+=== 15. VERSIONSKOLLEN - den 1:a varje manad (sedan 2026-11-10) ===
+Ligger nagot av de tolv projekten efter senaste stabila version av sina beroenden? Bara den natt da `date` (rad 23) ger dag 01 - alla andra natter hoppar du over avsnittet.
+- **KOR:** `node scripts/versionskoll.js` (bara GET: byggfilerna fran raw.githubusercontent.com, versionerna fran repo1.maven.org och registry.npmjs.org). Forhandsversioner (RC, M, beta, ea, -jdk5) raknas aldrig. Exitkod 3 = inget register gick att na: skriv "Versionskollen: registren nas inte fran molnet (Allowed domains?)" under "Vantar pa dig" och inget mer.
+- **UPPGRADERA ALDRIG** - inte ens en patch (ramarna rad 10). Avsnittet ger varken LARM eller KOLLA i sig.
+- **RAPPORTERA** under egen rubrik **Versionskollen**: summaraden och tabellen ordagrant, samma tabell i loggboken. Under "Vantar pa dig" en rad: "N beroenden efter, varav major: <namn>".
+- **CONTEXT7 FOR VAD SOM ANDRATS, ALDRIG FOR VERSIONEN:** for varje MAJOR, och for spring-boot-starter-parent vid minor, sla upp brytande andringar och migreringsguiden med context7 (`resolve-library-id`, sedan `query-docs`). Saknas context7-verktygen i sessionen: WebFetch projektets release-sida pa GitHub. Skriv en rad per beroende: vad som bryts, och om CarAdvice anvander det (grep i koden; for andra repon skriv "ej kontrollerat"). Ta aldrig "senaste version" fran context7 - dess listor ligger efter (2026-11-10: Spring Boot 4.1.0 dar, 4.1.2 pa Maven Central).
+- Skriptet ar `scripts/` och andras aldrig av rutinen (ramarna rad 2). Provet ar `node src/test/js/versionskoll-prov.js`.
+
 === SLUT PA NATTRUTINEN ===
