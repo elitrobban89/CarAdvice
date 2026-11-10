@@ -20,6 +20,11 @@
   januari–oktober (Allt om Elbil 2026-11-07) och Europa i september, 300 202 elbilar och
   +70 % (M3/Reuters 2026-10-20). Skriv dem inte en gång till. November kommer från Mobility
   Sweden omkring 2026-12-01.
+- **Elbilsandelen sköts nu av koden (gren feature/elbilsandel-automatiskt).** ⚡-raden om
+  oktober är borttagen ur laddtips.json. CarAdvice läser andelen ur rapportens ark "PB -
+  Drivmedel" och lägger den själv i `/api/laddtips`, daterad 2026-11-01. Rutinen ska aldrig
+  skriva en egen elbilsandelsrad (står i nattrutin.md under MARKNADSFAKTA). **Att kolla
+  2026-12-02–04:** `/api/laddtips` ska visa "I november 2026 var …" och inte längre oktober.
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 UTC inom
 fönstret vintertid, deploy 818c6f5 matchar origin/master, Groq 3/3, AVVIKER 0 i

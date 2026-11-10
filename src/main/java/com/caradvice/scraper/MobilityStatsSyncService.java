@@ -119,6 +119,8 @@ public class MobilityStatsSyncService {
             if (insights.isEmpty()) return Map.of("status", "ERROR", "error", "Inga rader kunde tolkas ur " + xlsxUrl);
             Elbilsranking ranking = parseElbilsranking(xlsx);
             if (ranking != null) cachaRanking(ranking);
+            Drivmedelslage lage = parseDrivmedel(xlsx);
+            if (lage != null) drivmedelCache = lage;
 
             insightService.deleteByExpert(EXPERT_NAME);
             insights.forEach(insightService::save);
@@ -294,7 +296,13 @@ public class MobilityStatsSyncService {
         if (cachad != null && System.currentTimeMillis() - rankingCachadVid < RANKING_TTL.toMillis()) return cachad;
         try {
             String xlsxUrl = findLatestReportUrl();
-            Elbilsranking ny = xlsxUrl == null ? null : parseElbilsranking(download(xlsxUrl));
+            byte[] xlsx = xlsxUrl == null ? null : download(xlsxUrl);
+            Elbilsranking ny = xlsx == null ? null : parseElbilsranking(xlsx);
+            if (xlsx != null) {
+                // Samma fil bär drivmedelsarket: en nedladdning räcker för båda.
+                Drivmedelslage lage = parseDrivmedel(xlsx);
+                if (lage != null) drivmedelCache = lage;
+            }
             if (ny != null) {
                 cachaRanking(ny);
                 return ny;
@@ -325,6 +333,113 @@ public class MobilityStatsSyncService {
                 ut.add(new RankingRad(ut.size() + 1, displayName(r.rawName()), r.ytd()));
             }
             return new Elbilsranking(periodRange(period), "Mobility Sweden", List.copyOf(ut));
+        }
+    }
+
+    // ── Elbilsandelen till elbilsassistentens karusell (2026-11-10) ───────────
+
+    /**
+     * Månadens drivmedelsfördelning ur arket "PB - Drivmedel": antal elbilar, laddhybrider och
+     * alla personbilar för månaden, samma månad i fjol och hittills i år.
+     *
+     * <p>Andelarna räknas här ur antalen i stället för att läsas ur rapportens procentceller:
+     * antalen är det rapporten faktiskt mäter, och 12 594 / 24 660 går att stämma av för hand
+     * mot pressmeddelandets "51 procent" (oktober 2026).
+     *
+     * @param period "oktober 2026"
+     */
+    public record Drivmedelslage(String period, int el, int laddhybrid, int totalt,
+                                 int elIFjol, int totaltIFjol, int elHittills, int totaltHittills) {
+
+        static int procent(int del, int helhet) {
+            return helhet <= 0 ? 0 : (int) Math.round(100.0 * del / helhet);
+        }
+
+        /** "I oktober 2026 var **51 %** av Sveriges nya personbilar elbilar, upp från 36 % …" */
+        public String text() {
+            int nu = procent(el, totalt), fjol = procent(elIFjol, totaltIFjol);
+            String jamfort = nu > fjol ? "upp från " + fjol + " %" : nu < fjol ? "ned från " + fjol + " %" : "samma som";
+            return "I " + period + " var **" + nu + " %** av Sveriges nya personbilar elbilar, " + jamfort
+                    + " ett år tidigare, medan laddhybriderna låg på " + procent(laddhybrid, totalt) + " %. "
+                    + "Hittills i år ligger elbilsandelen på **" + procent(elHittills, totaltHittills) + " %**.";
+        }
+
+        /** Rapporten släpps i början av månaden efter: oktober 2026 → 2026-11-01. */
+        public LocalDate datum() {
+            String[] d = period.split(" ");
+            return LocalDate.of(Integer.parseInt(d[1]), MONTHS.indexOf(d[0]) + 1, 1).plusMonths(1);
+        }
+    }
+
+    static final String SHEET_DRIVMEDEL = "PB - Drivmedel";
+
+    private volatile Drivmedelslage drivmedelCache;
+    private final java.util.concurrent.atomic.AtomicBoolean drivmedelHamtas = new java.util.concurrent.atomic.AtomicBoolean();
+
+    /**
+     * Senast lästa drivmedelsläget, eller {@code null}. Blockerar aldrig: är det inte hämtat,
+     * eller äldre än tolv timmar, hämtas rapporten i bakgrunden och nästa anrop får svaret.
+     * Laddtipsen anropar den för varje besök, och de får inte vänta på en 600 kB-fil från
+     * Mobility Sweden.
+     */
+    public Drivmedelslage drivmedelslage() {
+        Drivmedelslage lage = drivmedelCache;
+        if (lage == null || System.currentTimeMillis() - rankingCachadVid >= RANKING_TTL.toMillis()) hamtaIBakgrunden();
+        return lage;
+    }
+
+    /**
+     * Fyller cachen direkt vid uppstart, så att karusellen inte står utan raden efter en deploy.
+     * Bara på Render (env RENDER, samma vakt som NattkedjanVakt): lokalt och i proven ska en
+     * uppstart inte gå ut mot mobilitysweden.se.
+     */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    void hamtaVidUppstart() {
+        if (System.getenv("RENDER") != null) hamtaIBakgrunden();
+    }
+
+    private void hamtaIBakgrunden() {
+        if (!drivmedelHamtas.compareAndSet(false, true)) return;
+        Thread.ofVirtual().name("mobility-drivmedel").start(() -> {
+            try {
+                elbilsranking();   // laddar ner rapporten och fyller båda cacharna
+            } finally {
+                drivmedelHamtas.set(false);
+            }
+        });
+    }
+
+    /**
+     * Läser "PB - Drivmedel". Kolumnerna letas upp på rubrikraden ("Antal", "SPLY", "YTD", den
+     * första av varje - samma rubriker upprepas längre till höger för andelarna) och raderna på
+     * etiketterna "EL", "Laddhybrid" och "Totalt". Saknas något: {@code null}, aldrig en gissning.
+     */
+    static Drivmedelslage parseDrivmedel(byte[] xlsx) throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet s = wb.getSheet(SHEET_DRIVMEDEL);
+            if (s == null) return null;
+            String period = findPeriod(s);
+            Integer colAntal = null, colSply = null, colYtd = null;
+            Row el = null, laddhybrid = null, totalt = null;
+            for (Row row : s) {
+                for (Cell c : row) {
+                    if (c.getCellType() != CellType.STRING) continue;
+                    String v = c.getStringCellValue().trim();
+                    if (colAntal == null && v.equals("Antal")) colAntal = c.getColumnIndex();
+                    else if (colSply == null && v.equals("SPLY")) colSply = c.getColumnIndex();
+                    else if (colYtd == null && v.equals("YTD")) colYtd = c.getColumnIndex();
+                    else if (el == null && v.equalsIgnoreCase("EL")) el = row;
+                    else if (laddhybrid == null && v.equalsIgnoreCase("Laddhybrid")) laddhybrid = row;
+                    else if (totalt == null && v.equalsIgnoreCase("Totalt")) totalt = row;
+                }
+                if (totalt != null) break;   // under totalraden börjar månadstabellerna
+            }
+            if (period == null || colAntal == null || colSply == null || colYtd == null
+                    || el == null || laddhybrid == null || totalt == null) return null;
+            Integer[] t = {intAt(el, colAntal), intAt(laddhybrid, colAntal), intAt(totalt, colAntal),
+                    intAt(el, colSply), intAt(totalt, colSply), intAt(el, colYtd), intAt(totalt, colYtd)};
+            if (Arrays.stream(t).anyMatch(java.util.Objects::isNull) || t[2] <= 0 || t[6] <= 0) return null;
+            return new Drivmedelslage(period, t[0], t[1], t[2], t[3], t[4], t[5], t[6]);
         }
     }
 
