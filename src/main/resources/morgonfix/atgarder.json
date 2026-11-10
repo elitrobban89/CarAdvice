@@ -1,7 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-09", "typ": "radera", "id": 2070, "skal": "ANEKDOT: beskriver ETT specifikt exemplars miltal (4 400 mil sedan 2012) och servicehistorik (CarUp), ingen generell köpuppgift om Saab 9-5 NG. Dold sedan 2026-11-01 (nu >=7 dygn), fortsatt bedömd som skräp enligt samma regel - samma mönster som redan raderade 1910/1912/1987/2086."},
-    {"datum": "2026-11-09", "typ": "dolj", "id": 2136, "skal": "FELATTRIBUERING: AMS-rubriken lyder \"Världspremiär: Nu blir bästsäljaren VW Tiguan eldriven\" - bästsäljaren är den bensindrivna Tiguan, och ID. Tiguan levereras först i början av 2027. Raden påstår att elversionen redan blivit Sveriges bästsäljande elbil, vilket strider mot Mobility Sweden (Volvo EX40 etta jan-okt 2026, insikt 2139). Användarens beslut 2026-11-09."}
+    {"datum": "2026-11-10", "typ": "parkera", "id": 2178, "skal": "INGA_ANNONSER (0 Blocket-annonser, annonskollen): BYD Yangwang Altior är BYDs kinesiska lyxundermärke, säljs inte i Sverige/Europa. Ny könrad i natt."},
+    {"datum": "2026-11-10", "typ": "dolj", "id": 2175, "skal": "ANEKDOT: beskriver ETT specifikt exemplars (CarUp, Mercedes A180 2013) kosmetiska lackeringsskada under en foliering och dess besiktningsdatum, ingen generell köpuppgift om modellen - samma mönster som redan dolda/raderade 1910/1987/2086/2070/2141/2152."}
   ]
 }
