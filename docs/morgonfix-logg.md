@@ -2,6 +2,15 @@
 
 ## 2026-11-11
 
+**Efter rapporten (för hand samma morgon, gren fix/aviloo-rackvidd):**
+- **2198 (Leaf 40 kWh, "cirka 185 km") är belagd.** Siffran kommer från Aviloo, inte från en
+  felräkning: median-Leafen klarar ungefär 196 km per laddning vid 5 000 mil och 185 km vid
+  15 000 mil. Det är Aviloos verkliga räckvidd. WLTP 270 km × 85,9 % var fel jämförelsebas.
+- **2196 (ID.4, "373 → 355 km") följer samma mönster**, alltså från en tidigare miltalspunkt till
+  15 000 mil och inte från en ny bil. 2195-2199 ligger kvar synliga, och inga åtgärder behövs.
+  Fällan står nu i nattrutin.md under AVGJORDA 11-11.
+- Drift 2b038f2 = origin/master, admin-loggen är tom, CI är grönt (morgonfix #66 automergad 00:59 UTC).
+
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:33 inom
 fönstret vintertid, deploy 3da11a5 matchar origin/master, Groq 3/3, AVVIKER 0
 i vPIC, drivmedel 515/429/86/16 utan flip, 0 LARM i ad-check, splashvakten
