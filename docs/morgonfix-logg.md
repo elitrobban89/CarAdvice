@@ -1,5 +1,161 @@
 # Morgonfix-logg
 
+## 2026-11-11
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:33 inom
+fönstret vintertid, deploy 3da11a5 matchar origin/master, Groq 3/3, AVVIKER 0
+i vPIC, drivmedel 515/429/86/16 utan flip, 0 LARM i ad-check, splashvakten
+grönt), men nattens 14 nya rader kräver dom och en av dem (2198, Leaf 40 kWh)
+har en räckviddssiffra som inte går ihop mot /api/ev-spec - en öppen fråga,
+användaren beslutar.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-11 00:33:56 (inom väntat fönster
+vintertid, 00:15-00:50), status OK. Deployad commit 3da11a5 matchar
+origin/master exakt. Ingen omstart (uptime 25 872 s ≈ 7,2 h, startad
+2026-11-10 18:30 svensk tid, alltså före nattkedjan - kategorivaktens buffert
+spänner över hela natten). ev-specs **uppdaterade 5, nya 0** (varav pris 0,
+räckvidd 4, batteri 1, dc 0, ac 0 - inom referensen, inga hopp, kollisioner
+181 ~ normalt). cargo-specs gav **2 nya bilnamn, 0 av 2 bagagevolymer, 0 av 0
+generationsår**. Allt om Elbil 5 av 5 lästa, CarUp 7 av 12, Vi Bilägare 1 av
+7, Auto Motor & Sport 1 av 6, Teknikens Värld 0 av 1, M3 0 av 5, M Sverige 0
+av 0, Folksam 0 - inga tysta källor som oroar (M3/M Sverige/Folksam tysta
+nätter är normalt).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1843→1845, utanVolym 795→797, medVolym 1048→1048
+(still), **bagageMissar 838→840 (växte)** - KB = 2 av 2 kvar (listan inte
+slut), så enligt domregeln i 3f är "still + VUXIT" **VÄNTAT**, inte
+avvikelse. evPowers 548 (oförändrat, väntat eftersom evSpecs står still).
+iceGenerations 291/missar 19 oförändrat. Kö 57/29 (oförändrat sedan
+baslinjen). Kontrollräkning: cargo total 1845 + evSpecs 657 + ice_consumption
+960 = **3462 = /api/stats variants (3462)** - går ihop exakt. models
+2322→2324 (+2, matchar cargo-specs nya bilnamn), /api/cars 2109→2111 (+2),
+insights 1707→1721 (+14, matchar newInsights). Inget tal har fallit.
+
+**Generationsåren:** total 291, missar 19 (310, stämmer). forsoktDag för alla
+19 är 2026-10-21 (omprövade efter att fönstret stängde 10-20, föll igen),
+dagarKvar 9. 16 vakten-avstod / 3 ej-hittad - det friska utfallet,
+oförändrat.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen, nionde natten i rad utan
+avvikelse.
+
+**Drivmedelsräknaren:** 515/429/86/16, identiskt med referensen. Kontrollerat
+alla 16 manuella rader (5 handsatta ice: Audi A6, Volvo XC40, Porsche Macan,
+Toyota Hilux, Opel Astra; 11 handsatta el: Aiways U5, Alpine A290, Alpine
+A390, Audi e-tron GT, Audi e-tron S, Audi SQ6 e-tron, Audi SQ8 e-tron, BMW
+i7, BMW iX2, BYD Atto 2, BYD Sealion 7) - ingen har flippat.
+
+**Kategorivakten:** totalt 1, iBufferten 1 (uptime ~7,2 h, spänner över
+nattkedjan) - ett utslag: Kia Ceed (web-insights, 2194) fick kategorin
+"smaabil" struken ("kia ceed är ingen småbil") - vakten gjorde sitt jobb,
+inget nytt hål.
+
+**Nattens nya rader (2186-2199, 14 st):**
+- 2186 Kia Stonic (Vi Bilägare) - dubbla däckdimensioner (205/55 R17 vs
+  185/65 R15), 5,4 % skillnad i rullomkrets. Teknisk specuppgift, inte en
+  anekdot. OK.
+- 2187 Polestar 2 (Auto Motor & Sport) - medianannonspriset för begagnade
+  Polestar 2 upp 7 % på ett år, förfrågningar upp 90 %. Svensk
+  begagnatmarknad underförstådd (annonspris, bilhandlare) - ingen
+  marknadsangivelse krävs. OK.
+- 2188-2194 (CarUp): sju per-modell-rader om kolavlagringar på
+  insugsventiler vid direktinsprutning och korta körningar (VW Golf, Honda
+  Civic, Toyota RAV4, Volvo XC60, BMW X3, Audi A4, Kia Ceed) - samma mönster
+  som Safety Coach-klungan 1253-1257: en artikelklunga men äkta
+  per-modell-fakta, ingen dubblett. Kategorierna ser rimliga ut (Ceed
+  tappade sin felaktiga "smaabil", se Kategorivakten). OK.
+- 2195-2199 (Allt om Elbil): fem rader ur en Aviloo-batterihälsostudie
+  (kvarvarande kapacitet efter 15 000 mil) - IONIQ 5 93,4 %, ID.4 90,9 %, Model
+  Y 90,0 %, Leaf (40 kWh) 85,9 %, EQA 94,0 %. **2198 (Leaf 40 kWh) har en
+  räckviddssiffra som inte går ihop:** bilen finns som egen rad i databasen
+  ("Nissan Leaf 40 kWh", /api/ev-spec → wltpKm 270), och 85,9 % av 270 km blir
+  232 km - insikten påstår "cirka 185 km" (47 km, ~20 % lägre än beräknat).
+  **FYND, inte åtgärdat** - jag gissar inte orsaken (fel % i originalstudien,
+  AI-extraktionsfel, eller en annan basnivå än WLTP) och har inte dolt eller
+  ändrat raden. **2196 (ID.4) har en mindre avvikelse i samma stil:** texten
+  själv säger "373 km → 355 km" vid 90,9 % kvar, men 373 × 0,909 = 339 km, inte
+  355 km (16 km, ~5 %) - ingen exakt DB-match för "373 km"-baslinjen (varken
+  dagens ID.4 på 574 km eller ID.4 Pro 77 kWh på 481 km), så svagare fynd,
+  skrivs ut i alla fall. **2195 (IONIQ 5) och 2197 (Model Y) går inte att
+  belägga mot ev_spec** - ursprungsräckvidden/batteristorleken för
+  Aviloo-mätningen anges inte i texten, och ingen DB-rad matchar de
+  implicita värdena. **2199 (EQA) anger ingen räckvidd**, bara kapacitet -
+  inget att kontrollera.
+
+**Övriga rader i fönstret (2150-2185):** inga nya iakttagelser utöver det som
+redan står i loggen för tidigare nätter (bl.a. 2175 dold 2026-11-10, 2178
+parkerad 2026-11-10, Mazda-testet 2179/2182, Tucson/XC70/Bayon/Pajero/
+Santa Fe redan bedömda via Kommandevakten nedan).
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder i den strikta meningen (2187 är
+marknadspris, inte en av de fem kategorierna). Letade efter motsatsen
+(utländsk siffra utan marknad) - hittade ingen ny sådan.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget nytt
+underlag för en ren skatterad eller ett renoveringsobjekt i natt. Inget nytt
+om avvecklade modeller.
+
+**Uppföljning gårdagens åtgärder:** `/api/admin/morgonfix-atgarder` visar
+2026-11-10|dolj|2175 → "dold" och 2026-11-10|parkera|2178 → "parkerad" - båda
+klara, inget FEL.
+
+**Dolda rader (uppföljning, ingen har nått 7 dygn):** 2175 (~1,0 dygn), 2152
+(~4,7 dygn), 2141 (~5,9 dygn), 2136 (~1,7 dygn). Ingen radering i natt.
+
+**Kommandevakten:** 57 rader / 29 bilar, oförändrat sedan baslinjen (ingen ny
+könrad i natt). Ad-check: **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 20
+INGA_ANNONSER**. Alla rader är sedan tidigare kända och bedömda (Pajero,
+Santa Fe, Tucson, XC70, Bayon, BMW i3, Range Rover/Range Rover Sport, Mazda
+6e, Ioniq 7/4, Lynk & Co 10, iX5 Hydrogen, C-klass/C-klass Electric, XC100,
+ID.3 GTI, Kicks, PV7, Yangwang Altior, ID.Unyx 09, Chery Lepas L6/L8, BYD
+Seagull, MG Go!, Honda 0 Alpha, BYD Atto 8, Ioniq 7/4, 7-serie, Range Rover
+Sport Electric) - inget nytt avgörande krävs. **Beslut i natt: inga** - ingen
+ny LARM-rad och ingen ny könrad.
+
+**Marknadsregeln:** ingen aktiv sökning efter nya ej-i-Sverige-märken gjord i
+natt utöver vad som redan täcks av Kommandevakten; inget nytt fynd.
+
+**Splashvakten:** grönt på alla sex appar ("Dom: splasharna stämmer") - inga
+LARM eller VARNING, bara väntade INFO-rader hos Elbilsladdning
+(Blocket/Elbilsvaruhuset/API Ninjas/YouTube/Pressflöden/Chargeprice/NOBIL
+bakom andra rader).
+
+**Laddtipsen:** inga nya i natt - natten saknar en ren laddnings-/
+batteri-/räckvidds-/laddpriskandidat jag kan belägga (Aviloo-raderna 2195-
+2199 har just den belagda siffra-osäkerhet som gör dem olämpliga som
+publika tips).
+
+**46 av fönstrets 50 rader bra** (2136, 2141, 2152, 2175 sedan tidigare
+dolda - inget nytt dolt i natt). **13 av 14 bra i natt** räknat strikt (2198
+har en obelagd siffra men är inte dold - ANVÄNDAREN BESLUTAR). Inga
+raderingsförslag. Högsta id i fönstret: 2199.
+
+**Morgonfixen:** `git checkout -B auto/morgonfix origin/master` (grenen
+fanns inte, ingen öppen PR - `git ls-remote --heads origin` visade ingen
+morgonfix-gren). Inga kodfixar - inget entydigt vakthål eller parserfel i
+fönstret i natt. **atgarder.json skriven om till en tom lista** (`"atgarder":
+[]`) - inga köbeslut i natt (0 LARM i ad-check, ingen ny könrad, ingen
+anekdot/skatterad/renoveringsobjekt i de 14 nya raderna). Ej måndag
+(laddpriser hoppas över). Bygge `mvn -q -DskipTests package` grönt, `mvn -q
+test` (hela sviten) grönt, riktad `MorgonfixAtgarderTest` grön mot den tomma
+listan.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter att
+rapporten var klar. Kontrollräkning 3462/3462 går ihop. models 2322→2324,
+variants 3460→3462, /api/cars 2109→2111 (väntat, cargo-specs gav 2 nya
+bilnamn). insights 1707→1721 (+14, alla nattens rader - ingen dold i natt).
+hogstaInsiktsId 2185→2199. ko 57/29 (oförändrad). kategorier: suv 759→767
+(+8), smaabil 267→270 (+3), familjebil 301→302 (+1), tom 194→195 (+1), elbil
+173→174 (+1), laddhybrid 13 (oförändrad) - summan av ändringarna (14) stämmer
+exakt mot nattens 14 nya rader (suv: 2186/2190/2191/2192/2195/2196/2197/2199,
+smaabil: 2188/2193/2198, familjebil: 2189, elbil: 2187, tom: 2194) - ingen
+bakgrundsreklassificering att förklara i natt.
+
 ## 2026-11-10
 
 **Efter rapporten (för hand samma morgon, gren fix/baslinje-radering-2070):**
