@@ -1,7 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {"datum": "2026-11-10", "typ": "parkera", "id": 2178, "skal": "INGA_ANNONSER (0 Blocket-annonser, annonskollen): BYD Yangwang Altior är BYDs kinesiska lyxundermärke, säljs inte i Sverige/Europa. Ny könrad i natt."},
-    {"datum": "2026-11-10", "typ": "dolj", "id": 2175, "skal": "ANEKDOT: beskriver ETT specifikt exemplars (CarUp, Mercedes A180 2013) kosmetiska lackeringsskada under en foliering och dess besiktningsdatum, ingen generell köpuppgift om modellen - samma mönster som redan dolda/raderade 1910/1987/2086/2070/2141/2152."}
-  ]
+  "atgarder": []
 }
