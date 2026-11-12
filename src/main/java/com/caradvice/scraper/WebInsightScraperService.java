@@ -912,7 +912,10 @@ public class WebInsightScraperService {
                 Thread.sleep(FETCH_DELAY_MS);
                 String text = fetchPageText(url);
                 if (text.length() < MIN_TEXT_CHARS) {
-                    log.debug("Web insights [{}]: för lite text ({} tecken): {}", source.expert(), text.length(), url);
+                    // INFO, inte DEBUG: en kasserad artikel ska synas i produktionsloggen, annars
+                    // går det inte att se varför en källa gav noll rader. Markeras som sedd.
+                    log.info("Web insights [{}]: kasserad, för lite text ({} tecken, minst {}): {}",
+                            source.expert(), text.length(), MIN_TEXT_CHARS, url);
                     markSeen(url);
                     continue;
                 }
@@ -922,6 +925,10 @@ public class WebInsightScraperService {
                     log.warn("Web insights [{}]: ingen extraktion (Groq svarade inte) — {} lämnas för nästa körning",
                             source.expert(), url);
                 } else {
+                    // Varje läst artikel får en rad, även när Groq inte gav något — då är det
+                    // annars tyst att artikeln lästes och föll bort.
+                    log.info("Web insights [{}]: {} tecken, {} rader från Groq: {}",
+                            source.expert(), text.length(), found.size(), url);
                     collected.addAll(found);
                     extracted.add(url);
                 }
