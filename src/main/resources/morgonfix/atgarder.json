@@ -1,4 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-11-12", "typ": "dolj", "id": 2201, "skal": "FEL BIL: 2201 (BMW i3, smaabil) har samma laddrekord som 2200 (i3 50 xDrive, 5 886,7 km / 275 kW / 2h45min) men saknar 50 xDrive-suffixet och hamnar pa den klassiska i3:an. Kalla: 2200 och 2201 ur samma artikel (M3), beslut av anvandaren 11-12"}
+  ]
 }
