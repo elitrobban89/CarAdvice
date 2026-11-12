@@ -1,5 +1,51 @@
 # Morgonfix-logg
 
+## 2026-11-12
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:33 inom
+fönstret vintertid, deploy cfd17a2 matchar origin/master, Groq 3/3, AVVIKER 0
+i vPIC, drivmedel utan flip, 0 LARM i ad-check, splashvakten grönt), men
+nattens 7 nya rader kräver dom, Teknikens Värld gav noll rader två nätter i
+rad (trolig överblockering), och 2200/2201 om samma BMW-laddrekord verkar ha
+knutits till olika bilrader - användaren beslutar.
+
+**Fynd (ingen kodändring i natt, inget var tillräckligt belagt för en fix):**
+- **Teknikens Värld:** 0 av 2 lästa ikväll, 0 av 1 igår - två nätter i rad
+  med noll nya rader trots lästa artiklar. Sökt "hoppar over batchen" i
+  Render-loggen (0 träffar, iBufferten 34/500, inget har fallit ur) - ingen
+  förklarande rad hittades. Håll koll en natt till.
+- **ev-specs:** 38 uppdaterade (väntat 0-25), nästan uteslutande räckvidd
+  (35 av 38, inte pris) - inget tal föll och inget larmvillkor är uppfyllt,
+  men det är den typ av hopp 1b ber om extra uppsikt på.
+- **2201 (BMW i3, kategori "småbil"):** beskriver med stor sannolikhet SAMMA
+  laddningsrekord som 2200 (BMW i3 50 xDrive, 5 886,7 km / 275 kW / 2h45min),
+  men saknar "50 xDrive"-suffixet och har därför hamnat på den klassiska
+  308 km-i3:an - uppenbarligen fel bil för de siffrorna. Ser ut som en
+  namnmatchning som tappat trimsuffixet för en av två rader ur samma
+  artikel. Inte ändrad eller dold - jag kan inte belägga orsaken utan
+  källartikeln, och en gissning är dyrare än att låta frågan stå öppen.
+
+**Laddtips i natt: 1.** 2200 (BMW i3 50 xDrive, M3) kontrollerades mot
+/api/ev-spec: 5 886,7 km × 12,5 kWh/100 km = 735,8 kWh ≈ 108,7 kWh-batteriet
+× 6,77 - går ihop med 275 kW snittladdning under 400 kW-taket och 165 min
+total laddtid. Internt konsekvent, skrivet i laddtips.json (⚡, insikt 2200).
+`LaddtipsServiceTest` (13/13, inkl. `verkligaFilenArGiltig`): grönt.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter
+rapporten - kontrollräkning 3482/3482, går ihop.
+
+**Köbeslut:** inga. Ad-check gav 0 LARM, 57/29 rader/bilar oförändrat sedan
+baslinjen - atgarder.json lämnad som `{"atgarder": []}`. De fyra dolda
+raderna (2175, 2152, 2141, 2136) når ingen 7 dygn förrän tidigast ikväll
+(2141 blir 7 dygn 2026-11-12 01:57, dvs efter den här körningens start) -
+ingen radering i natt, tas upp nästa natt.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=LaddtipsServiceTest test` grönt
+(13 tester). `mvn -q -DskipTests package` grönt.
+
+Drift: cfd17a2 = origin/master, inga reverts i de senaste 50 commits,
+ingen öppen morgonfix-PR att flytta.
+
 ## 2026-11-11
 
 **Efter rapporten (för hand samma morgon, gren fix/aviloo-rackvidd):**
