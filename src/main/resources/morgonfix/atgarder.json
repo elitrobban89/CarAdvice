@@ -1,6 +1,11 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-12", "typ": "dolj", "id": 2201, "skal": "FEL BIL: 2201 (BMW i3, smaabil) har samma laddrekord som 2200 (i3 50 xDrive, 5 886,7 km / 275 kW / 2h45min) men saknar 50 xDrive-suffixet och hamnar pa den klassiska i3:an. Kalla: 2200 och 2201 ur samma artikel (M3), beslut av anvandaren 11-12"}
+    {"datum": "2026-11-13", "typ": "slapp", "id": 2212, "skal": "PROMPTMISS i UPCOMING_PROMPT: Volvo XC60 laddhybrid årsmodell 2027 är redan köpbar (XC60 laddhybrid säljs i Sverige sedan länge). Raden beskriver bara en mjukvaru-/appfunktion (elförbrukning saknas i körjournalen, kommer 'inom kort') under samma modellnamn - exakt det UPCOMING_PROMPT självt kallar KÖPBAR ('mjukvara ... under samma modellnamn'). Inget framtida leveransdatum för bilen nämns."},
+    {"datum": "2026-11-13", "typ": "parkera", "id": 2213, "skal": "ARSMODELLSREGELN: ny prestandaversion av Peugeot E-208 GTi, texten säger själv att leveranserna beräknas börja våren 2027 (525 000 kr) - skiljer sig från redan sålda bas-GTi (insikt 1715, släppt 10-27, ev_spec 483 000 kr, inget framtida datum). Ad-check: INGA_ANNONSER (0 Blocket-annonser)."},
+    {"datum": "2026-11-13", "typ": "parkera", "id": 2214, "skal": "Samma rad/klunga som 2213/2215/2217 (Peugeot E-208 GTi prestandaversion, säljstart våren 2027) - ARSMODELLSREGELN, 0 Blocket-annonser."},
+    {"datum": "2026-11-13", "typ": "parkera", "id": 2215, "skal": "Samma rad/klunga som 2213/2214/2217 (Peugeot E-208 GTi prestandaversion) - texten säger själv 'leveranserna beräknas börja våren 2027', ARSMODELLSREGELN."},
+    {"datum": "2026-11-13", "typ": "parkera", "id": 2217, "skal": "Samma rad/klunga som 2213/2214/2215 (Peugeot E-208 GTi prestandaversion, säljstart våren 2027) - ARSMODELLSREGELN, 0 Blocket-annonser."},
+    {"datum": "2026-11-13", "typ": "radera", "id": 2141, "skal": "ANEKDOT om ETT fordons motorfel (Vi Bilägare, Renault Zoe) - dold sedan 2026-11-05 (≥7 dygn), fortsatt bedömd som skräp enligt samma regel som 1910/1987/2086/2070/2152."}
   ]
 }

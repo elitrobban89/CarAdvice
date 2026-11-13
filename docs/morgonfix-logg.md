@@ -1,5 +1,53 @@
 # Morgonfix-logg
 
+## 2026-11-13
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:36 inom
+fönstret vintertid, deploy c697533 matchar origin/master, Groq 3/3 exakt
+referensen, AVVIKER 0 i vPIC, drivmedel 525/439/86/16 utan flip, kontrollräkning
+3487/3487, splashvakten grönt - "splasharna stämmer"), men nattens 13 nya rader
+kräver dom och två av dem är PROMPTMISS/ARSMODELLSREGELN-fall i kommande-kön
+som krävde ett köbeslut.
+
+**Köbeslut i natt (atgarder.json):**
+- **2212 (Volvo XC60 laddhybrid, slapp):** PROMPTMISS i UPCOMING_PROMPT - raden
+  beskriver bara en mjukvaru-/appfunktion ("visar för närvarande ingen
+  elförbrukning ... kommer att finnas i appen inom kort") på en bil som redan
+  säljs i Sverige under samma modellnamn. UPCOMING_PROMPT definierar själv
+  "mjukvara ... under samma modellnamn" som KÖPBAR. Inget framtida
+  leveransdatum för bilen nämns - prompten rättas INTE (förbjudet enligt
+  9c/ramarna), bara köbeslutet.
+- **2213, 2214, 2215, 2217 (Peugeot E-208 GTi, "prestandaversion", parkera):**
+  raden säger själv "leveranserna beräknas börja våren 2027" (525 000 kr) -
+  skiljer sig från den redan sålda bas-GTi:n (insikt 1715, släppt 10-27,
+  ev_spec 483 000 kr/50,8 kWh/107 kW, inget framtida datum). ARSMODELLSREGELN:
+  utskriven framtida säljstart håller kvar parkeringen. Ad-check: INGA_ANNONSER
+  (0 Blocket-annonser) stämmer med att det är en ännu ej lanserad variant.
+- **2141 (Renault Zoe, radera):** ANEKDOT om ETT fordons motorfel (Vi Bilägare),
+  dold sedan 2026-11-05 (≥7 dygn), fortsatt bedömd som skräp enligt samma regel
+  som 1910/1987/2086/2070/2152. 2152 (dold 2026-11-06) är ännu inte 7 dygn -
+  tas upp nästa natt.
+
+**Övriga nya rader (8 st) bedömda i rapporten:** inga kategorifel, inga
+PROMPTMISS. Peugeot E-208 GTi (smaabil) och Volvo V70 R (familjebil,
+Carbuzz-källa med attribution) är avsiktliga, befintliga gränsdragningar -
+inga ändringar föreslagna.
+
+**Laddtips i natt: 1.** 2216 (Mercedes GLA 250+, Auto Motor & Sport)
+kontrollerades mot /api/ev-spec ("Mercedes-Benz GLA 250+"): 85,0 kWh batteri
+(exakt), WLTP 657 km mot radens 656 km (ihop), maxDcKw 353 mot radens
+uppmätta 320 kW (plausibel laddkurva under toppeffekt, ingen avvikelse).
+Skrivet i laddtips.json. `LaddtipsServiceTest` grönt.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt.
+`mvn -q test` (hela sviten): **1277 tester, 0 fel, 0 failures.**
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter
+rapporten - kontrollräkning 3487/3487, går ihop.
+
+Drift: c697533 = origin/master, inga reverts i de senaste 15 commits, ingen
+öppen morgonfix-PR att flytta.
+
 ## 2026-11-12
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:33 inom
