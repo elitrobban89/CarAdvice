@@ -1,5 +1,48 @@
 # Morgonfix-logg
 
+## 2026-11-14
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 inom
+fönstret vintertid, deploy ca87499 matchar origin/master, Groq 3/3 exakt
+referensen, AVVIKER 0 i vPIC, drivmedel 525/439/86/16 utan flip, kontrollräkning
+3490/3490 går ihop, 0 ERROR i loggbufferten, 0 LARM i ad-check, splashvakten
+grönt - "splasharna stämmer"), men nattens 6 nya rader kräver dom och en
+hidden rad blev gammal nog för radering.
+
+**Köbeslut i natt (atgarder.json):**
+- **2152 (Renault Zoe, radera):** FELATTRIBUERING - Allt om Elbils krönika
+  2026-11-05 om elbilar i allmänhet ("elbilar som kan köra över 80 mil på en
+  laddning") felaktigt knuten till Zoe (ev_spec 395 km WLTP). Dold sedan
+  2026-11-06 (nu ≥7 dygn), fortsatt bedömd som skräp enligt samma regel som
+  1910/1987/2086/2070/2141. De tre övriga dolda raderna (2201 sedan 11-12,
+  2175 sedan 11-10, 2136 sedan 11-09) är inte 7 dygn än.
+
+**Övriga nya rader (5 st) bedömda i rapporten:** inga kategorifel utöver det
+kategorivakten själv rättade (3 Audi RS4-rader som felaktigt fick
+"familjebil", strippade till tom kategori - vakten gjorde sitt jobb, ingen
+ny lucka). Inga PROMPTMISS, inga nya kommande-kö-kandidater. Ad-check (0
+LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 21 INGA_ANNONSER på 61 rader/30 bilar)
+matchar tidigare avgjorda fall rad för rad - Peugeot E-208 GTi (parkerad
+2026-11-13) har korrekt 0 Blocket-annonser.
+
+**Laddtips i natt: 1.** 2220 (Volvo EX60, Vi Bilägare, AC-laddförlust 4,7 %)
+kontrollerat mot /api/ev-spec: bilen finns (112 kWh, 22 kW AC, 810 km WLTP),
+ingen siffra i raden motsäger specen. Ingen dubblett i laddtips.json eller
+ev-app.js (befintlig EX60-rad från 10-22 gäller räckviddstest, inte
+laddförlust). Skrivet i laddtips.json. `LaddtipsServiceTest` grönt.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=MorgonfixAtgarderTest,LaddtipsServiceTest test`
+grönt (24 tester). `mvn -q -DskipTests package` grönt. (Första `mvn`-körningen
+i den här containern fick 429 från Maven Central på några transitiva
+beroenden - löst med `mvn -U dependency:go-offline` en gång; ingen kodfråga.)
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter
+rapporten - kontrollräkning 3490/3490, går ihop. Kategorisumman (1745)
+matchar insights-totalen både i gamla och nya baslinjen.
+
+Drift: ca87499 = origin/master, inga reverts i de senaste 15 commits, ingen
+öppen morgonfix-PR att flytta.
+
 ## 2026-11-13
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:36 inom
