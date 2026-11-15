@@ -1,6 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {"datum": "2026-11-14", "typ": "radera", "id": 2152, "skal": "FELATTRIBUERING: Allt om Elbils krönika 2026-11-05 om elbilar i allmänhet ('elbilar som kan köra över 80 mil på en laddning') felaktigt knuten till Renault Zoe (ev_spec 395 km WLTP) - dold sedan 2026-11-06 (≥7 dygn), fortsatt bedömd som skräp enligt samma regel som 1910/1987/2086/2070/2141."}
-  ]
+  "atgarder": []
 }
