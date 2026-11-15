@@ -1,5 +1,117 @@
 # Morgonfix-logg
 
+## 2026-11-15
+
+**Veckan (söndag):** sju nätter i rad (11-08 till 11-14) dömdes KOLLA, ingen
+LARM, ingen revert på master (`git log origin/master` senaste veckan - inga
+"Revert morgonfix"-commits). Köbeslut veckan: 5 parkera (2178, 2213, 2214,
+2215, 2217), 3 dolj (2136, 2175, 2201), 3 radera (2070, 2141, 2152), 1 slapp
+(2212) - inget "FEL" eller "ej raderad" i `/api/admin/morgonfix-atgarder`.
+Regeländringar i docs/nattrutin.md: ingen den här veckan. Inget väntar på en
+människa - ingen fast PR, inget olöst LARM.
+
+**DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:17-00:27 UTC
+inom fönstret vintertid, deploy c73de85 matchar origin/master, Groq 3/3 exakt
+referensen, AVVIKER 0 i vPIC - tionde natten i rad, drivmedel 525/439/86/16
+utan flip, kontrollräkning 3490/3490 går ihop, 0 LARM i ad-check,
+splashvakten grönt), men nattens 4 nya rader kräver dom - det ger KOLLA.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-15 00:27:15 (inom väntat fönster
+vintertid), status OK, ingen omstart (uptime 85 036 s ≈ 23,6 h). Deployad
+commit c73de85 matchar origin/master exakt. ev-specs **uppdaterade 5, nya 0**
+(varav pris 0, räckvidd 4, batteri 1, dc 0, ac 0 - inom referensen, inga
+hopp; kollisioner 175 ~ normalt). cargo-specs gav **0 nya bilnamn, 0 av 0
+bagagevolymer, 0 av 0 generationsår** - KB/KG = 0 (arbetslistorna fortsatt
+slut sedan svepet avslutades), så enligt undantaget i 3f är stillestånd OK,
+inte avvikelse. Teknikens Värld 0 av 2 lästa, Vi Bilägare 0 av 1 - en natt,
+ingen överblockering ännu (kräver två i rad).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1860 (still), utanVolym 801 (still), medVolym
+1059 (still), bagageMissar 846 (still) - KB=0/KG=0 så "still + oförändrad"
+är OK enligt undantaget i 3f, inte en avvikelse. evPowers 561 (still,
+väntat). iceGenerations 291/missar 19 (310, stämmer); forsoktDag för alla 19
+är nu 2026-10-21 (omprövade när fönstret stängde, föll igen), dagarKvar 5.
+Kö 61/61 rader, 30/30 bilar - oförändrat sedan baslinjen. Kontrollräkning:
+cargo total 1860 + evSpecs 670 + ice_consumption 960 = **3490 = /api/stats
+variants (3490)** - går ihop exakt. models 2346 (still), insights 1745→1748
+(+4 nattens rader, −1 för gårdagens radera av 2152 - går ihop). Inget tal
+har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 525/439/86/16, identiskt med referensen. Kontrollerat
+alla 16 manuella rader (5 handsatta ice, 11 handsatta el) - ingen har
+flippat.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime 23,6 h, spänner över hela
+nattkedjan) - inga utslag sedan senaste omstarten, inte ett tecken på att
+vakten är trasig.
+
+**Nattens nya rader (2226-2229, 4 st):** CarUp, alla reliabilitets-/
+servicefakta. 2226 Range Rover P440e (styrenhet i högvoltsbatteriet,
+~3000 kr reparation) suv - OK. 2227 Audi SQ5 (oljenivåökning vid
+kortkörning, samma mönster som andra TFSI/TDI-rader) suv - OK. 2228 BMW i3
+(82,5 % batterikapacitet kvar efter 33 200 mil/~10 år) smaabil - OK,
+siffran är rimlig för den klassiska i3:an (37,9 kWh, WLTP 308 km). 2229 Audi
+A6 (bensin i oljan vid korta vinterkörningar, servicebulletin) familjebil -
+OK. Inga kategorifel, inga PROMPTMISS, inga nya kommande-kö-kandidater.
+
+**Övriga rader i fönstret (2180-2225):** inga nya fynd utöver det som redan
+står i loggen. Dubbelkollade 2200/2201 (BMW-laddrekordet) mot ev-spec igen -
+2200 (i3 50 xDrive) stämmer internt (5 886,7 km × 12,5 kWh/100 km ≈ 108,7
+kWh-batteriet × 6,77), 2201 (klassiska i3) är redan dold sedan 2026-11-12 av
+samma skäl jag själv kom fram till innan jag läste loggen - inget nytt att
+göra. Inget nytt om Mercedes GLA 250+ (2216, fortfarande inte i ev_spec,
+redan laddtips sedan 11-13).
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 61 rader / 30 bilar, oförändrat sedan baslinjen (ingen ny
+könrad i natt). Ad-check: **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 21
+INGA_ANNONSER** - alla rader sedan tidigare kända och bedömda (Tucson-gen5,
+Mazda 6e, Range Rover/Range Rover Sport, Bayon, Pajero, Santa Fe, BMW i3,
+Peugeot E-208 GTi-klungan m.fl.). **Beslut i natt: inga.**
+
+**Marknadsregeln:** ingen aktiv sökning gav nytt fynd utöver vad
+Kommandevakten redan täcker.
+
+**Splashvakten:** grönt på alla sex appar ("Dom: splasharna stämmer") -
+inga LARM eller VARNING, bara väntade INFO-rader hos Elbilsladdning.
+
+**Laddtips i natt: 2.** Från ECOBEST Challenge 2026 (Allt om Elbil),
+tidigare oanvända kandidater ur `/api/admin/ev-fact-candidates`:
+- **2181 (BMW iX3, laddningsförlust 10 %):** 119,6 kWh från laddaren för
+  108,7 kWh-batteriet - matchar `/api/ev-spec` exakt (108,7 kWh).
+- **2182 (Tesla Model Y, 7,77 km/kWh, 466 km i testet):** 12,9 kWh/100 km ×
+  466 km ≈ 60,1 kWh ≈ `/api/ev-spec`s 60 kWh-batteri - går ihop.
+Avstod från 2180 (Kia EV2, batteri 58 kWh i insikten mot 61 kWh i ev_spec -
+troligen brutto/netto, men inte säkert nog för att skriva två osäkra tips
+samma natt) och 2183 (Mercedes CLA, bilen finns inte i ev_spec att stämma
+av mot) - kvar som kandidater nästa natt. `LaddtipsServiceTest` (15/15,
+inkl. `verkligaFilenArGiltig`): grönt.
+
+**Köbeslut i natt:** inga. `atgarder.json` lämnad som `{"atgarder": []}`.
+De tre dolda raderna (2201 sedan 11-12, 2175 sedan 11-10, 2136 sedan 11-09)
+är fortfarande under 7 dygn (äldst 2136, ~5,7 dygn) - ingen radering i natt.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test`
+grönt. `mvn -q -DskipTests package` grönt.
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter
+rapporten - kontrollräkning 3490/3490, går ihop. hogstaInsiktsId 2225→2229.
+
+Drift: c73de85 = origin/master, inga reverts i de senaste 20 commits, ingen
+öppen morgonfix-PR att flytta (grenen fanns inte innan den här körningen).
+
 ## 2026-11-14
 
 **DOM: KOLLA** - inget trasigt (grundkollen OK, kedjan gick 00:18-00:31 inom
