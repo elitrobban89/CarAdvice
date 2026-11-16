@@ -1,5 +1,126 @@
 # Morgonfix-logg
 
+## 2026-11-16
+
+**DOM: GRONT** - grundkollen OK (kedjan gick 00:18-00:27 UTC inom fönstret
+vintertid, deploy ee75b57 matchar origin/master, uptime 45 026 s ≈ 12,5 h,
+ingen omstart sedan före kedjan), Groq 3/3 exakt referensen, AVVIKER 0 i
+vPIC (291/0/275, elfte natten i rad), drivmedel 525/439/86/16 identiskt med
+referensen utan flip, kontrollräkning 1860+670+960=3490=variants går ihop
+exakt, kategorivakten 0 utslag (uptime 12,5 h), 0 LARM/0 nya könrader i
+ad-check, splashvakten grönt ("Dom: splasharna stämmer", alla sex appar),
+0 ERROR i loggbufferten. Nattens 7 nya rader (2230-2236) är alla
+reliabilitets-/prisfakta utan kategorifel, PROMPTMISS eller nya
+kommande-kö-kandidater - inget krävde ett beslut, därav GRONT i stället för
+KOLLA.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-16 00:27:22 (inom väntat
+fönster vintertid), status OK, databasen OK. ev-specs **uppdaterade 5, nya
+0** (varav räckvidd 4, batteri 1, pris/dc/ac 0 - inga hopp; kollisioner 175,
+samma nivå som senaste natten, långt under 290-varningen). cargo-specs gav
+**0 nya bilnamn, 0 av 0 bagagevolymer, 0 av 0 generationsår** - KB/KG = 0
+(arbetslistorna fortsatt slut), så enligt undantaget i 3f är stillestånd OK.
+CarUp 5 av 12 lästa, Allt om Elbil 0 av 3 lästa, övriga källor 0 av 0/låga -
+ingen överblockering (ingen källa gav 0 av N>0 två nätter i rad).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1860 (still), utanVolym 801 (still), medVolym
+1059 (still), bagageMissar 846 (still) - KB=0/KG=0 så enligt undantaget i 3f
+är detta OK, inte en avvikelse. evPowers 561 (still, väntat). iceGenerations
+291/missar 19 (310, stämmer, oförändrat). Kö 61/61 rader, 30/30 bilar -
+oförändrat sedan baslinjen (ingen ny könrad i natt; gårdagens morgonfix hade
+"inga köbeslut" vilket stämmer med detta). Kontrollräkning: cargo total 1860
++ evSpecs 670 + ice_consumption 960 = **3490 = /api/stats variants (3490)** -
+går ihop exakt. models 2346 (still), insights 1748→1755 (+7, nattens rader,
+inget tapp). Inget tal har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 525/439/86/16, identiskt med referensen. Kontrollerat
+alla 16 manuella rader (5 handsatta ice, 11 handsatta el) mot
+/api/admin/cargo-specs?drivmedel=true - ingen har flippat.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime 12,5 h, spänner över hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2230-2236, 7 st):** alla CarUp/Vi Bilägare. 2236 VW
+Polo 1.2 TDI (65 000 mil, kända fel) smaabil - OK. 2235 Dacia Sandero
+Essential (leasingpris) smaabil - OK. 2234 Cupra Terramar (motor/växellåda)
+suv - OK. 2233 Opel Grandland PureTech (ersättningsmotor, kostnad) suv - OK.
+2232 BMW 320d (turbohaveri, ARN-bedömt konstruktionsfel) familjebil - känt
+felmönster, inte en preferensanekdot, samma typ som redan accepterade
+BMW-återkallelserader. 2231 Citroën CX och 2230 Citroën GS (historiska
+modeller, sålda i Sverige på 1970-talet) familjebil - "AVVECKLADE MODELLER
+ÄR RELEVANTA" (avsnitt 6); ingen samlarord eller modellårsposition, så
+veteranvakten ska inte och gör inte något med dem - ingen lucka. Inga
+kategorifel, inga PROMPTMISS, inga nya kommande-kö-kandidater.
+
+**Övriga rader i fönstret (2187-2229):** inga nya fynd utöver det som redan
+står i loggen för 11-14/11-15. 2201 (BMW i3-laddrekordet, fel bil) är
+fortsatt dold sedan 11-12, inte 7 dygn än (se Köbeslut nedan).
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget nytt
+underlag i natt utöver 2230/2231 ovan (avvecklade modeller, korrekt kvar).
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 61 rader / 30 bilar, oförändrat sedan baslinjen (ingen ny
+könrad i natt, inget nytt insight_id > 2229 i /upcoming). Ad-check: **0
+LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 21 INGA_ANNONSER** - alla rader sedan
+tidigare kända och bedömda (Tucson-gen5, Mazda 6e, Range Rover/Range Rover
+Sport, Bayon, BMW i3, Pajero, Santa Fe, Peugeot E-208 GTi-klungan,
+Volvo XC70 m.fl.). **Beslut i natt: inga.**
+
+**Marknadsregeln:** ingen aktiv sökning gav nytt fynd utöver vad
+Kommandevakten redan täcker.
+
+**Splashvakten:** grönt på alla sex appar ("Dom: splasharna stämmer") -
+inga LARM eller VARNING, bara väntade INFO-rader hos Elbilsladdning.
+
+**Laddtips i natt: 3.** Från `/api/admin/ev-fact-candidates`, Aviloos
+batterihälsostudie (15 000 mil), kvarvarande kandidater sedan AVGJORDA 11-11
+(poäng 3, väntat på tur bakom högre poängsatta kandidater som nu är
+uppskrivna):
+- **2198+2195 (Nissan Leaf 40 kWh, 85,9 % kvar → ~185 km):** Aviloos egen
+  siffra (median-Leafen klarar ca 196 km vid 5 000 mil, 185 km vid
+  15 000 mil enligt tidigare dokumenterad kontroll) - inte WLTP×SoH.
+- **2197 (Tesla Model Y, 90,0 % kvar → ~361 km):** samma studie, samma
+  mönster.
+- **2196 (Volkswagen ID.4, 90,9 % kvar, 373→355 km):** samma studie, samma
+  mönster.
+Ingen dubblett i laddtips.json eller ev-app.js (staticFacts har bara Leafens
+garantivillkor, en annan fråga). `LaddtipsServiceTest` (13/13, inkl.
+`verkligaFilenArGiltig`): grönt.
+
+**Köbeslut i natt:** inga. `atgarder.json` oförändrad (`{"atgarder": []}`).
+De tre dolda raderna (2201 sedan 11-12, 2175 sedan 11-10, 2136 sedan 11-09)
+har ingen nått 7 dygn än (äldst 2136, ~6,7 dygn) - ingen radering i natt.
+
+**Laddpriser (måndag):** 6 kontrollerade, **1 ändrad**. ionity 6,09,
+allego 6,30, mer 5,10 och circle k/circlek 6,69 kr/kWh oförändrade mot
+källorna (samma pris, nytt kontrollerad-datum 2026-11-16). **lidl: 4,40 →
+5,80 kr/kWh** - lidl.se visar nu "Via smartphone" DC **5,80 kr/kWh** (upp
+från 4,6 kr/kWh i appen; föregående mätning 11-09 var 4,40 kr/kWh, troligen
+en prisökning hos Lidl snarare än ett tidigare uppslagsfel, då "Via
+smartphone"-raden är den som instruktionen pekar ut). +31,8 % mot
+föregående pris - under 60 %-taket, passerar mottagarens vakt. Inom
+1-15 kr/kWh.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=LaddtipsServiceTest test` grönt
+(13 tester, 0 fel). Inget fullt Maven-bygge körs på en GRONT-natt (avsnitt
+9, GRONT-undantaget).
+
+**Baslinjen:** `node scripts/mat-baslinje.js docs/baslinje.json` körd efter
+rapporten - kontrollräkning 3490/3490, går ihop. hogstaInsiktsId 2229→2236.
+
+Drift: ee75b57 = origin/master, inga reverts i de senaste 15 commits, ingen
+öppen morgonfix-PR att flytta (grenen fanns inte innan den här körningen).
+
 ## 2026-11-15
 
 **Veckan (söndag):** sju nätter i rad (11-08 till 11-14) dömdes KOLLA, ingen
