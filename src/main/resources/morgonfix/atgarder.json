@@ -1,4 +1,11 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {
+      "datum": "2026-11-17",
+      "typ": "slapp",
+      "id": 1792,
+      "skal": "ARSMODELLSREGELN/regression som BMW iX3 (10-24) och iX4 (10-24/10-27): BMW i3 (Neue Klasse) har nu utskrivet svenskt pris i ev_spec - 'BMW i3 50 xDrive' 728000 kr/108,7 kWh/400 kW DC och 'BMW i3 40 xDrive' 666000 kr/82,8 kWh/300 kW DC - cargo_spec bekräftar båda som el, och /api/cars listar båda som egna modeller. Parkerad sedan 10-06 (GRANSKA, annonskollen hittar bara 35 annonser på klassiska 60 Ah-i3:an 2014-2015, som är en annan bil)."
+    }
+  ]
 }

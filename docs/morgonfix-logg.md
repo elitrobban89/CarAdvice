@@ -1,5 +1,131 @@
 # Morgonfix-logg
 
+## 2026-11-17
+
+**DOM: KOLLA** - grundkollen OK (kedjan gick 00:18-00:32 UTC, deploy ba026d3
+matchar origin/master, uptime 85 309 s, ingen omstart sedan långt före
+kedjan), Groq 3/3 exakt referensen, AVVIKER 0 i vPIC (291/0/275), drivmedel
+526/440/86/16 utan flip, kontrollräkning 1860+671+960=3491=variants går ihop
+exakt, kategorivakten 0 utslag (buffert nollställd sen förra omstarten,
+uptime 23,8 h), 0 LARM i ad-check, splashvakten grönt, 0 ERROR i
+loggbufferten. KOLLA i stället för GRONT på grund av: (1) ett köbeslut i
+natt (släpp 1792, se nedan), och (2) tre öppna mätfrågor till användaren
+(GLB/EX60 i rapporten) som inte gick att belägga entydigt mot ev_spec.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-17 00:32:54 (inom väntat
+fönster vintertid), status OK, databasen OK. ev-specs **uppdaterade 29, nya
+1** (varav pris 23, räckvidd 5, batteri 1, dc 1, ac 1 - mest pris, inget
+hopp i batteri/räckvidd/dc/ac utöver enstaka rader; kollisioner 175, under
+290-varningen). cargo-specs gav **0 nya bilnamn, 0 av 0 bagagevolymer, 0 av
+0 generationsår** - KB/KG=0, arbetslistorna fortsatt slut, stillestånd OK
+enligt undantaget i 3f. CarUp 0 av 12 lästa (gårdagen 5 av 12 - en enstaka
+natt, inte två i rad, larmar inte men hålls under uppsikt), Allt om Elbil 2
+av 5 lästa.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen.
+
+**Täckningen:** cargo total 1860 (still), utanVolym 801 (still), medVolym
+1059 (still), bagageMissar 846 (still) - KB=0/KG=0, OK enligt undantaget.
+evPowers 562 (+1, följer evSpecs 671 uppåt, väntat). iceGenerations
+291/missar 19 (310, stämmer, forsöktDag 2026-10-21, 3 dagar kvar till nästa
+fönster 2026-11-20). Kö 61→63 rader, 30→31 bilar (Xpeng L05, ny könrad,
+INGA_ANNONSER - inte sålt än, korrekt). Kontrollräkning: 1860+671+960=3491=
+/api/stats variants - går ihop exakt. models 2347 (+1), insights 1755→1765
+(+10, nattens rader). Inget tal har fallit.
+
+**vPIC-vakten:** 291/0/275, OK 126, INGEN_DATA 165, AVVIKER 0 - exakt
+referensen.
+
+**Drivmedelsräknaren:** 526/440/86/16, identiskt med referensen (526=525+1,
+440=439+1 - en ny el-rad i ev-specs-ledet, ingen flip). Alla 16 manuella
+rader (5 ice, 11 el) kontrollerade - ingen flippad.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime 23,8 h) - inga utslag
+sedan senaste omstarten.
+
+**Nattens nya rader (2237-2246, 10 st):** 2246/2245 Xpeng L05 (Allt om
+Elbil, el-SUV, ej sålt - hamnade rätt i kön). 2244 BYD Atto 3 Evo
+(leasingpris) smaabil - trolig kategorifel (Atto 3 är en kompakt SUV, inte
+smaabil - namnges här så vakten kan utökas om det upprepas). 2243 BYD Seal
+6 DM-i Touring (leasingpris) suv - **trolig kategorifel**: Seal 6 är en
+sedan/kombi (D-segment), inte en SUV - namnges så vakten kan utökas. 2242
+BYD Atto 2 DM-i smaabil - OK (Atto 2 är BYDs minsta modell). 2241 BYD
+Dolphin G DM-i smaabil - OK. 2240 BYD Sealion 7 suv - OK. 2239 BMW iX3
+(laddtest) suv - OK, redan kontrollerad mot ev_spec-mönster tidigare
+nätter. 2238 Volvo EX60 (laddtest, 5,3 km/kWh → 48,8 mil) suv - **öppen
+fråga**: texten anger "officiella siffran 61-66 mil", men ev_spec visar 81
+mil WLTP för EX60 - troligen en annan trimnivå (P6 enmotor vs testbilens
+AWD-variant) men går inte att belägga vilken utan mer underlag; skrivs ut,
+ändras inte på egen hand. 2237 Mercedes GLB (800V, 320 kW DC) suv - OK,
+battericapacitet matchar ev_spec (85 kWh), laddeffekten 320 kW mot ev_specs
+353 kW är samma mönster som redan publicerade GLA 250+-tipset (11-13) -
+troligen press- vs labbsiffra, ingen ny avvikelse. 2236-2230 (CarUp/Vi
+Bilägare, redan bedömda i gårdagens logg, oförändrade i natt).
+
+Automatiskt autosläpp i natt (UpcomingAutoReleaseService, loggen 00:32:59):
+2237 (Mercedes GLB, 49 annonser), 2240 (BYD Sealion 7, 13), 2241 (BYD
+Dolphin G DM-i, 7), 2242 (BYD Atto 2 DM-i, 12), 2243 (BYD Seal 6 DM-i
+Touring, 6), 2244 (BYD Atto 3 Evo, 10) - alla hade annonser och inget
+nyhetsord, korrekt autosläpp enligt användarens linje. Ingen av dessa låg
+därför i kön vid ad-check-tillfället.
+
+**Övriga rader i fönstret:** inga nya fynd utöver vad som redan står i
+loggen för 11-13 till 11-16. 2201 (BMW i3-laddrekordet, fel bil) fortsatt
+dold sedan 11-12 (5 dygn), inte 7 än.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller** - inget
+nytt underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. 2218 (Volvo V70 R, Carbuzz-prognos)
+och 2221 (Audi RS4 B8, andrahandspris "i Sverige enligt Auto...") har båda
+explicit källa/marknadsangivelse i texten - inga obelagda utländska
+siffror hittade.
+
+**Kommandevakten:** 63 rader / 31 bilar (+2/+1 sedan baslinjen, Xpeng L05).
+Ad-check: **0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 22 INGA_ANNONSER**. Övriga
+GRANSKA/INGA_ANNONSER-rader är sedan tidigare kända och bedömda (Tucson
+gen5, Mazda 6e, Range Rover/Sport Electric, Bayon, Pajero, Santa Fe,
+Peugeot E-208 GTi-klungan, ID.3 GTI, Volvo XC70/XC100, Lynk & Co 10, BMW
+iX5 Hydrogen, Mercedes C-klass/C-klass Electric, Nissan Kicks, Kia PV7,
+Ioniq 4/7).
+
+**Beslut i natt: SLÄPP 1792** (BMW i3, Neue Klasse) - ARSMODELLSREGELN,
+regression av samma mönster som BMW iX3 (10-24) och iX4 (10-24/10-27):
+ev_spec har nu utskrivet svenskt pris för båda Neue Klasse-varianterna
+("BMW i3 50 xDrive" 728 000 kr/108,7 kWh/400 kW DC, "BMW i3 40 xDrive"
+666 000 kr/82,8 kWh/300 kW DC - exakt de tal som redan ligger publicerade
+i laddtips.json sedan 2026-10-02/10-03), cargo_spec bekräftar båda som el,
+och /api/cars listar båda som egna modellrader. Parkerad (GRANSKA) sedan
+10-06; annonskollens 35 annonser på "BMW i3" gäller bara den klassiska
+60 Ah-generationen (2014-2015), en annan bil. `atgarder.json`: en rad,
+inom taket på 12.
+
+Ett ev_spec-fynd som INTE ledde till ett släpp: "Volkswagen ID.3 GTI" har
+nu en egen ev_spec-rad (331 km WLTP, 37,5 kWh, 88 kW DC, 390 000 kr) - men
+de talen matchar INTE de 60 mil/79 kWh/183 kW som upprepade gånger står i
+kommande-könens rader (1545/1552-1557) om GTI-versionen. Siffrorna i
+ev_spec ser ut att vara bas-ID.3:ans (inte GTI-variantens) - troligen en
+namnkollision i ev-database-skrapningen. **Inget släpp på detta underlag**
+- skrivs ut som öppen fråga, ingen kodfix gjord (orsaken är inte entydig
+nog för ett prov enligt 9c).
+
+**Marknadsregeln:** ingen aktiv sökning gav nytt fynd utöver det
+Kommandevakten redan täcker.
+
+**Splashvakten:** grönt på alla sex appar - inga LARM eller VARNING.
+
+**Laddtips i natt: 0.** Granskade `/api/admin/ev-fact-candidates` (9
+kandidater, poäng 2-6): de fyra högst poängsatta (2216 GLA 250+, 2200/2201
+BMW i3-rekordet, 2198/2197/2196 Aviloo-studien) är redan publicerade i
+`laddtips.json` (11-12 till 11-16) - kontrollerat mot GET /api/laddtips
+innan något skrevs, ingen dubblett skapad. Resterande kandidater (2238
+EX60, 2239 iX3, 2237 GLB) är samma bilar/ämnen som redan har 2-3 tips
+vardera senaste veckan; ingen ny stark kandidat i natt - fyller inte på
+för att fylla.
+
+**Köbeslut i natt:** SLÄPP 1792 (se ovan). `atgarder.json`: en rad.
+
 ## 2026-11-16
 
 **DOM: GRONT** - grundkollen OK (kedjan gick 00:18-00:27 UTC inom fönstret
