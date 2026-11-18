@@ -1476,6 +1476,16 @@ class WebInsightScraperServiceTest {
                 "Andra raden rymmer tre vuxna och bagaget 500 liter")).isFalse();
     }
 
+    @Test
+    void extraktionspromptenGerAldrigEttSystemnamnSomModell() {
+        // Natten mot 2026-11-18: id 2256 (carModel "Drive Pilot") och 2257 ("Hands-free Assist")
+        // sparades med förarstödets namn som modell - de matchar inget bilkort och blir osynliga
+        assertThat(WebInsightScraperService.SYSTEM_PROMPT)
+                .contains("ALDRIG namnet på ett system, en funktion eller ett förarstöd")
+                .contains("\"Drive Pilot\"")
+                .contains("utelämna insikten");
+    }
+
     private WebInsightScraperService serviceWith(JdbcTemplate jdbc) {
         return new WebInsightScraperService(mock(ExpertInsightRepository.class), jdbc,
                 mock(JobStatusService.class), mock(UpcomingInsightService.class), vaktStats);

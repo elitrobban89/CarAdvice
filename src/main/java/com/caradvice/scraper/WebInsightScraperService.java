@@ -140,6 +140,10 @@ public class WebInsightScraperService {
               engelskt biltest mäter samma bil som säljs här och behöver ingen brasklapp
             - "car_make"/"car_model" måste vara bilens verkliga officiella namn — hitta aldrig på
               eller gissa modellnamn; är du osäker: sätt ""
+            - "car_model" är ALDRIG namnet på ett system, en funktion eller ett förarstöd
+              ("Drive Pilot", "Hands-free Assist", "Autopilot", "Pilot Assist") — skriv
+              modellen som har systemet. Nämner texten inte vilken modell det gäller:
+              utelämna insikten
             - "car_make" ska vara märkets vanliga kortform utan undermärken och tillägg
               (skriv "Mercedes", aldrig "Mercedes-Benz" eller "Mercedes-AMG"; "VW" skrivs "Volkswagen")
             - En insikt ska handla om en specifik bilmodell eller bilkategori — aldrig om företag,

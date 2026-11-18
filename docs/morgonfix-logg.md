@@ -2,6 +2,13 @@
 
 ## 2026-11-18
 
+**Handpatchar på förmiddagen (användaren):** PROMPTMISS-kandidaten 2256/2257 åtgärdad -
+`SYSTEM_PROMPT` säger nu att car_model aldrig är ett system/förarstöd ("Drive Pilot",
+"Hands-free Assist") och att insikten utelämnas när modellen inte nämns (prov
+`extraktionspromptenGerAldrigEttSystemnamnSomModell`). 2256 och 2257 **dolda** via
+atgarder.json - dolda rader räknas kvar, så inga tal flyttas. LARM Bränslekostnad lagat
+i BensinKostnad (engines.node >=26, f9bc090); splash-vakten åter grön. PR #77 mergad.
+
 **DOM: LARM** - grundkollen, scrape-status, Groq, vPIC, drivmedel, kategorivakten
 och annonskollen är alla gröna/oförändrade mot baslinjen (2026-11-17), men
 `node scripts/splash-vakt.js` ger **LARM** för Bränslekostnad: "kör Node.js 26
