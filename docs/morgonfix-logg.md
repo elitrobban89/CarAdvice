@@ -1,5 +1,129 @@
 # Morgonfix-logg
 
+## 2026-11-18
+
+**DOM: LARM** - grundkollen, scrape-status, Groq, vPIC, drivmedel, kategorivakten
+och annonskollen är alla gröna/oförändrade mot baslinjen (2026-11-17), men
+`node scripts/splash-vakt.js` ger **LARM** för Bränslekostnad: "kör Node.js 26
+men package.json säger 24 — uppgraderingen är inte driftsatt". Det är fel i
+ett annat repo (Bränslekostnad), inte i CarAdvice, och lagas aldrig härifrån
+(avsnitt 14) - skrivs överst under Morgonfixen som väntar på dig.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-18 00:33:28 (inom väntat fönster
+vintertid 00:15-00:50), status OK, databasen OK, deployad commit e737445
+matchar origin/master. uptimeSeconds 36 516 (~10,1 h) - ingen omstart under
+natten. ev-specs **uppdaterade 39, nya 0** (varav pris 31, räckvidd 7, batteri
+5, dc 2, ac 1 - mest pris, inget onormalt hopp i batteri/räckvidd/dc/ac;
+kollisioner 172, under 290-varningen). cargo-specs gav **0 nya bilnamn, 0 av 0
+bagagevolymer, 0 av 0 generationsår** - KB/KG = 0, arbetslistorna fortsatt
+slut sedan svepet, stillestånd OK enligt undantaget i 3f. Inga källor gav
+0 av N>0 två nätter i rad (M3, Auto Motor & Sport och Teknikens Värld hade
+"0 av 0" - normalt för en tyst natt hos dem).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1860 (still), utanVolym 801 (still), medVolym
+1059 (still), bagageMissar 846 (still) - KB=0/KG=0, OK enligt undantaget i 3f.
+evPowers 562 (still, väntat, följer evSpecs). iceGenerations 291/missar 19
+(310, stämmer; missarPerOrsak vakten-avstod 16 / ej-hittad 3, nästa fönster
+2026-11-20). Kö **63 rader / 31 bilar - oförändrat mot baslinjen** (inga nya
+könrader i natt). Kontrollräkning: cargo total 1860 + evSpecs 671 +
+ice_consumption 960 = **3491 = /api/stats variants** - går ihop exakt.
+Inget tal har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 526/440/86/16, identiskt med referensen. Alla elva
+elbils-namngivna rader (Aiways U5, Alpine A290/A390, Audi e-tron GT/S/SQ6/SQ8
+e-tron, BMW i7/iX2, BYD Atto 2/Sealion 7) kontrollerade som "el" - ingen
+flip. manuella fortsatt 16.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~10,1 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2247-2262, 16 st):** 2262 Dacia Sandero (Allt om Elbil,
+kommande elversion) - redan korrekt i kommande-kön, ad-check GRANSKA (se
+Kommandevakten). 2261 Dacia Spring gen 3 ("planeras komma till Sverige våren
+2024") och 2225 (körintryck) - INTE i kommande-kön, alltså en vanlig rad om
+en redan lanserad bil; ologisk "planeras komma 2024"-formulering men inget
+som kräver ett beslut. 2249-2253 BMW-återkallelser (vattenpumpfel, 2-serie/
+3-serie/X1/X5/Z4) - kända återkallelser, relevanta, korrekta kategorier
+(familjebil/suv, Z4 utan kategori - sportbil). 2247/2248 Hongqi EHS7/E-HS9
+(farthållarfel resp. värdefall) suv - Hongqi finns redan i ev_spec/cargo_spec
+med svenskt pris (t.ex. E-HS9 977 000 kr), inget marknadsregel-fynd.
+2254/2255 Mercedes E 220 d/C 300 4Matic familjebil - OK. **2256/2257 "Mercedes
+Drive Pilot"/"Mercedes Hands-free Assist" har en FUNKTIONSNAMN som carModel,
+inte en bilmodell** - går aldrig att matcha mot ett bilkort, category
+null är korrekt (vakten hittar ingen modell), men raden blir osynlig för
+besökare. Ingen entydig kodfix att bevisa med ett prov ikväll (ändrad
+relevansprompt är förbjudet enligt 9c) - skrivs ut som PROMPTMISS-kandidat
+för användaren. 2258 Mercedes CLA smaabil, 2259 Polestar 4 suv, 2260 Volvo
+V70 T6 familjebil - OK. Inga kategorifel, inga veteranvakt-läckor, inga nya
+skatterad/renoveringsobjekt/specialutgåva-rader i natt.
+
+**Övriga rader i fönstret (2230-2246):** oförändrade sedan gårdagens logg;
+BYD Atto 3 Evo (2244) och BYD Seal 6 DM-i Touring (2243), som i går
+flaggades som "trolig kategorifel" (smaabil resp. suv), visar nu **korrekt**
+kategori (suv resp. familjebil) - självrättat, troligen sedan cargo-specs
+fick in modellernas segment/kaross; inget kvar att åtgärda.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt - inga rena skatterader, inga renoveringsobjekt, inga nya
+avvecklade-modeller-rader (BMW/Hongqi-raderna är aktuella bilar, inte
+retroartiklar).
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - 2247 nämner "en norsk ägare" men anger därmed själv
+marknaden, ingen ny öppen fråga.
+
+**Kommandevakten:** 63 rader / 31 bilar, oförändrat mot baslinjen. Ad-check:
+**0 LARM, 8 GRANSKA, 1 ANNAN_DRIVLINA, 22 INGA_ANNONSER.** Alla GRANSKA/
+ANNAN_DRIVLINA-rader är redan avgjorda ärenden (Tucson 1274/1293-1295/
+1783-1785, Bayon 1904/1905, Mazda 6e 1560/1551, Range Rover 1578/1713,
+Sandero 2262 - ny i natt men korrekt GRANSKA, Pajero 1414/1412, Santa Fe
+1368). INGA_ANNONSER-raderna är kända parkerade bilar som inte säljs i
+Sverige (Xpeng L05, C-klass/C-klass Electric 1574-1577/1902, VW ID.3 GTI,
+Nissan Kicks, Kia PV7, BMW iX5 Hydrogen, Volvo XC100, m.fl.) - ingen ny
+felstavning av car_model hittad. **Inga köbeslut krävdes i natt** (0 LARM).
+
+**Marknadsregeln:** inget nytt fynd - Hongqi redan verifierad som
+Sverige-såld (se ovan), ingen annan bil i natt från ett märke som saknar
+svensk marknad.
+
+**Splashvakten:** se domraden - **LARM: Bränslekostnad** ("kör Node.js 26 men
+package.json säger 24 — uppgraderingen är inte driftsatt"). Övriga fem appar
+(MiniPrisTåget, Bankomat 2.0, Elbilsladdning, CarAdvice, VäderKläder) helt
+gröna, bara väntade INFO-rader (saknade externa källor i splashen för
+Elbilsladdning, redan kända). Lagas inte härifrån - annat repo/drift.
+
+**Laddtips i natt: 0.** `ev-fact-candidates` gav samma fyra kandidater som
+igår (2216 GLA 250+ redan publicerad 11-13; 2238 EX60, 2237 GLB, 2239 iX3 -
+samma bilar/ämnen som redan har 2-3 tips senaste veckan, och 2238 har en
+olöst öppen fråga mot ev_spec sedan 11-17). Ingen ny stark kandidat - fyller
+inte på för att fylla.
+
+**Köbeslut i natt:** `atgarder.json` skrivs om med **2 raderingar** (inom
+taket på 20): **radera 2136** (FELATTRIBUERING, VW Tiguan-elbilsmyten, dold
+sedan 2026-11-09, ≥7 dygn) och **radera 2175** (ANEKDOT om ett exemplars
+lackskada, dold sedan 2026-11-10, ≥7 dygn). 2201 (fel-bil-raden om BMW i3)
+är fortsatt dold sedan 2026-11-12, bara 6 dygn - raderas inte än. Inga nya
+slapp/parkera (0 LARM i ad-check).
+
+**Baslinjen: INGEN NY BASLINJE skrivs i natt** - domen är LARM, så
+docs/baslinje.json lämnas oförändrad (ramarna rad 15/nattrutin.md avsnitt
+BASLINJEN). Gårdagens tal (mätt 2026-11-17T00:53:27Z, commit ba026d3) ligger
+kvar.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=MorgonfixAtgarderTest test` grönt
+(nya atgarder.json giltig). `mvn -q -DskipTests package` grönt. `mvn -q test`
+(hela sviten, ca 1000 prov) grönt - inga fel.
+
+**Över taket - kvar till i morgon:** inget, allt ryms (0 filer ändrade i
+`src/main`, 2 datarader i atgarder.json).
+
 ## 2026-11-17
 
 **DOM: KOLLA** - grundkollen OK (kedjan gick 00:18-00:32 UTC, deploy ba026d3
