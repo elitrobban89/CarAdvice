@@ -252,6 +252,28 @@ class InsightTaxonomyTest {
     }
 
     @Test
+    void bydAtto3ArIngenSmaabil() {
+        // Natten mot 2026-11-17: id 2244 (M3, "Atto 3 Evo") kom in som smaabil, och id 2111
+        // (CarUp, Atto 3) låg redan så. Atto 3 är en kompakt SUV; Atto 2 är BYDs minsta och
+        // ska få stå kvar som småbil.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("smaabil", "BYD", "Atto 3 Evo"))
+                .isEqualTo("byd atto 3 evo är ingen småbil");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "BYD", "Atto 3")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("smaabil", "BYD", "Atto 2 DM-i")).isEqualTo("smaabil");
+    }
+
+    @Test
+    void bydSeal6ArIngenSuv() {
+        // Natten mot 2026-11-17: id 2243 (M3, "Seal 6 DM-i Touring") kom in som suv. Seal 6 är
+        // sedan/kombi. SUV:arna Seal U och Sealion 6/7 får INTE träffas av markören.
+        assertThat(InsightTaxonomy.kategoriMotsagelse("suv", "BYD", "Seal 6 DM-i Touring"))
+                .isEqualTo("byd seal 6 dm-i touring är ingen SUV");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "BYD", "Seal U DM-i")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "BYD", "Sealion 6")).isEqualTo("suv");
+        assertThat(InsightTaxonomy.canonicalCategory("suv", "BYD", "Sealion 7")).isEqualTo("suv");
+    }
+
+    @Test
     void bydSealArIngenSmaabil() {
         // Natten mot 2026-10-31: id 2058 (Vi Bilägare) kom in som smaabil. BYD Seal är en
         // 82,5 kWh-sedan med 570 km WLTP och pris 571 000 kr (ev_spec) - samma klass som

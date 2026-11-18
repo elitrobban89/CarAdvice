@@ -62,6 +62,9 @@ class EvDatabaseScraperServicePrisTest {
         assertThat(DataLoader.agerBatteri("Hyundai Kona Electric 64 kWh")).isTrue();
         assertThat(DataLoader.agerBatteri("MG4 Standard Range")).isTrue();
         assertThat(DataLoader.agerBatteri("Tesla Model S")).isTrue();
+        assertThat(DataLoader.agerBatteri("Volkswagen ID.3")).isTrue();
+        // Neo-raderna har ev-database som källa och ska synkas som förut.
+        assertThat(DataLoader.agerBatteri("Volkswagen ID.3 Neo 79 kWh")).isFalse();
         assertThat(DataLoader.agerBatteri("Volvo EX60 P6")).isFalse();
     }
 }

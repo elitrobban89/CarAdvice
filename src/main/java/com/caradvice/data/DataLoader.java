@@ -418,9 +418,19 @@ public class DataLoader implements CommandLineRunner {
      * <p>Kontrollen är värd att köra om: samma gruppering hittar nästa kollisionsoffer. Övriga
      * träffar var äkta badge-tvillingar (Stellantis skåpbilar, VW e-Caravelle/e-Transporter)
      * och ska INTE röras.
+     *
+     * <p><b>Volkswagen ID.3 bar 37,5 kWh / 331 km / 88 kW DC</b> i drift 2026-11-17, alltså
+     * exakt {@code Volkswagen ID. Polo 99 kW - 37 kWh}:s siffror (MEB Entry-batteriet, som ID.3
+     * aldrig haft). Ev-database listar i dag bara ID.3 Neo 50/58/79 kWh, som har egna rader, så
+     * ingen källa rättar den nakna raden. Värdena är seedens (första generationens Pro S, 77 kWh),
+     * och här återställs även DC-effekten — ett valfritt tredje tal i arrayen.
+     * <b>Följdfel som det här lagar:</b> {@code /api/ev-spec?car=Volkswagen ID.3 GTI} faller i
+     * pass 2 tillbaka på den nakna raden (det finns ingen egen GTI-rad), och nattrutinen läste
+     * 11-17 Polo-talen som en "namnkrock i GTI-raden".
      */
     static final java.util.Map<String, double[]> FELSKRIVNA_AV_SYNKEN = java.util.Map.of(
-            "Tesla Model S", new double[]{95.0, 649});
+            "Tesla Model S",   new double[]{95.0, 649},
+            "Volkswagen ID.3", new double[]{77.0, 550, 130.0});
 
     /**
      * Svenska listpriser som ersatter synkens EUR x 11,5.
@@ -767,14 +777,23 @@ public class DataLoader implements CommandLineRunner {
                     if (egen != null) {
                         boolean fel = spec.getBatteryKwh() == null || spec.getRangeKm() == null
                                 || spec.getBatteryKwh() != egen[0] || spec.getRangeKm() != (int) egen[1];
+                        // Valfritt tredje tal: DC-effekt, för kollisionsoffer där synken skrev
+                        // även laddningen (se FELSKRIVNA_AV_SYNKEN, Volkswagen ID.3).
+                        boolean felDc = egen.length > 2
+                                && (spec.getMaxDcKw() == null || spec.getMaxDcKw() != egen[2]);
                         if (fel) {
                             log.warn("ev_spec: {} hade {} kWh/{} km — återställer till {} kWh/{} km (egen rad)",
                                     spec.getCarName(), spec.getBatteryKwh(), spec.getRangeKm(),
                                     egen[0], (int) egen[1]);
                             spec.setBatteryKwh(egen[0]);
                             spec.setRangeKm((int) egen[1]);
-                            toUpdate.add(spec);
                         }
+                        if (felDc) {
+                            log.warn("ev_spec: {} hade {} kW DC — återställer till {} kW (egen rad)",
+                                    spec.getCarName(), spec.getMaxDcKw(), egen[2]);
+                            spec.setMaxDcKw(egen[2]);
+                        }
+                        if (fel || felDc) toUpdate.add(spec);
                     }
 
                     // Svenska listpriser over synkens EUR-omrakning. Ligger i default-grenen
