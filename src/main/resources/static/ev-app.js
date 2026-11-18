@@ -3803,7 +3803,7 @@
   function chatAppendUser(text) {
     const msgs = document.getElementById("ev-chat-messages");
     const div = document.createElement("div");
-    div.innerHTML = `<div class="ev-chat-bubble user">${text}</div>`;
+    div.innerHTML = `<div class="ev-chat-bubble user">${String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
   }

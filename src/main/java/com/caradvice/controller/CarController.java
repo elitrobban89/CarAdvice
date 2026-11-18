@@ -745,11 +745,10 @@ public class CarController {
         }
         if (!subscriber) persistRateLimit(ip); // dra en sökning ur timpotten
         try {
-            @SuppressWarnings("unchecked")
-            List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
+            List<Map<String, String>> messages = com.caradvice.config.ChatInput.messages(req.get("messages"));
             if (messages == null || messages.isEmpty())
                 return ResponseEntity.ok(Map.of("reply", "Inga meddelanden."));
-            String context = (String) req.get("context");
+            String context = com.caradvice.config.ChatInput.context(req.get("context"));
             return ResponseEntity.ok(Map.of("reply", groqService.chat(messages, context)));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
@@ -775,11 +774,10 @@ public class CarController {
             times.addLast(now);
         }
         if (!subscriber) persistRateLimit(ip); // dra en sökning ur timpotten
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> messages = (List<Map<String, String>>) req.get("messages");
+        List<Map<String, String>> messages = com.caradvice.config.ChatInput.messages(req.get("messages"));
         if (messages == null || messages.isEmpty())
             return ResponseEntity.badRequest().build();
-        String context = (String) req.get("context");
+        String context = com.caradvice.config.ChatInput.context(req.get("context"));
 
         StreamingResponseBody body = outputStream -> {
             // Ström som aldrig bar ett enda innehållstoken = tom chattbubbla hos användaren.
