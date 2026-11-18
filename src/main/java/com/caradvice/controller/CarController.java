@@ -1551,16 +1551,17 @@ public class CarController {
         }
     }
 
+    /** Jämförelse i konstant tid: {@code String.equals} avbryter vid första olika tecken,
+     *  så svarstiden avslöjade hur långt in en gissning stämde. */
     private boolean isAdminUnauthorized(String key) {
-        return key == null || !adminKey.equals(key);
+        if (key == null || adminKey == null || adminKey.isEmpty()) return true;
+        return !java.security.MessageDigest.isEqual(
+                adminKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return com.caradvice.config.ClientIp.of(request);
     }
 
     /** Antal poster inom ett fönster, utan att förbruka något. */

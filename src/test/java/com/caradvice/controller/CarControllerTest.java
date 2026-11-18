@@ -198,6 +198,15 @@ class CarControllerTest {
     }
 
     @Test
+    void adminEndpointMedBorjanAvNyckelnGer403() throws Exception {
+        // Konstanttidsjämförelsen får inte släppa in ett prefix eller en tom sträng
+        mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", "test-admi"))
+           .andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/scrape-status").header("X-Admin-Key", ""))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
     void adminEndpointMedRattNyckelSlappsIn() throws Exception {
         when(webInsightScraper.lastRunStatus()).thenReturn(Map.of("status", "OK"));
 
@@ -319,7 +328,7 @@ class CarControllerTest {
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.1.1.1")
+                .header("CF-Connecting-IP", "10.1.1.1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":\"200000\"}"))
            .andExpect(status().isOk())
@@ -336,7 +345,7 @@ class CarControllerTest {
                 .thenReturn(new GroqService.Result(List.of(), true, 300, null));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.2.2.2")
+                .header("CF-Connecting-IP", "10.2.2.2")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isOk())
@@ -353,7 +362,7 @@ class CarControllerTest {
                 .thenReturn(new GroqService.Result(List.of(), false, 0, 249_900));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.9.9.9")
+                .header("CF-Connecting-IP", "10.9.9.9")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":\"100000\",\"maxAgeYears\":3}"))
            .andExpect(status().isOk())
@@ -367,7 +376,7 @@ class CarControllerTest {
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.9.9.8")
+                .header("CF-Connecting-IP", "10.9.9.8")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":\"400000\"}"))
            .andExpect(status().isOk())
@@ -385,7 +394,7 @@ class CarControllerTest {
                 .thenReturn(new GroqService.Result(List.of(), false, 0, null));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.9.9.7")
+                .header("CF-Connecting-IP", "10.9.9.7")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":\"200000\",\"carCategory\":\"familjebil\",\"fuelType\":\"el\","
                        + "\"passengers\":5,\"minCargoLiters\":400}"))
@@ -406,7 +415,7 @@ class CarControllerTest {
                 new GroqService.BudgetAlternative("Nissan Leaf (2017)", 85_000)));
 
         mvc.perform(post("/api/budget-alternatives")
-                .header("X-Forwarded-For", "10.7.7.1")
+                .header("CF-Connecting-IP", "10.7.7.1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":100000,\"carCategory\":\"elbil\",\"maxAgeYears\":3}"))
            .andExpect(status().isOk())
@@ -422,7 +431,7 @@ class CarControllerTest {
         when(groqService.findBudgetAlternatives(any())).thenThrow(new RuntimeException("Groq nere"));
 
         mvc.perform(post("/api/budget-alternatives")
-                .header("X-Forwarded-For", "10.7.7.2")
+                .header("CF-Connecting-IP", "10.7.7.2")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"budget\":100000}"))
            .andExpect(status().isOk())
@@ -437,13 +446,13 @@ class CarControllerTest {
 
         for (int i = 0; i < 30; i++) {
             mvc.perform(post("/api/recommend")
-                    .header("X-Forwarded-For", "10.3.3.3")
+                    .header("CF-Connecting-IP", "10.3.3.3")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
                .andExpect(status().isOk());
         }
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.3.3.3")
+                .header("CF-Connecting-IP", "10.3.3.3")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isTooManyRequests())
@@ -451,6 +460,29 @@ class CarControllerTest {
            // Väggen pekar på prenumerationen — gratiskontot som mellansteg finns inte längre
            .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("denna timme")))
            .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("obegränsade")));
+    }
+
+    @Test
+    void forfalskadXForwardedForGerIngenNyPott() throws Exception {
+        // X-Forwarded-For släpps igenom från klienten på Render — förr räckte en ny påhittad
+        // IP per anrop för att aldrig nå timtaket. Potten följer nu CF-Connecting-IP.
+        when(groqService.getRecommendation(any()))
+                .thenReturn(new GroqService.Result(List.of(), false, 0, null));
+
+        for (int i = 0; i < 30; i++) {
+            mvc.perform(post("/api/recommend")
+                    .header("CF-Connecting-IP", "10.4.4.9")
+                    .header("X-Forwarded-For", "203.0.113." + i)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+               .andExpect(status().isOk());
+        }
+        mvc.perform(post("/api/recommend")
+                .header("CF-Connecting-IP", "10.4.4.9")
+                .header("X-Forwarded-For", "203.0.113.99")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+           .andExpect(status().isTooManyRequests());
     }
 
     @Test
@@ -470,7 +502,7 @@ class CarControllerTest {
         logg.put("10.9.9.9", gamla);
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.9.9.9")
+                .header("CF-Connecting-IP", "10.9.9.9")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isTooManyRequests())
@@ -496,7 +528,7 @@ class CarControllerTest {
                 .thenThrow(new RuntimeException("AI-svaret blev ofullständigt. Försök igen."));
 
         mvc.perform(post("/api/recommend")
-                .header("X-Forwarded-For", "10.4.4.4")
+                .header("CF-Connecting-IP", "10.4.4.4")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isInternalServerError())
@@ -529,7 +561,7 @@ class CarControllerTest {
     @Test
     void chattUtanMeddelandenGerInfoSvar() throws Exception {
         mvc.perform(post("/api/chat")
-                .header("X-Forwarded-For", "10.5.5.5")
+                .header("CF-Connecting-IP", "10.5.5.5")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"messages\":[]}"))
            .andExpect(status().isOk())
@@ -543,14 +575,14 @@ class CarControllerTest {
         // 30 chattfrågor drar hela timpotten (samma pool som /recommend)
         for (int i = 0; i < 30; i++) {
             mvc.perform(post("/api/chat")
-                    .header("X-Forwarded-For", "10.6.6.6")
+                    .header("CF-Connecting-IP", "10.6.6.6")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
                .andExpect(status().isOk());
         }
         // 31:a blockeras med timgränsens meddelande
         mvc.perform(post("/api/chat")
-                .header("X-Forwarded-For", "10.6.6.6")
+                .header("CF-Connecting-IP", "10.6.6.6")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests())
@@ -560,7 +592,7 @@ class CarControllerTest {
 
     @Test
     void searchStatusPeekarUtanAttForbruka() throws Exception {
-        mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
+        mvc.perform(get("/api/search-status").header("CF-Connecting-IP", "10.7.7.7"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.remaining").value(30))
            // limit + period måste med: baren kan inte gissa "i dag" vs "denna timme"
@@ -569,7 +601,7 @@ class CarControllerTest {
            .andExpect(jsonPath("$.subscriber").value(false))
            .andExpect(jsonPath("$.loggedIn").value(false));
         // Andra anropet ger SAMMA remaining = peek förbrukar ingen sökning
-        mvc.perform(get("/api/search-status").header("X-Forwarded-For", "10.7.7.7"))
+        mvc.perform(get("/api/search-status").header("CF-Connecting-IP", "10.7.7.7"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.remaining").value(30));
     }
@@ -604,7 +636,7 @@ class CarControllerTest {
         when(feedbackService.save("Tesla Model 3 (2021)", "up")).thenReturn(true);
 
         mvc.perform(post("/api/feedback")
-                .header("X-Forwarded-For", "10.6.6.6")
+                .header("CF-Connecting-IP", "10.6.6.6")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"carTitle\":\"Tesla Model 3 (2021)\",\"vote\":\"up\"}"))
            .andExpect(status().isOk())
@@ -616,7 +648,7 @@ class CarControllerTest {
         when(feedbackService.save(any(), any())).thenReturn(false);
 
         mvc.perform(post("/api/feedback")
-                .header("X-Forwarded-For", "10.7.7.7")
+                .header("CF-Connecting-IP", "10.7.7.7")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"carTitle\":\"Tesla\",\"vote\":\"sideways\"}"))
            .andExpect(status().isBadRequest())
@@ -630,13 +662,13 @@ class CarControllerTest {
         String body = "{\"carTitle\":\"Tesla\",\"vote\":\"up\"}";
         for (int i = 0; i < 10; i++) {
             mvc.perform(post("/api/feedback")
-                    .header("X-Forwarded-For", "10.8.8.8")
+                    .header("CF-Connecting-IP", "10.8.8.8")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
                .andExpect(status().isOk());
         }
         mvc.perform(post("/api/feedback")
-                .header("X-Forwarded-For", "10.8.8.8")
+                .header("CF-Connecting-IP", "10.8.8.8")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isTooManyRequests());

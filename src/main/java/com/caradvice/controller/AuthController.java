@@ -64,8 +64,7 @@ public class AuthController {
     }
 
     private boolean isAuthRateLimited(HttpServletRequest req) {
-        String ip = Optional.ofNullable(req.getHeader("X-Forwarded-For"))
-                .map(h -> h.split(",")[0].trim()).orElse(req.getRemoteAddr());
+        String ip = com.caradvice.config.ClientIp.of(req);
         long now = System.currentTimeMillis();
         long windowStart = now - 60_000;
         List<Long> updated = authRateMap.compute(ip, (k, times) -> {
