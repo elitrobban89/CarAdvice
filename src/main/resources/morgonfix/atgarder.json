@@ -1,29 +1,4 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": [
-    {
-      "datum": "2026-11-18",
-      "typ": "radera",
-      "id": 2136,
-      "skal": "FELATTRIBUERING: AMS-rubriken 'Nu blir bästsäljaren VW Tiguan eldriven' gäller bensin-Tiguan, ID. Tiguan levereras först 2027 - dold 2026-11-09 (>=7 dygn), fortsatt bedömd som skräp enligt samma regel."
-    },
-    {
-      "datum": "2026-11-18",
-      "typ": "radera",
-      "id": 2175,
-      "skal": "ANEKDOT: beskriver ETT specifikt exemplars (CarUp, Mercedes A180 2013) kosmetiska lackeringsskada och besiktningsdatum, ingen generell köpuppgift om modellen - dold 2026-11-10 (>=7 dygn), fortsatt bedömd som skräp enligt samma mönster som tidigare raderade rader."
-    },
-    {
-      "datum": "2026-11-18",
-      "typ": "dolj",
-      "id": 2256,
-      "skal": "SYSTEMNAMN SOM MODELL: carModel 'Drive Pilot' är ett förarstöd, ingen bilmodell - texten nämner inte vilken modell, matchar inget bilkort. Prompten rättad samma dag."
-    },
-    {
-      "datum": "2026-11-18",
-      "typ": "dolj",
-      "id": 2257,
-      "skal": "SYSTEMNAMN SOM MODELL: carModel 'Hands-free Assist' är ett förarstöd, ingen bilmodell - texten nämner inte vilken modell, matchar inget bilkort. Prompten rättad samma dag."
-    }
-  ]
+  "atgarder": []
 }
