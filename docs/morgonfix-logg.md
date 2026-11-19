@@ -96,6 +96,15 @@ sviten) grönt - inga fel.
 **Över taket - kvar till i morgon:** inget, allt ryms (0 filer ändrade i
 `src/main`, 1 laddtips-rad, 0 köbeslut).
 
+**Eftergranskning samma dag (användaren):**
+- **TÜV-frågan är STÄNGD, lagad i drift** som 1221: 2281 (MG4), 2284 (Audi Q8 e-tron),
+  2285 (Tesla Model Y) och 2286 (Hyundai Kona Electric) säger nu "i den tyska TÜV-Report
+  2027" via `PATCH /api/admin/insights/{id}` (fältet insight, inget annat ändrat). Källan
+  är tvillingraden 2283 ur samma Allt om Elbil-artikel. Inga tal flyttas. Domen för
+  2026-11-19 är därmed GRÖNT i efterhand.
+- Extraktionsprompten har redan regeln (MARKNADSANGIVELSE), så ingen promptändring - en
+  ny rad utan marknad lagas på samma sätt.
+
 ## 2026-11-18
 
 **Handpatchar på förmiddagen (användaren):** PROMPTMISS-kandidaten 2256/2257 åtgärdad -
