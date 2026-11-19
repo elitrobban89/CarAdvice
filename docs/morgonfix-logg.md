@@ -1,5 +1,101 @@
 # Morgonfix-logg
 
+## 2026-11-19
+
+**DOM: KOLLA** - grundkollen, scrape-status, Groq, vPIC, drivmedel, kategorivakten,
+kontrollräkningen och annonskollen är alla gröna/oförändrade mot baslinjen
+(2026-11-17, gårdagen var LARM). Splashvakten är **åter helt grön** -
+Bränslekostnad kör nu Node.js 26.13.1 på f9bc090, gårdagens LARM är löst och
+driftsatt. KOLLA i stället för GRONT på grund av en öppen fråga: fyra nya
+TÜV-Report-rader saknar källnamn i själva texten (se Värdeminskning).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-19 00:37:48 (inom väntat fönster
+vintertid 00:15-00:50), status OK, databasen OK, deployad commit 22a601a
+matchar origin/master. uptimeSeconds 56 964 (~15,8 h) - ingen omstart under
+natten. ev-specs **uppdaterade 7, nya 0** (varav pris 2, räckvidd 6, batteri 1,
+dc 2, ac 0 - mest pris/räckvidd, inget onormalt hopp; kollisioner 172, under
+290-varningen). cargo-specs gav **2 nya bilnamn, 0 av 2 bagagevolymer, 0 av 0
+generationsår**. Inga källor gav 0 av N>0 i natt (Teknikens Värld 0 av 1 -
+en natt, M Sverige och Folksam tysta som vanligt).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1862 (+2), utanVolym 803 (+2), medVolym 1059
+(still), bagageMissar 848 (+2) - KB=2>0 men medVolym still + bagageMissar
+VUXIT = VÄNTAT enligt domregeln i 3f (inte undantaget, som kräver KB=0).
+evPowers 562 (still, väntat). iceGenerations 291/missar 19 (310, stämmer,
+stillestånd väntat till nästa fönster 2026-11-20). Kö **64 rader / 32 bilar**
+(+1/+1, Kia EV1 ny i natt). Kontrollräkning: cargo total 1862 + evSpecs 671 +
+ice_consumption 960 = **3493 = /api/stats variants** - går ihop exakt.
+/api/stats insights 1803 (+38 sedan baslinjen: 40 nya id (2247-2286) minus 2
+raderade i går). Inget tal har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 526/440/86/16, identiskt med referensen. Ingen flip
+bland de elva elbils-namngivna raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~15,8 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2263-2286, 24 st):** granskade var för sig - inga
+kategorifel, inga veteranvakt-läckor, inga nya skatterad/renoveringsobjekt/
+specialutgåva-rader, inga utmärkelser som bryter mot undantaget. Fem rader
+(Skoda Peaq 2266, Opel Frontera 2269, Ford Puma Gen-E 2270-2272) klassades
+först som "kommande" av extravakten men autosläpptes samma natt (50/50/38
+annonser, raderna säger inget om framtiden) - korrekt agerat, inga köbeslut
+krävs. Kia EV1 (2282) parkerades korrekt av extravakten (saljstart utskriven
+till "före slutet av 2027"). **ÖPPEN FRÅGA:** 2281 (MG4), 2284 (Audi Q8
+e-tron), 2285 (Tesla Model Y) och 2286 (Hyundai Kona Electric) ger
+TÜV-Report-andelar men nämner aldrig "TÜV-Report" i själva texten - bara
+tvillingraden 2283 (Mazda MX-30) gör det. Samma mönster som 1221
+(MEDVETET BEHÅLLEN, avsnitt 6) men regeln gäller framåt - ingen fix härifrån
+(ändrad extraktionsprompt är förbjudet enligt 9c), skrivs ut för
+användarens beslut.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder i ordagrann mening, men fem nya
+TÜV-Report-rader om tillförlitlighet (se ovan) - fyra av dem saknar
+källnamn i texten, en öppen fråga för användaren.
+
+**Kommandevakten:** 64 rader / 32 bilar (+1). Ad-check: **0 LARM, 8 GRANSKA,
+1 ANNAN_DRIVLINA, 23 INGA_ANNONSER.** Alla GRANSKA/ANNAN_DRIVLINA-rader är
+redan avgjorda ärenden (Tucson, Bayon, Mazda 6e, Range Rover, Pajero, Santa
+Fe, Sandero - ny i natt men korrekt GRANSKA). INGA_ANNONSER-raderna är kända
+parkerade bilar, plus Kia EV1 (ny, korrekt). Inga köbeslut krävdes i natt
+(0 LARM).
+
+**Marknadsregeln:** inget nytt fynd.
+
+**Splashvakten:** **grönt i alla sex appar** - Bränslekostnad kör nu Node.js
+26.13.1 (f9bc090), gårdagens LARM löst och driftsatt. Övriga fem bara väntade
+INFO-rader, inga nya.
+
+**Laddtips i natt: 1.** Ny tipsrad om Volvo XC60 Laddhybrid (insikt 2265, Vi
+Bilägares långtest: 0,1 l/100 km på laddning, 6,0 l/100 km på dagstripp).
+Övriga kandidater (2238 EX60, 2264 Leaf laddarkostnad) hoppades över -
+samma bil/ämne redan täckt senaste veckorna respektive fel tema (laddarkostnad,
+inte laddning/batteri/räckvidd/förbrukning/laddpris).
+
+**Köbeslut i natt:** inga (0 LARM i ad-check, ingen ny skräprad hittad, 2201
+fortsatt dold sedan 2026-11-12 men bara ~6,8 dygn - inte 7 ännu).
+`atgarder.json` skrivs om med tom lista.
+
+**Baslinjen:** ny baslinje skriven (matt 2026-11-19T00:50:37Z, commit
+22a601a) - domen är KOLLA, inte LARM, så baslinjen uppdateras som vanligt.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=LaddtipsServiceTest,MorgonfixAtgarderTest test`
+grönt (24 prov). `mvn -q -DskipTests package` grönt. `mvn -q test` (hela
+sviten) grönt - inga fel.
+
+**Över taket - kvar till i morgon:** inget, allt ryms (0 filer ändrade i
+`src/main`, 1 laddtips-rad, 0 köbeslut).
+
 ## 2026-11-18
 
 **Handpatchar på förmiddagen (användaren):** PROMPTMISS-kandidaten 2256/2257 åtgärdad -

@@ -42,6 +42,7 @@
     {"datum": "2026-11-15", "typ": "laddtips", "ikon": "🔋", "text": "**Mercedes CLA** kom trea i ECOBEST Challenge 2026 med **7,21 km per kWh** (13,9 kWh/100 km) och en uppmätt räckvidd på 613 km.", "kalla": "Allt om Elbil", "insikter": [2183]},
     {"datum": "2026-11-16", "typ": "laddtips", "ikon": "🔋", "text": "**Nissan Leaf** (40 kWh) hade enligt Aviloos batterihälsostudie kvar **85,9 %** av sin ursprungliga kapacitet efter 15 000 mil, vilket gav en räckvidd på omkring **185 km**.", "kalla": "Allt om Elbil", "insikter": [2198, 2195]},
     {"datum": "2026-11-16", "typ": "laddtips", "ikon": "🔋", "text": "**Tesla Model Y** behöll enligt samma Aviloo-studie **90,0 %** av batterikapaciteten efter 15 000 mil, vilket gav en beräknad räckvidd på omkring **361 km**.", "kalla": "Allt om Elbil", "insikter": [2197]},
-    {"datum": "2026-11-16", "typ": "laddtips", "ikon": "🔋", "text": "**Volkswagen ID.4** hade enligt samma studie kvar **90,9 %** av batterikapaciteten efter 15 000 mil – räckvidden sjönk från omkring 373 till **355 km**.", "kalla": "Allt om Elbil", "insikter": [2196]}
+    {"datum": "2026-11-16", "typ": "laddtips", "ikon": "🔋", "text": "**Volkswagen ID.4** hade enligt samma studie kvar **90,9 %** av batterikapaciteten efter 15 000 mil – räckvidden sjönk från omkring 373 till **355 km**.", "kalla": "Allt om Elbil", "insikter": [2196]},
+    {"datum": "2026-11-19", "typ": "laddtips", "ikon": "🔋", "text": "**Volvo XC60 Laddhybrid** körde i Vi Bilägares långtest 2026 över 100 mil utan att bensinmotorn startade mer än en eller två gånger, vilket gav en förbrukning på bara **0,1 l/100 km** – men på en vanlig dagstripp steg förbrukningen till 6,0 l/100 km enligt färddatorn.", "kalla": "Vi Bilägare", "insikter": [2265]}
   ]
 }
