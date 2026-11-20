@@ -1,5 +1,113 @@
 # Morgonfix-logg
 
+## 2026-11-20
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten och
+kontrollräkningen är alla gröna/oförändrade mot baslinjen. KOLLA i stället
+för GRÖNT på grund av två saker: Allt om Elbil svarade FEL (timeout) i natt,
+och en ny kö-rad (2291) hade ett car_model som inte matchade texten
+(PROMPTMISS, löst med ett släpp-beslut, se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-20 00:31:34 (inom väntat fönster
+vintertid 00:15-00:50), status OK, databasen OK, deployad commit b2bd23c
+matchar origin/master. uptimeSeconds 59 882 (~16,6 h) - ingen omstart under
+natten. ev-specs **uppdaterade 7, nya 0** (kollisioner 172, under
+290-varningen; mest pris/räckvidd - pris 2, räckvidd 6, batteri 1, dc 2, ac 0).
+cargo-specs gav **4 nya bilnamn, 0 av 4 bagagevolymer, 0 av 0 generationsår**
+(N=4, inom 2-20). **Allt om Elbil: FEL (HTTP connect timed out)** - Render-
+loggen bekräftar: endpointen alltomelbil.se/wp-json svarade inte 00:30:13,
+en enda natt, ingen källändring misstänkt ännu. Övriga källor normalt tysta
+(M Sverige, Folksam 0 av 0; M3, Auto Motor & Sport 0 av 5 - vanligt för dem).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1866 (+4), utanVolym 807 (+4), medVolym 1059
+(still), bagageMissar 852 (+4) - KB=4>0 men medVolym still + bagageMissar
+VUXIT = VÄNTAT (3f, inte undantaget). evPowers 562 (still, väntat).
+iceGenerations 291/missar 19 (310, stämmer, stillestånd väntat). Kö
+**65 rader / 33 bilar** (+1/+1, Hongqi EHS9 ny i natt - se PROMPTMISS nedan).
+Kontrollräkning: cargo total 1866 + evSpecs 671 + ice_consumption 960 =
+**3497 = /api/stats variants** - går ihop exakt. Inget tal har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen, sju+ matningar i rad utan
+avvikelse.
+
+**Drivmedelsräknaren:** 526/440/86/16, identiskt med baslinjen. Ingen flip
+bland de elva elbils-namngivna raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 3, iBufferten 3 (uptime ~16,6 h, täcker hela
+nattkedjan). perBil: Audi A8 (2), Saab 96 (1) - vakten gjorde sitt jobb:
+Audi A8 (lyxbil) fick kategorin "familjebil" struken på två nya rader
+(2292, 2293), Saab 96 (52 år, veteranvakt) fick kategori och drivmedel
+strukna på en rad (2290). Inga hål i vakten.
+
+**Nattens nya rader (2287-2293, 7 st):** Skoda Kodiaq (2287, suv,
+mjukvarubugg på backkameran), BYD Dolphin G x2 (2288-2289, smaabil,
+undanmanöverprov + servicekostnad), Saab 96 (2290, veteranbil, se ovan),
+**Hongqi EHS9 (2291, PROMPTMISS)** - texten gäller EH7/EHS7 ("tolv exemplar
+... registrerats i Sverige 2026"), car_model-fältet "EHS9" finns inte i
+texten och matchar inga Blocket-annonser; raden hamnade felaktigt i
+kommande-kön trots att artikeln beskriver redan köpta bilar - **släppt i
+natt** (se köbeslut), Audi A8 x2 (2292-2293, ABT-tunad, pris/effekt, kategori
+struken, se ovan). Inga kategorifel, inga nya skatterad/renoveringsobjekt/
+specialutgåva-rader.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder.
+
+**Kommandevakten:** 65 rader / 33 bilar (+1). Ad-check: **0 LARM, 8 GRANSKA,
+1 ANNAN_DRIVLINA, 24 INGA_ANNONSER.** GRANSKA/ANNAN_DRIVLINA är alla kända
+avgjorda ärenden (Tucson, Bayon, Mazda 6e, Range Rover, Pajero, Santa Fe,
+Dacia Sandero - ny GRANSKA i natt, korrekt). **OBS, rättat under granskningen:**
+23 rader i kön saknar `beslutad_at`, men flera jag först trodde var obeslutade
+(2178, 2079, 2077, 2050, 2049, 2029, 2028) hade redan `beslutad_at`
+2026-10-31/11-10 - de är redan parkerade, ingen ny åtgärd behövdes där. De
+verkligt obeslutade raderna jag tog i kväll (12 st, taket): Dacia Sandero
+(2262, "den kommande eldrivna" Sandero), Kia EV1 (2282, lansering 2027),
+Xpeng L05 x2 (2245-2246), el-Range Rover (1578, ANNAN_DRIVLINA - annonserna
+är diesel/bensin), Volvo XC100 (1570, uttryckligt arbetsnamn), Mazda 6e x2
+(1560, 1551 - 78 kWh-versionen, GRANSKA), Lynk & Co 10 (1627), VW ID.3 GTI x2
+(1557, 1545 - samma mönster som redan parkerade Peugeot E-208 GTi 2213-2217)
+- alla PARKERADE (INGA_ANNONSER/ANNAN_DRIVLINA/GRANSKA + källan säger själv
+"kommande"/"planerar"/"arbetsnamn", eller en tydlig precedensrad). Hongqi
+EHS9 (2291) SLÄPPT (se ovan). Kvar i backloggen till en annan natt: fyra till
+VW ID.3 GTI-rader (1552-1556), Kia PV7 (1522), Nissan Kicks (1546),
+Mitsubishi Pajero (1412, 1414), Hyundai Santa Fe (1368), Hyundai Ioniq 4/7
+(1866-1867) - alla redan korrekt GRANSKA/INGA_ANNONSER, ingen brådska
+eftersom inga ger LARM.
+
+**Marknadsregeln:** inget nytt fynd.
+
+**Splashvakten:** **grönt i alla sex appar** (`node scripts/splash-vakt.js`,
+exitkod 0). Bara väntade INFO-rader i Elbilsladdning, inga nya.
+
+**Laddtips i natt: 0.** Starkaste kandidaten (Volvo XC60 Laddhybrid, 2265)
+är redan publicerad 2026-11-19. Övriga kandidater (EX60 2238 - redan
+avgjord "ingen åtgärd" i nattrutin.md, Mercedes GLB 2237 - ev_spec visar
+353 kW mot textens 320 kW, för osäkert, Leaf-laddarkostnad 2264 - fel tema)
+hoppades över. Ingen bra ny kandidat - inget tips skrivet.
+
+**Köbeslut i natt:** se Kommandevakten ovan (1 slapp, 11 parkera) plus
+**radera 2201** - dold sedan 2026-11-12 (8 dygn, ≥7), fortfarande samma fel
+(BMW i3 saknar 50 xDrive-suffixet, delar laddrekord med 2200). 2256/2257
+fortsatt dolda (2 dygn, inte 7 än).
+
+**Baslinjen:** ny baslinje skriven (mätt 2026-11-20T00:57:15Z, commit
+b2bd23c) - domen är KOLLA, inte LARM, så baslinjen uppdateras som vanligt.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=MorgonfixAtgarderTest test` grönt.
+`mvn -q -DskipTests package` grönt. `mvn -q test` (hela sviten) grönt -
+inga fel.
+
+**Över taket - kvar till i morgon:** inget nytt data/kodarbete, men
+köbeslut-backloggen (se Kommandevakten) är inte helt tömd - fler PARKERA-
+kandidater väntar, ingen brådska eftersom inga ger LARM.
+
 ## 2026-11-19
 
 **DOM: KOLLA** - grundkollen, scrape-status, Groq, vPIC, drivmedel, kategorivakten,
