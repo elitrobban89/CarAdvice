@@ -1,18 +1,16 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-20", "typ": "slapp", "id": 2291, "skal": "car_model 'EHS9' matchar inte texten (Hongqi EH7/EHS7, 12 ex registrerade i Sverige 2026 enligt CarUp) - redan köpbar, fel bil i upcoming-kön (PROMPTMISS, samma mönster som Ionix 3/1804)"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 2262, "skal": "Allt om Elbil: 'den kommande eldrivna Dacia Sandero' - nästa generation, ej köpbar i Sverige (GRANSKA i annonskollen)"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 2282, "skal": "Allt om Elbil: Kia EV1 lanseras 'före slutet av 2027', ingen svensk prissättning ännu - annonskollen ger INGA_ANNONSER"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 2246, "skal": "Allt om Elbil: Xpeng L05 'förväntas få' AI-system från L03 - ej lanserad, INGA_ANNONSER"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 2245, "skal": "Allt om Elbil: Xpeng L05, samma bil som 2246 - ej lanserad, INGA_ANNONSER"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1578, "skal": "Auto Motor & Sport: texten gäller el-Range Rover, men Blockets 49 annonser är 42 diesel + 7 bensin (ANNAN_DRIVLINA) - elversionen säljs inte än i Sverige"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1570, "skal": "Vi Bilägare: 'Volvo planerar en ny flaggskepps-SUV, arbetsnamnet XC100' - uttryckligt arbetsnamn för en ej lanserad bil, INGA_ANNONSER"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1560, "skal": "M3: uppdaterade Mazda 6e med 78 kWh LFP - gäller versionen som ännu inte går att köpa i Sverige (GRANSKA i annonskollen, samma modell som 1551)"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1551, "skal": "Vi Bilägare: Mazda 6e 78 kWh LFP, samma ej-köpbara version som 1560"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1627, "skal": "CarUp: Lynk & Co 10 med Geelys nya Smart Charge-teknik - ej lanserad i Sverige, INGA_ANNONSER"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1557, "skal": "M3: Volkswagen ID.3 GTI, samma mönster som redan parkerade Peugeot E-208 GTi (2213-2217) - INGA_ANNONSER, ny prestandavariant ej till salu än"},
-    {"datum": "2026-11-20", "typ": "parkera", "id": 1545, "skal": "Teknikens Värld: Volkswagen ID.3 GTI, samma ej-köpbara prestandavariant som 1557"},
-    {"datum": "2026-11-20", "typ": "radera", "id": 2201, "skal": "FEL BIL: dold sedan 2026-11-12 (8 dygn), fortfarande samma fel - BMW i3 (smaabil) saknar 50 xDrive-suffixet och delar laddrekord med 2200"}
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1867, "skal": "Allt om Elbil: Hyundai Ioniq 7 'avses bli' en större familje-SUV - ej lanserad, INGA_ANNONSER"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1866, "skal": "Allt om Elbil: Hyundai Ioniq 4 'planeras som' kompakt SUV - ej lanserad, INGA_ANNONSER"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1556, "skal": "M3: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1554, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1553, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1552, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1546, "skal": "Vi Bilägare: Nissan Kicks - INGA_ANNONSER, bilen säljs inte i Sverige"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1522, "skal": "Auto Motor & Sport: Kia PV7 - INGA_ANNONSER, bilen säljs inte i Sverige"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1414, "skal": "Vi Bilägare: 'den nya Pajero-modellen' - texten gäller nästa generation (GRANSKA i annonskollen)"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1412, "skal": "CarUp: 'Den nya Mitsubishi Pajero' - texten gäller nästa generation (GRANSKA i annonskollen)"},
+    {"datum": "2026-11-21", "typ": "parkera", "id": 1368, "skal": "M3: Hyundai Santa Fe EREV 'ska lanseras under första halvåret 2027, men det är ännu oklart om den kommer till Sverige' - utskriven saljstart fram i tiden, osäker svensk marknad (GRANSKA i annonskollen)"}
   ]
 }

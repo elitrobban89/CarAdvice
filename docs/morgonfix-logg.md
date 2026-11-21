@@ -1,5 +1,112 @@
 # Morgonfix-logg
 
+## 2026-11-21
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
+kontrollräkningen och splashvakten är alla gröna/oförändrade mot baslinjen.
+KOLLA i stället för GRÖNT på grund av en sak: **Allt om Elbil svarade FEL
+(timeout) andra natten i rad** (även 2026-11-20) - ingen källändring
+bekräftad än, men värt att bevaka en tredje natt.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-21 00:36:13 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+ba585fb matchar origin/master (morgonfix 2026-11-20 är i drift, ingen
+revert). uptimeSeconds 84 981-85 348 (~23,6 h) - ingen omstart under natten.
+ev-specs **uppdaterade 7, nya 0** (kollisioner 172, under 290-varningen;
+varav pris 2, räckvidd 6, batteri 1, dc 2, ac 0 - mest pris/räckvidd, inget
+onormalt hopp). cargo-specs gav **0 nya bilnamn, 1 av 156 bagagevolymer,
+0 av 19 generationsår** (N=0, lugn natt, inget "högt N med M=0 och K=0"-
+mönster).
+
+**web-insights:** 8 nya rader. Teknikens Värld 3 av 3, Vi Bilägare 1 av 9,
+M Sverige 0 av 0 (normalt tyst), M3 1 av 4, Auto Motor & Sport 0 av 4
+(normalt för dem), CarUp 3 av 12, Folksam 0 (normalt tyst). **Allt om Elbil:
+FEL (HTTP connect timed out)** - Render-loggen bekräftar: endpointen
+alltomelbil.se/wp-json svarade inte 00:35:03, exakt samma fel som i natt mot
+2026-11-20. Andra natten i rad med identiskt fel - ingen källändring
+misstänkt ännu (ingen "N > 0 två nätter i rad"-situation, det är ett
+anslutningsfel, inte en tom relevansfiltrering), men värt att skriva ut om
+det återkommer en tredje natt.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1866 (still), utanVolym 806 (-1), medVolym 1060
+(+1), bagageMissar 851 (-1) - medVolym UPPÅT = bra oavsett bagageMissar
+(3f). evPowers 562 (still, väntat - evSpecs 671 still). iceGenerations
+291/missar 19 (310, stämmer, stillestånd väntat). Kö **64 rader / 32 bilar**
+(-1/-1, se "Skoda Peaq"-notisen nedan - ingen ny rad hamnade kvar i kön).
+Kontrollräkning: cargo total 1866 + evSpecs 671 + ice_consumption 960 =
+**3497 = /api/stats variants** - går ihop exakt. Inget tal har fallit.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16 (totalen +1, ice +1 - normalt, cargo-
+specs betar av ice_consumption). Ingen flip bland de elva elbils-namngivna
+raderna eller de fem handsatta ice-raderna (kontrollerat mot namn, alla
+stämmer).
+
+**Kategorivakten:** totalt 3, iBufferten 3 (uptime ~23,6 h, täcker hela
+nattkedjan). perBil: Audi A6 allroad (3) - vakten gjorde sitt jobb: kategorin
+"suv" strukits på tre nya rader (2294-2296) eftersom "audi a6 allroad är
+ingen SUV" (Render-loggen bekräftar samma motsägelse tre gånger 00:24:41).
+Inget hål i vakten.
+
+**Nattens nya rader (2294-2301, 8 st):** Audi A6 allroad x3 (2294-2296, V6-
+diesel, mild-hybrid, luftfjädring/fyrhjulsstyrning - kategori struken, se
+ovan), Vi Bilägare: Peugeot e-208 (2297, smaabil, ARN-beslut om hävningsrätt
+vid uppkopplingsförlust), **Skoda Peaq (2298, suv, M3: saknar fysisk
+snabbknapp för körlägen)** - hamnade kort i kommande-kön men
+**autosläpptes samma natt** 00:36:18 ("50 annonser och raden säger inget om
+framtiden") - normal drift, ingen kobeslut-åtgärd behövdes, CarUp: Volvo S60
+(2299, familjebil, kontroll av vevhusventilation med gummihandske), Saab 9-3
+(2300, familjebil, läckage i kupén pga igensatta dräneringshål), Volkswagen
+ID.4 (2301, suv, LED-list mellan strålkastarna är godkänd). Inga
+kategorifel, inga nya skatterad/renoveringsobjekt/specialutgåva-rader.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder.
+
+**Kommandevakten:** 64 rader / 32 bilar (-1). Ad-check: **0 LARM, 9
+GRANSKA, 0 ANNAN_DRIVLINA, 23 INGA_ANNONSER.** Alla GRANSKA/INGA_ANNONSER är
+kända avgjorda ärenden eller tidigare parkerade rader (Tucson, Bayon, Mazda
+6e, Range Rover x2, Pajero, Santa Fe, Dacia Sandero). **Köbeslut i natt:**
+tömde backloggen från 2026-11-20 - 11 rader som låg olåsta (utan
+`beslutad_at`) i kön utan att ge LARM: Hyundai Ioniq 7 (1867, "avses bli"),
+Hyundai Ioniq 4 (1866, "planeras som"), Volkswagen ID.3 GTI x4 (1556, 1554,
+1553, 1552 - samma mönster som redan parkerade 1545/1557), Nissan Kicks
+(1546, INGA_ANNONSER), Kia PV7 (1522, INGA_ANNONSER), Mitsubishi Pajero x2
+(1414, 1412 - "den nya Pajero-modellen"/"Den nya Mitsubishi Pajero", nästa
+generation), Hyundai Santa Fe (1368, EREV "ska lanseras under första
+halvåret 2027, men det är ännu oklart om den kommer till Sverige") - alla
+**PARKERADE**. Ingen ny olåst rad kvar i kön efter detta.
+
+**Marknadsregeln:** inget nytt fynd.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0). Bara väntade INFO-rader i Elbilsladdning, inga nya VARNING.
+
+**Laddtips i natt: 0.** Enda kandidaten (Volvo XC60 Laddhybrid, 2265) är
+redan publicerad 2026-11-19 (samma text i GET /api/laddtips). Nissan Leaf-
+laddarkostnad (2264) och Hyundai Ioniq 5-verkstadshistoria (2280) har fel
+tema (verkstadskostnad/tillförlitlighet, inte laddning/batteri/räckvidd/
+förbrukning/laddpris) - hoppade över, som i går.
+
+**Bygg- och provresultat:** `mvn -q -Dtest=MorgonfixAtgarderTest test`
+grönt. `mvn -q -DskipTests package` grönt. `mvn -q test` (hela sviten,
+~1000 prov) grönt - inga fel.
+
+**Över taket - kvar till i morgon:** inget - köbeslut-backloggen är nu
+tömd, inga dolda rader är gamla nog för radera (2256/2257 dolda sedan
+2026-11-18, 3 dygn, inte 7 än).
+
+**Baslinjen:** ny baslinje skriven (mätt commit ba585fb) - domen är KOLLA,
+inte LARM, så baslinjen uppdateras som vanligt.
+
 ## 2026-11-20
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten och
