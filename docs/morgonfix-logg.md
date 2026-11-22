@@ -1,5 +1,116 @@
 # Morgonfix-logg
 
+## 2026-11-22
+
+**DOM: KOLLA** - grundkollen, scrape-status (status OK bortsett från källan
+nedan), Groq, vPIC, drivmedel, kategorivakten, kontrollräkningen och
+splashvakten är alla gröna/oförändrade mot baslinjen. KOLLA på grund av två
+saker: **Allt om Elbil svarade FEL (timeout) en TREDJE natt i rad** (även
+2026-11-20 och 2026-11-21 enligt loggboken) - nu ett mönster, inte en
+enstaka natt; och **bagagesvepet stod helt still** (medVolym 1060→1060,
+bagageMissar 851→851, cargo-specs perSource "bagagevolymer: 0 av 150 kvar")
+- enligt domregeln i 3f är det en AVVIKELSE eftersom KB=150>0 och båda talen
+stod still (inte undantaget "0 av 0 kvar"). `/api/admin/cargo-specs/missar`
+visar bara kända ovanliga/utrotade modeller (Ferrari 599, Jaguar-klassiker,
+Kabe-husvagnar m.fl., alla "ej-hittad") - inget tecken på att Volvo XC60
+eller liknande vanliga bilar läckt in, så parkeringstabellen ser frisk ut,
+men jobbet gjorde ändå noll försök i natt (varken en fylld volym eller en ny
+miss lades till). Går inte att avgöra via /api/admin/logg (summeringsraden
+loggas på INFO, se matfällan 10-18) - kräver Render-loggen för att skilja
+"nådde inte källan" från "cargo_spec_miss skrivs i tysthet ingenstans".
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-22 00:29:24 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+63767f3 matchar origin/master (morgonfix 2026-11-21 är i drift, ingen
+revert). uptimeSeconds ~85 189-85 904 (~23,7 h) - ingen omstart under
+natten. ev-specs **uppdaterade 7, nya 0** (kollisioner 172, under
+290-varningen; varav pris 2, räckvidd 6, batteri 1, dc 2, ac 0 - mest
+pris/räckvidd). cargo-specs gav **0 nya bilnamn, 0 av 150 bagagevolymer,
+0 av 0 generationsår** - se AVVIKELSEN ovan.
+
+**web-insights:** 7 nya rader. Teknikens Värld 0 av 1, Vi Bilägare 0 av 2,
+M Sverige 0 av 0 (normalt tyst), M3 1 av 1, Auto Motor & Sport 0 av 0
+(normalt för dem), CarUp 6 av 12, Folksam 0 (normalt tyst). **Allt om Elbil:
+FEL (HTTP connect timed out)** - tredje natten i rad, se domraden.
+Render-loggen (egen logg) bekräftar: endpointen alltomelbil.se/wp-json
+svarade inte 00:28:09.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1866 (still), utanVolym 806 (still), medVolym
+1060 (still), bagageMissar 851 (still) - se AVVIKELSEN ovan (3f, KB=150>0).
+evPowers 562 (still, väntat - evSpecs 671 still). iceGenerations
+291/missar 19 (310, stämmer, stillestånd väntat, nästa fönster 2026-11-20
+redan passerat utan ny provning synlig här). Kö **64 rader / 32 bilar**
+(oförändrat). Kontrollräkning: cargo total 1866 + evSpecs 671 +
+ice_consumption 960 = **3497 = /api/stats variants** - går ihop exakt.
+Inget tal har fallit. hogstaInsiktsId 2301→2308 (+7, matchar newInsights
+och insights 1817→1824).
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med baslinjen. Ingen flip
+bland de elva elbils-namngivna raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~23,7 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2302-2308, 7 st):** Volvo EX60 (2302, M3, vintertest
+Funäsdalen - dörrhandtag fastfrusna), Volvo V40 (2303, CarUp, ägarrapport om
+kamrem/vattenpump-haveri med manipulerad servicebok), Volvo V70 x5
+(2304-2308, CarUp: D5-diesel generator/multirem, D4 oljeförbrukning, 2,5T
+bensin, bagageutrymme 575 l, D2/DRIVe underdimensionerad). Alla kategorier
+rimliga (familjebil/smaabil/elbil), inga veteranvakt-läckor, inga nya
+skatterad/renoveringsobjekt/specialutgåva-rader. **Notis, ingen åtgärd:**
+Skoda Peaq förekommer med "suv" (2298, M3) och "familjebil" (2266,
+Vi Bilägare, 2026-11-19) i fönstret - ingen av modellerna står i
+InsightTaxonomy LAGA/STORA_MODELLER så vakten slår inte till; sannolikt en
+gränsdragning (kompakt SUV-coupé), inte ett hål i vakten - ingen tydlig
+modellstorlek att namnge.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder.
+
+**Kommandevakten:** 64 rader / 32 bilar, oförändrat. Ad-check: **0 LARM,
+9 GRANSKA, 0 ANNAN_DRIVLINA, 23 INGA_ANNONSER.** Samtliga 64 rader är redan
+`beslutad_at`-låsta (ingen olåst rad kvar i kön) - alla GRANSKA/
+INGA_ANNONSER är kända avgjorda ärenden (Dacia Sandero, Volvo XC70, Bayon,
+Tucson, Range Rover x2, Mazda 6e, Pajero, Santa Fe m.fl.). **Inga nya
+köbeslut krävdes i natt.**
+
+**Marknadsregeln:** inget nytt fynd.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0) - Bränslekostnad (LARM 2026-11-18, Node.js-version) är nu grön
+sedan ett annat repos fix. Bara väntade INFO-rader i Elbilsladdning, inga
+nya VARNING.
+
+**Laddtips i natt: 0.** Samma tre kandidater som i går (`ev-fact-candidates`):
+2265 Volvo XC60 Laddhybrid redan publicerad 2026-11-19, 2264 Nissan Leaf
+(laddarkostnad) och 2280 Hyundai Ioniq 5 (verkstadshistoria) har fel tema
+(reparationskostnad/tillförlitlighet, inte laddning/batteri/räckvidd/
+förbrukning/laddpris) - inget nytt tips skrivet.
+
+**Köbeslut i natt:** inga (0 LARM i ad-check, kön helt låst sedan tidigare
+nätter). `atgarder.json` orört (gårdagens 11 parkera-rader ligger kvar men
+är redan utförda - appen minns det själv och hoppar tyst över dem).
+
+**Dolda rader:** 2256/2257 fortsatt dolda sedan 2026-11-18 (4 dygn) - under
+7-dygnsgränsen, raderas inte än.
+
+**Baslinjen:** ny baslinje skriven (mätt commit 63767f3, kontrollräkning
+3497/3497) - domen är KOLLA, inte LARM, så baslinjen uppdateras som vanligt.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt. `mvn -q test`
+(hela sviten, ~1000 prov) grönt - inga fel.
+
+**Över taket - kvar till i morgon:** inget.
+
 ## 2026-11-21
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
