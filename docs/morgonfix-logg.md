@@ -1,5 +1,132 @@
 # Morgonfix-logg
 
+## 2026-11-23
+
+**DOM: LARM** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
+kontrollräkningen och splashvakten är alla gröna/oförändrade mot baslinjen.
+LARM på grund av ett namngivet tvånattersprov i avsnitt 3f: **bagagesvepet
+har nu stått still TVÅ NÄTTER I RAD** med ett icke-uttömt KB. I natt:
+medVolym 1060→1060, bagageMissar 851→851, cargo-specs perSource
+"bagagevolymer: 0 av 150 kvar". I går (loggboken 2026-11-22): samma mönster,
+medVolym 1060→1060 (från 11-21), bagageMissar 851→851, "0 av 150 kvar" då
+också. KB var 150 (i går) och är 150 i natt - aldrig 0 ("listan slut"), så
+undantaget i 3f gäller inte. Domregeln: "Ligger den nära 0 två nätter i rad
+är det LARM." `/api/admin/cargo-specs/missar` ser fortsatt frisk ut (851
+rader, alla "ej-hittad", ingen vanlig bil som Volvo XC60/VW Golf bland dem;
+150 av dem har `provadDag: 2026-10-24`, vilket är precis det 30-dagarsfönster
+som skulle öppna igen idag/imorgon) - men jobbet gjorde ändå noll försök två
+nätter i rad trots att KB>0. Går inte att avgöra "nådde inte källan" från
+"cargo_spec_miss skrivs i tysthet ingenstans" utan Render-loggens INFO-rad
+"auto-data bagage: ..." (matfälla 10-18, finns aldrig i /api/admin/logg) -
+den har jag ingen åtkomst till härifrån. **Vänder det inte i natt bör
+CargoSpecService.fillFromScrape/bagagearbetslistan granskas i drift.**
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-23 00:31:21 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+a3b238a matchar origin/master (morgonfix 2026-11-22 är i drift, ingen
+revert). uptimeSeconds 85243-85373 (~23,7 h) - ingen omstart under natten.
+ev-specs **uppdaterade 7, nya 0** (kollisioner 172, under 290-varningen;
+varav pris 2, räckvidd 6, batteri 1, dc 2, ac 0). cargo-specs gav **0 nya
+bilnamn, 0 av 150 bagagevolymer, 0 av 0 generationsår** - bagage se LARM
+ovan; generationsår KG=0 (listan slut, väntat stillestånd, OK).
+
+**web-insights:** 13 nya rader. Teknikens Värld 1 av 1, Vi Bilägare 2 av 1,
+M Sverige 0 av 0 (normalt tyst), M3 0 av 2, Auto Motor & Sport 0 av 1,
+CarUp 10 av 12, Folksam 0 (normalt tyst). **Allt om Elbil: FEL (HTTP connect
+timed out) - FJÄRDE natten i rad** (även 11-20, 11-21, 11-22 enligt
+loggboken) - nu ett väletablerat mönster, värt att nämna för användaren men
+ger inget eget LARM (samma anslutningsfel som tidigare, ingen ny signal).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1866 (still), utanVolym 806 (still), medVolym
+1060 (still), bagageMissar 851 (still) - se LARM ovan. evPowers 562 (still,
+väntat - evSpecs 671 still). iceGenerations 291/missar 19 (310, stämmer,
+stillestånd väntat, forsöktDag 2026-11-20 på alla 19, dagarKvar 27). Kö
+**65 rader / 33 bilar** (+1/+1, se Kommandevakten). Kontrollräkning: cargo
+total 1866 + evSpecs 671 + ice_consumption 960 = **3497 = /api/stats
+variants** - går ihop exakt. Inget tal har fallit. hogstaInsiktsId
+2308→2321 (+13, matchar newInsights och insights 1824→1837).
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med baslinjen. Ingen flip
+bland de elva elbils-namngivna raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~23,7 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2309-2321, 13 st):** Volvo EX60 (2309, Teknikens Värld,
+se Kommandevakten), VW Golf VII x4 (2318-2321, CarUp: kamkedja/kamrem, 1,5
+TSI kallstart, vattenpump/termostat, DQ200-koppling - alla reliabilitet,
+rimliga), Volvo XC60 Recharge T6 (2317, CarUp: SRS/kamera-fel, ARN-beslut),
+Mercedes S-klass/E-klass (2316, 2315, CarUp: Airmatic-fjädring),
+Skoda Fabia/Renault Clio Grandtour/Ford Fiesta (2314, 2313, 2312, CarUp:
+testomdömen med konkreta felpoäng), Fiat Multipla x2 (2311, 2310,
+Vi Bilägare: produktionshistorik + utrymme). Alla kategorier/drivmedel
+rimliga (familjebil/smaabil/suv/laddhybrid), inga veteranvakt- eller
+kategorivakt-läckor, inga nya skatterad/renoveringsobjekt/specialutgåva-
+rader. **13 av 13 bra.**
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder i de 13 nya raderna (de 5
+TÜV-Report-raderna i fönstret - 2281, 2283-2286 - är tillförlitlighet men
+från en tidigare natt, inte nya i natt; alla har källattribuering "tyska
+TÜV-Report 2027").
+
+**Kommandevakten:** 65 rader / 33 bilar (+1/+1). Ad-check: **0 LARM,
+10 GRANSKA, 0 ANNAN_DRIVLINA, 23 INGA_ANNONSER.** 64 av 65 rader var redan
+`beslutad_at`-låsta. **EN olåst ny rad: 2309 (Volvo EX60, Teknikens Värld)**
+- annonskollen gav GRANSKA (50 annonser) men exemplen visar riktiga priser
+(689000 kr) och löpande leasing/förmånsvärde (5992-6995 kr/mån) på P6
+RWD/Plus, modellår 2026-2027 - TESTBEVISREGELN: bilen går redan att köpa/
+leasa i Sverige. **Beslut: SLÄPP 2309** (atgarder.json, se nedan) enligt
+användarens linje - en synlig rad om en säljbar bil är bättre än en dold.
+
+**Marknadsregeln:** inget nytt fynd (Hongqi 2291 bekräftar själv 12
+registrerade exemplar i Sverige 2026 - säljs redan, ingen marknadsfråga).
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0). Bara väntade INFO-rader i Elbilsladdning, inga nya VARNING.
+
+**Laddtips i natt: 0.** Samma tre kandidater som tidigare nätter
+(`ev-fact-candidates`): 2265 Volvo XC60 Laddhybrid redan publicerad
+2026-11-19, 2264 Nissan Leaf (laddarkostnad) och 2280 Hyundai Ioniq 5
+(verkstadshistoria) har fel tema (reparationskostnad/laddarpris, inte
+laddning/batteri/räckvidd/förbrukning/laddpris) - inget nytt tips skrivet.
+
+**Köbeslut i natt:** `atgarder.json` skrivet om med EN rad: `slapp` id 2309
+(Volvo EX60), se Kommandevakten för källa/skäl.
+
+**Dolda rader:** 2256/2257 fortsatt dolda sedan 2026-11-18 (5 dygn) - under
+7-dygnsgränsen, raderas inte än.
+
+**Laddpriser (måndag, avsnitt 13):** 5 av 6 nätverksrader kontrollerade mot
+egna prissidor - alla OFÖRÄNDRADE mot förra kontrollen (2026-11-16):
+ionity ~6,09 kr/kWh (Sweden direct-kwh-price), allego ~6,30 kr/kWh (Pay as
+you go Ultrafast), circle k/circlek ~6,69 kr/kWh (Engångsbetalning,
+Ultrasnabbladdare DC 300-400 kW), lidl ~5,80 kr/kWh (Via smartphone, DC).
+`kontrollerad` satt till 2026-11-23 på dessa. **mer kunde inte nås** - sidan
+gav en JS-ombord ("One moment, please...", automatisk reload) i stället för
+prisinnehåll; hoppade över nätverket, reserven (~5,10 kr/kWh, 2026-11-16)
+står kvar oförändrad. 0 prisändringar (alla 5 nåbara var identiska mot förra
+kontrollen).
+
+**Baslinjen:** INGEN NY BASLINJE SKRIVS - domen är LARM
+(docs/nattrutin-ramar.md rad 15 / docs/nattrutin.md avsnitt BASLINJEN).
+Gårdagens baslinje (mätt commit 63767f3, 2026-11-22T00:56:22.785Z) ligger
+kvar, så avvikelsen syns igen i morgon i stället för att tyst bli ny norm.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt. `mvn -q
+test` (hela sviten, ~1000 prov) grönt - inga fel.
+
+**Över taket - kvar till i morgon:** inget.
+
 ## 2026-11-22
 
 **DOM: KOLLA** - grundkollen, scrape-status (status OK bortsett från källan

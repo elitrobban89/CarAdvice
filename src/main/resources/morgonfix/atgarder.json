@@ -1,16 +1,6 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1867, "skal": "Allt om Elbil: Hyundai Ioniq 7 'avses bli' en större familje-SUV - ej lanserad, INGA_ANNONSER"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1866, "skal": "Allt om Elbil: Hyundai Ioniq 4 'planeras som' kompakt SUV - ej lanserad, INGA_ANNONSER"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1556, "skal": "M3: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1554, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1553, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1552, "skal": "Vi Bilägare: Volkswagen ID.3 GTI, samma mönster som redan parkerade 1545/1557 - INGA_ANNONSER, prestandavariant ej till salu än"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1546, "skal": "Vi Bilägare: Nissan Kicks - INGA_ANNONSER, bilen säljs inte i Sverige"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1522, "skal": "Auto Motor & Sport: Kia PV7 - INGA_ANNONSER, bilen säljs inte i Sverige"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1414, "skal": "Vi Bilägare: 'den nya Pajero-modellen' - texten gäller nästa generation (GRANSKA i annonskollen)"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1412, "skal": "CarUp: 'Den nya Mitsubishi Pajero' - texten gäller nästa generation (GRANSKA i annonskollen)"},
-    {"datum": "2026-11-21", "typ": "parkera", "id": 1368, "skal": "M3: Hyundai Santa Fe EREV 'ska lanseras under första halvåret 2027, men det är ännu oklart om den kommer till Sverige' - utskriven saljstart fram i tiden, osäker svensk marknad (GRANSKA i annonskollen)"}
+    {"datum": "2026-11-23", "typ": "slapp", "id": 2309, "skal": "Teknikens Värld: Volvo EX60-raden är allmän lanseringstext, men annonskollen gav 50 annonser med riktiga priser (bl.a. 689000 kr) och löpande leasing/förmånsvärde på P6 RWD/Plus i modellår 2026-2027 (TESTBEVISREGELN) - bilen går redan att köpa/leasa i Sverige, ska slappas enligt användarens linje"}
   ]
 }
