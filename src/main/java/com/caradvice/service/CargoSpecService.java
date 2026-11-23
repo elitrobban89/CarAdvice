@@ -438,7 +438,30 @@ public class CargoSpecService {
      * <p>Fail-open vid läsfel: hellre ett bortkastat försök än en bil som aldrig prövas.
      */
     public boolean harFarskMiss(String carName) {
-        if (carName == null || carName.isBlank()) return false;
+        Integer dag = missDag(carName);
+        if (dag == null) return false;
+        return java.time.LocalDate.now().toEpochDay() - dag < MISS_GILTIG_DAGAR;
+    }
+
+    /**
+     * Sant när bilen HAR ett nej men fönstret gått ut — den står i arbetslistan som en omprövning,
+     * inte som en ny bil.
+     *
+     * <p><b>Varför det behövs — natten mot 2026-11-23.</b> Nattrutinen slog LARM två nätter i rad:
+     * "0 av 150 kvar" med både medVolym och bagageMissar stilla. Men missarna SKREVS: 146, 143, 148
+     * och 150 rader fick dagens datum 11-20 till 11-23. Det var svepets 150-satser från 10-20 till
+     * 10-26 som gick ut efter 30 dagar och missade igen. {@link #noteraMiss} skriver om samma rad
+     * (DELETE + INSERT), så räknaren står still fast jobbet arbetar fullt. Utan att veta hur många
+     * av listan som är omprövningar går det läget inte att skilja från en död källa.
+     */
+    public boolean harUtgangenMiss(String carName) {
+        Integer dag = missDag(carName);
+        if (dag == null) return false;
+        return java.time.LocalDate.now().toEpochDay() - dag >= MISS_GILTIG_DAGAR;
+    }
+
+    private Integer missDag(String carName) {
+        if (carName == null || carName.isBlank()) return null;
         Map<String, Integer> m = missCache;
         if (m == null) {
             m = new HashMap<>();
@@ -454,9 +477,7 @@ public class CargoSpecService {
             }
             missCache = m;
         }
-        Integer dag = m.get(normalize(carName));
-        if (dag == null) return false;
-        return java.time.LocalDate.now().toEpochDay() - dag < MISS_GILTIG_DAGAR;
+        return m.get(normalize(carName));
     }
 
     /**

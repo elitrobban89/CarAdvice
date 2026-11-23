@@ -50,6 +50,21 @@ class CargoSpecServiceMissTest {
     }
 
     @Test
+    void utgangetNejArEnOmprovningMenInteFarskt() {
+        // Natten mot 2026-11-23: en omprövning skriver om sin rad, så bagageMissar står still
+        // fast jobbet arbetar. Rapporten måste kunna räkna dem för att inte larma falskt.
+        long gammal = java.time.LocalDate.now().toEpochDay() - CargoSpecService.MISS_GILTIG_DAGAR;
+        jdbc.update("INSERT INTO cargo_spec_miss(car_name, visningsnamn, forsokt_dag, orsak) VALUES (?, ?, ?, ?)",
+                "ac cobra", "AC Cobra", (int) gammal, CargoSpecService.ORSAK_EJ_HITTAD);
+        service.noteraMiss("Bentley S2", CargoSpecService.ORSAK_EJ_HITTAD);
+
+        assertThat(service.harFarskMiss("AC Cobra")).isFalse();
+        assertThat(service.harUtgangenMiss("AC Cobra")).isTrue();
+        assertThat(service.harUtgangenMiss("Bentley S2")).isFalse();   // färskt
+        assertThat(service.harUtgangenMiss("Volvo XC60")).isFalse();   // aldrig prövad
+    }
+
+    @Test
     void enBilSomAldrigProvatsArIngetNej() {
         service.noteraMiss("AC Cobra", CargoSpecService.ORSAK_EJ_HITTAD);
 

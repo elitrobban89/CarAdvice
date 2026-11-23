@@ -57,6 +57,7 @@ public class AutoDataCargoFillService {
      */
     private volatile int senastKvarBagage = -1;
     private volatile int senastKvarGenerationer = -1;
+    private volatile int senastOmprovningarBagage = -1;
 
     public AutoDataCargoFillService(AutoDataScraperService autoData, CargoSpecService cargoSpecs,
                                     IceConsumptionService iceConsumption,
@@ -129,9 +130,22 @@ public class AutoDataCargoFillService {
         return senastKvarGenerationer;
     }
 
+    /**
+     * Hur många av bagagelistan vid senaste {@link #fyllSaknadeVolymer} som var omprövningar av
+     * utgångna nej, -1 före första körningen. Står den lika med {@link #senastKvarBagage} är
+     * fronten avbetad: en omprövning som missar igen skriver om sin rad, så bagageMissar står
+     * still fast jobbet arbetar. Se {@link CargoSpecService#harUtgangenMiss}.
+     */
+    public int senastOmprovningarBagage() {
+        return senastOmprovningarBagage;
+    }
+
     public int fyllSaknadeVolymer() {
         List<String> namn = arbetslista();
         senastKvarBagage = namn.size();
+        int omprovningar = 0;
+        for (String n : namn) if (cargoSpecs.harUtgangenMiss(n)) omprovningar++;
+        senastOmprovningarBagage = omprovningar;
         if (namn.isEmpty()) {
             log.info("auto-data bagage: inga bilar saknar volym");
             return 0;

@@ -43,6 +43,9 @@ public class CargoSpecSyncScheduler {
             return new JobStatusService.Utfall(nya + fyllda + generationer,
                     "nya bilnamn: " + nya
                             + ", bagagevolymer: " + fyllda + " av " + autoDataFill.senastKvarBagage() + " kvar"
+                            // Omprövningar av utgångna nej flyttar inte bagageMissar (raden skrivs
+                            // om), så utan talet såg en avbetad front ut som en död källa. Se 11-23.
+                            + " (" + autoDataFill.senastOmprovningarBagage() + " omprövningar)"
                             + ", generationsår: " + generationer + " av " + autoDataFill.senastKvarGenerationer() + " kvar");
         });
         log.info("Daily CargoSpec sync finished — {} rader berörda", added);

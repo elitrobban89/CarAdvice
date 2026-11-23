@@ -127,6 +127,18 @@ test` (hela sviten, ~1000 prov) grönt - inga fel.
 
 **Över taket - kvar till i morgon:** inget.
 
+**UPPFÖLJNING 2026-11-23 förmiddag (för hand): BAGAGELARMET VAR FALSKT.**
+`/api/admin/cargo-specs/missar` grupperat på provadDag: 10-25:145, 10-26:92,
+sedan 1-4 per dag 10-28-11-19, och **11-20:146, 11-21:143, 11-22:148,
+11-23:150**. Jobbet arbetade alltså fullt varje natt: de 150 i KB var
+svepets nej från 10-20-10-26 som gick ut efter 30 dagar, provades om och
+missade igen. `noteraMiss` skriver om samma rad (DELETE + INSERT), så
+bagageMissar stod still. Fronten är avbetad sedan ~10-26. Väntat de närmaste
+nätterna: 10-25-satsen (145) och 10-26-satsen (92) omprövas, och sedan ligger
+KB på några få per natt. Lagat: perSource bär nu
+`bagagevolymer: M av KB kvar (O omprövningar)`, och 3f i nattrutin.md säger
+att O ≈ KB är OK. Ny baslinje får skrivas i natt om inget annat larmar.
+
 ## 2026-11-22
 
 **DOM: KOLLA** - grundkollen, scrape-status (status OK bortsett från källan
