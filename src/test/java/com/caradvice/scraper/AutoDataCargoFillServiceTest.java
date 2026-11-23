@@ -310,6 +310,27 @@ class AutoDataCargoFillServiceTest {
         verify(cargoSpecs).rensaMiss("Citroen C1");
     }
 
+    /**
+     * Natten mot 2026-11-23: "0 av 150 kvar" och bagageMissar stilla två nätter gav LARM, fast
+     * alla 150 var utgångna nej som omprövades och missade igen. Talet skiljer den avbetade
+     * fronten från en död källa.
+     */
+    @Test
+    void omprovningarAvUtgangnaNejRaknasForSig() {
+        assertEquals(-1, service.senastOmprovningarBagage());
+
+        modeller();
+        when(cargoSpecs.namnUtanVolym()).thenReturn(List.of("AC Cobra", "Bentley S2", "Volvo XC60"));
+        when(cargoSpecs.formatForTitle(anyString())).thenReturn(null);
+        when(cargoSpecs.harUtgangenMiss("AC Cobra")).thenReturn(true);
+        when(cargoSpecs.harUtgangenMiss("Bentley S2")).thenReturn(true);
+
+        service.fyllSaknadeVolymer();
+
+        assertEquals(3, service.senastKvarBagage());
+        assertEquals(2, service.senastOmprovningarBagage());
+    }
+
     @Test
     void arbetslistornasLangdSparasSaNollrapportenGarAttLasa() {
         /*
