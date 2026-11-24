@@ -1,6 +1,9 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
   "atgarder": [
-    {"datum": "2026-11-23", "typ": "slapp", "id": 2309, "skal": "Teknikens Värld: Volvo EX60-raden är allmän lanseringstext, men annonskollen gav 50 annonser med riktiga priser (bl.a. 689000 kr) och löpande leasing/förmånsvärde på P6 RWD/Plus i modellår 2026-2027 (TESTBEVISREGELN) - bilen går redan att köpa/leasa i Sverige, ska slappas enligt användarens linje"}
+    {"datum": "2026-11-24", "typ": "slapp", "id": 2339, "skal": "CarUp: Tiguan Life Edition 2027 - annonskollen gav GRANSKA men exemplen visar riktiga leasingpriser (2795-2995 kr/mån, 0 mil) på exakt samma utrustning (Life eTSI 150hk) - ARSMODELLSREGELN, bilen går redan att köpa/leasa i Sverige"},
+    {"datum": "2026-11-24", "typ": "parkera", "id": 2337, "skal": "CarUp: 'Efterträdaren till Polestar 2 lanseras i början av 2027' - utskriven saljstart fram i tiden, går inte att köpa i Sverige än"},
+    {"datum": "2026-11-24", "typ": "parkera", "id": 2331, "skal": "CarUp: Polestar 7 'planeras lanseras 2028' - utskriven saljstart fram i tiden, 0 annonser"},
+    {"datum": "2026-11-24", "typ": "parkera", "id": 2338, "skal": "CarUp: BMW i3 Touring 'planeras för produktion 2027', ny teknikgeneration - inte bestallningsbar i Sverige än, 0 annonser"}
   ]
 }

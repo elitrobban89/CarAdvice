@@ -1,5 +1,146 @@
 # Morgonfix-logg
 
+## 2026-11-24
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
+bagagesvepet och kontrollräkningen är alla gröna/oförändrade mot
+baslinjen (11-23-falsklarmet är löst, se 11-23 uppföljningen - tonights
+`perSource` visar redan "(0 omprövningar)" och medVolym steg). KOLLA i
+stället för GRÖNT på grund av **4 nya olåsta kommande-kö-rader som krävde
+beslut** (1 släpp, 3 parkera, se Kommandevakten/Köbeslut) och **Allt om
+Elbil som svarade FEL (timeout) en FEMTE natt i rad** (även 11-20 till
+11-23) - inget eget LARM (samma anslutningsfel, inget nytt), men värt att
+fortsätta nämna som ett öppet mönster.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-24 00:36:30 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+e8da214 matchar origin/master (PR #85, bagage-fixen, är i drift - ingen
+revert i git log). uptimeSeconds 62621 (~17,4 h) - ingen omstart under
+natten. ev-specs **uppdaterade 8, nya 0** (kollisioner 172, under
+290-varningen; varav pris 2, räckvidd 7, batteri 1, dc 2, ac 0). cargo-specs
+gav **5 nya bilnamn, 2 av 5 bagagevolymer (0 omprövningar), 0 av 0
+generationsår** - inom 2-20, bagage se nedan.
+
+**web-insights:** 18 nya rader. Teknikens Värld 0 av 2, Vi Bilägare 4 av 7,
+M Sverige 0 av 0 (normalt tyst), M3 3 av 11, Auto Motor & Sport 1 av 2,
+CarUp 10 av 12, Folksam 0 (normalt tyst). **Allt om Elbil: FEL (HTTP connect
+timed out) - FEMTE natten i rad** (11-20 till 11-23 i loggboken) - samma
+mönster, inget nytt, inget eget LARM.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1866→**1871** (+5), utanVolym 806→809,
+**medVolym 1060→1062 (+2), bagageMissar 851→854 (+3)** - domen enligt 3f:
+medVolym UPPÅT, alltså OK oavsett bagageMissar (KB=5, O=0 - inga
+omprövningar ikväll, bara färska namn; summan +2/+3 går ihop med "2 av 5
+bagagevolymer"-utfallet). evPowers 562 (still, väntat - evSpecs 671 still).
+iceGenerations 291/missar 19 (310, stämmer, stillestånd väntat, forsöktDag
+2026-11-20 på alla 19, nästa fönster 2026-12-20). Kö **68 rader / 36 bilar**
+(+4 rader/+4 bilar mot gårdagens baslinje 64/32 - men gårdagens
+atgarder.json släppte 2309 under tiden: 65→68 nettoräknat är +4 nya
+olåsta rader minus 1 släppt = stämmer). Kontrollräkning: cargo total 1871 +
+evSpecs 671 + ice_consumption 960 = **3502 = /api/stats variants (3502)** -
+går ihop exakt. Inget tal har fallit. hogstaInsiktsId 2321→2339 (+18,
+matchar newInsights och insights 1837→1855).
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med referensen. Ingen flip
+bland de elva elbils-namngivna raderna eller de fem handsatta ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~17,4 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2322-2339, 18 st):** VW ID.7 x2 (2322 räckvidd 50 mil
+sommar, 2323 "komforten är hög" - tunn, inget mätvärde, men inget fel),
+Hyundai Inster x2 (2324 Vi Bilägare: fläktljud vid laddning löst efter
+vattenpumpsbyte, 2325: utrustningsnivå/nedfällt baksäte), Audi A5/Q5/Q6
+e-tron (2326-2328, M3: Microsoft 365-appen i infotainment - samma faktum på
+tre modeller men äkta per-modell-utrustning i samma Audi-uppdatering, som
+Safety Coach-klungan 10-xx - ingen bugg, noterad som klunga), Mercedes GLA
+250+ (2329, Auto Motor & Sport: 15,7 kWh/100 km verklig förbrukning - se
+Laddtips), BMW 320 xDrive (2330, CarUp: fördelningslåda-reparation
+~4 000 kr, Litauen-import), Volvo XC60 D4/D5/T5/T8/B (2332-2336, CarUp: fem
+olika motorvarianters kända fel - fem skilda fakta, ingen dubblett), fyra
+kommande-rader (2331 Polestar 7, 2337 Polestar 2-efterträdare, 2338 BMW i3
+Touring, 2339 VW Tiguan - se Kommandevakten). Alla kategorier/drivmedel
+rimliga, inga veteranvakt- eller kategorivakt-läckor, inga nya
+skatterad/renoveringsobjekt/specialutgåva-rader. **18 av 18 godtagbara**
+(2323 är tunn men inte felaktig).
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 68 rader / 36 bilar. Ad-check: **0 LARM, 11 GRANSKA,
+0 ANNAN_DRIVLINA, 25 INGA_ANNONSER.** 64 av 68 rader redan `beslutad_at`-
+låsta (kända avgjorda ärenden: Tucson-gen5, Mazda 6e, Range Rover/Range
+Rover Sport, Bayon, Pajero, Santa Fe, Dacia Sandero m.fl.). **4 olåsta nya
+rader, klassade:**
+- **2339 Volkswagen Tiguan (CarUp, "Life Edition 2027")** - (b) redan i
+  handeln. Ad-check GRANSKA (50 annonser) men exemplen visar riktiga
+  leasingpriser (2795-2995 kr/mån, 0 mil, "Tiguan Life eTSI 150hk") på exakt
+  den utrustning insikten beskriver - ARSMODELLSREGELN (facelift/trim under
+  samma modellnamn, utskrivet pris). **Beslut: SLÄPP.**
+- **2337 Polestar 2 ("Efterträdaren till Polestar 2 lanseras i början av
+  2027")** - (a) ännu inte släppt, utskriven saljstart fram i tiden.
+  **Beslut: PARKERA.**
+- **2331 Polestar 7 ("planeras lanseras 2028")** - (a) ännu inte släppt,
+  0 annonser, utskriven saljstart fram i tiden. **Beslut: PARKERA.**
+- **2338 BMW i3 Touring ("planeras för produktion 2027", ny
+  teknikgeneration)** - (a) ännu inte släppt, 0 annonser. **Beslut:
+  PARKERA.**
+Sökt igenom nattens övriga 18 rader efter en namnlös tvilling till någon av
+de fyra (PROMPTMISS-kontrollen i 3b) - ingen hittad; alla fyra kommande-
+raderna är de enda raderna om respektive bil i natt.
+
+**Marknadsregeln:** inget nytt fynd - alla nattens märken (VW, BMW,
+Polestar, Volvo, Audi, Hyundai, Mercedes, Skoda, Renault, Ford, Fiat) säljs
+etablerat i Sverige.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0, "Dom: splasharna stämmer"). Bara väntade INFO-rader i
+Elbilsladdning, inga nya VARNING.
+
+**Laddtips i natt: 1.** Från `ev-fact-candidates` (60 granskade, 3
+kandidater): **2329 Mercedes GLA 250+ (Auto Motor & Sport, poäng 3)** -
+"15,7 kWh per 100 km efter drygt sex mil i blandade förhållanden" (verklig
+förbrukning, inte WLTP). Kontrollerat mot `/api/ev-spec?car=Mercedes-Benz
+GLA 250+`: 85 kWh / 656 km WLTP ⇒ ca 12,9 kWh/100 km WLTP-härlett: 15,7 är
+~22 % över, ett normalt verklighet-mot-WLTP-glapp, inget fel. Inte en
+dubblett av 11-13-tipset om samma bil (batteri/räckvidd/laddeffekt, en
+annan fakta). Skrivet. **2324 Hyundai Inster** (fläktljud vid laddning) -
+fel tema (reparationshistoria, inget laddnings-/batterifaktum) - inget
+tips. **2280 Hyundai Ioniq 5** - samma avgjorda fel tema som tidigare
+nätter. `LaddtipsServiceTest` grönt (del av hela sviten nedan).
+
+**Köbeslut i natt:** `atgarder.json` skriven om med 4 rader: `slapp` 2339
+(VW Tiguan), `parkera` 2337 (Polestar 2), `parkera` 2331 (Polestar 7),
+`parkera` 2338 (BMW i3 Touring) - se Kommandevakten för skäl/källa.
+`MorgonfixAtgarderTest.verkligaFilenArGiltig` grönt.
+
+**Dolda rader:** 2256/2257 fortsatt dolda sedan 2026-11-18 (6 dygn) - under
+7-dygnsgränsen, raderas inte än.
+
+**Baslinjen:** ny baslinje skriven (`node scripts/mat-baslinje.js`,
+kontrollräkning 3502/3502 går ihop). Mätt commit e8da214, hogstaInsiktsId
+2339.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt. `mvn -q
+test` (hela sviten) grönt - **1285 tester, 0 fel, 0 fel-rader** (surefire-
+summan). Ingen kodfix gjordes i natt - inget entydigt kodfel hittades.
+
+**Över taket - kvar till i morgon:** inget.
+
+Drift: e8da214 = origin/master, inga reverts i de senaste 20 commits, ingen
+öppen morgonfix-PR att flytta (grenen fanns inte innan den här körningen -
+PR #84/#85 är redan mergade och grenen borttagen).
+
 ## 2026-11-23
 
 **DOM: LARM** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
