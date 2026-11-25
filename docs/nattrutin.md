@@ -45,7 +45,7 @@ status ska vara OK. Notera kortid, newInsights och perSource. Tabellen har EN ra
 - perSource bar antalet LASTA artiklar ('Vi Bilagare: 3 av 6 lasta'). **'0 av 0' ar en tyst natt hos kallan** - normalt for M Sverige och Folksam. **'0 av N' med N > 0 betyder att N farska artiklar gick genom hela extraktionen och att vakterna at upp allt.** Larma anda inte pa en enstaka natt: M3 och Auto Motor & Sport publicerar mest motorsport.
 - **X kan vara STORRE an Y ('Teknikens Varld: 3 av 1 lasta') och det ar NORMALT** - X ar insikter, Y ar lasta artiklar, och en artikel kan ge flera insikter. Rapportera det aldrig som en notering.
 - **Bytbil ar BORTTAGEN som kalla 2026-09-26** (nybil.bytbil.com 301:ar till Blockets nybilssida, redaktionen har inte publicerat sedan 2025-02-05). Leta inte efter den och rapportera den inte som saknad.
-- **Allt om Elbil ar NY kalla 2026-09-26** (wp-json, ca 6 inlagg/dygn, sponsrade kategorier uteslutna i endpointen) och ligger i STRICT_SOURCES med CarUp - dess saljbara rader far den extra saljbarhetsvakten. Forsta natterna: rapportera 'Allt om Elbil: N av M lasta' i klartext. 'INGA LANKAR' eller FEL ar en avvikelse (KOLLA). '0 av N' med N > 0 tre natter i rad betyder att den strikta vakten ater allt - skriv det som KOLLA, inte LARM.
+- **Allt om Elbil ar BORTTAGEN som kalla 2026-11-25** (samma IP-sparr som Elbilen: 'connect timed out' sex natter i rad 11-20 till 11-25, medan sajten svarar pa 0,3 s fran en svensk uppkoppling). Leta inte efter den och rapportera den inte som saknad. Gamla Allt om Elbil-rader ligger kvar i tabellen och granskas som vanligt. Marknadsnyheter harifran (t.ex. ACEA-statistik) skrivs vid behov for hand som marknadsrad i laddtips.json, med kalla 'Allt om Elbil (ACEA)'.
 - **Elbilen ar BORTTAGEN som kalla 2026-08-23** (IP-sparr mot Renders utgang, gick inte att koda sig runt). Leta inte efter den och rapportera den inte som saknad. En ANNAN kalla som plotsligt star FEL ar daremot vard att rapportera - samma kalla flera natter i rad ar en trolig kallandring.
 
 === 1b. ev-specs-JOBBET (jobs['ev-specs']) ===
@@ -176,7 +176,7 @@ Tabellen bar drivmedel per cargo_spec-rad (el/ice) och sallar bagagelistan pa en
 - SQL:en ar provad skarpt mot produktionsdatabasen. sattDrivmedel fail-softar i en catch - leta efter loggraden 'Drivmedel ... kunde inte skrivas'.
 
 === 4. LAS REGLERNA I KODEN ===
-RELEVANCE_PROMPT, STRICT_RELEVANCE_PROMPT, UPCOMING_PROMPT och STRICT_UPCOMING_PROMPT i src/main/java/com/caradvice/scraper/WebInsightScraperService.java (repot ar utcheckat at dig). **STRICT_UPCOMING_PROMPT domer kommande-rader fran de STRIKTA kallorna (CarUp och Allt om Elbil) och saknar saljbarhetsregeln med flit** - laser du bara de tre andra bedomer du en CarUp- eller Allt om Elbil-rad mot fel regelverk.
+RELEVANCE_PROMPT, STRICT_RELEVANCE_PROMPT, UPCOMING_PROMPT och STRICT_UPCOMING_PROMPT i src/main/java/com/caradvice/scraper/WebInsightScraperService.java (repot ar utcheckat at dig). **STRICT_UPCOMING_PROMPT domer kommande-rader fran de STRIKTA kallorna (CarUp, och Allt om Elbil fram till 2026-11-25) och saknar saljbarhetsregeln med flit** - laser du bara de tre andra bedomer du en CarUp- eller Allt om Elbil-rad mot fel regelverk.
 
 === 5. RULLANDE FONSTER ===
 Rapporten ska INTE bara tacka nattens rader. Anvandaren laser inte varje dag, sa varje rapport ska vara sjalvbarande for hela fonstret pa 50 rader. Dela upp dem i (a) nattens rader (hogsta id) och (b) tidigare rader, grupperade pa luckor i id-serien.

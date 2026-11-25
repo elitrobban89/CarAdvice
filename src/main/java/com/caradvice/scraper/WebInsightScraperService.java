@@ -513,13 +513,13 @@ public class WebInsightScraperService {
      * trots att reglerna finns, medan bra rader (VW Arteon begagnat) kommer från samma
      * källa. Att lyfta ut CarUp hade alltså kostat mer än det smakat.
      *
-     * <p>Allt om Elbil (2026-09-26) har samma profil: mest nyheter om fabriker, politik,
-     * andra marknader och pressbilder, sällan egna mätningar.
+     * <p>Allt om Elbil (2026-09-26 → 2026-11-25) hade samma profil och låg här tills källan
+     * togs bort — se kommentaren vid {@link #SOURCES}.
      *
      * <p>Gäller bara säljbara rader. Kommande modeller prövas hos alla källor — se
      * {@link #filterStrict}.
      */
-    static final Set<String> STRICT_SOURCES = Set.of("CarUp", "Allt om Elbil");
+    static final Set<String> STRICT_SOURCES = Set.of("CarUp");
 
     static final String STRICT_RELEVANCE_PROMPT = """
             Du gör en sista, hård granskning av bilinsikter från en källa som ofta
@@ -713,14 +713,15 @@ public class WebInsightScraperService {
             new Source("CarUp", Mode.ARTICLES, Discover.WPJSON,
                     "https://www.carup.se/wp-json/wp/v2/posts?per_page=15&_fields=link", null, null,
                     "artikel/nyhet från bilsajten CarUp", List.of()),
-            // Allt om Elbil (tillagd 2026-09-26, ersätter Bytbil): ~6 inlägg om dygnet, så
-            // per_page=15 räcker 2–3 dygn bakåt. Flödet bär sponsrat material — kategorierna
-            // Annons (842), AD (2408) och Gästartikel (829) utesluts redan i endpointen.
-            // Kommatecknen MÅSTE vara %2C: discoverWpJson delar url:en på "," för flera endpoints.
-            new Source("Allt om Elbil", Mode.ARTICLES, Discover.WPJSON,
-                    "https://alltomelbil.se/wp-json/wp/v2/posts?per_page=15&categories_exclude=842%2C2408%2C829&_fields=link",
-                    null, null,
-                    "artikel/nyhet/provkörning från elbilssajten Allt om Elbil", List.of()),
+            // Allt om Elbil är BORTTAGEN 2026-11-25, samma fall som Elbilen: "connect timed out"
+            // varje natt 11-20 → 11-25 (sex nätter), medan endpointen svarar 200 på ~0,3 s från
+            // en vanlig svensk uppkoppling (verifierat 11-25, sajten publicerar som vanligt).
+            // Värden är Inleed (prime5.inleed.net, 185.189.49.45, LiteSpeed) och avbrottet sker
+            // före HTTP — paketen släpps tyst, troligast värdens brandvägg mot Renders utgångs-IP.
+            // AAAA-posten (2001:67c:750::30) är ingen fälla: Java provar IPv4 först.
+            // Redan sparade Allt om Elbil-insikter rörs INTE. Vill någon återinföra källan:
+            // posts?per_page=15&categories_exclude=842%2C2408%2C829&_fields=link (Annons, AD,
+            // Gästartikel utesluts; kommatecknen MÅSTE vara %2C), och lägg den i STRICT_SOURCES.
             // car.info är borttagen: /sv-se/user-reviews serverar bara ett filterskal —
             // omdömestexterna hämtas av JS efteråt, så en ren HTTP-hämtning ser inga
             // omdömen och inga länkar till enskilda omdömen. Källan sparade aldrig en
