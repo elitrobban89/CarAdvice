@@ -1,5 +1,120 @@
 # Morgonfix-logg
 
+## 2026-11-25
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten, bagaget,
+kontrollräkningen och köns kontrollräkning är alla gröna och stämmer exakt
+mot baslinjen. KOLLA i stället för GRÖNT på grund av **Allt om Elbil som
+svarade FEL (HTTP connect timed out) en SJÄTTE natt i rad** (11-20 till
+11-25) - fortsatt samma anslutningsfel, inget nytt eget LARM, men mönstret
+är nu en vecka gammalt och värt att lyfta som öppen fråga.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-25 00:34:23 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+cac7a2a matchar origin/master (PR #86, gårdagens morgonfix, i drift - inga
+reverts i de senaste 15 commits). uptimeSeconds 85453 (~23,7 h) - ingen
+omstart under natten.
+
+**Nattens körning:** ev-specs **uppdaterade 7, nya 0** (kollisioner 172,
+långt under 290-varningen; varav pris 2, räckvidd 6, batteri 1, dc 2,
+ac 0) - inom väntat 0-25. cargo-specs gav **0 nya bilnamn, 1 av 151
+bagagevolymer (151 omprövningar), 0 av 0 generationsår**. web-insights gav
+**5 nya rader**: Vi Bilägare 3 av 10 lästa, CarUp 2 av 12 lästa, övriga 0
+(Teknikens Värld 0 av 1, M Sverige 0 av 0 normalt tyst, M3 0 av 2, Auto
+Motor & Sport 0 av 2, Folksam 0 normalt tyst). **Allt om Elbil: FEL (HTTP
+connect timed out)** - sjätte natten i rad (11-20 till 11-25 i loggboken),
+samma mönster, inget nytt.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1871 (oförändrad - 0 nya bilnamn), utanVolym
+809→808 (-1), **medVolym 1062→1063 (+1), bagageMissar 854→853 (-1)** -
+domen enligt 3f: bagageMissar sjönk, men medVolym steg lika mycket (+1) -
+en tidigare missad bil fick sin volym ikväll (omprövning, O=151≈KB=151,
+fronten avbetad). OK, ingen avvikelse. evPowers 562 (still, väntat -
+evSpecs 671 still). iceGenerations 291/missar 19 (310, stämmer,
+stillestånd väntat - forsöktDag 2026-11-20 på alla 19, nästa fönster
+2026-12-20). Kö **67 rader / 35 bilar** (-1/-1 mot gårdagens baslinje
+68/36 - förklaras exakt av gårdagens köbeslut: 2339 släpptes efter
+baslinjemätningen, 2337/2331/2338 parkerades men var redan olåsta
+kö-rader, så bara släppet syns i diffen). Kontrollräkning: cargo total
+1871 + evSpecs 671 + ice_consumption 960 = **3502 = /api/stats variants
+(3502)** - går ihop exakt. Inget tal har fallit. hogstaInsiktsId
+2339→2344 (+5, matchar newInsights och insights 1855→1860).
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med referensen. Ingen
+flip bland de elva elbils-namngivna raderna eller de fem handsatta
+ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~23,7 h, täcker hela
+nattkedjan) - inga utslag sedan senaste omstarten.
+
+**Nattens nya rader (2340-2344, 5 st):** Honda CR-V (2340, Vi Bilägare:
+rostskydd är en svag punkt), Mercedes EQA (2341, Vi Bilägare: återkallelse
+för högspänningsbatteriproblem - äkta återkallelse, relevant känt fel),
+Volkswagen Polo (2342, Vi Bilägare: lambdasond-fel efter 2 600 mil), Volvo
+XC40 (2343, CarUp: oljepumpsrem kan gå av och orsaka motorskador), Volkswagen
+Golf (2344, CarUp: kamkedja kan töjas på äldre 1,2/1,4 TSI). Alla fem är
+äkta tillförlitlighetsfakta om bilar som redan säljs/sålts i Sverige, inga
+kommande-kandidater, inga skatterad/renoveringsobjekt/specialutgåva/
+veteran-rader, inga kategorifel (3 suv + 2 småbil, matchar baslinjens
+kategoriskift exakt). **5 av 5 godtagbara.**
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget
+nytt underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder. Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 67 rader / 35 bilar. Ad-check: **0 LARM, 10 GRANSKA, 0
+ANNAN_DRIVLINA, 25 INGA_ANNONSER.** Alla 67 rader redan `beslutad_at`-låsta
+(kända avgjorda ärenden: Tucson-gen5, Mazda 6e, Range Rover/Range Rover
+Sport, Bayon, Pajero, Santa Fe, Dacia Sandero, Polestar 2/7, BMW i3
+Touring m.fl.) - noll olåsta nya rader, inga nya köbeslut krävdes i natt.
+Sökt igenom nattens 5 rader efter en namnlös tvilling till en
+kommande-kandidat (PROMPTMISS-kontrollen i 3b) - ingen hittad, inga av
+natten rör en kommande bil.
+
+**Marknadsregeln:** inget nytt fynd - alla nattens märken (Honda,
+Mercedes, Volkswagen, Volvo) säljs etablerat i Sverige.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0, "Dom: splasharna stämmer"). Bara väntade INFO-rader i
+Elbilsladdning, inga nya VARNING.
+
+**Laddtips i natt: 0.** Från `ev-fact-candidates` (60 granskade, 2
+kandidater): **2329 Mercedes GLA 250+** - redan skrivet som laddtips
+2026-11-24 (dubblett, samma faktum). **2324 Hyundai Inster** (fläktljud
+vid laddning löst efter vattenpumpsbyte) - fel tema, reparationshistoria
+snarare än ett laddnings-/batterifaktum, inget tips.
+
+**Köbeslut i natt:** inga - `atgarder.json` skrivs över med en tom lista
+(`"atgarder": []`), inga olåsta rader krävde beslut. `MorgonfixAtgarderTest.
+verkligaFilenArGiltig` grönt.
+
+**Dolda rader:** 2256/2257 fortsatt dolda sedan 2026-11-18 08:29:59 - vid
+denna körning (2026-11-25 ca 01:46) ännu INTE 7 fulla dygn (blir det
+2026-11-25 08:30), raderas inte i natt.
+
+**Baslinjen:** ny baslinje skriven (`node scripts/mat-baslinje.js`,
+kontrollräkning 3502/3502 går ihop). Mätt commit cac7a2a, hogstaInsiktsId
+2344.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt (exit 0).
+`mvn -q test` (hela sviten) grönt (exit 0, inga testfel rapporterade).
+Ingen kodfix gjordes i natt - inget entydigt kodfel hittades.
+
+**Över taket - kvar till i morgon:** inget.
+
+Drift: cac7a2a = origin/master, inga reverts i de senaste 15 commits,
+ingen öppen morgonfix-PR att flytta (grenen fanns inte innan den här
+körningen - PR #86 är redan mergad och grenen borttagen).
+
 ## 2026-11-24
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
