@@ -1,5 +1,125 @@
 # Morgonfix-logg
 
+## 2026-11-26
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
+bagaget, kontrollräkningen och köns kontrollräkning är alla gröna och
+stämmer exakt mot baslinjen. Inget LARM i natt. KOLLA för att natten gav
+nya rader att döma och två rader var mogna för radering (se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-26 00:34:11 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+c555305 matchar origin/master (PR #88, "Allt om Elbil borttagen som
+källa", i drift - inga reverts i de senaste 20 commits). uptimeSeconds
+61588 (~17,1 h) - ingen omstart under natten.
+
+**Nattens körning:** ev-specs **uppdaterade 7, nya 0** (kollisioner 172,
+långt under 290-varningen; varav pris 2, räckvidd 6, batteri 1, dc 2, ac
+0) - inom väntat 0-25. cargo-specs gav **2 nya bilnamn, 0 av 94
+bagagevolymer (92 omprövningar), 0 av 0 generationsår** - inom 2-20.
+web-insights gav **6 nya rader**: Vi Bilägare 2 av 8 lästa, CarUp 2 av 12
+lästa, Auto Motor & Sport 2 av 4 lästa, övriga 0 (Teknikens Värld 0 av 1,
+M Sverige 0 av 0 normalt tyst, M3 0 av 8, Folksam 0 normalt tyst). Källan
+Allt om Elbil syns inte längre i perSource - borttagen 2026-11-25 (PR
+#88), som väntat.
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1871→**1873** (+2, matchar 2 nya bilnamn),
+utanVolym 808→810 (+2), **medVolym 1063→1063 (still), bagageMissar
+853→855 (+2)** - domen enligt 3f: medVolym still + bagageMissar VUXIT =
+VÄNTAT (jobbet betade av 2 nya namn som inte gav volym; omprövningarna
+92≈KB 94 visar att fronten ändå är avbetad). OK, ingen avvikelse.
+evPowers 562 (still, väntat - evSpecs 671 still). iceGenerations
+291/missar 19 (310, stämmer) - forsöktDag 2026-11-20 på alla 19 (nästa
+fönster 2026-12-20), stillestånd väntat. Kö **67 rader / 35 bilar**
+(oförändrat mot gårdagens baslinje). Kontrollräkning: cargo total 1873 +
+evSpecs 671 + ice_consumption 960 = **3504 = /api/stats variants
+(3504)** - går ihop exakt. Inget tal har fallit. hogstaInsiktsId
+2344→2350 (+6, matchar newInsights och insights 1860→1866).
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med referensen. Ingen
+flip bland de elva elbils-namngivna raderna eller de fem handsatta
+ice-raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~17,1 h) - inga utslag
+sedan senaste omstarten.
+
+**Nattens nya rader (2345-2350, 6 st):** Volvo 960 (2345, Vi Bilägare:
+svårt att få reservdelar efter 15-20 år - äkta tillförlitlighetsfakta,
+svensk källa, ingen marknadsangivelse krävs), MG ZS EV (2346, Vi Bilägare:
+skärmen kan svartna - känt fel), Volkswagen ID. Cross x2 (2347 instegs-
+version 135 hk/37 kWh/314 km, 2348 toppversion 226 hk/52 kWh/428 km, Auto
+Motor & Sport - stämmer mot ev_spec: "ID. Cross" 37,5 kWh/324 km och "ID.
+Cross 155 kW 52 kWh" 51,7 kWh/429 km), Volvo V60 (2349, CarUp:
+ljussensorn kan missa att tända bakljus) och Volvo XC40 (2350, CarUp:
+oljepumpsrem kan gå av). Inga kommande-kandidater (Polestar 7 och BMW i3
+Touring, som också nämns i natt i det äldre fönstret, är redan korrekt
+parkerade kö-rader - se Kommandevakten), inga skatterad/renoverings-
+objekt/specialutgåva/veteran-rader, inga kategorifel (4 suv + 2 familjebil,
+matchar baslinjens kategoriskift exakt). **6 av 6 godtagbara.**
+
+**Övriga rader i fönstret (2301-2344, 44 st):** redan bedömda i de fem
+föregående nattrapporterna (11-21 t.o.m. 11-25 i loggboken: 2294-2301,
+2302-2308, 2309-2321, 2322-2339, 2340-2344) - inget nytt vid omläsning i
+natt.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget
+nytt underlag i natt.
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder (Volvo 960-raden gäller
+reservdelstillgång, inte restvärde). Letade efter motsatsen (utländsk
+siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 67 rader / 35 bilar, oförändrat mot baslinjen. Ad-check:
+**0 LARM, 10 GRANSKA, 0 ANNAN_DRIVLINA, 25 INGA_ANNONSER.** Alla 67 rader
+redan `beslutad_at`-låsta (bl.a. Polestar 2/7, BMW i3 Touring, Tucson-gen5,
+Mazda 6e, Range Rover/Range Rover Sport, Bayon, Pajero, Santa Fe, Dacia
+Sandero) - noll olåsta nya rader, inga nya köbeslut krävdes i natt. Sökt
+igenom nattens 6 rader efter en namnlös tvilling till en kommande-kandidat
+(PROMPTMISS-kontrollen i 3b) - ingen hittad.
+
+**Marknadsregeln:** inget nytt fynd - alla nattens märken (Volvo, MG,
+Volkswagen) säljs etablerat i Sverige.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0, "Dom: splasharna stämmer"). Bara väntade INFO-rader i
+Elbilsladdning, inga nya VARNING.
+
+**Laddtips i natt: 1.** Från `ev-fact-candidates` (60 granskade, 3
+kandidater): **2348 Volkswagen ID. Cross R-Line** (226 hk, 52 kWh, upp
+till 428 km WLTP) - stämmer mot ev_spec ("ID. Cross 155 kW 52 kWh":
+51,7 kWh/429 km), nytt tips skrivet. **2329 Mercedes GLA 250+** - redan
+skrivet som laddtips 2026-11-24 (dubblett, samma faktum). **2324 Hyundai
+Inster** (fläktljud löst efter vattenpumpsbyte) - fel tema,
+reparationshistoria snarare än ett laddnings-/batterifaktum, inget tips.
+
+**Köbeslut i natt:** inga slapp/parkera (ko oförändrad, inga olåsta
+rader). **2 raderingar:** 2256 ("Drive Pilot") och 2257 ("Hands-free
+Assist") - båda SYSTEMNAMN SOM MODELL (förarstöd, ingen bilmodell), dolda
+sedan 2026-11-18 08:29:59 (>7 dygn), fortsatt bedömda som skrap enligt
+samma regel. `atgarder.json` skrivs över med dessa två raderingar.
+`MorgonfixAtgarderTest.verkligaFilenArGiltig` grönt.
+
+**Baslinjen:** ny baslinje skriven (`node scripts/mat-baslinje.js`,
+kontrollräkning 3504/3504 går ihop). Mätt commit c555305, hogstaInsiktsId
+2350.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt (exit 0).
+`mvn -q test` (hela sviten) grönt: **1285 tester, 0 fel, 0 failures, 0
+skipped.** Ingen kodfix gjordes i natt - inget entydigt kodfel hittades.
+
+**Över taket - kvar till i morgon:** inget.
+
+Drift: c555305 = origin/master, inga reverts i de senaste 20 commits,
+ingen öppen morgonfix-PR att flytta (grenen fanns inte innan den här
+körningen).
+
 ## 2026-11-25
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten, bagaget,

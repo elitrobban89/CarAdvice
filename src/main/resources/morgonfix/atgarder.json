@@ -1,4 +1,7 @@
 {
   "_om": "Nattrutinens köbeslut. Appen utför varje rad EN gång vid uppstart (MorgonfixAtgarder). Typer: slapp, parkera, dolj, radera. Högst 12 nya slapp/parkera/dolj och högst 20 radera per fil. Skriv över listan varje natt - utförda rader minns appen själv.",
-  "atgarder": []
+  "atgarder": [
+    {"datum": "2026-11-26", "typ": "radera", "id": 2256, "skal": "SYSTEMNAMN SOM MODELL: carModel 'Drive Pilot' är ett förarstöd, ingen bilmodell. Dold sedan 2026-11-18 08:29:59 (>7 dygn), bedöms fortsatt som skrap enligt samma regel."},
+    {"datum": "2026-11-26", "typ": "radera", "id": 2257, "skal": "SYSTEMNAMN SOM MODELL: carModel 'Hands-free Assist' är ett förarstöd, ingen bilmodell. Dold sedan 2026-11-18 08:29:59 (>7 dygn), bedöms fortsatt som skrap enligt samma regel."}
+  ]
 }
