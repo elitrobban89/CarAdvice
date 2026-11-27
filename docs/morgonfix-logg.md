@@ -1,5 +1,167 @@
 # Morgonfix-logg
 
+## 2026-11-27
+
+**DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
+bagaget och kontrollräkningen är alla gröna och stämmer mot baslinjen.
+Inget LARM i natt. KOLLA för att natten gav nya rader att döma och en ny
+kö-rad krävde ett beslut (se nedan).
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-27 00:33:05 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+09461b2 matchar origin/master (PR #89, gårdagens morgonfix, i drift -
+inga reverts i de senaste 15 commits). uptimeSeconds 85254 (~23,7 h) -
+ingen omstart under natten.
+
+**Nattens körning:** ev-specs **uppdaterade 7, nya 0** (kollisioner 172,
+långt under 290-varningen; varav pris 2, räckvidd 6, batteri 1, dc 2, ac
+0) - inom väntat 0-25. cargo-specs gav **1 nytt bilnamn, 0 av 1
+bagagevolymer (0 omprövningar), 0 av 0 generationsår** - inom 2-20 (lågt
+men ingen avvikelse, N≤50). web-insights gav **19 nya rader**: Vi
+Bilägare 2 av 10 lästa, CarUp 13 av 12 lästa, M3 4 av 5 lästa, övriga 0
+(Teknikens Värld 0 av 0 - tyst natt, M Sverige 0 av 0 normalt tyst, Auto
+Motor & Sport 0 av 2, Folksam 0 normalt tyst).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen
+(openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b).
+
+**Täckningen:** cargo total 1873→**1874** (+1, matchar 1 nytt bilnamn),
+utanVolym 810→811 (+1), **medVolym 1063→1063 (still), bagageMissar
+855→856 (+1)** - domen enligt 3f: medVolym still + bagageMissar VUXIT =
+VÄNTAT (jobbet betade av det enda nya namnet, som inte gav en volym).
+OK, ingen avvikelse. evPowers 562 (still, väntat - evSpecs 671 still).
+iceGenerations 291/missar 19 (310, stämmer) - forsöktDag 2026-11-20 på
+alla 19 (nästa fönster 2026-12-20), stillestånd väntat. Kö **68 rader /
+36 bilar** (+1/+1 mot gårdagens baslinje 67/35 - förklaras exakt av
+nattens enda nya kö-kandidat, Dacia Bigster 2353). Kontrollräkning:
+cargo total 1874 + evSpecs 671 + ice_consumption 960 = **3505 = /api/stats
+variants (3505)** - går ihop exakt. Inget tal har fallit. hogstaInsiktsId
+2350→2369 (+19, matchar newInsights). insights 1866→1883 (+17, INTE +19)
+- förklaras exakt av gårdagens två raderingar (2256 "Drive Pilot" och 2257
+"Hands-free Assist") som utfördes 2026-11-26 02:00, EFTER gårdagens
+baslinjemätning (00:54) och alltså syns i NATTENS diff: 19 nya - 2
+raderade = 17. Går ihop, inget tapp.
+
+**vPIC-vakten:** 291 kontrollerade / 0 hoppade / 275 anrop, OK 126,
+INGEN_DATA 165, **AVVIKER 0** - exakt referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med referensen. Ingen
+flip bland de elva elbils-namngivna raderna eller de fem handsatta
+ice-raderna.
+
+**Kategorivakten:** totalt 2, iBufferten 2 (uptime ~23,7 h) - två utslag,
+båda Saab 900 (veteranvakten [veteran] stryker familjebil+bensin på en
+årsmodell-1990-rad och en auktionsrad) - vakten som gjort sitt jobb, inget
+hål. Se dock fyndet om en TREDJE Saab 900-rad nedan.
+
+**Nattens nya rader (2351-2369, 19 st):** Ford Puma Gen-E (2351, Vi
+Bilägare: Green NCAP-beröm för rekordlåg förbrukning, inget konkret tal
+att belägga), Ford Kuga (2352, Vi Bilägare: mjukvaruuppdatering 23B64
+höjer felsäkert läges motoreffekt 7→95 hk), Dacia Bigster x4 (2353-2356,
+M3: drivlinefördröjning, segt infotainment, fyrhjulsdrift i terräng,
+plastig interiör - se Kommandevakten för 2353), sex CarUp-rader om kända
+motor-/komponentfel (2357 Peugeot 3008 PureTech-kamrem, 2358 Range Rover
+Evoque Ingenium 162 % högre haveririsk ~70 000 kr, 2359 Ford Fiesta
+EcoBoost-kamrem, 2360 Opel Grandland X våt kamrem ~55 000 kr, 2361 BMW
+320d N47-kamkedja, 2362 Mazda CX-5 Skyactiv-D ~46 500 kr, 2363 Land Rover
+Discovery Sport samma Ingenium-fel), Mercedes E-klass (2364, CarUp: 11 mil
+elräckvidd på laddhybrid + prisavdrag 95-110 tkr - ev_spec saknar raden,
+PHEV spåras inte där, obelagt mot ev_spec men ingen anledning att
+misstro), Volkswagen T-Roc (2365, CarUp: dragkrok orsakade mögelskada),
+Ford Kuga (2366, CarUp: växellåda läckte avgaser in i kupén) och tre
+CarUp-rader om samma veteranbil Saab 900 från 1990 (2367 motor/växellåda,
+**2368 skick/interiör, 2369 auktion 51 000 kr**). Alla sakfel/kända-fel-
+rader är äkta tillförlitlighetsfakta om bilar som säljs/sålts i Sverige -
+återkallelser och kända komponentfel är relevanta. Inga skatterad-,
+special­utgåve- eller renoveringsobjekt-rader. Kategorier: 13 suv + 5
+familjebil + 1 utan kategori (2367/2369, veteranvakten), matchar
+baslinjens kategoriskift. **18 av 19 godtagbara, 1 fynd (2368).**
+
+**FYND - hål i veteranvakten (id 2368):** samma CarUp-batch om Saab 900
+från 1990 gav TRE rader (2367, 2368, 2369). 2367 och 2369 nämner själva
+"1990" resp. "på auktion" och fälls korrekt av veteranvakten (kategori
+och drivmedel tömda). **2368 ("Bilen har bevarats i mycket gott skick med
+rostfri kaross...") saknar både årtal och samlarord i sin EGEN text** och
+behåller därför kategori "familjebil" + fuel "bensin" trots att den
+uppenbart beskriver samma 36-åriga Saab 900 som sina syskonrader. Samma
+mönster som kommandevaktens tvilling-problem (3b) men i veteranvakten:
+vakten prövar varje rad isolerat och har ingen koppling mellan rader från
+samma expert+marked_at+bil. **Går INTE att laga ikväll enligt 9c(c):**
+"saab 900" kan inte läggas i UTGANGNA_MODELLER (modellregelns fångstnät)
+eftersom namnet även täcker New Generation 900 som tillverkades till 1998
+- bara 28 år sedan, under 30-årsgränsen även med marginal - en sådan rad
+skulle felaktigt fälla en icke-veteran-bil. En batch-nivå-koppling (läs
+syskonrader från samma scrape) är en strukturell ändring, inte en
+namngiven modell att lägga till, och har inget rött-innan/grönt-efter-
+prov jag kan skriva på en natt. Skriver det som förslag till användaren
+i stället för att ändra koden. **docs/nattrutin.md uppdaterad** (1 rad,
+inom 40-radstaket): ny mätfälla under VETERANVAKTEN-stycket i avsnitt 6,
+så nästa körning läser syskonrader innan den dömer en kategorirad OK -
+skärper regel (1) i stycket, försvagar inget larm och vidgar inget tak.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget
+nytt underlag i natt (de tre Saab 900-raderna är veteranbilshistoria, inte
+ett saluobjekt - redan hanterat av veteranvakten/fyndet ovan).
+
+**Värdeminskning:** 0 rader i natt om värdeminskning/restvärde/
+tillförlitlighet/livslängd/skrotålder i den formella betydelsen (flera
+rader är kända motorfel, men det är inte samma sak som en
+tillförlitlighetsSTUDIE som kräver marknadsangivelse). Letade efter
+motsatsen (utländsk siffra utan marknad) - hittade ingen ny sådan.
+
+**Kommandevakten:** 68 rader / 36 bilar (+1 mot gårdagens baslinje -
+Dacia Bigster 2353, ny i natt). Ad-check: **0 LARM, 11 GRANSKA, 0
+ANNAN_DRIVLINA, 25 INGA_ANNONSER.** 67 av 68 rader redan
+`beslutad_at`-låsta (kända avgjorda ärenden: Tucson-gen5, Mazda 6e, Range
+Rover/Range Rover Sport, Bayon, Pajero, Santa Fe, Dacia Sandero, Polestar
+2/7, BMW i3 Touring m.fl.) - **Dacia Bigster (2353) är den enda olåsta
+nya raden.** Ad-check gav GRANSKA (hybriddrivlinans "nya" triggar
+nyhetsord), men 50 Blocket-annonser visar RIKTIGA priser och leasing
+(5690 kr/mån 0 mil, 259800 kr 1861 mil, 279900 kr 2255 mil) på exakt
+modellen i raden, modellår 2025/2026 - bilen går redan att köpa/leasa i
+Sverige (TESTBEVISREGELN/ARSMODELLSREGELN). **Beslut: SLÄPP 2353** (se
+Köbeslut nedan). Sökt igenom nattens 19 rader efter en namnlös tvilling
+till en kommande-kandidat (PROMPTMISS-kontrollen i 3b) - 2354/2355/2356
+(övriga Bigster-rader) är vanliga testomdömen om samma bil, inga
+osedda kommande-signaler, ingen tvilling hittad.
+
+**Marknadsregeln:** inget nytt fynd - alla nattens märken (Ford, Dacia,
+Peugeot, Range Rover, Ford, Opel, BMW, Mazda, Land Rover, Mercedes,
+Volkswagen, Saab) säljs eller har sålts etablerat i Sverige.
+
+**Splashvakten:** grönt i alla sju appar (`node scripts/splash-vakt.js`,
+exitkod 0, "Dom: splasharna stämmer"). Bara väntade INFO-rader i
+Elbilsladdning (samma som tidigare nätter), inga nya VARNING.
+
+**Laddtips i natt: 0.** Från `ev-fact-candidates` (60 granskade, 4
+kandidater): **2348 Volkswagen ID. Cross R-Line** och **2329 Mercedes GLA
+250+** - båda redan skrivna som laddtips (2026-11-26 resp. 2026-11-24,
+dubbletter). **2351 Ford Puma Gen-E** - inget konkret tal att belägga
+(bara "rekordlåg förbrukning", ingen siffra), skrivs inte. **2324 Hyundai
+Inster** - fel tema (fläktljud/reparationshistoria, inte ett
+laddnings-/batterifaktum), inget tips.
+
+**Köbeslut i natt:** **1 släpp.** 2353 (Dacia Bigster) - se Kommandevakten
+ovan för källa och skäl. `atgarder.json` skrivs över med detta enda
+beslut. Inga dolda rader (GET /dolda gav 0) och därmed inga raderingar
+i natt. `MorgonfixAtgarderTest.verkligaFilenArGiltig` grönt.
+
+**Baslinjen:** ny baslinje skriven (`node scripts/mat-baslinje.js`,
+kontrollräkning 3505/3505 går ihop). Mätt commit 09461b2, hogstaInsiktsId
+2369.
+
+**Bygg- och provresultat:** `mvn -q -DskipTests package` grönt (exit 0).
+`mvn -q test` (hela sviten) grönt: **1285 tester, 0 fel, 0 failures, 0
+skipped.** Ingen kodfix gjordes i natt - fyndet om veteranvakten (2368)
+är inte tillräckligt entydigt belagbart med ett rött/grönt-prov på en
+natt (se FYND ovan), så det lämnas som förslag i stället.
+
+**Över taket - kvar till i morgon:** inget.
+
+Drift: 09461b2 = origin/master, inga reverts i de senaste 15 commits,
+ingen öppen morgonfix-PR att flytta (grenen fanns inte innan den här
+körningen), inga andra öppna PR:ar.
+
 ## 2026-11-26
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
