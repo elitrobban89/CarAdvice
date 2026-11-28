@@ -494,6 +494,45 @@ class WebInsightScraperServiceTest {
     }
 
     @Test
+    void veteranflaggaGallerSyskonraderUrSammaArtikel() throws Exception {
+        // 2026-11-27: CarUp-artikeln om en Saab 900 från 1990 gav tre rader. 2368 bar varken
+        // årtal eller samlarord och blev familjebil/bensin trots att syskonraden fälldes.
+        // Samma bil i en ANNAN artikel ska däremot behålla fälten.
+        var repo = mock(ExpertInsightRepository.class);
+        var service = new WebInsightScraperService(repo, mock(JdbcTemplate.class), mock(JobStatusService.class),
+                mock(com.caradvice.service.UpcomingInsightService.class), vaktStats);
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        JsonNode medArtal = mapper.readTree(
+                "{\"car_make\":\"Saab\",\"car_model\":\"900\",\"category\":\"familjebil\","
+                + "\"fuel_type\":\"bensin\",\"insight\":\"Saab 900 från 1990 har en tvålitersmotor"
+                + " med lättrycksturbo på 141 hästkrafter.\"}");
+        JsonNode syskon = mapper.readTree(
+                "{\"car_make\":\"Saab\",\"car_model\":\"900\",\"category\":\"familjebil\","
+                + "\"fuel_type\":\"bensin\",\"insight\":\"Bilen har bevarats i mycket gott skick"
+                + " med rostfri kaross och intakt tygklädsel.\"}");
+        JsonNode annanArtikel = mapper.readTree(
+                "{\"car_make\":\"Saab\",\"car_model\":\"900\",\"category\":\"familjebil\","
+                + "\"fuel_type\":\"bensin\",\"insight\":\"Saab 900 har en tålig växellåda"
+                + " som sällan kräver reparationer.\"}");
+        java.util.Map<JsonNode, String> artikelFor = new java.util.IdentityHashMap<>();
+        artikelFor.put(medArtal, "https://carup.se/saab-900-auktion");
+        artikelFor.put(syskon, "https://carup.se/saab-900-auktion");
+        artikelFor.put(annanArtikel, "https://carup.se/annan");
+
+        assertThat(service.saveInsights("CarUp", List.of(medArtal, syskon, annanArtikel), null, artikelFor))
+                .isEqualTo(3);
+
+        var sparad = org.mockito.ArgumentCaptor.forClass(com.caradvice.model.ExpertInsight.class);
+        verify(repo, org.mockito.Mockito.times(3)).save(sparad.capture());
+        var rader = sparad.getAllValues();
+        assertThat(rader.get(0).getCategory()).isNull();
+        assertThat(rader.get(1).getCategory()).isNull();
+        assertThat(rader.get(1).getFuelType()).isNull();
+        assertThat(rader.get(2).getCategory()).isEqualTo("familjebil");
+        assertThat(rader.get(2).getFuelType()).isEqualTo("bensin");
+    }
+
+    @Test
     void vanligBegagnadBilBehallerBadeKategoriOchDrivmedel() throws Exception {
         // Veteranvakten fäller på positivt bevis. En rostvarning för en 2008:a är precis det
         // köpråd tjänsten finns för och får inte tappa sin plats i rekommendationspoolen.

@@ -908,6 +908,8 @@ public class WebInsightScraperService {
         // anrop × 12 artiklar per källa); nu blir det ett par anrop per källa i stället.
         int processed = 0;
         List<JsonNode> collected = new ArrayList<>();
+        // Vilken artikel varje rad kom ur — veteranvakten behöver syskonraderna (se saveInsights)
+        Map<JsonNode, String> artikelFor = new IdentityHashMap<>();
         List<String> extracted = new ArrayList<>();
         for (String url : unique) {
             if (processed >= MAX_ARTICLES_PER_SOURCE) break;
@@ -935,6 +937,7 @@ public class WebInsightScraperService {
                     log.info("Web insights [{}]: {} tecken, {} rader från Groq: {}",
                             source.expert(), text.length(), found.size(), url);
                     collected.addAll(found);
+                    found.forEach(n -> artikelFor.put(n, url));
                     extracted.add(url);
                 }
                 Thread.sleep(GROQ_DELAY_MS);
@@ -958,7 +961,7 @@ public class WebInsightScraperService {
                 log.warn("Web insights [{}]: hoppar över {}: {}", source.expert(), url, e.getMessage());
             }
         }
-        int saved = saveInsights(source.expert(), collected, null);
+        int saved = saveInsights(source.expert(), collected, null, artikelFor);
         // Först efter sparandet — annars tappas artiklar tyst om körningen dör i filtreringen
         extracted.forEach(this::markSeen);
         return new SourceResult(saved, processed, warning);
@@ -984,8 +987,22 @@ public class WebInsightScraperService {
 
     /** Sparar insikter. dedupExpert != null → deduplicera varje insikt via source_ref-nyckel (sidkällor). */
     int saveInsights(String expert, List<JsonNode> insights, String dedupExpert) {
+        return saveInsights(expert, insights, dedupExpert, Map.of());
+    }
+
+    /**
+     * Som ovan, med artikeln varje rad kom ur ({@code artikelFor}, nyckel = nodens identitet).
+     * 2026-11-27 gav en CarUp-artikel om en Saab 900 från 1990 tre rader: två bar årtalet eller
+     * auktionen och fälldes, men 2368 ("bevarats i mycket gott skick...") bar inget av det och
+     * blev familjebil/bensin. Är en rad ur samma artikel om samma bil veteranflaggad gäller
+     * flaggan alla dess syskon. Modellregeln kan inte ta det: "Saab 900" täcker även New
+     * Generation 900 som tillverkades till 1998.
+     */
+    int saveInsights(String expert, List<JsonNode> insights, String dedupExpert, Map<JsonNode, String> artikelFor) {
         int saved = 0;
-        for (JsonNode ins : filterKnownDuplicates(filterStrict(expert, filterIrrelevant(insights)))) {
+        List<JsonNode> kvar = filterKnownDuplicates(filterStrict(expert, filterIrrelevant(insights)));
+        Map<String, String> veteranSyskon = veteranSyskon(kvar, artikelFor);
+        for (JsonNode ins : kvar) {
             String insightText = ins.path("insight").asString("");
             if (insightText.isBlank() || isTemplateEcho(ins)) continue;
             if (isPlaceringUtanForstaplats(insightText)) {
@@ -1022,6 +1039,10 @@ public class WebInsightScraperService {
             String carMake  = normaliseraMarke(blankToNull(ins.path("car_make").asString("")));
             String carModel = blankToNull(ins.path("car_model").asString(""));
             String veteran = InsightTaxonomy.veteranInnehall(insightText, carMake, carModel);
+            if (veteran == null) {
+                String syskon = veteranSyskon.get(syskonNyckel(artikelFor.get(ins), carMake, carModel));
+                if (syskon != null) veteran = "syskonrad i samma artikel: " + syskon;
+            }
             String fuelType = veteran == null
                     ? InsightTaxonomy.validFuel(ins.path("fuel_type").asString("")) : null;
             String category = veteran == null ? kategoriFor(ins) : veteranUtanPool(ins, veteran);
@@ -1040,6 +1061,26 @@ public class WebInsightScraperService {
             saved++;
         }
         return saved;
+    }
+
+    /** Artikel + bil → veteranvaktens motivering, för de rader som själva fälls av vakten. */
+    private Map<String, String> veteranSyskon(List<JsonNode> insights, Map<JsonNode, String> artikelFor) {
+        Map<String, String> flaggade = new java.util.HashMap<>();
+        if (artikelFor.isEmpty()) return flaggade;
+        for (JsonNode ins : insights) {
+            String carMake  = normaliseraMarke(blankToNull(ins.path("car_make").asString("")));
+            String carModel = blankToNull(ins.path("car_model").asString(""));
+            String nyckel = syskonNyckel(artikelFor.get(ins), carMake, carModel);
+            if (nyckel == null) continue;
+            String veteran = InsightTaxonomy.veteranInnehall(ins.path("insight").asString(""), carMake, carModel);
+            if (veteran != null) flaggade.putIfAbsent(nyckel, veteran);
+        }
+        return flaggade;
+    }
+
+    private static String syskonNyckel(String artikel, String carMake, String carModel) {
+        if (artikel == null || carMake == null || carModel == null) return null;
+        return artikel + "|" + carMake.toLowerCase(Locale.ROOT) + "|" + carModel.toLowerCase(Locale.ROOT);
     }
 
     // ── Relevansvakt ──────────────────────────────────────────────────────────
