@@ -1,5 +1,98 @@
 # Morgonfix-logg
 
+## 2026-11-28
+
+**DOM: GRONT** - grundkollen, Groq, vPIC, drivmedel, kategorivakten, bagaget
+och kontrollräkningen är alla gröna och stämmer mot baslinjen. Ingen av
+nattens 12 nya rader krävde ett beslut, ingen ny köruta var olåst och inga
+dolda rader nådde 7 dygn - därav GRONT i stället för KOLLA.
+
+**Grundkollen:** lastScrapeFinishedAt 2026-11-28 00:31:43 (inom väntat
+fönster vintertid 00:15-00:50), status OK, databasen OK, deployad commit
+7c51277 matchar origin/master (PR #90, gårdagens morgonfix, i drift - inga
+reverts i de senaste 15 commits). uptimeSeconds 85281 (~23,7 h) - ingen
+omstart under natten.
+
+**Nattens körning:** ev-specs **uppdaterade 8, nya 0** (kollisioner 172,
+under 290-varningen; varav pris 3, räckvidd 6, batteri 1, dc 2, ac 0) - inom
+0-25. cargo-specs gav **1 nytt bilnamn, 0 av 3 bagagevolymer (2
+omprövningar), 0 av 0 generationsår** - lågt men ingen avvikelse. web-
+insights gav **12 nya rader**: Teknikens Värld 4 av 1 lästa, Vi Bilägare 0
+av 7 lästa (enstaka natt), M3 3 av 5, CarUp 5 av 12, övriga 0 (M Sverige och
+Folksam normalt tysta, Auto Motor & Sport 0 av 3 - motorsportkälla, inget
+larmvärde).
+
+**Groq-modellerna:** HTTP 200, status OK, exakt referensen.
+
+**Täckningen:** cargo total 1874→1875 (+1), utanVolym 811→812 (+1),
+medVolym 1063→1063 (still), bagageMissar 856→857 (+1) - enligt 3f: still +
+VUXIT = VÄNTAT. evPowers 562 (still). iceGenerations 291/missar 19 (310,
+oförändrat, nästa fönster 2026-12-20). Kö 68→67 rader / 36→35 bilar (-1/-1,
+matchar exakt gårdagens köbeslut "släpp 2353" som syns i diffen efter
+merge). Kontrollräkning: 1875+671+960=**3506**=variants (3506) - går ihop.
+models 2361→2362, insights 1883→1895 (+12). hogstaInsiktsId 2369→**2381**.
+
+**vPIC-vakten:** 291/0/275, OK 126, INGEN_DATA 165, **AVVIKER 0** - exakt
+referensen.
+
+**Drivmedelsräknaren:** 527/440/87/16, identiskt med referensen, ingen flip
+bland de 16 manuella raderna.
+
+**Kategorivakten:** totalt 0, iBufferten 0 (uptime ~23,7 h) - inga utslag.
+
+**Nattens nya rader (2370-2381, 12 st):** Kia EV3 GT x4 (Teknikens Värld:
+specfakta om GT-versionen), Hyundai Ioniq 3/Renault Twingo/BMW X5 (M3:
+"Årets småbil"/"Årets stadsbil"/"Årets SUV", TopGear.com Awards 2027 -
+genreutmärkelser, tillåtna enligt avsnitt 6), Volvo EX40/EX30, Tesla Model
+Y, Volkswagen ID.4/ID. Polo (CarUp: priser efter en föreslagen elbilsbonus
+på 36 000 kr - kvalitetsnotering, samma faktum per modell ur en artikel,
+samma mönster som Safety Coach-klungan 1253-1257, ingen bugg). Inga
+kategorifel, inga PROMPTMISS, ingen namnlös tvilling till en kö-kandidat.
+**12 av 12 godtagbara.**
+
+**Övriga rader i fönstret (2332-2369, 38 st):** redan bedömda i
+föregående nattrapporter (11-25 t.o.m. 11-27) - inget nytt vid omläsning.
+2368 (hålet i veteranvakten, redan dokumenterat 11-27) kvarstår oförändrat.
+
+**Tre regler: skatter, renoveringsobjekt, avvecklade modeller:** inget nytt
+underlag i natt.
+
+**Värdeminskning:** 0 rader i natt. Letat efter motsatsen (utländsk siffra
+utan marknad) - ingen ny sådan.
+
+**Kommandevakten:** 67 rader / 35 bilar (-1 mot gårdagens baslinje, matchar
+köbeslutet). Ad-check: **0 LARM, 10 GRANSKA, 0 ANNAN_DRIVLINA, 25
+INGA_ANNONSER.** Alla 67 rader redan `beslutad_at`-låsta - noll olåsta nya
+rader, inga nya köbeslut krävdes. Sökt igenom nattens 12 rader efter en
+namnlös tvilling - ingen hittad.
+
+**Marknadsregeln:** inget nytt fynd - alla nattens märken säljs etablerat i
+Sverige.
+
+**Splashvakten:** grönt i alla sju appar ("Dom: splasharna stämmer"), bara
+väntade INFO-rader hos Elbilsladdning.
+
+**Laddtips i natt: 0.** Samma 4 kandidater som i går (`ev-fact-candidates`,
+60 granskade): 2348 (VW ID. Cross) och 2329 (Mercedes GLA 250+) redan
+skrivna 2026-11-26 resp. 2026-11-24 (dubbletter, verifierat mot filen),
+2351 (Puma Gen-E) saknar en konkret siffra, 2324 (Hyundai Inster) fel tema.
+
+**Köbeslut i natt:** inga. `atgarder.json` oförändrad. `/dolda` gav 0 -
+inga raderingskandidater.
+
+**Baslinjen:** ny baslinje skriven (`node scripts/mat-baslinje.js`,
+kontrollräkning 3506/3506 går ihop). Mätt commit 7c51277, hogstaInsiktsId
+2381.
+
+**Bygg- och provresultat:** inget fullt Maven-bygge körs (GRONT-undantaget
+i avsnitt 9) - ingen kodfix gjordes i natt.
+
+**Över taket - kvar till i morgon:** inget.
+
+Drift: 7c51277 = origin/master, inga reverts i de senaste 15 commits, ingen
+öppen morgonfix-PR att flytta (grenen fanns inte innan den här körningen),
+inga andra öppna PR:ar.
+
 ## 2026-11-27
 
 **DOM: KOLLA** - grundkollen, Groq, vPIC, drivmedel, kategorivakten,
