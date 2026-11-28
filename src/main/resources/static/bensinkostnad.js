@@ -1275,8 +1275,8 @@ function bcOnModelChange() {
 var BC_FUEL_CACHE_KEY = 'bc_fuel_cache';
 var BC_FUEL_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 timmar
 
-// Ungefärliga fallback-priser (uppdateras manuellt vid behov)
-var BC_FUEL_FALLBACK = { bensin95: 18.90, diesel: 17.50 };
+// Ungefärliga fallback-priser (uppdateras manuellt vid behov). Circle K:s listpris 2026-11-20.
+var BC_FUEL_FALLBACK = { bensin95: 15.39, diesel: 20.74 };
 
 // Senaste kända stad från GPS
 var bcCurrentCity = null;
