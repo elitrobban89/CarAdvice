@@ -67,4 +67,15 @@ class EvDatabaseScraperServicePrisTest {
         assertThat(DataLoader.agerBatteri("Volkswagen ID.3 Neo 79 kWh")).isFalse();
         assertThat(DataLoader.agerBatteri("Volvo EX60 P6")).isFalse();
     }
+
+    @Test
+    void volvosSingleMotorRaderAgsAvDataLoader() {
+        // 2026-11-28: båda bar Extended Range-siffror (79 kWh/207 kW) från "… Single Motor ER".
+        assertThat(DataLoader.agerBatteri("Volvo EX40 Single Motor")).isTrue();
+        assertThat(DataLoader.agerBatteri("Volvo C40 Single Motor")).isTrue();
+        // Dagens P-rader och Twin Motor har riktiga sidor och synkas som förut.
+        assertThat(DataLoader.agerBatteri("Volvo EX40 P5 Long Range")).isFalse();
+        assertThat(DataLoader.agerBatteri("Volvo EX40 Twin Motor")).isFalse();
+        assertThat(DataLoader.agerBatteri("Volvo C40 Twin Motor")).isFalse();
+    }
 }

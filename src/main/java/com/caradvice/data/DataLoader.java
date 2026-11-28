@@ -427,10 +427,22 @@ public class DataLoader implements CommandLineRunner {
      * <b>Följdfel som det här lagar:</b> {@code /api/ev-spec?car=Volkswagen ID.3 GTI} faller i
      * pass 2 tillbaka på den nakna raden (det finns ingen egen GTI-rad), och nattrutinen läste
      * 11-17 Polo-talen som en "namnkrock i GTI-raden".
+     *
+     * <p><b>Volvo EX40 Single Motor och C40 Single Motor bar Extended Range-siffror</b> (79 kWh /
+     * 576 resp. 583 km / 207 kW DC), alltså exakt {@code Volvo EX40 P5 Long Range}:s tal. Hittat
+     * 2026-11-28. Före MY27.5 hette sidorna "EX40 Single Motor ER" och "EC40 Single Motor ER", och
+     * matchningens steg 2 tog dem till våra kortare rader: alla DB-ord fanns i det skrapade namnet,
+     * och för C40 räckte e-prefixundantaget ("c40" i "ec40"). Sedan ev-database bytte till P5/P8
+     * når ingen sida raderna, så felet låg kvar. Värdena är ev-databases för instegsbilen, netto
+     * som syskonraden P5: EX40 Single Motor (MY25 och MY26–27, sida 2120/3158) 67 kWh / 480 km /
+     * 180 kW, och C40 Recharge Single Motor (MY24, sida 1799, sista årsmodellen under C40-namnet)
+     * 66 kWh / 487 km / 136 kW. Twin Motor-raderna stämmer med sina sidor och rörs inte.
      */
     static final java.util.Map<String, double[]> FELSKRIVNA_AV_SYNKEN = java.util.Map.of(
             "Tesla Model S",   new double[]{95.0, 649},
-            "Volkswagen ID.3", new double[]{77.0, 550, 130.0});
+            "Volkswagen ID.3", new double[]{77.0, 550, 130.0},
+            "Volvo EX40 Single Motor", new double[]{67.0, 480, 180.0},
+            "Volvo C40 Single Motor",  new double[]{66.0, 487, 136.0});
 
     /**
      * Svenska listpriser som ersatter synkens EUR x 11,5.
