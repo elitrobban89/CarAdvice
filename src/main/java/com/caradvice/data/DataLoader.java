@@ -743,17 +743,27 @@ public class DataLoader implements CommandLineRunner {
                     // alltsa ena bilens batteri och den andras rackvidd.
                     //
                     // Extended Range ar ratt bil for det nakna namnet: volymbilen efter 2022
-                    // och direkt foregangare till EX40 Single Motor. Den har 79 kWh netto
-                    // (82 brutto) och DC 150 kW fore faceliftet, sa 530 och 150 star redan
-                    // ratt - bara batteriet ar fel.
+                    // och direkt foregangare till EX40 Single Motor ER.
+                    //
+                    // 2026-11-28: ocksa 530 km och 150 kW var fel. ev-database (sida 1797,
+                    // "Volvo XC40 Recharge Single Motor ER (MY24)") anger 79 kWh netto (82
+                    // brutto), WLTP 572 km och DC 207 kW. 150 kW ar Twin Pure Electrics
+                    // laddning (MY22, sida 1520: 149 kW), och Extended Range fick 200-kW-
+                    // laddningen fran start. Raden bar alltsa fortfarande tva bilars siffror.
                     //
                     // Till skillnad fran EX90 och EX60 nar nattsynken INTE den har raden:
-                    // ev-database listar bilen under sitt nya namn, "Volvo EX40". Beviset star
-                    // i tabellen - EX40-raderna har uppdaterats till 79/576/207 medan den har
-                    // ligger kvar pa seedens 75/530/150. DataLoader ager raden, och darfor
-                    // gar det att ratta batteriet utan att sla mot synken.
-                    if (spec.getBatteryKwh() == null || spec.getBatteryKwh() != 79.0) {
+                    // ev-database listar bilen under sitt nya namn, "Volvo EX40", och den
+                    // gamla sidan star inte i cheatsheeten. DataLoader ager raden, och darfor
+                    // gar det att ratta den utan att sla mot synken.
+                    boolean fel = spec.getBatteryKwh() == null || spec.getBatteryKwh() != 79.0
+                            || spec.getRangeKm() == null || spec.getRangeKm() != 572
+                            || spec.getMaxDcKw() == null || spec.getMaxDcKw() != 207.0;
+                    if (fel) {
+                        log.warn("ev_spec: Volvo XC40 Recharge hade {} kWh/{} km/{} kW DC — sätter 79 kWh/572 km/207 kW",
+                                spec.getBatteryKwh(), spec.getRangeKm(), spec.getMaxDcKw());
                         spec.setBatteryKwh(79.0);
+                        spec.setRangeKm(572);
+                        spec.setMaxDcKw(207.0);
                         toUpdate.add(spec);
                     }
                 }
@@ -990,7 +1000,7 @@ public class DataLoader implements CommandLineRunner {
 
         // XC40 Recharge (renamed to EX40 but AI still uses old name)
         if (!existing.contains("Volvo XC40 Recharge"))
-            extras.add(new EvSpec("Volvo XC40 Recharge",    11.0, 150.0, 75.0, 530, 465_000));
+            extras.add(new EvSpec("Volvo XC40 Recharge",    11.0, 207.0, 79.0, 572, 465_000));
         if (!existing.contains("Volvo XC40 Recharge Twin"))
             extras.add(new EvSpec("Volvo XC40 Recharge Twin", 11.0, 150.0, 75.0, 424, 510_000));
 
